@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "name": "MyPersocon",
+    "authors": [
+      {
+        "name": "HaZ",
+        "role": "Modelo"
+      }
+    ],
+    "license": {
+      "type": "Original — My Persocon"
+    },
+    "tips": "Unidade padrão do My Persocon."
+  }
+}

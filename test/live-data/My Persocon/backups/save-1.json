@@ -1,0 +1,72 @@
+{
+  "affection": 0,
+  "bag": false,
+  "buffs": {},
+  "cartridge": "tetris",
+  "cartridges": [
+    "tetris"
+  ],
+  "coins": 506,
+  "deliveries": [],
+  "disco": {},
+  "dollAwake": true,
+  "dollSkin": null,
+  "figures": [],
+  "foodBagX": null,
+  "gear": {},
+  "inventory": {},
+  "mangas": [],
+  "profile": {
+    "attrs": {
+      "agi": 14,
+      "cha": 9,
+      "con": 8,
+      "dex": 14,
+      "int": 15,
+      "per": 5,
+      "str": 6,
+      "will": 12
+    },
+    "booted": false,
+    "born": 1791852026092,
+    "boxesOpened": 0,
+    "chaseWins": 0,
+    "chases": 0,
+    "coinFrac": 0,
+    "coinsEarned": 6,
+    "consumed": {},
+    "escapes": 0,
+    "gamesPlayed": 0,
+    "missionsDone": 0,
+    "pats": 0,
+    "prefs": {},
+    "purchases": 0,
+    "requestsDone": 0,
+    "slaps": 0,
+    "tasteRev": 2,
+    "tips": [],
+    "toysBought": 0,
+    "wallet": 0
+  },
+  "queue": [],
+  "savedAt": 1791852181482,
+  "stats": {
+    "energy": 100,
+    "health": 100,
+    "hunger": 80,
+    "hygiene": 100,
+    "mood": 70,
+    "thirst": 80
+  },
+  "toys": {
+    "impressora": {
+      "broken": false,
+      "display": 0,
+      "maxUses": 0,
+      "placed": true,
+      "uses": 0,
+      "x": null
+    }
+  },
+  "version": 2
+}

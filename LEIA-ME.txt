@@ -1,0 +1,114 @@
+MY PERSOCON — v1.8
+==================
+
+Um companheiro virtual que vive no seu desktop: anda sobre as janelas e a barra
+de tarefas, escala as bordas, come, dorme, brinca e cria laços com você.
+
+COMO JOGAR
+- Execute "My Persocon.exe". Na primeira vez, siga a caixa que chega na tela.
+- Botão direito no Persocon: menu (comida, bebida, loja, brinquedos, opções).
+- Clique: cafuné. Duplo clique: menu rápido. Arraste para levá-lo a qualquer lugar.
+- Ícone na bandeja do Windows: ocultar, Streamer Mode e sair.
+- O Tutorial do menu inicial e as dicas dos primeiros dias explicam o resto.
+
+MODELOS (APARÊNCIA DO PERSOCON)
+- O jogo vem com duas Persocons: Ninna e Aghata (pastas models\MyPersocon e
+  models\Aghata). Você escolhe uma no início e pode trocar depois em Modelo.
+- Ninna e Aghata © HaZ (haz.midnight@gmail.com): uso pessoal livre; proibido
+  uso comercial, venda, edição/modificação, obras derivadas e redistribuição
+  sem autorização. Detalhes no README.txt dentro de cada pasta.
+- Modelos YSM feitos pela comunidade podem ser baixados em:
+  https://github.com/Elaina69/Yes-Steve-Model-Repo
+- O modelo precisa estar numa PASTA (a pasta exportada, com ysm.json/main.json
+  e a textura) ou COMPACTADO num arquivo .zip dessa pasta.
+- Arquivos .ysm NÃO são lidos pelo jogo.
+- Para importar: botão direito → Modelo → Importar modelo.
+- Respeite a licença de cada modelo; eles pertencem aos seus autores.
+
+ONDE FICA O SAVE
+- %APPDATA%\My Persocon (configurações, save + 3 backups, modelos importados e logs).
+- Opções → Exportar/Importar save para fazer cópias manuais.
+- Para jogar "portátil" (tudo ao lado do .exe), crie um arquivo vazio portable.txt
+  na pasta do jogo.
+
+ENCONTROU UM BUG?
+- Opções → Encontrou um bug? → Gerar relatório de erro. Envie o .zip gerado
+  junto com uma descrição do que aconteceu para haz.midnight@gmail.com.
+
+REQUISITOS
+- Windows 10 ou 11 (64 bits) com WebView2 (já vem no Windows 11).
+
+Licenças de terceiros: THIRD_PARTY_LICENSES.txt
+Histórico de versões: pasta ChangeLogs
+
+Criado por HaZ (jogo, Ninna e Aghata) · contato: haz.midnight@gmail.com
+
+REDES / CONTATO
+- E-mail:    haz.midnight@gmail.com
+- PayPal:    haz.midnight@gmail.com
+- Discord:   haz831
+- Twitch:    https://www.twitch.tv/haziel831
+- YouTube:   https://www.youtube.com/@haz831
+- Instagram: https://www.instagram.com/haziel831/
+- X:         https://x.com/HaZ_Midnight
+- TikTok:    https://www.tiktok.com/@hazmidnight2
+
+Pague quanto quiser — obrigado por jogar!
+
+----------------------------------------------------------------------
+
+MY PERSOCON — v1.1
+
+A virtual companion that lives on your desktop: it walks on windows and the
+taskbar, climbs their edges, eats, sleeps, plays and bonds with you.
+
+HOW TO PLAY
+- Run "My Persocon.exe". The first time, follow the box that arrives on screen.
+- Right click your Persocon: menu (food, drinks, shop, toys, options).
+- Click: pat. Double click: quick menu. Drag it anywhere.
+- Windows tray icon: hide, Streamer Mode and quit.
+- The Tutorial in the title menu and the tips of the first days explain the rest.
+
+MODELS (YOUR PERSOCON'S LOOK)
+- The game ships with two Persocons: Ninna and Aghata (folders models\MyPersocon
+  and models\Aghata). Pick one at the start and switch later in Model.
+- Ninna and Aghata © HaZ (haz.midnight@gmail.com): free for personal use; no
+  commercial use, selling, editing/modifying, derivative works or
+  redistribution without permission. Details in the README.txt in each folder.
+- Community YSM models can be downloaded from:
+  https://github.com/Elaina69/Yes-Steve-Model-Repo
+- The model must be a FOLDER (the exported folder, with ysm.json/main.json and
+  the texture) or that folder COMPRESSED into a .zip file.
+- .ysm files are NOT read by the game.
+- To import: right click → Model → Import model.
+- Respect each model's license; they belong to their authors.
+
+SAVE LOCATION
+- %APPDATA%\My Persocon (settings, save + 3 backups, imported models and logs).
+- Options → Export/Import save for manual copies.
+- To play "portable" (everything next to the .exe), create an empty portable.txt
+  file in the game folder.
+
+FOUND A BUG?
+- Options → Found a bug? → Create bug report. Send the generated .zip with a
+  description of what happened to haz.midnight@gmail.com.
+
+REQUIREMENTS
+- Windows 10 or 11 (64-bit) with WebView2 (built into Windows 11).
+
+Third-party licenses: THIRD_PARTY_LICENSES.txt
+Version history: ChangeLogs folder
+
+Made by HaZ (game, Ninna and Aghata) · contact: haz.midnight@gmail.com
+
+SOCIALS / CONTACT
+- E-mail:    haz.midnight@gmail.com
+- PayPal:    haz.midnight@gmail.com
+- Discord:   haz831
+- Twitch:    https://www.twitch.tv/haziel831
+- YouTube:   https://www.youtube.com/@haz831
+- Instagram: https://www.instagram.com/haziel831/
+- X:         https://x.com/HaZ_Midnight
+- TikTok:    https://www.tiktok.com/@hazmidnight2
+
+Pay what you want — thanks for playing!

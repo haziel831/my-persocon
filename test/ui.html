@@ -1,0 +1,857 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="/src/renderer/style.css" />
+    <link rel="stylesheet" href="/src/renderer/fun.css" />
+    <link rel="stylesheet" href="/src/renderer/machines.css" />
+    <link rel="stylesheet" href="/src/renderer/intro.css" />
+    <script type="importmap">{ "imports": { "three": "/src/renderer/vendor/three.module.js" } }</script>
+    <style>body { background: linear-gradient(#4a6d94, #22344d) !important; }</style>
+  </head>
+  <body>
+    <canvas id="debug"></canvas>
+    <canvas id="pet"></canvas>
+    <script type="module">
+      // Browser harness: fakes the Tauri host so the renderer UI can be exercised without the desktop.
+      const EMOTICONS = ['!', 'lv', 'ani_heh', 'omg', 'ani_slur', 'dotdotdot', 'hmm', 'go', 'ok', 'ani_yawn', 'help', 'wah'];
+      const listeners = {};
+      const toDataUrl = async (url) => {
+        const blob = await (await fetch(url)).blob();
+        return new Promise((r) => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+      };
+      const ownModel = { my: 'MyPersocon', aghata: 'Aghata' }[new URLSearchParams(location.search).get('model')];
+      const loadKurumi = async () => ownModel ? {
+        geometry: await (await fetch(`/models/${ownModel}/main.json`)).json(),
+        animations: [await (await fetch(`/models/${ownModel}/main.animation.json`)).json()],
+        texture: await toDataUrl(`/models/${ownModel}/texture.png`),
+      } : ({
+        geometry: await (await fetch('/DaL_Kurumi/main.json')).json(),
+        animations: [await (await fetch('/DaL_Kurumi/main.animation.json')).json(), await (await fetch('/DaL_Kurumi/extra.animation.json')).json()],
+        texture: await toDataUrl('/DaL_Kurumi/texture.png'),
+      });
+      const config = { name: 'Kurumi', modelDir: 'DaL_Kurumi', petHeight: 110, walkSpeed: 0.5, runSpeed: 1.4, climbSpeed: 0.5, gravity: 16, jumpReach: 1.6,
+        climbChance: 0.6, emotes: ['extra0', 'extra1', 'extra2'], emoticons: true, emoticonRate: 1, debug: false, spawnX: 400 };
+      { const q = new URLSearchParams(location.search); if (q.get('lang')) config.lang = q.get('lang'); if (q.get('pname')) config.name = q.get('pname'); if (q.get('spawn')) config.spawnX = Number(q.get('spawn')); }
+      window.__calls = [];
+      window.__PET_TEST__ = true;
+      // ?do=soak: virtual clock, so hours of the real loop (pet.js step) run in minutes.
+      const SOAK = new URLSearchParams(location.search).get('do') === 'soak';
+      if (SOAK) {
+        let vt = performance.now();
+        const p0 = vt, d0 = Date.now();
+        performance.now = () => vt;
+        Date.now = () => d0 + (vt - p0);
+        let q = [];
+        window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
+        window.__tick = (ms) => { vt += ms; const c = q; q = []; for (const f of c) f(vt); };
+      }
+      window.__TAURI__ = {
+        core: {
+          invoke: async (cmd, args) => {
+            window.__calls.push([cmd, args]);
+            switch (cmd) {
+              case 'get_config': return { ...config };
+              case 'load_model': return loadKurumi();
+              case 'load_emoticons': return Promise.all(EMOTICONS.map(async (n) => ({ name: n, data: await toDataUrl(`/emoticons/${encodeURIComponent(n)}.gif`) })));
+              case 'pick_model_source': return 'J:/fake/DaL_Kurumi';
+              case 'inspect_model': {
+                const model = await loadKurumi();
+                return { model, info: {
+                  name: 'DaL_Kurumi', source: 'J:/fake/DaL_Kurumi', kind: 'folder', geometryFile: 'main.json', textureUnits: [128, 128], bones: 61, cubes: 212,
+                  animationFiles: model.animations.map((a, i) => ({ file: i ? 'extra.animation.json' : 'main.animation.json', names: Object.keys(a.animations) })),
+                  animationCount: model.animations.reduce((n, a) => n + Object.keys(a.animations).length, 0), authors: ['DaL'],
+                  textures: [{ name: 'texture.png', width: 512, height: 512, data: model.texture }, { name: 'alt.png', width: 512, height: 512, data: model.texture }],
+                } };
+              }
+              case 'save_config': return { ...config, ...args.patch };
+              case 'load_save':
+                if (location.search.includes('nosave')) return null;
+                if (SOAK && new URLSearchParams(location.search).get('save')) return (await fetch('/test/' + new URLSearchParams(location.search).get('save'))).json();
+                return location.search.includes('gameover')
+                  ? { stats: { health: 0, hunger: 0, mood: 40, energy: 50 } }
+                  : { stats: { health: 86, hunger: 62, mood: 71, energy: 45 } };
+              default: return null;
+            }
+          },
+        },
+        event: { listen: async (name, cb) => { listeners[name] = cb; return () => {}; } },
+      };
+      window.__world = (cursor) => listeners.world?.({ payload: {
+        width: innerWidth * devicePixelRatio, height: innerHeight * devicePixelRatio, fullscreen: false,
+        cursor: cursor ? [cursor[0] * devicePixelRatio, cursor[1] * devicePixelRatio] : null,
+        windows: [{ id: '1', x: 200 * devicePixelRatio, y: 380 * devicePixelRatio, w: 500 * devicePixelRatio, h: 300 * devicePixelRatio, maximized: false }],
+      } });
+      setInterval(() => window.__world(window.__cursor), 40);
+      const errs = [];
+      const showErr = (m) => { errs.push(String(m).slice(0, 200)); let d = document.getElementById('__err'); if (!d) { d = document.createElement('pre'); d.id = '__err'; d.style.cssText = 'position:fixed;left:4px;bottom:4px;color:#f55;background:#000c;font:11px monospace;z-index:99999;max-width:90vw;white-space:pre-wrap'; document.body.append(d); } d.textContent = errs.join('\n'); };
+      window.addEventListener('error', (e) => showErr(e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno));
+      window.addEventListener('unhandledrejection', (e) => showErr('rej: ' + (e.reason?.stack || e.reason)));
+      import('/src/renderer/app.js').catch((e) => showErr('import: ' + e.stack));
+
+      // Scenario runner: ui.html?do=menu|modelo|opcoes|size|import|grab
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const byText = (sel, text) => [...document.querySelectorAll(sel)].find((b) => b.textContent.includes(text));
+      const petPoint = () => {
+        const r = document.getElementById('pet').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height * 0.62 };
+      };
+      const fire = (type, p, extra = {}) => window.dispatchEvent(new PointerEvent(type, { clientX: p.x, clientY: p.y, bubbles: true, pointerId: 1, ...extra }));
+      const step = new URLSearchParams(location.search).get('do');
+      await wait(2500);
+      const p = petPoint();
+      const app = () => window.__app;
+      // Scenarios expect purchases ready at once; ?do=deliver keeps them on the floor.
+      if (app() && step !== 'deliver') {
+        const g = app().game;
+        const buy = g.buy.bind(g);
+        g.buy = (id, n) => { const r = buy(id, n); g.deliver(id); return r; };
+      }
+      const qsStraw = () => location.search.includes('straw');
+      if (step === 'eat' || step === 'drink') {
+        const item = step === 'eat' ? 'onigiri' : 'matcha_latte';
+        const pet = app().pet;
+        pet.land(pet.world.surfaces.find((s) => s.id !== 'floor') || pet.world.surfaces[0]);
+        app().game.buy(item);
+        pet.startGround('idle');
+        app().game.use(item);
+        if (pet.eating && qsStraw()) pet.eating.straw = true;
+        const until = Number(new URLSearchParams(location.search).get('t') || 2.05);
+        for (let i = 0; i < until * 60; i++) pet.update(1 / 60);
+        await wait(300);
+        const e = pet.eating;
+        const d = document.createElement('pre');
+        d.style.cssText = 'position:absolute;right:4px;top:4px;color:#fff;font:11px monospace';
+        d.textContent = JSON.stringify(e ? { t: e.t, raise: e.raise, straw: e.straw, done: e.done, cls: document.querySelector('.held-food').className } : 'no eating');
+        document.body.append(d);
+      }
+      const qs = new URLSearchParams(location.search);
+      if (qs.get('theme')) app().setOption('theme', qs.get('theme'));
+      // ?do=intro&title=1&nosave=1&stage=title|box|letter|form|burst|off|boot|done
+      if (step === 'intro') {
+        const stop = qs.get('stage') || 'done';
+        const A = app();
+        const report = (extra) => {
+          const d = document.createElement('pre');
+          d.id = '__report';
+          d.style.cssText = 'position:fixed;right:4px;top:4px;color:#fff;background:#000a;font:11px monospace;z-index:99999';
+          d.textContent = JSON.stringify({ stage: A.intro?.stage ?? 'none', action: A.pet.action, mode: A.pet.mode, offstage: A.pet.offstage, powerOff: A.pet.powerOff,
+            owner: A.game.profile.owner, sex: A.game.profile.sex, booted: A.game.profile.booted, name: A.config.name, x: Math.round(A.pet.x), y: Math.round(A.pet.y), css: (({ display, visibility, opacity, transform }) => ({ display, visibility, opacity, transform }))(document.getElementById('pet').style),
+            tilt: A.pet.tilt, zoom: A.pet.zoom, squash: A.pet.squash, trail: window.__trail?.filter((t, i, a) => t !== a[i - 1]).join(' '), ...extra });
+          document.body.append(d);
+        };
+        const typeInto = (inp, v) => { inp.value = v; inp.dispatchEvent(new Event('input')); };
+        await wait(3000);
+        if (stop !== 'title') {
+          document.querySelector('.title-item[data-id="new"]')?.click();
+          await wait(1200);
+          if (stop !== 'box') {
+            document.querySelector('.intro-box')?.click();
+            await wait(500);
+            typeInto(document.querySelector('.intro-sig-input'), 'Haziel');
+            if (stop !== 'letter') {
+              document.querySelector('.intro-letter .intro-btn').click();
+              await wait(1000);
+              document.querySelector('.intro-box')?.click();
+              await wait(500);
+              typeInto(document.querySelector('.intro-form .intro-input'), 'Pixel');
+              [...document.querySelectorAll('.intro-sex-btn')][1].click();
+              if (stop !== 'form') {
+                document.querySelector('.intro-form .intro-btn').click();
+                const trail = (window.__trail = []);
+                const upd = A.intro.update.bind(A.intro);
+                A.intro.update = (dt) => {
+                  if (trail.length < 120 && A.intro?.stage === 'falling') trail.push(`${A.pet.action}/${A.pet.mode}@${Math.round(A.pet.x)},${Math.round(A.pet.y)} v${Math.round(A.pet.vx)},${Math.round(A.pet.vy)} dt${dt.toFixed(3)}`);
+                  upd(dt);
+                };
+                await wait(stop === 'burst' ? 1350 : 3800);
+                if (stop !== 'burst' && stop !== 'off') {
+                  A.intro?.onPetClick();
+                  await wait(stop === 'boot' ? 2200 : 9500);
+                }
+              }
+            }
+          }
+        }
+        report();
+      }
+      // ?do=crow&st=born|idle|head|train|profile|menu|ron|fetch&t=ms
+      if (step === 'crow') {
+        const A = app();
+        const g = A.game;
+        const c = A.crow;
+        const st = qs.get('st') || 'born';
+        g.gear.corvo = true;
+        if (st !== 'born') g.profile.crow = { focus: 'pegar', xp: { pegar: 40 }, learned: st === 'fetch' ? ['procurar', 'pegar'] : ['procurar'], trains: 5, gifts: 2, searchAt: Date.now() + 1e9, born: true };
+        if (qs.get('nocrow')) g.gear.corvo = false;
+        if (qs.get('all')) g.profile.crow.learned = ['procurar', 'pegar', 'vigiar', 'brilhos', 'sorte', 'truques', 'imitar'];
+        let tones = 0;
+        const tone0 = A.sound.tone.bind(A.sound);
+        A.sound.tone = (...a) => { tones++; return tone0(...a); };
+        window.__tones = () => tones;
+        await wait(1800);
+        if (st === 'head') c.toHead();
+        if (st === 'train') c.startDuo('treinar', true);
+        if (st === 'profile') c.profile(300, 200);
+        if (st === 'menu') A.toys.contextMenu('corvo', 300, 200);
+        if (st === 'ron') for (let i = 0; i < 13; i++) c.poke();
+        if (st === 'trick') { g.profile.crow.learned.push('truques'); c.tricks(true); }
+        if (st === 'shiny') { g.profile.crow.learned.push('brilhos'); c.idle(0.1); g.profile.crow.shinyAt = 0; }
+        if (st === 'mimic') { g.profile.crow.learned.push('imitar'); c.heard = ((h) => (t, l) => { Math.random = () => 0.1; h.call(c, t, l); })(c.heard); A.speech.say('Hora do lanche, vamos comer!'); }
+        if (st === 'doll') {
+          g.gear.cristal = true; g.dollAwake = true; g.profile.dollMet = true;
+          if (!g.toys.pelucia) { g.queue = g.queue.filter((j) => j.id !== 'pelucia'); g.deliveries.push({ id: 'pelucia', n: 1, x: null, display: null }); g.deliver('pelucia'); }
+          g.placeToy('pelucia', c.x + c.P * 1.5, 0);
+          await wait(800);
+          c.idle(0.1);
+          c.withDoll(qs.get('k') || 'perch');
+        }
+        if (st === 'furn') {
+          ['cama', 'estante'].forEach((id, i) => { if (!g.toys[id]) { g.queue = g.queue.filter((j) => j.id !== id); g.deliveries.push({ id, n: 1, x: null, display: null }); g.deliver(id); } g.placeToy(id, innerWidth * (0.55 + i * 0.2), 0); });
+          await wait(500);
+          c.idle(0.1);
+          c.act.then = () => c.toFurniture();
+        }
+        if (st === 'red') Object.assign(c.canvas.style, { animation: 'crowRon 1s -0.4s paused' });
+        if (st === 'fetch' || st === 'print') g.queue.push({ id: 'onigiri', n: 1, t: 0, dur: 0.5 });
+        const tl = [];
+        for (let left = Number(qs.get('t') || 2500); left > 0; left -= 500) {
+          await wait(Math.min(500, left));
+          if (st === 'print') tl.push(`${A.pet.action}${A.pet.goal?.run ? '!' : ''}@${Math.round(A.pet.x)}/${A.pet.surfaceId}${A.pet.mini ? 'M' : ''}${g.deliveries.length}`);
+        }
+        console.log('TL', tl.join(' '));
+        const d = document.createElement('pre');
+        d.id = '__report';
+        d.style.cssText = 'position:fixed;right:4px;top:4px;color:#fff;background:#000a;font:11px monospace;z-index:99999';
+        d.textContent = JSON.stringify({ x: Math.round(c.x), y: Math.round(c.y), act: c.act?.kind, perch: c.perch, duo: c.duo?.phase, carry: c.carry.length, inv: g.inventory.onigiri || 0, deliveries: g.deliveries.length, pet: A.pet.action, tl: tl.join(' '), tones, trick: c.trick && `${c.trick.list}:${c.trick.i}`, doll: A.doll?.x != null ? [Math.round(A.doll.x), A.doll.brain.task?.pose, A.doll.alive] : null, bubble: c.bubbleEl?.textContent ?? null, mim: [!!A.speech.crowHooked, c.mimicking, Math.round(c.mimicAt || 0), String(A.speech.say).slice(0, 30), c.learned('imitar'), c.hidden, A.speech.text], snd: [A.sound.enabled, A.sound.ctx?.state, A.sound.crowVol, A.config.sound, A.config.volume], ron: [A.sound.crowRon, A.sound.ron?.size, A.sound.ronLast], data: g.profile.crow });
+        document.body.append(d);
+      }
+      if (step === 'gameboy' || step === 'pat' || step === 'request') {
+        const pet = app().pet;
+        pet.land(pet.world.surfaces[0]);
+        if (step === 'gameboy') {
+          app().game.coins = 999;
+          app().game.buy('gameboy');
+          app().game.buy('cart_pong');
+          app().toys.inspecting?.el.remove();
+          app().toys.inspecting = null;
+          pet.endToy(true);
+          pet.startGround('idle');
+          app().placeToy('gameboy');
+          app().toys.play('gameboy', pet);
+        }
+        if (step === 'pat') { pet.startGround('idle'); pet.pat(); }
+        if (step === 'request') { pet.request = { kind: 'food', id: 'takoyaki', name: 'Takoyaki', img: app().game && (await import('/src/renderer/game.js')).itemById('takoyaki').img, t: 40 }; window.__app.pet.emit('request', pet.request); }
+        for (let i = 0; i < 90; i++) pet.update(1 / 60);
+        await wait(600);
+      }
+      const run = (n) => { for (let i = 0; i < n; i++) app().pet.update(1 / 60); };
+      if (step === 'gbflow' || step === 'gbbag') {
+        const pet = app().pet;
+        pet.land(pet.world.surfaces[0]);
+        pet.startGround('idle');
+        app().game.coins = 999;
+        const openMenu = async () => { const q = petPoint(); window.dispatchEvent(new MouseEvent('contextmenu', { clientX: q.x, clientY: q.y, bubbles: true, cancelable: true })); await wait(200); };
+        const buyRow = (name) => [...document.querySelectorAll('.item')].find((i) => i.textContent.includes(name))?.querySelector('.buy')?.click();
+        await openMenu();
+        byText('.cat', 'Shop').click(); await wait(80);
+        byText('.seg button', 'Fun').click(); await wait(80);
+        buyRow('Game Boy'); await wait(80);
+        for (let i = 0; i < 40; i++) { run(15); await wait(10); }
+        byText('.cat', 'Invent').click(); await wait(80);
+        buyRow('Game Boy'); await wait(80);
+        window.__log = { shopAfter: null };
+        byText('.cat', 'Shop').click(); await wait(80);
+        byText('.seg button', 'Fun').click(); await wait(80);
+        window.__log.shopAfter = [...document.querySelectorAll('.item-name')].map((e) => e.textContent);
+        if (step === 'gbbag') { buyRow('Pong'); await wait(80); }
+        app().view.play && document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        for (let i = 0; i < 60; i++) { run(15); await wait(10); }
+        window.__log.action = pet.action + '/' + pet.toyPlay?.id;
+        window.__log.bag = [app().game.bag, app().game.coins, app().game.cartridges.join(','), !!document.querySelector('.toy[data-id="bag"]')];
+        if (step === 'gbbag') { document.querySelector('.toy[data-id="bag"]')?.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, pointerId: 5 })); document.querySelector('.toy[data-id="bag"]')?.dispatchEvent(new PointerEvent('pointerup', { button: 0, bubbles: true, pointerId: 5 })); }
+        await wait(400);
+        const d = document.createElement('pre');
+        d.style.cssText = 'position:absolute;right:4px;top:4px;color:#fff;font:11px monospace;max-width:420px;white-space:pre-wrap';
+        d.textContent = JSON.stringify(window.__log, null, 1);
+        document.body.append(d);
+      }
+      if (step === 'grabtop') {
+        const q = petPoint();
+        fire('pointerdown', q, { button: 0 });
+        for (let i = 1; i <= 20; i++) { await wait(16); fire('pointermove', { x: q.x, y: q.y - i * 40 }); }
+        fire('pointermove', { x: q.x, y: 30 });
+        await wait(500);
+      }
+      if (step === 'qte') {
+        app().pet.play();
+        window.__cursor = [app().pet.x, app().pet.y - 50];
+        await wait(400);
+        for (let i = 0; i < 4; i++) { window.dispatchEvent(new KeyboardEvent('keydown', { key: i % 2 ? 'ArrowRight' : 'ArrowLeft' })); await wait(60); }
+      }
+      if (step === 'ghost') {
+        window.dispatchEvent(new MouseEvent('contextmenu', { clientX: p.x, clientY: p.y, bubbles: true, cancelable: true }));
+        await wait(300);
+        const m = document.querySelector('.menu');
+        const r = m.getBoundingClientRect();
+        const down = { x: r.left + 150, y: r.top + 200 };
+        m.dispatchEvent(new PointerEvent('pointerdown', { clientX: down.x, clientY: down.y, button: 2, bubbles: true, pointerId: 2 }));
+        for (let i = 1; i <= 10; i++) { await wait(16); m.dispatchEvent(new PointerEvent('pointermove', { clientX: down.x - i * 25, clientY: down.y - i * 8, bubbles: true, pointerId: 2 })); }
+        m.dispatchEvent(new PointerEvent('pointerup', { clientX: down.x - 250, clientY: down.y - 80, bubbles: true, pointerId: 2 }));
+        await wait(300);
+      }
+      if (step === 'grabL' || step === 'grabR') {
+        const q = { x: p.x + (step === 'grabL' ? -14 : 14), y: p.y - 10 };
+        fire('pointerdown', q, { button: 0 });
+        for (let i = 1; i <= 25; i++) { await wait(16); fire('pointermove', { x: q.x + i * 4, y: q.y + 150 + i * 4 }); }
+        await wait(600);
+      }
+      if (step && !['grab', 'grabL', 'grabR', 'gameover', 'eat', 'drink', 'qte', 'ghost', 'gameboy', 'pat', 'request', 'gbflow', 'gbbag', 'grabtop', 'ball', 'hook', 'leave', 'leaveend', 'nomenu', 'versus', 'emotes', 'fx', 'furn', 'tv', 'approach', 'objects', 'pack', 'fun', 'upgrades', 'hd'].includes(step)) {
+        window.dispatchEvent(new MouseEvent('contextmenu', { clientX: p.x, clientY: p.y, bubbles: true, cancelable: true }));
+        await wait(300);
+      }
+      if (step === 'perfil') byText('.cat', 'Perfil')?.click();
+      if (step === 'temas') byText('.cat', 'Temas')?.click();
+      if (step === 'brincar') byText('.cat', 'Brincar')?.click();
+      if (step === 'shopfun' || step === 'shopmed') {
+        byText('.cat', 'Shop')?.click();
+        await wait(100);
+        byText('.seg button', step === 'shopfun' ? 'Fun' : 'Medicina')?.click();
+      }
+      if (step === 'modelo' || step === 'size' || step === 'import') byText('.cat', 'Modelo')?.click();
+      if (step === 'opcoes' || step === 'opcoes2') byText('.cat', 'Opções')?.click();
+      // ?do=konami: Konami code in Options (debug tab + logs), folding a group, then English.
+      if (step === 'konami') {
+        byText('.cat', 'Opções')?.click();
+        await wait(100);
+        const res = { before: !!document.querySelector('.group.debug') };
+        for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+          await wait(20);
+        }
+        await wait(200);
+        res.debug = app().config.debug;
+        res.after = !!document.querySelector('.group.debug');
+        res.toast = !!document.querySelector('.konami-toast');
+        byText('.group', 'Som')?.click();
+        await wait(50);
+        res.folds = document.querySelectorAll('.group.fold').length;
+        res.closed = [...document.querySelectorAll('.group.fold.closed')].map((g) => g.textContent);
+        res.saved = app().config.foldedGroups;
+        setTimeout(() => { throw new Error('konami-test'); });
+        Promise.reject(new Error('konami-reject'));
+        await wait(3500);
+        res.logs = window.__calls.filter(([c]) => c === 'log_lines').flatMap(([, a]) => a.lines);
+        app().setOption('lang', 'en');
+        await wait(100);
+        res.en = [...document.querySelectorAll('.panel .group')].map((g) => g.textContent).join(' | ');
+        const out = document.createElement('pre');
+        out.id = '__res';
+        out.dataset.noI18n = '';
+        out.textContent = JSON.stringify(res, null, 1);
+        document.body.append(out);
+      }
+      if (step === 'opcoes2') { await wait(100); document.querySelector('.panel').scrollTop = 999; }
+      if (step === 'shop' || step === 'inventario' || step === 'feed') {
+        byText('.cat', 'Shop')?.click();
+        await wait(100);
+        if (step !== 'shop') {
+          for (const name of ['Maçã', 'Pizza', 'Pizza', 'Sopa']) { await wait(30); [...document.querySelectorAll('.item')].find((i) => i.textContent.includes(name))?.querySelector('.buy').click(); }
+          await wait(100);
+          byText('.cat', step === 'feed' ? 'Ações' : 'Inventário')?.click();
+          if (step === 'feed') { await wait(100); byText('.tile', 'Alimentar')?.click(); }
+        }
+      }
+      if (step === 'size') { await wait(100); byText('.tile', 'Ajustar tamanho')?.click(); }
+      if (step === 'import') {
+        await wait(100);
+        byText('.tile', 'Importar')?.click();
+        await wait(300);
+        byText('.tile', 'Pasta do modelo')?.click();
+      }
+      if (step === 'grab') {
+        fire('pointerdown', p, { button: 0 });
+        for (let i = 1; i <= 20; i++) { await wait(16); fire('pointermove', { x: p.x + i * 14, y: p.y + i * 12 }); }
+        for (let i = 1; i <= 5; i++) { await wait(16); fire('pointermove', { x: p.x + 280 + i * 30, y: p.y + 240 }); }
+      }
+      if (step === 'gameboy') { for (let i = 0; i < 40; i++) { run(15); await wait(10); } }
+      if (step === 'ball') {
+        const pet = app().pet;
+        pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+        app().game.buy('bola'); app().placeToy?.('bola'); app().toys.play('bola', pet);
+        for (let i = 0; i < 30; i++) { run(6); await wait(16); }
+      }
+      if (step === 'hook') {
+        const pet = app().pet;
+        pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+        app().game.buy('gancho'); pet.gear = app().game.gear;
+        pet.fireHook(pet.x + 300, pet.y - 200, 'self');
+        run(8); await wait(200);
+      }
+      if (step === 'leave') {
+        const pet = app().pet;
+        pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+        pet.love(-500);
+        for (let i = 0; i < 12; i++) { run(15); await wait(10); }
+      }
+      if (step === 'versus' || step === 'emotes' || step === 'fx') {
+        const pet = app().pet;
+        pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+        if (step === 'versus') {
+          app().game.coins = 999; app().game.buy('gameboy'); app().game.buy('cart_mariokart');
+          app().toys.inspecting?.el.remove(); app().toys.inspecting = null;
+          app().placeToy('gameboy'); app().toys.play('gameboy', pet);
+          for (let i = 0; i < 10; i++) { run(15); await wait(10); }
+          app().game.cartridge = 'mariokart';
+          if (pet.toyPlay) pet.toyPlay.attention = true;
+          app().toys.startVersus?.();
+          for (let i = 0; i < 30; i++) { run(15); await wait(10); }
+        }
+        if (step === 'emotes') { app().setOption('emoteTheme', qs.get('et') || 'synthwave'); pet.x -= 300; run(4); await wait(200); app().emoticons?.show?.(qs.get('cat') || 'love', true); if (qs.get('say')) app().speech?.say?.(qs.get('say')); run(1.5); app().emoticons.visible = 999; if (app().speech) app().speech.life = 999; }
+        if (step === 'fx') { pet.love(20); pet.stats.mood -= 30; let n = 0; let err = '';
+          try { app().fx.update(0.3, { x: pet.x, y: pet.y - 100 }, false); n = document.querySelectorAll('.fx-heart').length; } catch (e) { err = e.stack; }
+          showErr?.(`fx direct: ${n} ${err} mood=${pet.stats.mood} fxmood=${app().fx.mood} aff=${pet.affection}`); for (let i = 0; i < 6; i++) { run(5); await wait(30); n = Math.max(n, document.querySelectorAll('.fx-heart').length); }
+          const d = document.createElement('div'); d.style.cssText = 'position:fixed;z-index:99999;top:10px;left:10px;color:#fff;font:20px monospace'; d.textContent = `hearts: ${n}`; document.body.append(d); }
+      }
+      if (step === 'furn' || step === 'tv') {
+        const a = app(); const pet = a.pet; const g = a.game;
+        g.coins = 99999; pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+        a.toys.inspecting?.el.remove(); a.toys.inspecting = null;
+        const W = innerWidth;
+        const put = (id, fx) => { g.buy(id); g.placeToy(id, W * fx, 0); };
+        if (step === 'furn') {
+          ['cama', 'estante', 'alvo', 'almofada', 'holofote', 'pelucia', 'bola_basquete'].forEach((id, i) => put(id, 0.1 + i * 0.12));
+          g.buy('manga_shonen_1'); g.buy('manga_romance_2');
+          a.setOption('statusDock', 'tr');
+        } else if (step === 'tv') {
+          put('videogame', 0.5); g.buy(qs.get('cart') || 'cart_pong');
+          if (!g.toys.videogame) { g.queue = g.queue.filter((j) => j.id !== 'videogame'); g.deliveries.push({ id: 'videogame', n: 1, x: null, display: null }); g.deliver('videogame'); g.placeToy('videogame', W * 0.5, 0); }
+          if (qs.get('up')) g.toys.videogame.up = 1;
+          pet.x = W * 0.5; a.toys.play('videogame', pet);
+        }
+        const frame = (dt) => { pet.update(dt); a.toys.update(dt, false); a.ball.update(dt, false); a.doll.update(dt, false); };
+        for (let i = 0; i < 160; i++) { frame(1 / 30); if (i % 10 === 0) await wait(10); }
+        const d = document.createElement('pre'); d.style.cssText = 'position:fixed;z-index:99999;top:4px;left:4px;color:#fff;font:11px monospace';
+        d.textContent = JSON.stringify({ act: pet.action, tp: pet.toyPlay?.id, cons: pet.toyPlay?.console, ins: pet.toyPlay?.inserted, game: a.toys.screen.game, zoom: pet.zoom, toys: document.querySelectorAll('.toy').length, tv: a.toys.tvRect() });
+        document.body.append(d);
+        await wait(300);
+      }
+      if (step === 'hd') {
+        const a = app(); const sc = a.toys.screen;
+        const games = (qs.get('games') || 'marioworld,tetris,pacman,sonic,galaga,flappy').split(',');
+        const row = document.createElement('div'); row.style.cssText = 'position:fixed;z-index:9999;left:10px;top:40px;display:flex;flex-wrap:wrap;gap:10px';
+        document.body.append(row);
+        for (const [i, id] of games.entries()) {
+          sc.setHd(i % 2 === 0 || !!qs.get('all')); sc.start(id, { skill: 0.8 });
+          for (let k = 0; k < 120; k++) sc.update(1 / 30);
+          const im = new Image(); im.src = (sc.hd ? sc.hdCanvas : sc.canvas).toDataURL(); im.style.cssText = 'width:320px;height:288px;image-rendering:pixelated';
+          row.append(im);
+        }
+        sc.stop();
+        await wait(300);
+      }
+      if (step === 'upgrades') {
+        const a = app(); const pet = a.pet; const g = a.game; const W = innerWidth;
+        g.coins = 99999; pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+        a.toys.inspecting?.el.remove(); a.toys.inspecting = null;
+        const ids = (qs.get('ids') || 'cama,almofada,estante,videogame,gacha,slot,aquario,teclado').split(',');
+        ids.forEach((id, i) => {
+          g.buy(id);
+          if (!g.toys[id]) { g.queue = g.queue.filter((j) => j.id !== id); g.deliveries.push({ id, n: 1, x: null, display: null }); g.deliver(id); }
+          g.placeToy(id, W * (0.07 + i * 0.115), 0);
+          if (qs.get('up')) g.toys[id].up = 1;
+        });
+        if (qs.get('up') && g.toys.impressora) g.toys.impressora.up = 1;
+        g.mangas = ['manga_shonen_1', 'manga_romance_2', 'manga_terror_1', 'manga_comedia_3'].filter(Boolean);
+        g.figures = ['fig_slime', 'fig_neonmecha', 'fig_dj', 'fig_holoidol', 'fig_ciberdragao'];
+        pet.x = W * 0.92;
+        const frame = (dt) => { pet.update(dt); a.toys.update(dt, false); a.doll.update(dt, false); };
+        for (let i = 0; i < 60; i++) { frame(1 / 30); if (i % 10 === 0) await wait(10); }
+        if (qs.get('perch')) {
+          g.bag = true; g.cartridges = ['tetris'];
+          g.perch = { bag: { on: ids[0], dx: 0 }, food: { on: ids[1], dx: 0 } };
+          for (let i = 0; i < 30; i++) { frame(1 / 30); if (i % 5 === 0) await wait(16); }
+          const { ITEMS } = await import('../src/renderer/game.js');
+          const meds = ITEMS.filter((i) => i.cat === 'medicina').slice(0, 3);
+          meds.forEach((m) => { g.inventory[m.id] = 2; g.use(m.id); });
+          const q0 = pet.meals.length;
+          for (let i = 0; i < 60; i++) { frame(1 / 30); if (i % 5 === 0) await wait(16); }
+          const r = document.createElement('pre'); r.id = '__report'; r.style.display = 'none';
+          r.textContent = `meds ${meds.length} queued ${q0} after2s ${pet.meals.length} dosing ${pet.dosing?.toFixed(2)} bagTop ${Math.round(a.toys.topAt(ids[0], g.bagX))} box ${Math.round(g.toys[ids[0]].y ?? a.toys.floorY()) - Math.round(a.toys.size(ids[0]) * a.toys.ratio(ids[0]))} vend ${a.toys.casino.vend.choose('bebidas', 500).item?.id} spare ${a.toys.casino.spare()} bagsUp ${a.toys.bagsUp()} keys ${Object.keys(g.toys).join('|')} bagsrc ${a.toys.els.get('bag')?.querySelector('img')?.src.length} eq ${a.toys.els.get('bag')?.querySelector('img')?.src === (await import('../src/renderer/pixel.js')).icon('bag_up')} imgs ${a.toys.els.get('bag')?.querySelectorAll('img').length} nat ${a.toys.els.get('bag')?.querySelector('img')?.naturalWidth}x${a.toys.els.get('bag')?.querySelector('img')?.naturalHeight} n ${document.querySelectorAll('.toy').length} vis ${[...document.querySelectorAll('.toy')].filter((e) => e.style.display !== 'none').map((e) => (e.dataset.id || '?') + ':' + e.querySelector('img')?.naturalWidth).join(',')}`;
+          document.body.append(r);
+          const px = await import('../src/renderer/pixel.js');
+          ['bag_up', 'backpack_up', 'bed_up', 'vm_dango', 'vm_cafe_quente', 'vm_karaage_copo', 'vm_ramune', 'vm_fruta_sando'].forEach((n, i) => { const im = new Image(); im.src = px.icon(n); Object.assign(im.style, { position: 'fixed', left: `${20 + i * 110}px`, top: '60px', width: n === 'bed_up' ? '170px' : '96px', imageRendering: 'pixelated', zIndex: 99 }); document.body.append(im); });
+          for (let i = 0; i < 10; i++) { frame(1 / 30); await wait(50); }
+          const cl = a.toys.els.get('bag').querySelector('img').cloneNode(); Object.assign(cl.style, { position: 'fixed', left: '20px', top: '200px', width: '96px', height: '96px', transform: 'none', zIndex: 99 }); document.body.append(cl);
+          if (qs.get('swap')) {
+            const dbg = document.createElement('div'); Object.assign(dbg.style, { position: 'fixed', left: '10px', top: '320px', color: '#fff', font: '14px monospace', zIndex: 999, background: '#000' });
+            const im = a.toys.els.get('bag').querySelector('img');
+            dbg.textContent = `bagsUp ${a.toys.bagsUp()} eq ${im.src === px.icon('bag_up')} eqOld ${im.src === px.icon('bag')} objs ${Object.keys(a.skins?.objects || {}).join(',')} rp ${!!a.skins?.rp} nat ${im.naturalWidth}x${im.naturalHeight} cmp ${im.complete} kids ${[...a.toys.els.get('bag').children].map((c) => c.tagName + '.' + c.className + ':' + getComputedStyle(c).display + ':' + (c.src || '').slice(-12)).join(' ')} filt ${getComputedStyle(im).filter} tr ${a.toys.els.get('bag').style.transform} over ${[...document.querySelectorAll('body *')].filter((e) => { const r = e.getBoundingClientRect(); return r.width && r.left <= 87 && r.right >= 87 && r.top <= 458 && r.bottom >= 458; }).map((e) => `${e.tagName}.${String(e.className).slice(0, 14)}`).join(' ')}`;
+            document.body.append(dbg);
+            if (qs.get('dango')) { im.src = px.icon('vm_dango'); a.toys.update = () => {}; await wait(300); }
+          }
+          const be = a.toys.els.get('bag'); const rr = be.getBoundingClientRect(); const r3 = document.createElement('pre'); r3.id = '__report'; r3.textContent = `bagRect ${Math.round(rr.left)},${Math.round(rr.top)},${Math.round(rr.width)}x${Math.round(rr.height)} cls ${be.className} bg ${getComputedStyle(be).backgroundImage.slice(0, 30)} at ${document.elementsFromPoint(rr.left + rr.width / 2, rr.top + rr.height / 2).slice(0, 4).map((e) => `${e.tagName}.${e.className}:${e.naturalWidth || ''}x${e.naturalHeight || ''}`).join(' | ')} disp ${be.style.display} op ${getComputedStyle(be.querySelector('img')).opacity} imgT ${be.querySelector('img').style.transform}`; document.getElementById('__report')?.remove(); document.body.append(r3);
+        }
+        if (qs.get('tv')) {
+          const tw = a.tvWatch;
+          const started = tw.start(null);
+          if (tw.on?.show) tw.on.show.t = Number(qs.get('st') || 5);
+          for (let i = 0; i < 40; i++) { frame(1 / 30); if (i % 5 === 0) await wait(16); }
+          const tr = g.toys.pula_pula;
+          const top = a.toys.topAt('pula_pula', tr.x);
+          g.bag = true;
+          g.bagX = tr.x;
+          const hopOk = a.toys.hop('bag', tr.x, top - 100);
+          for (let i = 0; i < 12; i++) { frame(1 / 30); if (i % 4 === 0) await wait(16); }
+          const hopping = a.toys.hops?.size;
+          const by = a.toys.hops?.get('bag')?.y;
+          const bz = a.toys.bounceAt(tr.x, top - 10, top + 5);
+          pet.request = null;
+          const wished = pet.wish();
+          const r = document.createElement('pre'); r.id = '__report'; r.style.display = 'none';
+          r.textContent = `tv ${started} on ${!!tw.on} act ${pet.activity} action ${pet.action} disp ${tw.el?.style.display} w ${tw.el?.style.width} show ${tw.on?.show?.name} hopOk ${hopOk} hops ${hopping} by ${Math.round(by)} top ${Math.round(top)} bz ${bz?.key} wish ${wished} ${pet.request?.kind} ${pet.request?.label} gain ${pet.moodGain(10, 'x').toFixed(2)} ${pet.moodGain(10, 'x').toFixed(2)}`;
+          document.getElementById('__report')?.remove();
+          document.body.append(r);
+          if (qs.get('cur')) { document.body.dataset.hand = 'pat'; }
+        }
+        for (const id of (qs.get('broken') || '').split(',').filter(Boolean)) g.toys[id].broken = true;
+        if (qs.get('play')) { a.toys.furn.play(qs.get('play'), pet, () => {}); for (let i = 0; i < Number(qs.get('frames') || 90); i++) { frame(1 / 30); if (i % 5 === 0) await wait(16); } }
+        else if (qs.get('broken')) for (let i = 0; i < 20; i++) { frame(1 / 30); await wait(16); }
+        if (qs.get('wav') === '2') {
+          // A band-like mix: sung-ish melody with vibrato, chords, bass line and drums.
+          const { audioToNotes, setVoiceK } = await import('../src/renderer/synth.js'); if (qs.get('vk')) setVoiceK(Number(qs.get('vk')));
+          const R = 44100; let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+          const mel = []; let t = 0.3; const scale = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];
+          const hard = qs.get('hard') === '1';
+          while (t < 15) { const d = [0.18, 0.25, 0.25, 0.4, 0.5, 0.75][Math.floor(rnd() * 6)]; const rep = hard && mel.length && rnd() < 0.3; mel.push([t, rep ? mel[mel.length - 1][1] : 64 + scale[Math.floor(rnd() * scale.length)] - 2, d]); t += d + (rnd() < 0.2 ? 0.12 : hard ? 0.04 : 0.02); }
+          const L = Math.floor(R * 16); const out = new Float32Array(L);
+          const add = (t0, dur, fn) => { const a = Math.floor(t0 * R); const b = Math.min(L, Math.floor((t0 + dur) * R)); for (let i = a; i < b; i++) out[i] += fn((i - a) / R, (i - a) / (b - a)); };
+          const ml = hard ? 0.13 : 0.22;
+          for (const [t0, n, d] of mel) { const f = 440 * 2 ** ((n - 69) / 12); let ph = 0; add(t0, d * 0.95, (tt, u) => { ph += 2 * Math.PI * f * 2 ** (0.25 * Math.sin(2 * Math.PI * 5.5 * tt) * Math.min(1, tt * 4) / 12) / R; let v = 0; for (let h = 1; h <= 8; h++) v += Math.sin(ph * h) * (h === 1 ? 1 : h === 2 ? 0.7 : 0.5 / h); return v * ml * Math.min(1, tt * 60) * (1 - u * 0.3); }); }
+          const chords = [[48, 52, 55], [45, 48, 52], [41, 45, 48], [43, 47, 50]];
+          if (hard) {
+            for (let b = 0; b < 8; b++) for (const n of chords[b % 4]) { const f = 440 * 2 ** ((n + 12 - 69) / 12); add(b * 2, 2, (tt) => { let v = 0; for (let h = 1; h <= 7; h++) v += Math.sin(2 * Math.PI * f * h * tt) / h; return v * 0.045; }); }
+            for (let s = 0; s < 64; s++) { const c = chords[Math.floor(s / 8) % 4]; const n = c[s % 3] + 24 + (s % 4 === 3 ? 12 : 0); const f = 440 * 2 ** ((n - 69) / 12); add(s * 0.25, 0.24, (tt) => { let v = 0; for (let h = 1; h <= 4; h++) v += Math.sin(2 * Math.PI * f * h * tt) / (h * h); return v * 0.07 * Math.exp(-tt * 9); }); }
+          }
+          for (let b = 0; b < 8; b++) for (const n of chords[b % 4]) { const f = 440 * 2 ** ((n + 12 - 69) / 12); add(b * 2, 2, (tt) => (Math.sin(2 * Math.PI * f * tt) + 0.3 * Math.sin(4 * Math.PI * f * tt)) * 0.07); }
+          for (let s = 0; s < 32; s++) { const n = chords[Math.floor(s / 4) % 4][0] - 12 + (s % 2 ? 12 : 0); const f = 440 * 2 ** ((n - 69) / 12); add(s * 0.5, 0.45, (tt) => { let v = 0; for (let h = 1; h <= 5; h++) v += Math.sin(2 * Math.PI * f * h * tt) / h; return v * 0.16 * Math.exp(-tt * 3); }); }
+          for (let s = 0; s < 32; s++) add(s * 0.5, 0.25, (tt) => Math.sin(2 * Math.PI * (50 + 70 * Math.exp(-tt * 30)) * tt) * 0.5 * Math.exp(-tt * 14));
+          for (let s = 0; s < 16; s++) add(s + 0.5, 0.18, (tt) => (rnd() * 2 - 1) * 0.3 * Math.exp(-tt * 20));
+          for (let s = 0; s < 64; s++) add(s * 0.25 + 0.125, 0.05, (tt) => (rnd() * 2 - 1) * 0.08 * Math.exp(-tt * 60));
+          const pcm = Int16Array.from(out, (v) => Math.max(-1, Math.min(1, v)) * 32767);
+          const n = pcm.length; const buf = new ArrayBuffer(44 + n * 2); const dv = new DataView(buf); const s = (o, str) => [...str].forEach((c, j) => dv.setUint8(o + j, c.charCodeAt(0)));
+          s(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); s(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, R, true); dv.setUint32(28, R * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); s(36, 'data'); dv.setUint32(40, n * 2, true);
+          new Int16Array(buf, 44).set(pcm);
+          const t1 = performance.now();
+          const notes = await audioToNotes(new AudioContext(), buf);
+          const ms = Math.round(performance.now() - t1);
+          const hit = mel.filter(([t0, m]) => notes.some(([s0, n0]) => Math.abs(s0 - t0) < 0.12 && n0 === m)).length;
+          const oct = mel.filter(([t0, m]) => notes.some(([s0, n0]) => Math.abs(s0 - t0) < 0.12 && (n0 - m) % 12 === 0)).length;
+          const w = document.createElement('pre'); w.style.cssText = 'position:fixed;z-index:99999;top:40px;left:4px;color:#ff0;font:12px monospace;background:#000c;white-space:pre-wrap;max-width:95vw';
+          w.id = '__report';
+          w.textContent = `melodia ${mel.length} notas · acertos ${hit} (${Math.round(hit / mel.length * 100)}%) · com oitava ${oct} · detectadas ${notes.length} · ${ms} ms | extras ${notes.filter(([s0, n0]) => !mel.some(([t0, m]) => Math.abs(s0 - t0) < 0.12 && n0 === m)).map(([s0, n0, d0]) => { const at = mel.find(([t0, , d]) => s0 >= t0 - 0.05 && s0 < t0 + d); return `${s0.toFixed(2)}:${n0}/${d0}${at ? `(mel ${at[1]}@${at[0].toFixed(2)})` : '(pausa)'}`; }).join(' ')} | esperado ${mel.slice(0, 24).map((x) => x[1]).join(' ')} | obtido ${notes.slice(0, 24).map((x) => x[1]).join(' ')}`;
+          document.body.append(w);
+        } else if (qs.get('wav')) {
+          const { audioToNotes } = await import('../src/renderer/synth.js');
+          const R = 44100; const mel = [64, 67, 69, 71, 69, 67, 64, 62, 60, 62, 64, 64, 72, 71, 69, 67]; const nd = 0.3;
+          const n = Math.floor(R * (mel.length * nd + 0.5)); const pcm = new Int16Array(n);
+          for (let i = 0; i < n; i++) {
+            const t = i / R; const k = Math.floor(t / nd); let v = 0;
+            if (k < mel.length && t - k * nd < nd * 0.9) { const f = 440 * 2 ** ((mel[k] - 69) / 12); for (let h = 1; h <= 6; h++) v += Math.sin(2 * Math.PI * f * h * t) / h * 0.25; }
+            v += Math.sin(2 * Math.PI * 82.4 * t) * 0.08 + (Math.random() - 0.5) * 0.02;
+            pcm[i] = Math.max(-1, Math.min(1, v)) * 32767;
+          }
+          const buf = new ArrayBuffer(44 + n * 2); const dv = new DataView(buf); const s = (o, str) => [...str].forEach((c, j) => dv.setUint8(o + j, c.charCodeAt(0)));
+          s(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); s(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, R, true); dv.setUint32(28, R * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); s(36, 'data'); dv.setUint32(40, n * 2, true);
+          new Int16Array(buf, 44).set(pcm);
+          const notes = await audioToNotes(new AudioContext(), buf);
+          const got = notes.map((x) => x[1]);
+          const w = document.createElement('pre'); w.style.cssText = 'position:fixed;z-index:99999;top:40px;left:4px;color:#ff0;font:12px monospace;background:#000c;white-space:pre-wrap;max-width:95vw';
+          w.textContent = `esperado ${mel.join(' ')}\nobtido   ${got.join(' ')}\nmono ${notes.every((x, j) => !notes[j + 1] || x[0] + x[2] <= notes[j + 1][0] + 0.001)}\n${JSON.stringify(notes.slice(0, 6))}`;
+          document.body.append(w);
+        }
+        if (qs.get('vend')) {
+          const id = qs.get('vend'); const vend = a.toys.casino.vend; vend.casino.wallet = Number(qs.get('wallet') || 500);
+          const cat = id === 'venda_comida' ? 'comidas' : 'bebidas'; const c = vend.choose(cat, vend.casino.wallet);
+          pet.x = g.toys[id].x + 30; vend.go(id, c.item || null);
+          for (let i = 0; i < Number(qs.get('frames') || 90); i++) { frame(1 / 30); vend.update(1 / 30, false); if (i % 5 === 0) await wait(16); }
+          const r2 = document.createElement('pre'); r2.id = '__report'; r2.style.display = 'none'; r2.textContent = `item ${c.item?.id} ${c.item?.price} broke ${c.broke} style ${vend.cur?.style} up ${vend.cur?.up} wallet ${vend.casino.wallet}`; document.body.append(r2);
+          a.toys.update = () => {}; pet.update = () => {};
+        }
+        if (qs.get('shooter')) {
+          const f = a.toys.furn; f.startTargetGame(); const sh = f.target; sh.mouse = { x: innerWidth * 0.5, y: innerHeight * 0.45 };
+          for (let i = 0; i < 150; i++) { f.updateTarget(1 / 30); if (i % 5 === 0) await wait(16); }
+          sh.mobs.forEach((m, i) => { m.z = [0.25, 0.55, 0.85, 0.4][i % 4]; });
+          if (qs.get('bite') && sh.mobs[0]) { const m = sh.mobs.shift(); sh.bite(m); }
+          if (sh.mobs[1]) { const m = sh.mobs[1]; sh.mouse = { x: m.x, y: m.y }; sh.shoot(m.x, m.y); }
+          if (sh.mobs[0]) sh.mouse = { x: sh.mobs[0].x + 4, y: sh.mobs[0].y };
+          for (let i = 0; i < Number(qs.get('after') || 4); i++) { f.updateTarget(1 / 60); await wait(16); }
+          sh.update = () => {};
+          const d2 = document.createElement('pre'); d2.id = '__report'; d2.textContent = `mobs ${sh.mobs.length} score ${sh.score} lives ${sh.lives} parts ${sh.parts.length} cracks ${sh.cracks.length} in ${document.contains(sh.el)} cv ${sh.cv.width}x${sh.cv.height} disp ${getComputedStyle(sh.el).display}/${getComputedStyle(sh.el).zIndex} vis ${getComputedStyle(sh.el).visibility} target ${f.target === sh}`; d2.style.display = 'none'; document.body.append(d2);
+        }
+        if (qs.get('fx')) { a.toys.upgrade(qs.get('fx')); const end = performance.now() + Number(qs.get('ms') || 1200); while (performance.now() < end) { frame(1 / 60); await wait(16); } }
+        if (qs.get('menu')) a.toys.contextMenu(qs.get('menu'), 300, 160);
+        if (qs.get('synth')) a.toys.fun.synthPanel(300, 120);
+        const d = document.createElement('pre'); d.style.cssText = 'position:fixed;z-index:99999;top:4px;left:4px;color:#fff;font:11px monospace;background:#000a';
+        d.textContent = JSON.stringify({ up: ids.map((id) => `${id}:${g.toys[id]?.up || 0}:${a.toys.size(id)}`), coins: g.coins, fx: document.querySelectorAll('.upgrade-fx').length, rect: (() => { const e = a.toys.els.get(qs.get('fx') || 'cama'); const r = e?.querySelector('img:not(.mark)')?.getBoundingClientRect(); const q = e?.getBoundingClientRect(); return [r && [r.left, r.top, r.width, r.height].map(Math.round), q && [q.left, q.top, q.width, q.height].map(Math.round), innerWidth, innerHeight, devicePixelRatio, e?.style.transform]; })() });
+        document.body.append(d);
+        await wait(300);
+      }
+      if (step === 'fun') {
+        const a = app(); const pet = a.pet; const g = a.game; const W = innerWidth;
+        g.coins = 99999; pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+        a.toys.inspecting?.el.remove(); a.toys.inspecting = null;
+        const ids = (qs.get('toy') || 'ioio,bambole,pipa,cubo,skate,aquario,teclado,pula_pula,camera,robo,tamagotchi').split(',');
+        const log = {};
+        const frame = (dt) => { pet.update(dt); a.toys.update(dt, false); a.ball.update(dt, false); a.doll.update(dt, false); };
+        for (const [i, id] of ids.entries()) {
+          const r = (log[id] = {});
+          try {
+            g.buy(id);
+            if (!g.toys[id]) { g.queue = g.queue.filter((j) => j.id !== id); g.deliveries.push({ id, n: 1, x: null, display: null }); g.deliver(id); }
+            g.placeToy(id, W * (0.1 + (i % 6) * 0.15), 0);
+            pet.endToy?.(true); pet.land(pet.world.surfaces[0]); pet.x = W * 0.5; pet.startGround('idle');
+            r.toy = JSON.stringify(g.toys[id]); r.owns = a.toys.fun.owns(id);
+            a.toys.play(id, pet);
+            r.start = pet.action + '/' + (pet.toyPlay?.id || '-');
+            const secs = Number(qs.get('t') || 25);
+            let n = 0;
+            for (let f = 0; f < secs * 30; f++) { frame(1 / 30); if (pet.toyPlay?.id === id || pet.toyPlay?.id?.startsWith?.(id)) n++; if (f % 30 === 0) await wait(4); }
+            r.playedS = Math.round(n / 30); r.end = pet.action + '/' + (pet.toyPlay?.id || '-');
+          } catch (e) { r.err = String(e.stack).slice(0, 300); }
+        }
+        // &doll=1: the living Doll plays each toy alone, then joins the Persocon on it.
+        if (qs.get('doll')) {
+          const dl = (log.doll = {});
+          try {
+            g.gear.cristal = true; g.dollAwake = true; g.profile.dollMet = true;
+            if (!g.toys.pelucia) { g.buy('pelucia'); if (!g.toys.pelucia) { g.queue = g.queue.filter((j) => j.id !== 'pelucia'); g.deliveries.push({ id: 'pelucia', n: 1, x: null, display: null }); g.deliver('pelucia'); } }
+            g.placeToy('pelucia', W * 0.5, 0);
+            const d = a.doll, b = d.brain, floor = pet.world.surfaces[0].y;
+            for (let f = 0; f < 30; f++) frame(1 / 30);
+            dl.alive = d.alive;
+            for (const id of ids) {
+              const r = (dl[id] = {});
+              try {
+                pet.endToy?.(true); pet.land(pet.world.surfaces[0]); pet.x = W * 0.5; pet.startGround('idle');
+                b.waking = null; b.run(null); d.set(g.toys[id].x + 8, floor);
+                if (b[`solo_${id}`]) {
+                  b[`solo_${id}`](id, g.toys[id]);
+                  let n = 0, hid = 0;
+                  for (let f = 0; f < 240; f++) { frame(1 / 30); if (b.using === id) n++; if (a.toys.els.get(id)?.style.display === 'none') hid++; if (f % 30 === 0) await wait(2); }
+                  r.solo = Math.round(n / 30); r.hid = Math.round(hid / 30); r.ok = Number.isFinite(d.x) && Number.isFinite(d.lift);
+                }
+                b.run(null); pet.endToy?.(true); pet.land(pet.world.surfaces[0]); pet.x = W * 0.5; pet.startGround('idle');
+                a.toys.play(id, pet);
+                for (let f = 0; f < 40; f++) frame(1 / 30);
+                const tp = pet.toyPlay;
+                d.set(pet.x + 30, floor); b.waking = null; b.run(null);
+                r.join = !!tp && b.joinToy(tp);
+                let j = 0;
+                for (let f = 0; f < 300; f++) { frame(1 / 30); if (tp && b.joined(tp)) j++; if (f % 30 === 0) await wait(2); }
+                r.joinedS = Math.round(j / 30); r.task = b.task?.toy || null; r.pet = pet.action + '/' + (pet.toyPlay?.id || '-');
+                r.finite = [pet.x, pet.y, d.x, d.y, d.lift].every(Number.isFinite);
+              } catch (e) { r.err = String(e.stack).slice(0, 300); }
+            }
+          } catch (e) { dl.err = String(e.stack).slice(0, 300); }
+        }
+        a.toys.fun.tickState(Date.now());
+        log.fun = { ...g.profile.fun, photos: g.profile.fun?.photos?.length };
+        log.fx = document.querySelectorAll('.fun-fx').length;
+        log.els = [...a.toys.els].map(([k, e]) => `${k}:${e.style.display}:${e.style.transform}:${e.className}`);
+        if (qs.get('album')) { pet.endToy?.(true); pet.startGround('idle'); a.albumTab = true; const q = petPoint(); window.dispatchEvent(new MouseEvent('contextmenu', { clientX: q.x, clientY: q.y, bubbles: true, cancelable: true })); await wait(200); byText('.cat', 'Perfil')?.click(); await wait(300); document.querySelector('.album .photo img')?.click(); await wait(100); const pn = document.querySelector('.panel'); if (pn) pn.scrollTop = 120; }
+        const d = document.createElement('pre'); d.id = '__log'; d.style.cssText = 'position:fixed;z-index:99999;top:4px;left:4px;color:#fff;font:11px monospace;white-space:pre-wrap;max-width:60vw';
+        d.textContent = JSON.stringify(log, null, 1);
+        document.body.append(d);
+        await wait(300);
+      }
+      // ?do=machines: vending/gacha art (big, + placed), a vending purchase with a neutral item, the
+      // Assistir snack rule and the loot table. &t=seconds of the purchase before the capture.
+      if (step === 'machines') {
+        const a = app(); const pet = a.pet; const g = a.game; const W = innerWidth;
+        const log = {};
+        try {
+          const ci = await import('/src/renderer/casinoitems.js');
+          const gm = await import('/src/renderer/game.js');
+          const rw = await import('/src/renderer/rewards.js');
+          const big = document.createElement('div'); big.style.cssText = 'position:fixed;z-index:99998;top:30px;right:10px;display:flex;gap:14px;align-items:flex-end;background:#0008;padding:8px';
+          for (const src of [ci.vendFrame('bebida', 1, 5, 0, '7777', true, '#e23b3b'), ci.vendFrame('comida', 0, -1, 0, '', false, '', 6), ci.gachaFrame(1, 1, 1, '', '#d32ce6'), ci.gachaFrame(0, 0, 0, '#ffe08a', '')]) {
+            const im = new Image(); im.src = src; im.style.cssText = 'image-rendering:pixelated;height:300px'; big.append(im);
+          }
+          document.body.append(big);
+          g.coins = 99999; pet.land(pet.world.surfaces[0]); pet.startGround('idle');
+          a.toys.inspecting?.el.remove(); a.toys.inspecting = null;
+          const put = (id, fx) => { g.deliveries.push({ id, n: 1, x: null, display: null }); g.deliver(id); g.placeToy(id, W * fx, 0); };
+          put('venda_bebida', 0.2); put('venda_comida', 0.32); put('gacha', 0.44); put('slot', 0.56);
+          // Tastes: only neutral drinks known, one hated → she must buy a neutral one.
+          g.profile.tastes = {};
+          const drinks = gm.ITEMS.filter((i) => i.cat === 'bebidas' && !i.legacy && !i.watchOnly && !i.loot && i.price > 0);
+          drinks.forEach((i, k) => (g.profile.tastes[i.id] = k % 3 === 0 ? 'hate' : k % 3 === 1 ? 'dislike' : 'ok'));
+          g.profile.wallet = 500;
+          const picks = {};
+          for (let k = 0; k < 200; k++) { const c = a.toys.casino.vend.choose('bebidas', 500); const t = c.item ? g.tasteOf(c.item.id) : 'none'; picks[t] = (picks[t] || 0) + 1; }
+          log.vendPicks = picks;
+          g.profile.tastes[drinks[2].id] = 'love';
+          const picks2 = {};
+          for (let k = 0; k < 200; k++) { const c = a.toys.casino.vend.choose('bebidas', 500); const t = c.item ? g.tasteOf(c.item.id) : 'none'; picks2[t] = (picks2[t] || 0) + 1; }
+          log.vendPicksWithLove = picks2;
+          // Watching: full belly → no snack; hungry → a snack that fits.
+          g.inventory.pipoca_g = 3; g.inventory.pipoca_p = 3; g.inventory.soda_g = 2;
+          const snackTry = (hunger, thirst) => {
+            Object.assign(pet.stats, { hunger, thirst }); pet.meals.length = 0; pet.eating = null;
+            const used = []; const use = g.use.bind(g); g.use = (id) => { used.push(id); return true; };
+            const act = pet.action; pet.action = 'watch'; a.modes.snackTimer = 0; a.modes.snack(0.1); pet.action = act; g.use = use;
+            return used.join(',') || '-';
+          };
+          log.snack = { full: snackTry(90, 90), h80: snackTry(80, 95), h65: snackTry(65, 95), h40: snackTry(40, 95), t30: snackTry(95, 30), t60: snackTry(95, 60) };
+          // Loot: prize kinds per rarity.
+          const kinds = {};
+          for (const r of ['comum', 'incomum', 'raro', 'lendario']) {
+            const c = (kinds[r] = {});
+            for (let k = 0; k < 400; k++) { const p = rw.rollPrize(r, g); const it = p.kind === 'item' && gm.itemById(p.id); const kk = p.kind !== 'item' ? (p.jackpot ? 'jackpot' : p.kind) : it.loot ? 'loot' : it.cart ? 'cart' : it.manga ? 'manga' : it.decor ? 'decor' : it.toy ? 'toy' : it.buff || it.buffs ? 'buff' : 'food'; c[kk] = (c[kk] || 0) + 1; }
+          }
+          log.loot = kinds;
+          log.achievements = a.rewards?.achievements().length;
+          // A purchase at the drinks machine.
+          Object.assign(pet.stats, { thirst: 20, hunger: 90 });
+          const frame = (dt) => { pet.update(dt); a.toys.update(dt, false); };
+          pet.x = g.toys.venda_bebida.x + pet.P * 0.2;
+          a.toys.casino.vend.go('venda_bebida', a.toys.casino.vend.choose('bebidas', 500).item);
+          const secs = Number(qs.get('t') || 4);
+          for (let f = 0; f < secs * 30; f++) { frame(1 / 30); if (f % 30 === 0) await wait(4); }
+          log.vend = { cur: !!a.toys.casino.vend.cur, style: a.toys.casino.vend.cur?.style, item: a.toys.casino.vend.cur?.item?.id, wallet: g.profile.wallet, buys: g.profile.vendBuys };
+        } catch (e) { log.err = String(e.stack).slice(0, 400); }
+        const d = document.createElement('pre'); d.id = '__log'; d.style.cssText = 'position:fixed;z-index:99999;top:4px;left:4px;color:#fff;font:11px monospace;white-space:pre-wrap;max-width:45vw;background:#0008';
+        d.textContent = JSON.stringify(log, null, 1);
+        document.body.append(d);
+        await wait(300);
+      }
+      if (step === 'soak') {
+        const a = app(), pet = a.pet;
+        const H = Number(qs.get('h') || 1);
+        const log = { errs: [], watchdog: [], every10m: [], longest: {}, jitter: [], low: null };
+        const logger = await import('/src/renderer/logger.js');
+        logger.setLogEnabled(true);
+        const anims = { n: 0 };
+        const anim = pet.anim.bind(pet);
+        pet.anim = (name, o) => { if (o?.restart || name !== anims.last) anims.n++; anims.last = name; return anim(name, o); };
+        let segA = null, segT = 0, changes = 0, t = 0, lastA = pet.action;
+        if (qs.get('low')) Object.assign(pet.stats, { hunger: 8, thirst: 3, energy: 6, mood: 8, health: 40 });
+        if (qs.get('hooktest')) {
+          pet.land(pet.world.surfaces.find((s) => s.id === 'floor'));
+          a.game.foodBagX = pet.world.width - 40;
+          pet.x = 60;
+          pet.stats.hunger = 10;
+          a.toys.supplyCool = 0;
+          const r = Math.random;
+          Math.random = () => 0.5;
+          pet.startGround('idle');
+          pet.chooseNext();
+          Math.random = r;
+          log.hooktest = { action: pet.action, hook: pet.hook?.kind, x: pet.x, goto: pet.goTo(undefined, () => {}) };
+        }
+        if (qs.get('nantest')) {
+          pet.x = NaN;
+          for (let k = 0; k < 5; k++) window.__tick(50);
+          log.nantest = { x: pet.x, y: pet.y, mode: pet.mode, action: pet.action, log: window.__calls.filter(([c]) => c === 'log').map(([, ar]) => JSON.stringify(ar).slice(0, 120)) };
+        }
+        if (qs.get('away')) window.__cursor = [640, 300];
+        const music = !!qs.get('music');
+        for (let sec = 0; sec < H * 3600; sec++) {
+          changes = 0; anims.n = 0;
+          if (music && sec % 100 === 50) a.modes.probe();
+          for (let k = 0; k < 20; k++) {
+            if (music) listeners.audio?.({ payload: { level: 0.06, bass: 0.05, mid: 0.03, high: 0.02, beat: k % 10 === 0, bpm: 120 } });
+            window.__tick(50);
+            const snap = () => ({ t: sec + k / 20, action: pet.action, mode: pet.mode, x: pet.x, y: pet.y, vx: pet.vx, vy: pet.vy, surf: pet.surfaceId, toy: pet.toyPlay?.id, antic: a.antics?.cur?.kind, ix: a.interact?.cur?.kind, timer: pet.timer, zoom: pet.zoom, P: pet.P });
+            if (!log.nan) {
+              (log.hist ||= []).push(snap());
+              if (log.hist.length > 30) log.hist.shift();
+              if (!Number.isFinite(pet.x) || !Number.isFinite(pet.y)) { log.nan = log.hist; delete log.hist; }
+            }
+            if (pet.action !== lastA) { changes++; lastA = pet.action; }
+          }
+          t = sec + 1;
+          const dtoy = a.doll?.brain?.task?.toy;
+          if (dtoy) { log.dollToys ||= {}; log.dollToys[dtoy] = (log.dollToys[dtoy] || 0) + 1; }
+          if (pet.toyPlay) { log.petToys ||= {}; log.petToys[pet.toyPlay.id] = (log.petToys[pet.toyPlay.id] || 0) + 1; }
+          const key = `${pet.action}|${pet.view?.animator?.current?.name ?? anims.last}`;
+          if (key === segA) segT++;
+          else {
+            if (segA && segT > (log.longest[segA] ?? 0)) log.longest[segA] = segT;
+            segA = key; segT = 1;
+          }
+          if ((changes > 3 || anims.n > 6) && log.jitter.length < 40) log.jitter.push({ t, action: pet.action, changes, anims: anims.n, toy: pet.toyPlay?.id, antic: a.antics?.cur?.kind, x: Math.round(pet.x) });
+          const s = pet.stats;
+          if (!log.low && s.hunger < 5 && s.energy < 5) log.low = { t, action: pet.action, toy: pet.toyPlay?.id, activity: pet.activity, paused: pet.paused };
+          if (t % 600 === 0) log.every10m.push({ min: t / 60, action: pet.action, toy: pet.toyPlay?.id, ...Object.fromEntries(Object.entries(s).map(([k, v]) => [k, Math.round(v)])) });
+          if (sec % 60 === 0) await wait(0);
+        }
+        if (segA && segT > (log.longest[segA] ?? 0)) log.longest[segA] = segT;
+        log.longest = Object.fromEntries(Object.entries(log.longest).filter(([, v]) => v > 120).sort((x, y) => y[1] - x[1]).slice(0, 15));
+        await logger.flushLog();
+        log.watchdog = window.__calls.filter(([c]) => c === 'log_lines').flatMap(([, ar]) => ar.lines).filter((l) => /\[(WARN|ERROR)\]/.test(l)).slice(0, 20).map((l) => l.slice(0, 300));
+        const d = document.createElement('pre'); d.id = '__log'; d.dataset.noI18n = '';
+        d.textContent = JSON.stringify(log, null, 1);
+        document.body.append(d);
+      }
+      // ?do=continue&title=1: title screen → Continuar → back to the saved pet.
+      if (step === 'continue') {
+        const A = app();
+        await wait(3000);
+        const before = A.pet.offstage;
+        document.querySelector('.title-item[data-id="continue"]')?.click();
+        await wait(3000);
+        const d = document.createElement('pre'); d.id = '__report';
+        d.textContent = JSON.stringify({ before, offstage: A.pet.offstage, title: !!document.querySelector('.title-back'), display: document.getElementById('pet').style.display, action: A.pet.action, x: Math.round(A.pet.x), intro: !!A.intro });
+        document.body.append(d);
+      }
+      if (step === 'objects') { app().openObjects('videogame'); await wait(400); }
+      if (step === 'pack') { app().openResourcepack(); await wait(300); }
+      if (step === 'powerup') {
+        const a = app();
+        const { itemById } = await import('/src/renderer/game.js');
+        a.pet.startGround('idle');
+        const ch0 = a.pet.cheer.bind(a.pet);
+        a.pet.cheer = (d) => (window.__cheer = [a.pet.action, a.pet.mode, !!a.pet.eating, !!a.pet.mini, ch0(d)]).at(-1);
+        a.pet.medicate(itemById(qs.get('item') || 'ima_moedas'));
+        a.closeMenu?.();
+        for (let i = 0; i < 200 && !a.rewards.parts.some((q) => q.type === 'badge'); i++) { run(1); await wait(16); }
+        for (let i = 0; i < 14; i++) { run(1); a.rewards.update(1 / 60, false); await wait(16); }
+        a.rewards.update = () => {};
+        const rp = Object.assign(document.createElement('pre'), { id: '__report', textContent: JSON.stringify({ parts: a.rewards.parts.length, cls: document.getElementById('pet')?.className, act: a.pet.action, cheer: window.__cheer }) });
+        document.body.append(rp);
+      }
+      if (step === 'gains') {
+        const a = app();
+        a.setOption('statusDock', 'br');
+        a.pet.affection = 640;
+        a.pet.buffs = { doubleMood: Date.now() + 9 * 60e3, coinMagnet: Date.now() + 25 * 60e3 };
+        a.game.toys.pelucia ||= { placed: true };
+        Object.assign(a.game.toys.pelucia, { placed: true, broken: true, x: 400 });
+        for (let i = 0; i < 20; i++) { run(0.1); await wait(5); }
+        a.gains.life = 60000;
+        a.closeMenu?.();
+        a.gains.show('+¥ 42', 'gain', 'Corvo: Brilhos...', '✨');
+        a.gains.show('−¥ 30', 'spend', 'Gacha');
+        a.gains.show('+10 min', 'buff', 'Humor em dobro', '😊');
+        a.gains.show('Imitou', 'skill', 'Corvo: Imitar...', '🦜');
+        for (let i = 0; i < 20; i++) { run(0.1); await wait(5); }
+      }
+      if (step === 'icons') {
+        await document.fonts.load('16px PxEmoji');
+        const { LOOT_ITEMS } = await import('/src/renderer/lootitems.js');
+        const g = document.createElement('div');
+        g.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#223;display:flex;flex-wrap:wrap;gap:6px;padding:10px;align-content:flex-start';
+        for (const it of LOOT_ITEMS) g.insertAdjacentHTML('beforeend', `<div style="width:110px;color:#fff;font:10px sans-serif;text-align:center"><img src="${it.img}" style="width:72px;height:72px;image-rendering:pixelated;object-fit:contain;background:#334"><br>${it.pix}</div>`);
+        document.body.append(g);
+        await wait(200);
+      }
+      if (step === 'leaveend') { app().pet.love(-500); for (let i = 0; i < 80; i++) { run(30); await wait(5); } await wait(400); }
+      if (step === 'roles') { byText('.cat', 'Modelo')?.click(); await wait(100); byText('.tile', 'Animações extras')?.click(); await wait(900); }
+      if (qs.get('filter')) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); app().setOption('filter', qs.get('filter')); await wait(300); }
+      document.title = 'done';
+    </script>
+  </body>
+</html>

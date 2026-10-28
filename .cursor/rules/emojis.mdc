@@ -1,0 +1,10 @@
+---
+description: Nunca usar emojis do Windows/sistema
+alwaysApply: true
+---
+
+NUNCA usar emojis/emoticons do Windows (Segoe UI Emoji ou qualquer fonte de emoji do sistema) em textos ou como ícones.
+
+- Todo emoji visível deve vir da fonte PxEmoji (`src/renderer/assets/fonts/PxEmoji.otf`), que precisa ser a primeira em toda pilha de fontes (CSS e `ctx.font` de canvas).
+- Ao adicionar um emoji novo no código, rodar o pipeline da fonte antes do build (`test/emoji-scan.mjs` → `test/emoji-fetch.mjs` → dump de `test/emoji-build.html` em `test/shots/emoji.html` → `node test/emoji-font.mjs`), para que ele entre na PxEmoji e não caia no emoji do Windows.
+- Ícones de itens/UI: sprites próprios em pixel art ou glifos da PxEmoji (`glyphIcon` em `pixel.js`).

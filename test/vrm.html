@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "/src/renderer/vendor/three.module.js" } }</script>
+<body style="margin:0;background:#334;display:flex;gap:10px">
+<pre id="__report" style="position:fixed;left:4px;top:4px;color:#fff;font:11px monospace"></pre>
+<script type="module">
+// Side-by-side VRM test: ?f=a.vrm,b.vrm&clip=idle (files under /test).
+import { VrmView } from '/src/renderer/vrmview.js';
+const q = new URLSearchParams(location.search);
+const out = [];
+for (const f of (q.get('f') || '').split(',')) {
+  const c = document.createElement('canvas');
+  document.body.append(c);
+  try {
+    const v = await VrmView.create({ vrm: '/test/' + f }, 300, c);
+    v.animator.play(q.get('clip') || 'idle', { fade: 0 });
+    for (let i = 0; i < 30; i++) v.update(1 / 30);
+    out.push(f + ' ok');
+  } catch (e) { out.push(f + ' ERR ' + e.message); }
+}
+document.getElementById('__report').textContent = out.join(' | ');
+</script>

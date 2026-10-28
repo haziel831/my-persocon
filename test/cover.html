@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script type="importmap">{ "imports": { "three": "/src/renderer/vendor/three.module.js" } }</script>
+    <style>html, body { margin: 0; background: #000; } canvas.off { position: absolute; left: -99999px; }</style>
+  </head>
+  <body>
+    <script type="module">
+      // itch.io cover: clean title screen (test/cover-bg-clean.png) + Ninna and Aghata waist-up, game name on top.
+      // ?v=1|2|3 picks a layout; ?sheet=MyPersocon renders a pose contact sheet instead. The PNG lands in <pre id="__png">.
+      import { PetView } from '/src/renderer/view.js';
+      import { pixelText } from '/src/renderer/title.js';
+      const q = new URLSearchParams(location.search);
+      const W = Number(q.get('w') || 1260), H = Number(q.get('h') || 1000);
+      const toDataUrl = async (url) => {
+        const blob = await (await fetch(url)).blob();
+        return new Promise((r) => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+      };
+      const loadImg = (src) => new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+      const P = 900;
+      const views = {};
+      async function viewFor(dir) {
+        if (views[dir]) return views[dir];
+        const files = {
+          geometry: await (await fetch(`/models/${dir}/main.json`)).json(),
+          animations: [await (await fetch(`/models/${dir}/main.animation.json`)).json()],
+          texture: await toDataUrl(`/models/${dir}/texture.png`),
+        };
+        const canvas = document.createElement('canvas'); canvas.className = 'off'; document.body.append(canvas);
+        return (views[dir] = await PetView.create(files, P, canvas));
+      }
+      // Waist-up crop of one pose: anim at fraction t of the clip, turned by yaw (0 = front, + = towards screen right).
+      async function bust(dir, anim, t, yaw, top = Number(q.get('top') || 1.2), bottom = 0.4) {
+        const view = await viewFor(dir);
+        view.setPose('stand'); view.setFacing(Math.PI + yaw, true);
+        const clip = view.animator.clips.get(anim) || view.animator.clips.get('idle');
+        view.play(anim, { restart: true, fade: 0 });
+        view.update((clip.length || 1) * t + 0.0001); view.reanchor(); view.update(0);
+        const r = view.canvas.width / view.width;
+        const y0 = (view.feetY - P * top) * r, y1 = (view.feetY - P * bottom) * r;
+        const c = document.createElement('canvas');
+        c.width = view.canvas.width; c.height = Math.round(y1 - y0);
+        c.getContext('2d').drawImage(view.canvas, 0, y0, c.width, c.height, 0, 0, c.width, c.height);
+        return c;
+      }
+      const out = document.createElement('canvas');
+      const g = out.getContext('2d');
+
+      const drawName = (cx, cy, nw) => {
+        const name = pixelText('MY PERSOCON');
+        const nh = nw * name.height / name.width;
+        g.save();
+        g.imageSmoothingEnabled = false;
+        g.shadowColor = 'rgba(255, 79, 216, 0.95)'; g.shadowBlur = nh * 0.35;
+        g.drawImage(name, cx - nw / 2, cy - nh / 2, nw, nh);
+        g.shadowBlur = 0;
+        g.drawImage(name, cx - nw / 2, cy - nh / 2, nw, nh);
+        g.restore();
+      };
+      const mode = q.get('mode');
+      if (mode === 'banner' || mode === 'bg') {
+        const bg = await loadImg('/test/cover-bg-clean.png');
+        out.width = mode === 'bg' ? 1920 : 960; out.height = mode === 'bg' ? 1080 : 260;
+        const w = out.width, h = out.height;
+        const sw = bg.width * 0.95, sh = sw * h / w, sx = (bg.width - sw) / 2;
+        // Banner: the horizon sits low, the sun's lower half shows behind the name.
+        const sy = mode === 'bg' ? bg.height * 0.065 : bg.height * 0.66 - sh * 0.78;
+        g.drawImage(bg, sx, sy, sw, sh, 0, 0, w, h);
+        if (mode === 'bg') {
+          g.fillStyle = 'rgba(10, 2, 22, 0.4)'; g.fillRect(0, 0, w, h);
+        } else {
+          const place = (b, cx) => {
+            const s = h * 1.05 / b.height, bw = b.width * s;
+            g.save(); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+            g.shadowColor = 'rgba(255, 90, 210, 0.8)'; g.shadowBlur = 12;
+            g.drawImage(b, cx - bw / 2, h - h * 1.05, bw, h * 1.05);
+            g.restore();
+          };
+          place(await bust('MyPersocon', 'extra0', 0.15, 0.35), w * 0.13);
+          place(await bust('Aghata', 'extra1', 0.15, -0.4), w * 0.87);
+          drawName(w / 2, h * 0.5, w * 0.56);
+        }
+      } else if (q.get('sheet')) {
+        const anims = ['extra0', 'extra1', 'extra2', 'extra3', 'extra6', 'extra7'], ts = [0.15, 0.4, 0.65, 0.9];
+        const cw = 240, ch = 200;
+        out.width = cw * ts.length; out.height = ch * anims.length;
+        g.fillStyle = '#4a2a6a'; g.fillRect(0, 0, out.width, out.height);
+        g.font = '16px monospace'; g.fillStyle = '#fff';
+        for (const [i, a] of anims.entries()) for (const [j, t] of ts.entries()) {
+          const b = await bust(q.get('sheet'), a, t, 0);
+          const s = ch / b.height, w = b.width * s;
+          g.drawImage(b, j * cw + (cw - w) / 2, i * ch, w, ch);
+          g.fillText(`${a} ${t}`, j * cw + 4, i * ch + 16);
+        }
+      } else {
+        const V = {
+          1: { L: ['extra1', 0.4, 0.45], R: ['extra2', 0.4, -0.45] },
+          2: { L: ['extra0', 0.15, 0.35], R: ['extra1', 0.15, -0.4] },
+          3: { L: ['extra7', 0.15, 0.5], R: ['extra7', 0.65, -0.5] },
+        }[q.get('v') || 1];
+        for (const k of 'LR') for (const [i, s] of (q.get(k) || '').split(',').entries()) if (s) V[k][i] = i ? Number(s) : s;
+        out.width = W; out.height = H;
+        const bg = await loadImg('/test/cover-bg-clean.png');
+        const sy = bg.height * 0.065, sh = bg.height * 0.875, sw = sh * W / H, sx = (bg.width - sw) / 2;
+        g.drawImage(bg, sx, sy, sw, sh, 0, 0, W, H);
+
+        const tall = H * Number(q.get('tall') || 1.02);
+        const place = (b, cx) => {
+          const s = tall / b.height, w = b.width * s;
+          g.save();
+          g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+          g.shadowColor = 'rgba(255, 90, 210, 0.8)'; g.shadowBlur = H * 0.03;
+          g.drawImage(b, cx - w / 2, H - tall, w, tall);
+          g.restore();
+        };
+        place(await bust('MyPersocon', ...V.L), W * Number(q.get('lx') || 0.2));
+        place(await bust('Aghata', ...V.R), W * Number(q.get('rx') || 0.8));
+
+        // Dark floor fade so the name reads over the bodies.
+        const fade = g.createLinearGradient(0, H * 0.62, 0, H);
+        fade.addColorStop(0, 'rgba(14, 2, 30, 0)'); fade.addColorStop(1, 'rgba(14, 2, 30, 0.85)');
+        g.fillStyle = fade; g.fillRect(0, H * 0.62, W, H * 0.38);
+
+        const name = pixelText('MY PERSOCON');
+        const nw = W * Number(q.get('nw') || 0.84), nh = nw * name.height / name.width;
+        const ny = H * Number(q.get('ny') || 0.8) - nh / 2;
+        g.save();
+        g.imageSmoothingEnabled = false;
+        g.shadowColor = 'rgba(255, 79, 216, 0.95)'; g.shadowBlur = H * 0.025;
+        g.drawImage(name, (W - nw) / 2, ny, nw, nh);
+        g.shadowBlur = 0;
+        g.drawImage(name, (W - nw) / 2, ny, nw, nh);
+        g.restore();
+      }
+      const pre = document.createElement('pre'); pre.id = '__png'; pre.textContent = out.toDataURL('image/png');
+      document.body.append(pre);
+    </script>
+  </body>
+</html>

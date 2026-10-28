@@ -1,0 +1,6 @@
+-Um desktop Pet que caminha e interage no desktop de diferentes formas.
+-A aparencia é um modelo importado "YES Steve - YSM"
+o "chão" onde o pet caminha são os topos de janela e barra de tarefas(imagem exemplo 1)
+-ela pode escalar as laterais das janelas para alcançar pontos altos
+-Os angulos do modelos apenas serão frente, lados e costas, assim a aparencia mesmo com o modelo 3d ficará mais "2d" possivel.
+-Sem som, menus e interações por agora

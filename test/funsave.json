@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "stats": { "health": 90, "hunger": 80, "mood": 70, "energy": 80, "thirst": 80, "hygiene": 90 },
+  "coins": 500,
+  "profile": { "dollMet": true },
+  "gear": { "cristal": true },
+  "dollAwake": true,
+  "toys": {
+    "pelucia": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 640, "display": 0 },
+    "ioio": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 100, "display": 0 },
+    "bambole": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 210, "display": 0 },
+    "pipa": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 320, "display": 0 },
+    "cubo": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 430, "display": 0 },
+    "skate": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 540, "display": 0 },
+    "aquario": { "uses": 0, "maxUses": 0, "broken": false, "placed": true, "x": 760, "display": 0 },
+    "teclado": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 880, "display": 0 },
+    "pula_pula": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 1000, "display": 0 },
+    "camera": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 1100, "display": 0 },
+    "robo": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 1180, "display": 0 },
+    "tamagotchi": { "uses": 0, "maxUses": 0, "broken": false, "placed": true, "x": 1230, "display": 0 },
+    "espada": { "uses": 0, "maxUses": 999, "broken": false, "placed": true, "x": 50, "display": 0 }
+  }
+}

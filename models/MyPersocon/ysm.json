@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "Ninna",
+    "authors": [
+      {
+        "name": "HaZ",
+        "role": "Autor / Author",
+        "contact": {
+          "email": "haz.midnight@gmail.com"
+        }
+      }
+    ],
+    "license": {
+      "type": "Uso pessoal / Personal use only",
+      "description": "Uso pessoal livre. Proibido uso comercial, venda, edição/modificação, obras derivadas e redistribuição sem autorização. / Free for personal use. No commercial use, selling, editing/modifying, derivative works or redistribution without permission."
+    },
+    "tips": "Persocon Ninna do My Persocon. © HaZ (haz.midnight@gmail.com). Leia README.txt."
+  }
+}

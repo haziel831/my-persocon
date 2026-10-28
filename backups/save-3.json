@@ -1,0 +1,256 @@
+{
+  "affection": 20.73297331332874,
+  "bag": true,
+  "bagX": null,
+  "buffs": {
+    "coinMagnet": 1792378632751,
+    "doubleMood": 1792387599150,
+    "luck": 1792376598862,
+    "noHunger": 1792387359150,
+    "noTired": 1792386999150,
+    "shield": 1792387099934
+  },
+  "cartridge": "tetris",
+  "cartridges": [
+    "tetris"
+  ],
+  "coins": 41159,
+  "deliveries": [],
+  "disco": {},
+  "dollAwake": true,
+  "dollModel": null,
+  "dollScale": 1,
+  "dollSkin": null,
+  "edition": "full",
+  "figures": [],
+  "foodBagX": null,
+  "gear": {},
+  "inventory": {
+    "agua_ionica": 1,
+    "ampulheta": 4,
+    "caixa_comum": 1,
+    "caixa_rara": 1,
+    "elixir": 3,
+    "elixir_synth": 1,
+    "ima_moedas": 2,
+    "pena_fenix": 3,
+    "pu_energia": 2,
+    "pu_sorte": 2,
+    "pu_supremo": 1,
+    "relogio_parado": 2,
+    "soda_neon": 2
+  },
+  "mangas": [],
+  "perch": {
+    "bag": {},
+    "food": {}
+  },
+  "profile": {
+    "achievements": {
+      "carinho1": 1792095088017,
+      "comilona": 1792375367593,
+      "paladar": 1792375383676
+    },
+    "attrs": {
+      "agi": 0,
+      "cha": 0,
+      "con": 0,
+      "dex": 0,
+      "int": 0,
+      "per": 0,
+      "str": 0,
+      "will": 0
+    },
+    "bagSize": 1,
+    "booted": true,
+    "born": 1792095000853,
+    "boxesOpened": 4,
+    "chaseWins": 0,
+    "chases": 0,
+    "coinFrac": 0.04577384021506514,
+    "coinsEarned": 223,
+    "consumed": {
+      "agua_torneira": 1,
+      "ampulheta": 3,
+      "bento_cyber": 1,
+      "bubble_matcha": 1,
+      "cafe_nebula": 2,
+      "cafe_quente": 1,
+      "dango": 1,
+      "elixir_synth": 1,
+      "holo_mochi": 1,
+      "matcha_gelado": 1,
+      "matcha_turbo": 1,
+      "mochi": 1,
+      "neo_onigiri": 1,
+      "onigiri": 1,
+      "picole": 1,
+      "pu_alegria": 3,
+      "pu_energia": 1,
+      "pu_escudo": 5,
+      "pu_ima": 4,
+      "pu_saciedade": 3,
+      "pu_sorte": 2,
+      "pu_supremo": 7,
+      "ramen_plasma": 3,
+      "sobras": 1,
+      "soda_neon": 2,
+      "soda_p": 1,
+      "taiyaki_creme": 1,
+      "taiyaki_estelar": 4,
+      "takoyaki_quantico": 2
+    },
+    "crow": {
+      "away": null,
+      "born": false,
+      "focus": null,
+      "gifts": 0,
+      "learned": [],
+      "searchAt": 0,
+      "trains": 0,
+      "xp": {}
+    },
+    "daily": {
+      "bonus": false,
+      "day": "Sun Oct 18 2026",
+      "list": [
+        {
+          "done": true,
+          "goal": 3,
+          "id": "comer",
+          "n": 3
+        },
+        {
+          "done": false,
+          "goal": 1,
+          "id": "mesada",
+          "n": 0
+        },
+        {
+          "done": true,
+          "goal": 2,
+          "id": "comprar",
+          "n": 2
+        }
+      ]
+    },
+    "escapes": 0,
+    "events": {
+      "toy:closeup": 5,
+      "toy:inspect": 8,
+      "toy:lootbox": 4
+    },
+    "fun": {},
+    "gamesPlayed": 0,
+    "herBag": [],
+    "invHints": 3,
+    "lastDaily": "Sun Oct 18 2026",
+    "loveTop": 0,
+    "memory": {},
+    "mgBonusAt": {
+      "jokenpo": 1792373641004
+    },
+    "mgBonusTotal": 1,
+    "mgDaily": {
+      "day": "Sun Oct 18 2026",
+      "n": {
+        "jokenpo": 1
+      }
+    },
+    "mgSeen": [
+      "jokenpo"
+    ],
+    "minigames": {
+      "jokenpo": {
+        "best": 9,
+        "plays": 2,
+        "wins": 1
+      }
+    },
+    "missionsDone": 3,
+    "owner": "HaZ",
+    "pats": 8,
+    "prefs": {},
+    "purchases": 8,
+    "requestsDone": 3,
+    "rps": {
+      "d": 1,
+      "l": 4,
+      "w": 5
+    },
+    "sex": "F",
+    "skills": {},
+    "slaps": 0,
+    "tasteRev": 2,
+    "tastes": {
+      "agua_torneira": "hate",
+      "bento_cyber": "dislike",
+      "bubble_matcha": "hate",
+      "cafe_nebula": "ok",
+      "cafe_quente": "like",
+      "dango": "ok",
+      "elixir_synth": "hate",
+      "holo_mochi": "like",
+      "matcha_gelado": "like",
+      "matcha_turbo": "love",
+      "mochi": "like",
+      "neo_onigiri": "love",
+      "onigiri": "dislike",
+      "pu_alegria": "like",
+      "pu_energia": "dislike",
+      "pu_escudo": "ok",
+      "pu_ima": "ok",
+      "pu_saciedade": "ok",
+      "pu_sorte": "like",
+      "pu_supremo": "like",
+      "ramen_plasma": "hate",
+      "sobras": "hate",
+      "soda_neon": "like",
+      "soda_p": "like",
+      "taiyaki_creme": "ok",
+      "taiyaki_estelar": "ok",
+      "takoyaki_quantico": "ok"
+    },
+    "tips": [
+      "menu"
+    ],
+    "tipsOff": true,
+    "toysBought": 0,
+    "wallet": 0
+  },
+  "promos": [
+    "powermeup"
+  ],
+  "queue": [],
+  "savedAt": 1792376648529,
+  "stats": {
+    "energy": 100,
+    "health": 100,
+    "hunger": 100,
+    "hygiene": 56.69905952010452,
+    "mood": 99.75710350000163,
+    "thirst": 99.746007659997
+  },
+  "toys": {
+    "impressora": {
+      "broken": false,
+      "display": 0,
+      "maxUses": 0,
+      "placed": true,
+      "uses": 0,
+      "x": 276.48
+    }
+  },
+  "version": 3,
+  "wishes": [
+    {
+      "at": 1792375938277,
+      "id": "jokenpo",
+      "img": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAA2CAYAAACIsLrgAAACTUlEQVR4AeyYMVbDMAyG3d6ATiww0gHmloUNNjoxkREu0KOwwAA7Wdi6cgC4RjlAewJMk/hPqYNiOY2SmBfeM2piWfKnP7HdDtU/++uBui5or1CvUMMVkHrkBrezY13WLM6Cv9XPvpQCYk+gbseqQIWK7qpx9P36MFVlzeWPfl/gqkC+eRrz9wUyylAKTNTj9cmmjZkA2qh4XvCHur5K+QIVEnfthg1kFKBWKChTrKgfmN6o6KMkP7oNxB/ZUU8AGWWggL1C+b4b7dECqL0Z1JyZCTRQB5cHaas5Pyuc1lrdTA510lwDmECuMN3pFwNava8U3dZ5BWifbHyyrz3Nxurl/kw93506lRrmkVv4IJFSDAjvXJ12dDVSb/FF2qgThBiQRPU5MXsgTpXa9AlWIeo0HiwQ9RSIAWF/oRJL3RcDkpqwKy4TSBd2/d3A6F+n573fe8/fftkpAComdtev+hUTqHqCpkcSQKj4ysxne9pG9bMO+G2Vye67/yMOrHsEz4MA4g3uohcBtFWkfNJcv+pKludX5lejae5GAOX9wX1oCIir5P71awho/4lyIwQPFM0/VdIAHDwQQGCFgbC6YT9DWjnLBpKbQr2RAaTjxXIQL76GyfMYzT9qytLc6oYJAwjXwdtggSKzusXpk7UcQIlggQBgWxtI6F2y01a/ppRBRBsI94O1wQC5lIECwQBhwi5LAXXmXeIqA1AKCP3BWRdQ40pBEVh7n3FV2AXkGt+5fi6QpVT2HSSq4cwXmR0fForA+laMC+QbtzX/HwAAAP//VJt8fAAAAAZJREFUAwDZEH6Ut8Y9KAAAAABJRU5ErkJggg==",
+      "kind": "mini",
+      "label": "Pedra, papel e tesoura",
+      "until": 1792386738277,
+      "wish": true
+    }
+  ]
+}

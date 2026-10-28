@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Model sheet</title>
+<style>body { margin: 0; background: #6a8caf; } img { display: block; image-rendering: pixelated; } canvas#pet { position: absolute; left: -9999px; }</style>
+<canvas id="pet"></canvas>
+<script type="module">
+  // Contact sheet of a model's clips: ?dir=models/MyPersocon&shots=boot:stand:right:8,idle:stand:front:4&h=130
+  import { PetView } from '/src/renderer/view.js';
+  const qs = new URLSearchParams(location.search);
+  const dir = qs.get('dir') || 'models/MyPersocon';
+  const toDataUrl = async (url) => {
+    const b = await (await fetch(url)).blob();
+    return new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); });
+  };
+  const files = {
+    geometry: await (await fetch(`/${dir}/main.json`)).json(),
+    animations: [await (await fetch(`/${dir}/main.animation.json`)).json()],
+    texture: await toDataUrl(`/${dir}/texture.png`),
+  };
+  const view = await PetView.create(files, Number(qs.get('h') || 130), document.getElementById('pet'));
+  const shots = (qs.get('shots') || 'idle:stand:front:1,idle:stand:right:1,idle:stand:back:1,off:stand:right:1').split(',').map((s) => {
+    const [anim, pose, facing, n] = s.split(':');
+    return { anim, pose, facing, n: Number(n || 4) };
+  });
+  const cols = Math.max(...shots.map((s) => s.n));
+  const k = Number(qs.get('k') || 0.75);
+  const cw = Math.round(view.width * k), ch = Math.round(view.height * k);
+  const sheet = document.createElement('canvas');
+  sheet.width = cw * cols + 140;
+  sheet.height = ch * shots.length;
+  const g = sheet.getContext('2d');
+  g.fillStyle = '#6a8caf';
+  g.fillRect(0, 0, sheet.width, sheet.height);
+  g.font = '12px sans-serif';
+  shots.forEach((s, row) => {
+    const clip = view.animator.clips.get(s.anim);
+    g.fillStyle = '#fff';
+    g.fillText(`${s.anim}/${s.pose}/${s.facing}${clip ? ` ${clip.length.toFixed(2)}s` : ' (missing)'}`, cw * cols + 4, row * ch + ch / 2);
+    if (!clip) return;
+    view.setPose(s.pose);
+    view.setFacing(s.facing, true);
+    for (let i = 0; i < s.n; i++) {
+      const t = s.n === 1 ? Number(qs.get('t') || 0.0001) : (clip.length * i) / (s.n - 1 || 1) + 0.0001;
+      view.play(s.anim, { restart: true, fade: 0 });
+      view.update(t);
+      view.reanchor();
+      view.update(0);
+      g.drawImage(view.canvas, i * cw, row * ch, cw, ch);
+      g.fillStyle = 'rgba(255,255,255,0.8)';
+      g.fillText(t.toFixed(2), i * cw + 3, row * ch + 12);
+    }
+    const fy = row * ch + view.feetY * k + 0.5;
+    g.strokeStyle = 'rgba(255,255,255,0.35)';
+    g.beginPath(); g.moveTo(0, fy); g.lineTo(cw * cols, fy); g.stroke();
+  });
+  const img = new Image();
+  img.src = sheet.toDataURL();
+  document.body.append(img);
+  document.title = 'ready';
+</script>

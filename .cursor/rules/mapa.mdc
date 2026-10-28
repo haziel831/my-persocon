@@ -1,0 +1,40 @@
+---
+description: Mapa do projeto My Persocon e restrições do usuário
+alwaysApply: true
+---
+
+# My Persocon (Tauri 2 + WebView2, ES modules puros)
+
+## Restrições do usuário
+- NUNCA build sem aprovação. Build = `npm run dist` -> `dist\My Persocon X.Y [edition]` (1.0 = "FirstRelease"; versões sobem +0.1 por build: semver X.Y.0, exibida como X.Y; campo `edition` do package.json só no nome da pasta). Demo = `npm run demo` -> `dist\My Persocon Demo X.Y` (liga `DEMO` em `edition.js` só durante o build).
+- Modelos padrão: `scripts/make-persocon.mjs` gera Ninna (`models/MyPersocon`) e Aghata (`models/Aghata`) (`node scripts/make-persocon.mjs`); escolha no formulário da intro (`intro.js` UNITS).
+- Bump de versão: `package.json`, `src-tauri/Cargo.toml`, `Cargo.lock` (persocon), `LEIA-ME.txt`, `changelog.js` (CHANGES), `CHANGELOG.md`, `ChangeLogs\vX.Y.md`.
+- Não mexer no PersoconEX. Moedas só vêm de tempo, lootbox e gacha/slot.
+- Sem marcas registradas ("Game Boy", "SNES"...) em texto visível.
+- Projeto não é git: apagar arquivos um a um, nunca recursivo. Sem beeps de aprovação.
+- Shell precisa de `required_permissions: ["all"]`.
+- Saves: `%APPDATA%\My Persocon`.
+- Lembretes pedidos pelo usuário: `lembretes.md` no store pessoal; avisar quando for relevante (ex.: build/update).
+
+## src/renderer (lógica)
+- `app.js` entrada · `pet.js` orquestra tudo (loop, eventos, desejos, mãos) · `behavior.js` stats/humor/ações/física (`adjust`, `moodGain`, `updateRequest`)
+- `speech.js` falas/balões · `i18n.js` textos PT/EN · `names.js`, `introtext.js`, `tips.js`, `changelog.js`
+- `toys.js` brinquedos/objetos (BOUNCY, TV) · `funtoys.js` brinquedos especiais · `furniture.js` mobília · `ball.js` bola
+- `tvwatch.js` Assistir na TV (YouTube/shows) · `watch.js`, `modes.js` atividades · `music.js`, `synth.js`, `sound.js` (sfx)
+- `game.js` itens/loja/uso · `lootitems.js`, `casino.js`, `casinoitems.js`, `vending.js`, `vendupitems.js`, `upgrades.js`, `upgradefx.js`, `rewards.js` (conquistas), `gains.js`
+- `games.js`, `minigames.js`, `arcadeshooter.js` minigames (`crtFilter`)
+- `doll.js` + `dollai.js` boneca · `crow.js` corvo · `antics.js` travessuras · `care.js` cuidados · `medicons.js`
+- `interact.js` arrastar/clique · `ui.js` menus/painéis · `quickmenu.js` · `title.js`, `intro.js` abertura
+- `pixel.js` sprites + `glyphIcon` · `emoticons.js` · `fx.js`, `filters.js` · `desktop.js`, `world.js` janelas/chão
+- Modelos 3D: `model.js`, `mcmodel.js`, `molang.js`, `vrmview.js`, `view.js`, `hairphys.js` (física dos ossos `HairPhys*`), `preview.js`, `skins.js`, `animation.js`, `genanims.js`
+- `bridge.js` invoke Tauri (`petAPI`) · `logger.js` · CSS: `style.css`, `intro.css`
+- `vendor/` = three.js/vrm: NUNCA ler.
+
+## src-tauri/src (Rust)
+- `main.rs` comandos `#[tauri::command]` + `generate_handler` · `win32.rs` APIs Windows (clipboard etc.) · `desktop.rs` · `audio.rs` · `model_io.rs` · `logfile.rs`
+
+## Testes (só se o usuário pedir)
+- Servidor: `cmd /c "start /b npx http-server -p 8762 -s -c-1 >nul 2>&1"`
+- `.\test\shot.ps1 "query" nome budget` com cenários de `test/ui.html`. `test/shots/` = saídas: NUNCA ler.
+- Checar sintaxe JS: copiar para `%TEMP%\x.mjs` e `node --check`. Rust: `cargo check` em `src-tauri`.
+- Fonte de emoji: ver `emojis.mdc`.

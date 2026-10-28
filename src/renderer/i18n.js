@@ -1,0 +1,852 @@
+// App texts in English when the Persocon's language is English: translates the page's text
+// nodes and tooltips as they appear (the UI itself is written in Portuguese) and restores them
+// when switching back.
+// To translate a text: add its exact Portuguese text to EN (emoji prefixes and trailing ":.…!?" are
+// handled). Texts with numbers/names go in PATTERNS (regex + replacement string or function). Any EN
+// key (3+ letters) found inside a longer text is replaced too. Elements with data-no-i18n are skipped.
+
+const EN = {
+  // ---- status / actions ----
+  'Parada': 'Standing', 'Andando': 'Walking', 'Correndo': 'Running', 'Sentada': 'Sitting', 'Dormindo': 'Sleeping',
+  'Brincando': 'Playing', 'Escalando': 'Climbing', 'Descendo': 'Climbing down', 'Descansando na parede': 'Resting on the wall',
+  'Pulando': 'Jumping', 'Caindo': 'Falling', 'Aterrissando': 'Landing', 'Sendo carregada': 'Being carried', 'Tonta': 'Dizzy',
+  'Comendo': 'Eating', 'Machucada': 'Hurt', 'Pega-pega!': 'Tag!', 'Pegou o mouse!': 'Caught the mouse!', 'Sem vida': 'Lifeless',
+  'Indo até algo': 'Going to something', 'Dançando (Jam)': 'Dancing (Jam)', 'Assistindo': 'Watching', 'Reagindo': 'Reacting',
+  'Jogando bola': 'Playing ball', 'Usando o gancho': 'Using the hook', 'Indo embora...': 'Leaving...', 'Pausada': 'Paused',
+  'Examinando a compra': 'Checking the purchase',
+  // ---- themes / roles / difficulty ----
+  'Padrão': 'Default', 'Balão': 'Bubble', 'Retrô': 'Retro', 'Igual ao tema': 'Same as theme', 'Não usar': "Don't use",
+  'Emote positivo': 'Positive emote', 'Emote negativo': 'Negative emote', 'Dança': 'Dance', 'Comemorar': 'Celebrate',
+  'Medo': 'Fear', 'Rir': 'Laugh', 'Pegar objeto': 'Pick up object', 'Arremessar': 'Throw', 'Usar gancho': 'Use hook',
+  'Sentar': 'Sit', 'Triste': 'Sad', 'Golpe (espada)': 'Strike (sword)', 'Doll (boneco)': 'Doll (figure)',
+  'Nenhum': 'None', 'Pixelado': 'Pixelated', 'TV de tubo (CRT)': 'Tube TV (CRT)', 'GameBuddy (4 cores)': 'GameBuddy (4 colors)',
+  'Retrô (sépia)': 'Retro (sepia)', 'Distorção (onda)': 'Distortion (wave)', 'Holograma': 'Hologram', 'Contorno neon': 'Neon outline',
+  'Visão noturna': 'Night vision', 'Cantar': 'Sing', 'Fácil': 'Easy', 'Difícil': 'Hard', 'Extremo': 'Extreme',
+  // ---- menu tabs ----
+  'Ações': 'Actions', 'Brincar': 'Play', 'Controle': 'Control', 'Inventário': 'Inventory', 'Perfil': 'Profile',
+  'Modelo': 'Model', 'Temas': 'Themes', 'Opções': 'Options',
+  // ---- actions tab ----
+  'Manter o menu aberto mesmo clicando fora': 'Keep the menu open when clicking outside',
+  'Sempre no topo das outras janelas': 'Always on top of other windows',
+  'Botão direito: arrastar o menu ou a Persocon': 'Right button: drag the menu or the Persocon',
+  'Sair': 'Quit', 'Cafuné': 'Head pat', 'Segure e esfregue o cursor na Persocon · incentiva o que ela faz': 'Hold and rub the cursor on the Persocon · encourages what she is doing',
+  'Dar tapa': 'Slap', 'Clique na Persocon · cancela e desincentiva a ação': 'Click the Persocon · cancels and discourages the action',
+  'Alimentar': 'Feed', 'Compre comida na Shop': 'Buy food in the Shop', 'Colocar para dormir': 'Put to sleep',
+  '+Energia −Fome': '+Energy −Hunger', 'Dar banho': 'Give a bath', 'Editar mobília': 'Edit furniture',
+  'Arrastar, girar e espelhar': 'Drag, rotate and mirror', 'Coloque algo do Inventário': 'Place something from the Inventory',
+  'Pega-pega': 'Tag', 'Parar Jam': 'Stop Jam', 'Dança a música que está tocando no PC': 'Dances to the music playing on the PC',
+  'Modo Karaokê': 'Karaoke mode', 'Jam segurando o microfone e cantando junto': 'Jam holding the microphone and singing along',
+  'Parar de assistir': 'Stop watching', 'Assistir': 'Watch', 'Senta e assiste ao vídeo atrás dela': 'Sits and watches the video behind her',
+  'Dar comida': 'Give food', 'Também dá para alimentar assistindo': 'You can also feed her while watching',
+  'Minijogos': 'Minigames', 'Mostrar os guias dos minijogos de novo': 'Show the minigame guides again',
+  // ---- profile ----
+  'Nome': 'Name', 'Idade': 'Age', 'Afeição': 'Affection', 'Moedas': 'Coins', 'Itens consumidos': 'Items consumed',
+  'Favoritos': 'Favorites', 'Cafunés / tapas': 'Pats / slaps', 'Jogos no GameBuddy': 'GameBuddy games', 'Cartuchos': 'Cartridges',
+  'Brinquedos comprados': 'Toys bought', 'Pedidos atendidos': 'Requests fulfilled',
+  'Tem certeza? Clique de novo para apagar tudo': 'Are you sure? Click again to erase everything',
+  '🗑 Apagar save e começar uma nova Persocon': '🗑 Delete save and start a new Persocon',
+  '⤒ Exportar save': '⤒ Export save', '⤓ Importar save': '⤓ Import save',
+  'O save atual vira backup antes de importar (3 backups automáticos).': 'The current save becomes a backup before importing (3 automatic backups).',
+  'Atributos': 'Attributes', 'Os atributos ainda não têm efeito no jogo.': "Attributes don't affect the game yet.",
+  'Incentivos (cafuné) e desincentivos (tapa)': 'Encouraged (head pat) and discouraged (slap)',
+  'Nada ainda. Faça cafuné enquanto ele faz algo para incentivar; um tapa desincentiva.': 'Nothing yet. Pat her while she does something to encourage it; a slap discourages it.',
+  'Retirar': 'Remove',
+  // ---- themes tab ----
+  'Janelas': 'Windows', '🧱 Importar resourcepack': '🧱 Import resourcepack', '🎨 Visual dos objetos': '🎨 Object looks',
+  'Temas escolhidos aqui têm prioridade sobre as janelas do resourcepack; visuais importados por objeto têm prioridade sobre o resourcepack.': 'Themes chosen here take priority over the resourcepack windows; looks imported per object take priority over the resourcepack.',
+  'Pacote de emotes': 'Emote pack', 'Todos': 'All', 'Só gerados (pixel)': 'Generated only (pixel)', 'Só GIFs': 'GIFs only', 'Sons': 'Sounds',
+  // ---- shop / inventory ----
+  '‹ Voltar': '‹ Back', 'Nenhuma comida no inventário.': 'No food in the inventory.', 'Ir para a Shop': 'Go to the Shop',
+  'Parar': 'Stop', 'Fica parada no lugar': 'Stays still', 'Continuar': 'Continue', 'Volta a passear': 'Goes back to wandering',
+  'Começar': 'Start', 'Recomeça do topo da tela': 'Restarts from the top of the screen', 'Tamanho, dificuldade…': 'Size, difficulty…',
+  'Grátis': 'Free', 'no chão, a guardar': 'on the floor, to be stored', 'Nada novo por aqui.': 'Nothing new here.', 'Quantidade': 'Quantity',
+  'Bebidas matam a Sede. Ordenadas do mais barato ao mais caro: quanto mais efeito, mais caro. Soda só no modo Assistir.': 'Drinks quench Thirst. Sorted from cheapest to most expensive: more effect, higher price. Soda only in Watch mode.',
+  'Ordenadas do mais barato ao mais caro: quanto mais efeito, mais caro. Pipoca só no modo Assistir. Ficam na mochila da área de trabalho.': 'Sorted from cheapest to most expensive: more effect, higher price. Popcorn only in Watch mode. Kept in the backpack on the desktop.',
+  'Inventário vazio.': 'Inventory empty.', 'Usar': 'Use', 'Colocar': 'Place', 'na área de trabalho': 'on the desktop',
+  'Liga no modo Jam': 'Turns on in Jam mode', 'Guardar': 'Store', 'Outros': 'Others', '🎒 Todos': '🎒 All', '📦 Guardar tudo': '📦 Store all',
+  'Vender': 'Sell',
+  '💰 Comidas, bebidas, mobília (várias), PowerUps e prêmios: venda pela metade do valor. Guarde da área de trabalho antes.':
+    '💰 Food, drinks, multi furniture, PowerUps and prizes: sell for half value. Store from the desktop first.',
+  'Vende pela metade do preço da Shop · só o que está no inventário': 'Sells for half the Shop price · inventory only',
+  '🛋 Editar mobília': '🛋 Edit furniture', 'Comprar': 'Buy', 'Comprado': 'Bought', 'Comprados': 'Bought',
+  // ---- model tab ----
+  'Importar modelo': 'Import model', 'YSM, modelo 3D ou skin de blocos': 'YSM, 3D model or block skin',
+  'Acessórios': 'Accessories', 'Remover partes do modelo': 'Remove model parts', 'Visual dos objetos': 'Object looks',
+  'Imagem, GIF ou 3D': 'Image, GIF or 3D', 'Ajustar tamanho': 'Adjust size', 'Mudar nome': 'Change name',
+  'Animações extras': 'Extra animations', 'Para que serve cada uma': 'What each one is for', 'Modelo atual': 'Current model',
+  '🔒 Versão completa': '🔒 Full version', 'Na versão completa': 'In the full version',
+  '🔒 Demo: os itens com cadeado ficam na versão completa.': '🔒 Demo: items with a lock are in the full version.',
+  'Ligar/desligar animações': 'Turn animations on/off', 'Ver e escolher quais ela usa': 'See and pick which ones it uses',
+  'Nome da Persocon': "Persocon's name", 'Salvar': 'Save',
+  // ---- options ----
+  'Tamanho': 'Size', 'Jogo': 'Game', 'Dificuldade': 'Difficulty',
+  'A dificuldade muda a velocidade com que Energia, Fome e Humor caem.': 'Difficulty changes how fast Energy, Hunger and Mood drop.',
+  'Velocidade': 'Speed', 'Escalar janelas': 'Climb windows', 'Filtro da Persocon': 'Persocon filter', 'Intensidade': 'Intensity',
+  'Comportamento': 'Behavior', 'Chamar para jogar GameBuddy': 'Ask to play GameBuddy', 'Vir até a tela (aproximar)': 'Come up to the screen (approach)',
+  'Bater na tela ao se aproximar': 'Knock on the screen when approaching', 'Começar Jam/Assistir sozinho': 'Start Jam/Watch on her own',
+  'Clicar através da Persocon e dos objetos': 'Click through the Persocon and objects',
+  'Com "clicar através", abra o menu pelo ícone da bandeja.': 'With "click through", open the menu from the tray icon.',
+  'Mostrar': 'Show', 'Frequência': 'Frequency', 'Posição X': 'Position X', 'Posição Y': 'Position Y', 'Som': 'Sound',
+  'Efeitos sonoros': 'Sound effects', 'Passos': 'Footsteps', 'Barriga roncando': 'Growling belly', 'Volume do GameBuddy': 'GameBuddy volume',
+  'Set de sons': 'Sound set', '🎲 Gerar novo set 8-bit': '🎲 Generate new 8-bit set', 'Originais': 'Originals',
+  'Usando os sons originais.': 'Using the original sounds.', 'Voz 8-bit': '8-bit voice', 'Falar (balões)': 'Talk (balloons)',
+  'Idioma da Persocon': 'Language', 'Frequência de fala': 'Talk frequency', 'muda': 'mute', 'Volume da voz': 'Voice volume',
+  'Tom': 'Pitch', 'Grave': 'Low', 'Agudo': 'High', 'Status fixo na tela': 'Status pinned on screen', 'Ícone do inventário dela': 'Her inventory icon', 'Posição': 'Position',
+  'Ícone separado do status (por padrão abaixo dele): clique abre a mochila dela; botão direito move e ajusta o tamanho.': 'Separate from the status (below it by default): click opens her bag; right-click moves and resizes it.',
+  'Desligado': 'Off', 'Fundo': 'Background', 'Transparente': 'Transparent', 'Verde': 'Green', 'Azul': 'Blue',
+  'Streamer Mode (janela para o OBS)': 'Streamer Mode (window for OBS)',
+  'No OBS: Captura de janela → "My Persocon - Streamer Mode", marque "Área do cliente". Prefira fundo Verde/Azul/Magenta + filtro Chroma Key (captura estável). Evite o método "Windows 10" com fundo transparente — no Windows 11 costuma dar tela preta ou travar a stream. Duplo clique na Persocon liga/desliga; fechar a janela só sai do modo.': 'In OBS: Window Capture → "My Persocon - Streamer Mode", check "Client Area". Prefer Green/Blue/Magenta background + Chroma Key filter (stable capture). Avoid the "Windows 10" method with a transparent background — on Windows 11 it often shows a black screen or freezes the stream. Double-click the Persocon to toggle; closing the window only leaves the mode.',
+  'Emoticons, volumes e passos': 'Emoticons, volumes and footsteps', '↺ Restaurar padrões': '↺ Restore defaults', 'Modo debug': 'Debug mode',
+  'Monitores': 'Monitors',
+  'A Persocon só anda nos monitores marcados. Arraste a Persocon para outro monitor para levá-la até lá.': 'The Persocon only walks on the checked monitors. Drag her to another monitor to take her there.',
+  // ---- debug ----
+  '📦 Toda compra sai pela Impressora 3D e a Persocon guarda no 🎒 Inventário.': '📦 Every purchase comes out of the 3D Printer and your Persocon stores it in the 🎒 Inventory.',
+  'Agora não dá!': 'Not now!', 'Guardei no Inventário!': 'Put it in the Inventory!', 'Testar novidades': 'Try the latest features', 'Status cheios': 'Full stats',
+  'Cansada e com sede': 'Tired and thirsty', 'Exausta (sem forças)': 'Exhausted (no strength)', 'Suada (esforço máx.)': 'Sweaty (max effort)',
+  'Suja': 'Dirty', 'Imunda (mosca)': 'Filthy (fly)', 'Rotinas autônomas': 'Autonomous routines', 'Dar Crystal Mágico': 'Give Magic Crystal',
+  'Animação de acordar': 'Wake-up animation', 'Truque': 'Trick', 'Doll (coloque o Doll na área de trabalho)': 'Doll (place the Doll on the desktop)',
+  '▲ Esconder lista': '▲ Hide list', '▼ Mostrar lista': '▼ Show list', '⏹ Parar prévia': '⏹ Stop preview', 'Ligada': 'On', 'Desligada': 'Off',
+  '▶ mostra a animação na Persocon. Desligada = ela não usa mais (cai na "idle"). ✨ = gerada pelo app.': '▶ shows the animation on the Persocon. Off = she no longer uses it (falls back to "idle"). ✨ = generated by the app.',
+  // ---- game over ----
+  'Tentar denovo . . .': 'Try again . . .', 'Você perdeu sua Persocon': 'You lost your Persocon',
+  'Todo o progresso foi perdido. Cuide bem da alimentação: com a Fome abaixo de 50% a Saúde começa a cair.': 'All progress was lost. Take good care of her food: with Hunger below 50% Health starts to drop.',
+  'Começar de novo': 'Start over',
+  // ---- import / objects / resourcepack dialogs ----
+  'Sexo': 'Sex',
+  'Clique numa animação para ver ao lado e escolha para que serve.': 'Click an animation to see it on the side and choose what it is for.',
+  'Pronto': 'Done', 'Pasta': 'Folder', 'Arquivo .zip': '.zip file', 'Skin de blocos': 'block skin', 'Importar para': 'Import to',
+  'Pasta do modelo YSM': 'YSM model folder', 'Pasta exportada com main.json, animações e textura': 'Exported folder with main.json, animations and texture',
+  'Arquivo .zip do modelo YSM': 'YSM model .zip file', '.zip da pasta exportada': '.zip of the exported folder', '.zip da pasta exportada, como aparência do Doll': '.zip of the exported folder, as the Doll\'s look',
+  '🏁 Corrida · quem vence?': '🏁 Race · who wins?', 'Sua Persocon': 'Your Persocon',
+  'Efeitos': 'Effects', 'Voz': 'Voice',
+  // Crow
+  'Fala': 'Talk', 'Calado': 'Quiet', 'Pouco': 'Rarely', 'Muito': 'A lot',
+  'Caixa Misteriosa': 'Mystery Box', 'Corvo': 'Crow', 'Habilidades': 'Skills', 'Procurar': 'Search', 'Pegar': 'Fetch',
+  'Tem algo vivo aí dentro... dá para ouvir umas bicadas. Um novo amigo para a Persocon treinar?': 'Something alive is in there... you can hear some pecking. A new friend for the Persocon to train?',
+  'Corvo · botão direito: perfil, habilidades e treino': 'Crow · right click: profile, skills and training',
+  'Amigo de Penas': 'Feathered Friend', 'Abrir a Caixa Misteriosa': 'Open the Mystery Box', 'Primeira Lição': 'First Lesson',
+  'Ensinar uma habilidade ao Corvo': 'Teach the Crow a skill', 'Corvo Prodígio': 'Prodigy Crow', 'Ensinar todas as 7 habilidades ao Corvo': 'Teach the Crow all 7 skills',
+  'Treinadora': 'Trainer', 'Treinar o Corvo 30 vezes': 'Train the Crow 30 times', 'Entrega Aérea': 'Air Delivery', 'Receber 10 presentes do Corvo': 'Get 10 presents from the Crow',
+  'Olho Clínico': 'Sharp Eye', 'O Corvo achar 20 brilhos': 'The Crow finds 20 shinies', 'Respeitável Público': 'Ladies and Gentlemen', 'Ver 10 apresentações do Corvo': 'Watch 10 Crow shows',
+  'Penas e Pano': 'Feathers and Fabric', 'O Corvo brincar 5 vezes com o Doll': 'The Crow plays with the Doll 5 times', 'Poleiro Favorito': 'Favorite Perch',
+  'O Corvo pousar em 6 móveis diferentes': 'The Crow perches on 6 different pieces of furniture', 'Chapéu Vivo': 'Living Hat',
+  'O Corvo pousar 20 vezes na cabeça dela': 'The Crow perches on her head 20 times',
+  'Vigiar': 'Watch', 'Brilhos': 'Shinies', 'Sorte': 'Luck', 'Truques': 'Tricks', 'Imitar': 'Mimic',
+  'Guardar...': 'Tidy up...', '📦 Guardar...': '📦 Tidy up...',
+  'Pega brinquedos espalhados no chão e guarda no topo das mobílias': 'Picks up toys left on the floor and puts them on top of furniture',
+  'Nada no chão para guardar': 'Nothing on the floor to put away',
+  'Não tem mobília para guardar em cima': 'No furniture to put things on',
+  'só com energia ≥50%': 'only with energy ≥50%',
+  '😵 Precisa de ≥50% de energia': '😵 Needs ≥50% energy',
+  'Avisa quando a fome, a sede, a energia, a higiene ou a saúde da Persocon ficam baixas': "Warns when the Persocon's hunger, thirst, energy, hygiene or health get low",
+  'De vez em quando cata no chão uma moedinha ou uma pecinha para a coleção': 'Now and then pecks a small coin or a little collectible off the floor',
+  'Na tela, dá um pouco mais de sorte no Gacha, no caça-níquel e nas caixas': 'While on screen, gives a bit more luck in the Gacha, the slot machine and the boxes',
+  'Faz piruetas, cambalhotas e se finge de morto para alegrar a Persocon': 'Spins, flips and plays dead to cheer the Persocon up',
+  'Repete o que a Persocon fala (e o seu nome), do jeito dele': 'Repeats what the Persocon says (and your name), in its own way',
+  'Perfil e habilidades': 'Profile and skills', 'Treinar agora': 'Train now', 'Fazer carinho': 'Pet it', 'Dar migalhas': 'Give crumbs', 'Pousar na cabeça dela': 'Perch on her head',
+  'Voa para longe e volta depois de um tempo com um presente (às vezes moedas)': 'Flies far away and comes back after a while with a present (sometimes coins)',
+  'Busca o que a impressora 3D imprime, bem mais rápido que a Persocon, vários de uma vez': 'Fetches what the 3D printer makes, much faster than the Persocon, several at a time',
+  'Asas': 'Wings',
+  'Brincar com ela': 'Play with her',
+  'Busca o que a impressora 3D imprime e guarda no Inventário, bem mais rápido que a Persocon, vários de uma vez': 'Fetches what the 3D printer makes into the Inventory, much faster than the Persocon, several at a time',
+  'Bolsa dela pausada — só devolver itens que ainda estão nela': 'Her bag is paused — only return items still in it',
+  'Bolsa dela pausada · clique num slot para devolver ao seu inventário': 'Her bag is paused · click a slot to return it to your inventory',
+  'A Persocon decide o que ensinar. As habilidades ficam ocultas até serem aprendidas.': 'The Persocon decides what to teach. Skills stay hidden until learned.',
+  'O Corvo ainda está cansado da última busca': 'The Crow is still tired from the last search', 'O Corvo saiu para procurar algo': 'The Crow went out looking for something',
+  'Agora não dá': 'Not right now', 'Saiu um Corvo da Caixa Misteriosa! Botão direito nele: perfil e treino': 'A Crow came out of the Mystery Box! Right click it: profile and training',
+  'Modelo 3D (.vrm / .glb)': '3D model (.vrm / .glb)', 'Skin de blocos (.png)': 'block skin (.png)',
+  'VRoid/VRM com expressões ou qualquer .glb': 'VRoid/VRM with expressions or any .glb', 'Vira um modelo de blocos com animações': 'Becomes a block model with animations',
+  'Vira a aparência do Doll (imagem na rotação escolhida)': "Becomes the Doll's look (image at the chosen rotation)", 'O Doll usa a skin (64×64 ou 64×32)': 'The Doll uses the skin (64×64 or 64×32)',
+  'Modelos YSM: importe a pasta exportada (ou um .zip da pasta). Arquivos .ysm não são aceitos.': 'YSM models: import the exported folder (or a .zip of it). .ysm files are not accepted.',
+  'Cancelar': 'Cancel', 'Modelos recentes': 'Recent models', 'Skin de blocos': 'block skin', 'Modelo 3D': '3D model',
+  'A skin precisa ter 64×64 ou 64×32 pixels.': 'The skin must be 64×64 or 64×32 pixels.', 'Importar': 'Import', 'Animações': 'Animations',
+  'Voltar': 'Back', 'Importar modelo YSM': 'Import YSM model', 'Lendo modelo…': 'Reading model…',
+  'Para que serve cada animação extra?': 'What is each extra animation for?', 'Clique para remover/mostrar': 'Click to remove/show',
+  'Frente': 'Front', 'Direita': 'Right', 'Esquerda': 'Left', 'Costas': 'Back', 'Origem': 'Source', 'Versão VRM': 'VRM version',
+  'Expressões': 'Expressions', 'padrão': 'default', 'Autores': 'Authors', 'Compatível': 'Compatible',
+  'todas as animações da Persocon ✓': "all of the Persocon's animations ✓", 'Geometria': 'Geometry', 'Ossos': 'Bones', 'Cubos': 'Cubes',
+  'Texturas': 'Textures', 'Acessórios / partes — desmarque para remover': 'Accessories / parts — uncheck to remove', 'Textura': 'Texture',
+  'Importando…': 'Importing…', 'Bolsa de cartuchos': 'Cartridge bag', 'Mochila de comida': 'Food backpack', 'Imagem do objeto': 'Object image',
+  'Imagem': 'Image', 'Modelo 3D do objeto': "Object's 3D model", 'Renderizando modelo 3D…': 'Rendering 3D model…', 'Rotação': 'Rotation',
+  'Inclinação': 'Tilt', 'Espelhar': 'Mirror', 'Arraste sobre a imagem para marcar onde fica a tela da TV.': "Drag over the image to mark where the TV's screen is.",
+  '🖼 Imagem / GIF': '🖼 Image / GIF', '🧊 Modelo 3D': '🧊 3D model', '↺ Restaurar padrão': '↺ Restore default', 'Fechar': 'Close', 'Aplicar': 'Apply',
+  'Janelas, itens, sons, músicas e mobília': 'Windows, items, sounds, music and furniture', 'Remover': 'Remove',
+  'Com resourcepack, a mochila de comida vira um barril e a bolsa de cartuchos vira um baú. Temas e visuais por objeto continuam tendo prioridade.': 'With a resourcepack, the food backpack becomes a barrel and the cartridge bag a chest. Themes and per-object looks still take priority.',
+  'Lendo resourcepack…': 'Reading resourcepack…', 'Ícone': 'Icon', 'Itens': 'Items', 'Estante': 'Bookshelf', 'O que usar': 'What to use',
+  'Itens e comidas': 'Items and food', 'Músicas': 'Music', 'Mobília e bolsas': 'Furniture and bags',
+  // ---- shop categories / buffs / stats / attributes ----
+  'Comidas': 'Food', 'Bebidas': 'Drinks', 'Medicina': 'Medicine', 'Mangás': 'Manga', 'Mobília': 'Furniture',
+  'Prêmio do Gacha': 'Gacha prize', 'Gacha (devolvido)': 'Gacha (refunded)', 'Saiu para procurar': 'Went searching', 'Mais sorte': 'More luck', 'Imitou': 'Mimicked', 'Modelo padrão': 'Default model', 'Voltar ao modelo original da Persocon': "Back to the Persocon's original model", 'Caça-níquel': 'Slot machine',
+  'UPGRADE COMPLETO!': 'UPGRADE COMPLETE!', 'VITÓRIA!': 'VICTORY!', 'Moedas insuficientes': 'Not enough coins',
+  'Impressora 3D Neon': 'Neon 3D Printer', 'Estante Grande': 'Big Shelf', 'Gacha-Machine Neon': 'Neon Gacha-Machine', 'VideoGame Neon (TV + console)': 'Neon VideoGame (TV + console)',
+  'Cama Moderna': 'Modern Bed', 'Almofada de Veludo': 'Velvet Cushion', 'Sintetizador Neon': 'Neon Synthesizer', 'Aquário de Koi': 'Koi Aquarium', 'Slot-Machine Neon': 'Neon Slot-Machine',
+  'Visual neon e imprime 1,5x mais rápido': 'Neon look and prints 1.5x faster',
+  'Maior: 6 prateleiras de 15 espaços (90 mangás ou 42 bonecos)': 'Bigger: 6 shelves of 15 slots (90 manga or 42 figures)',
+  'Visual neon, animações mais épicas, mais prêmios e bonecos novos só dela': 'Neon look, more epic animations, more prizes and new figures only from it',
+  'Visual neon, TV maior e jogos com gráficos melhores': 'Neon look, bigger TV and games with better graphics',
+  'Recupera energia 1,5x mais rápido, sem perder fome nem sede': 'Restores energy 1.5x faster, without losing hunger or thirst',
+  'Mais confortável: descanso e humor melhores': 'Comfier: better rest and mood',
+  'Som de sintetizador (mono), playlist de MIDI e timbres': 'Synth sound (mono), MIDI playlist and voices',
+  'Design moderno synthwave, tanque maior e carpas koi grandes e ativas': 'Modern synthwave design, bigger tank and big, lively koi',
+  'Máquina de Comida Neon': 'Neon Food Machine', 'Máquina de Bebida Neon': 'Neon Drink Machine',
+  'Visual synthwave, compras com holograma e teleporte e comidas exclusivas com buff': 'Synthwave look, hologram and teleport purchases and exclusive food with buffs',
+  'Visual synthwave, compras com holograma e teleporte e bebidas exclusivas com buff': 'Synthwave look, hologram and teleport purchases and exclusive drinks with buffs',
+  'Exclusivo das máquinas de venda neon': 'Only from the neon vending machines',
+  'Onigiri Neon': 'Neon Onigiri', 'Mochi Holográfico': 'Holographic Mochi', 'Takoyaki Quântico': 'Quantum Takoyaki', 'Ramen de Plasma': 'Plasma Ramen',
+  'Bentô Cyber': 'Cyber Bento', 'Taiyaki Estelar': 'Stellar Taiyaki', 'Água Iônica': 'Ionic Water', 'Soda Neon': 'Neon Soda', 'Ramune Laser': 'Laser Ramune',
+  'Matcha Turbo': 'Turbo Matcha', 'Café Nebulosa': 'Nebula Coffee', 'Elixir Synthwave': 'Synthwave Elixir',
+  'Ficou preso na máquina e quebrou': 'Got stuck in the machine and broke', 'Doll pegou da máquina → mochila': 'Doll grabbed it from the machine → backpack',
+  'Banheira Hi-Tech': 'Hi-Tech Bathtub', 'Limpa mais rápido e dá um pouco de energia': 'Cleans faster and gives a bit of energy',
+  'Cabine de Limpeza Laser': 'Laser Cleaning Stall', 'Cabine com lasers neon: limpa mais rápido, dá um pouco de energia e esconde a Persocon atrás do vidro': 'Stall with neon lasers: cleans faster, gives a bit of energy and hides the Persocon behind the glass',
+  'Esconder o app': 'Hide the app', 'Mostrar o app': 'Show the app',
+  'Exclusivo das máquinas de venda': 'Only from the vending machines', 'Máquina de venda → mochila': 'Vending machine → backpack',
+  'Sopa de Milho em Lata': 'Canned Corn Soup', 'Oden em Lata': 'Canned Oden', 'Pão de Melão': 'Melon Bread', 'Pão de Yakisoba': 'Yakisoba Bread',
+  'Karaage no Copo': 'Karaage Cup', 'Batata Frita no Copo': 'Fries Cup', 'Sanduíche de Frutas': 'Fruit Sandwich', 'Pudim de Máquina': 'Vending Pudding',
+  'Dango Tricolor': 'Tricolor Dango', 'Palitinhos de Chocolate': 'Chocolate Sticks', 'Café Gelado em Lata': 'Canned Iced Coffee', 'Café Quente em Lata': 'Canned Hot Coffee',
+  'Chá Verde Gelado': 'Iced Green Tea', 'Chá de Cevada': 'Barley Tea', 'Bebida Isotônica': 'Sports Drink', 'Bebida de Iogurte': 'Yogurt Drink',
+  'Soda de Melão': 'Melon Soda', 'Chocolate Quente em Lata': 'Canned Hot Chocolate', 'Suco de Pêssego': 'Peach Juice', 'Ramune Clássico': 'Classic Ramune',
+  'Tamanho': 'Size', '➖ Diminuir': '➖ Smaller',
+  'Consertar': 'Repair', 'Cantar': 'Sing', 'Entregar': 'Deliver', 'Ninar': 'Lullaby', '🎵 Cantar...': '🎵 Sing...',
+  'Bica um brinquedo ou móvel quebrado e às vezes consegue consertar de graça': 'Pecks at a broken toy or furniture and sometimes fixes it for free',
+  'Canta para a Persocon quando ela está triste (+humor)': 'Sings to the Persocon when she is sad (+mood)',
+  'Com fome ou sede longe da mochila, leva a comida ou a bebida até ela': 'Hungry or thirsty far from the backpack: brings her the food or drink',
+  'Fica do lado dela enquanto dorme: acorda com mais energia e de bom humor': 'Stays by her side while she sleeps: she wakes up with more energy and in a good mood',
+  'Trouxe uma bebida': 'Brought a drink', 'Trouxe comida': 'Brought food', '+10 energia': '+10 energy',
+  'Arcade de Tiro': 'Shooting Arcade', 'Vira uma máquina de arcade de tiro (maior): ela joga com a pistola de luz': 'Becomes a (bigger) shooting arcade machine: she plays with the light gun',
+  'Primeiro Upgrade': 'First Upgrade', 'Aperfeiçoar uma mobília': 'Upgrade a piece of furniture', 'Engenheira': 'Engineer', 'Aperfeiçoar 5 mobílias': 'Upgrade 5 pieces of furniture',
+  'Cidade Neon': 'Neon City', 'Coleção Neon': 'Neon Collection', 'Ter todos os bonecos da Gacha Neon': 'Own every Neon Gacha figure',
+  'DJ Persocon': 'DJ Persocon', 'Importar 3 músicas no Sintetizador Neon': 'Import 3 songs into the Neon Synthesizer',
+  'Atiradora de Elite': 'Sharpshooter', 'Ela jogar 10 partidas no Arcade de Tiro': 'She plays 10 rounds on the Shooting Arcade',
+  'Visual neon, animações mais épicas e apostas e prêmios maiores': 'Neon look, more epic animations and bigger bets and prizes',
+  '⏹ Parar a música': '⏹ Stop the music', '🎼 Playlist e timbres…': '🎼 Playlist and voices…', '🎹 Sintetizador Neon': '🎹 Neon Synthesizer',
+  'Timbre ': 'Voice ', 'Eco ': 'Echo ', ' Volume ': ' Volume ', 'Tocar a partir desta': 'Play from this one', 'Renomear': 'Rename', 'Subir': 'Move up', 'Descer': 'Move down', 'Remover': 'Remove', 'Parar': 'Stop',
+  'Nenhuma música ainda: importe um .mid ou um áudio': 'No songs yet: import a .mid or an audio file',
+  '➕ Importar música (.mid, .mp3, .wav, .ogg)…': '➕ Import song (.mid, .mp3, .wav, .ogg)…', '▶ Tocar a playlist': '▶ Play the playlist',
+  'Nenhuma música salva. Importe um .mid (arquivo ou link).': 'No saved songs. Import a .mid (file or link).',
+  '➕ Importar MIDI…': '➕ Import MIDI…', 'Link de um arquivo .mid': 'Link to a .mid file', 'Importar link': 'Import link',
+  'Lendo MIDI…': 'Reading MIDI…', 'Baixando MIDI…': 'Downloading MIDI…', 'Só arquivos .mid': 'Only .mid files',
+  'Não deu para ler o MIDI': "Couldn't read the MIDI", 'Link inválido.': 'Invalid link.', 'Não deu para baixar o MIDI': "Couldn't download the MIDI",
+  'Tocando': 'Playing', 'Convertendo para notas…': 'Converting to notes…', 'Não deu para converter': "Couldn't convert",
+  'Lead Synthwave': 'Synthwave lead', 'Pad etéreo': 'Ethereal pad', 'Chiptune 8-bit': '8-bit chiptune', 'Baixo synth': 'Synth bass', 'Órgão retrô': 'Retro organ',
+  'Fantasma 8-bit': '8-bit Ghost', 'Slime Neon': 'Neon Slime', 'Gato-Robô Neon': 'Neon Robot Cat', 'Ninja Cibernético': 'Cyber Ninja', 'DJ Synthwave': 'Synthwave DJ',
+  'Mecha Neon': 'Neon Mecha', 'Dragão Cibernético': 'Cyber Dragon', 'Idol Holográfica': 'Holographic Idol',
+  'Sem fome': 'No hunger', 'Humor em dobro': 'Double mood', 'Sem cansaço': 'No tiredness', 'Escudo de saúde': 'Health shield',
+  'Saúde': 'Health', 'Fome': 'Hunger', 'Humor': 'Mood', 'Energia': 'Energy', 'Sede': 'Thirst', 'Higiene': 'Hygiene', 'Esforço': 'Effort',
+  'Força': 'Strength', 'Destreza': 'Dexterity', 'Agilidade': 'Agility', 'Constituição': 'Constitution', 'Força de Vontade': 'Willpower',
+  'Percepção': 'Perception', 'Carisma': 'Charisma', 'Inteligência': 'Intelligence',
+  '💎 Raro': '💎 Rare', 'Coloque na área de trabalho': 'Place it on the desktop',
+  'Só no modo Assistir · a Persocon pega sozinha': 'Watch mode only · the Persocon takes it herself',
+  'Petisco de sessão · assistindo ou jogando na TV ela prefere este': 'Session snack · while watching or playing on the TV she prefers this one',
+  'Batata chips pequena': 'Small potato chips', 'Batata chips média': 'Medium potato chips', 'Batata chips grande': 'Large potato chips',
+  'Nenhuma música salva: ela toca as dela de improviso': 'No saved songs: she improvises her own',
+  'Ela tocar 3 músicas no Sintetizador Neon': 'Have her play 3 songs on the Neon Synth',
+  'Banho': 'Bath', 'Música': 'Music', 'Mangá': 'Manga',
+  '📺 Assistir na TV…': '📺 Watch on the TV…', '📺 Assistir na TV': '📺 Watch on the TV', '⏹ Desligar a TV': '⏹ Turn off the TV', '🎮 Chamar para jogar na TV': '🎮 Call her to play on the TV',
+  '▶ Assistir': '▶ Watch', '🎲 Anime ou filme aleatório': '🎲 Random anime or movie', 'Link do YouTube (opcional)': 'YouTube link (optional)',
+  'Sem link: passa um anime ou filme aleatório. O vídeo passa sem som.': 'No link: a random anime or movie plays. The video plays muted.',
+  'Link inválido: cole um link do YouTube.': 'Invalid link: paste a YouTube link.',
+  '📋 Colar link': '📋 Paste link', 'A área de transferência está vazia.': 'The clipboard is empty.', 'Link colado. Clique em Assistir.': 'Link pasted. Click Watch.', 'Isso não parece um link do YouTube.': "That doesn't look like a YouTube link.",
+  'A Persocon guarda e usa sozinha: alcança lugares altos, puxa coisas e pega o mouse': 'The Persocon keeps and uses it herself: reaches high places, pulls things and catches the mouse',
+  // ---- items ----
+  'Onigiri com alga': 'Onigiri with seaweed', 'Onigiri sorridente': 'Smiling onigiri', 'Nigiri de salmão': 'Salmon nigiri',
+  'Ramen picante': 'Spicy ramen', 'Bentô': 'Bento', 'Bentô especial': 'Special bento', 'Tempurá de camarão': 'Shrimp tempura',
+  'Tigela de tempurá': 'Tempura bowl', 'Porção de takoyaki': 'Takoyaki plate', 'Taiyaki de creme': 'Cream taiyaki',
+  'Mochi de morango': 'Strawberry mochi', 'Chá matcha': 'Matcha tea', 'Matcha quente': 'Hot matcha', 'Matcha gelado': 'Iced matcha',
+  'Bubble tea de matcha': 'Matcha bubble tea', 'Sobras': 'Leftovers', 'Grátis, mas ela odeia': 'Free, but she hates it',
+  'Água de Torneira': 'Tap water', 'Pipoca pequena': 'Small popcorn', 'Pipoca média': 'Medium popcorn', 'Pipoca grande': 'Large popcorn',
+  'Soda pequena': 'Small soda', 'Soda média': 'Medium soda', 'Soda grande': 'Large soda', 'Vitamina': 'Vitamin', 'Curativo': 'Bandage',
+  'Remédio': 'Medicine', 'Poção de cura': 'Healing potion', 'PowerUp: Saciedade': 'PowerUp: Fullness', 'PowerUp: Alegria': 'PowerUp: Joy',
+  'PowerUp: Energia': 'PowerUp: Energy', 'PowerUp: Escudo': 'PowerUp: Shield',
+  'PowerUp: Sorte': 'PowerUp: Luck', 'PowerUp: Ímã': 'PowerUp: Magnet', 'PowerUp: Supremo': 'PowerUp: Supreme',
+  'PowerUp: Reset': 'PowerUp: Reset', 'Remove todos os buffs ativos': 'Clears all active buffs',
+  'PowerUps + 5 Reset no Inventário!': 'PowerUps + 5 Reset in Inventory!',
+  'POWER UP!': 'POWER UP!', 'GET WEAPON!': 'GET WEAPON!',
+  'Boneco de blocos com física · botão direito troca a skin': 'Block-style figure with physics · right click changes the skin',
+  'Bola': 'Ball', 'Espada de bamboo': 'Bamboo sword', 'Microfone de mão': 'Hand microphone',
+  'Canta sozinho de vez em quando · libera o Modo Karaokê no Jam': 'Sings on its own now and then · unlocks Karaoke mode in Jam',
+  'Crystal Mágico': 'Magic Crystal', 'Trevo da Sorte': 'Lucky Clover', '+50% em todas as moedas ganhas': '+50% on all coins earned',
+  'Elixir Dourado': 'Golden Elixir', 'Ampulheta Encantada': 'Enchanted Hourglass', 'Estrela dos Desejos': 'Wishing Star',
+  'Maçã': 'Apple', 'Cenoura': 'Carrot', 'Pão': 'Bread', 'Biscoito': 'Cookie', 'Sanduíche': 'Sandwich', 'Salada': 'Salad', 'Sopa': 'Soup',
+  'Peixe assado': 'Grilled fish', 'Carne assada': 'Roast meat', 'Hambúrguer': 'Hamburger', 'Bolo': 'Cake', 'Sorvete': 'Ice cream',
+  'Água': 'Water', 'Suco': 'Juice', 'Leite': 'Milk', 'Chá': 'Tea', 'Café': 'Coffee', 'Refrigerante': 'Soda',
+  'Aventura': 'Adventure', 'Terror': 'Horror', 'Comédia': 'Comedy',
+  'Lâmina do Horizonte': 'Blade of the Horizon', 'Piratas de Cristal': 'Crystal Pirates', 'O Último Dragão': 'The Last Dragon',
+  'Rumo ao Topo': 'To the Top', 'Caçadores de Ruínas': 'Ruin Hunters', 'Vento Selvagem': 'Wild Wind', 'Ilha Perdida': 'Lost Island',
+  'Coração de Ferro': 'Iron Heart', 'Estrada Estelar': 'Star Road', 'Mapa Proibido': 'Forbidden Map', 'Carta sob a Cerejeira': 'Letter under the Cherry Tree',
+  'Café às Cinco': 'Coffee at Five', 'Promessa de Verão': 'Summer Promise', 'Guarda-chuva Dividido': 'Shared Umbrella', 'Notas de Piano': 'Piano Notes',
+  'Sorriso na Estação': 'Smile at the Station', 'Festival de Lanternas': 'Lantern Festival', 'Dois Corações': 'Two Hearts', 'Primeira Neve': 'First Snow',
+  'Bilhete Secreto': 'Secret Note', 'A Casa do Fim da Rua': 'The House at the End of the Street', 'Sussurros no Poço': 'Whispers in the Well',
+  'Boneca de Porcelana': 'Porcelain Doll', 'Escola à Meia-noite': 'School at Midnight', 'O Espelho': 'The Mirror', 'Floresta sem Volta': 'Forest of No Return',
+  'Hospital Abandonado': 'Abandoned Hospital', 'Olhos na Janela': 'Eyes at the Window', 'Túnel 7': 'Tunnel 7', 'Gato Chefe': 'Boss Cat',
+  'Clube dos Preguiçosos': 'Lazy Club', 'Meu Vizinho Ninja': 'My Ninja Neighbor', 'Desastre na Cozinha': 'Kitchen Disaster', 'Escola dos Malucos': 'School of Crazies',
+  'Robô Atrapalhado': 'Clumsy Robot', 'Férias Caóticas': 'Chaotic Vacation', 'O Herói Desajeitado': 'The Clumsy Hero', 'Pizza Lendária': 'Legendary Pizza', 'Tio Samurai': 'Uncle Samurai',
+  // ---- furniture ----
+  'Cama': 'Bed', 'Dorme deitado de lado até encher a energia · às vezes senta ou deita para brincar': 'Sleeps on her side until energy is full · sometimes sits or lies down to play',
+  'Senta de frente para a TV e joga qualquer cartucho · come pipoca e bebe refri enquanto joga': 'Sits facing the TV and plays any cartridge · eats popcorn and drinks soda while playing',
+  'Almofada': 'Cushion', 'Senta para descansar e brincar': 'Sits to rest and play', 'Banheira': 'Bathtub',
+  'Toma banho de espuma sozinha quando está suja · clique para mandar tomar banho': 'Takes a bubble bath on her own when dirty · click to send her to bathe',
+  'Estante de Mangás': 'Manga Bookshelf', 'Guarda até 40 mangás · a Persocon lê sozinha': 'Holds up to 40 manga · the Persocon reads on her own',
+  'Alvo': 'Dartboard', 'Clique para um minigame de 3 minutos com recorde · a Persocon também joga dardos': 'Click for a 3-minute minigame with a record · the Persocon also plays darts',
+  'Globo de luz': 'Disco ball', 'Holofotes': 'Spotlights', 'Máquina de fumaça': 'Smoke machine', 'Lança-confete': 'Confetti launcher',
+  'Aceita todos os cartuchos': 'Takes every cartridge', 'Bola de vôlei': 'Volleyball', 'Rebate na parede': 'Bounces off the wall',
+  'Bola de basquete': 'Basketball', 'Dribla e arremessa': 'Dribbles and shoots', 'Bola de queimada': 'Dodgeball', 'Arremessos fortes': 'Strong throws',
+  // ---- v1.21 toys ----
+  'Ioiô': 'Yo-yo', 'Bambolê': 'Hula hoop', 'Pipa': 'Kite', 'Cubo mágico': 'Magic cube', 'Skate': 'Skateboard', 'Aquário': 'Aquarium',
+  'Teclado musical': 'Musical keyboard', 'Pula-pula': 'Trampoline', 'Câmera instantânea': 'Instant camera', 'Robô de corda': 'Wind-up robot',
+  'Faz truques que melhoram com o uso (nível salvo)': 'Does tricks that get better with use (level saved)',
+  'Quanto mais Energia, mais tempo ela gira · guarda o recorde': 'The more Energy, the longer she spins · keeps the record',
+  'Solta pipa perto da borda da tela ou de uma janela · a linha pode enroscar num ícone (só de mentira)': 'Flies a kite near the screen edge or a window · the string may get caught on an icon (just pretend)',
+  'Ela resolve sozinha · mais rápido com mais Afeição · guarda o recorde': 'She solves it herself · faster with more Affection · keeps the record',
+  'Anda no chão e pula para cima das janelas · às vezes cai e ganha um curativo temporário': 'Rides on the floor and jumps onto windows · sometimes falls and gets a temporary band-aid',
+  'Ela alimenta os peixes · sem comida por muito tempo a água fica turva e ela fica triste · clique para pedir que ela alimente': 'She feeds the fish · without food for a long time the water gets murky and she gets sad · click to ask her to feed them',
+  'Ela toca melodias 8-bit com a voz dela · clique nas teclas para tocar você também': 'She plays 8-bit tunes with her voice · click the keys to play too',
+  'Pulos altos: às vezes alcança o topo de uma janela e fica lá em cima · clique para ela pular': 'High jumps: sometimes reaches the top of a window and stays up there · click for her to jump',
+  'Ela tira fotos da cena, que vão para o Álbum (Perfil) · até 12 fotos': 'She takes photos of the scene, which go to the Album (Profile) · up to 12 photos',
+  'Ela dá corda, ele anda pela tela e ela persegue · esbarra no Doll': 'She winds it up, it walks across the screen and she chases it · bumps into the Doll',
+  'Um bichinho virtual com fome e humor próprios: ela cuida dele': 'A virtual pet with its own hunger and mood: she takes care of it',
+  '🐟 Pedir para ela alimentar os peixes': '🐟 Ask her to feed the fish', '🎹 Pedir para ela tocar': '🎹 Ask her to play',
+  '🤸 Pedir para ela pular': '🤸 Ask her to jump', '📷 Pedir uma foto': '📷 Ask for a photo', '🖼 Abrir o Álbum': '🖼 Open the Album',
+  'Teclado musical · clique nas teclas para tocar · botão direito para opções': 'Musical keyboard · click the keys to play · right click for options',
+  'Pula-pula · clique para ela pular · botão direito para opções': 'Trampoline · click for her to jump · right click for options',
+  'Skate · ela está com curativo: espera sarar para andar de novo': 'Skateboard · she has a band-aid: waits to heal before riding again',
+  'Fotos tiradas pela Persocon com a Câmera instantânea (até 12; quando enche, a mais antiga sai). Clique numa foto para ampliar.': 'Photos taken by the Persocon with the Instant camera (up to 12; when full, the oldest goes). Click a photo to enlarge.',
+  'Nenhuma foto ainda. Compre a Câmera instantânea (Shop → Fun stuffs) e coloque na área de trabalho.': 'No photos yet. Buy the Instant camera (Shop → Fun stuffs) and place it on the desktop.',
+  'Apagar esta foto': 'Delete this photo', 'Recorde no bambolê': 'Hula hoop record', 'Recorde do cubo mágico': 'Magic cube record',
+  'arraste para mover': 'drag to move', 'botão direito para opções': 'right click for options', 'clique para ela alimentar os peixes': 'click for her to feed the fish',
+  'um pouco turva': 'a bit murky', 'turva': 'murky', 'limpa': 'clean', 'pouco tempo': 'a little while', 'comida há': 'fed', 'truques': 'tricks', 'voltas': 'spins',
+  // ---- object menus ----
+  '🌈 Multicor': '🌈 Multicolor', 'Cor': 'Color', '⏹ Parar música': '⏹ Stop music', '🎵 Tocar música do resourcepack': '🎵 Play resourcepack music',
+  'Skin do Doll': 'Doll skin', '🔁 Skin padrão': '🔁 Default skin', '✨ Acordar o Doll': '✨ Wake the Doll',
+  '😴 Fazer o Doll dormir (parar de se mexer)': '😴 Make the Doll sleep (stop moving)', '🎯 Jogar (3 minutos)': '🎯 Play (3 minutes)',
+  '✏️ Editar esta mobília': '✏️ Edit this furniture', '🎨 Mudar visual / importar…': '🎨 Change look / import…', '📦 Guardar no inventário': '📦 Store in the inventory',
+  '🧍 Trocar skin (.png de skin de blocos)…': '🧍 Change skin (block skin .png)…', '🛋 Editando mobília': '🛋 Editing furniture',
+  '✔ Concluir': '✔ Done', 'Girar 15° para a esquerda': 'Rotate 15° left', 'Girar 15° para a direita': 'Rotate 15° right',
+  'Virar para o outro lado': 'Turn the other way', 'Diminuir': 'Shrink', 'Aumentar': 'Enlarge', 'Guardar no inventário': 'Store in the inventory',
+  'Voltar ao normal (direção, giro e tamanho)': 'Back to normal (direction, rotation and size)',
+  'Para mover: Ações → Editar mobília': 'To move: Actions → Edit furniture', 'Clique para ver os cartuchos': 'Click to see the cartridges',
+  'Mochila de comida: a Persocon pega comida, bebida e remédio sozinha quando precisa · clique para abrir o inventário': 'Food backpack: the Persocon takes food, drinks and medicine herself when needed · click to open the inventory',
+  'Dormente: só liga no modo Jam · botão direito para cor e intensidade · mova no Editar mobília': 'Dormant: only turns on in Jam mode · right click for color and intensity · move it in Edit furniture',
+  'Botão direito para opções · mova no Editar mobília': 'Right click for options · move it in Edit furniture',
+  'Arraste para mover · botão direito para opções': 'Drag to move · right click for options',
+  'Arraste para mover · roda do mouse gira · Shift + roda muda o tamanho': 'Drag to move · mouse wheel rotates · Shift + wheel resizes',
+  'Clique para interagir · arraste e solte para jogar · botão direito: skin e opções': 'Click to interact · drag and drop to throw · right click: skin and options',
+  // ---- minigames ----
+  'Esconde-esconde': 'Hide and seek', 'Ela se esconde e você procura': 'She hides and you seek',
+  'Feche os olhos: a Persocon vai se esconder atrás de um dos objetos.': 'Close your eyes: the Persocon will hide behind one of the objects.',
+  'Clique no objeto onde você acha que ela está.': 'Click the object where you think she is.',
+  'Quanto mais rápido achar, mais pontos. Se demorar, um objeto começa a tremer de risada.': 'The faster you find her, the more points. If you take long, an object starts shaking with laughter.',
+  'Batata quente': 'Hot potato', 'Passe a batata antes de explodir': 'Pass the potato before it explodes',
+  'Quando a batata estiver com você, ela segue o mouse: clique na Persocon para devolver.': 'When you have the potato it follows the mouse: click the Persocon to pass it back.',
+  'Cada passe deixa o tempo mais curto. Se segurar demais, queima a mão!': 'Each pass makes the time shorter. Hold it too long and it burns your hand!',
+  'O pavio é secreto: quem estiver com a batata quando o pavio acabar perde.': 'The fuse is secret: whoever has the potato when it explodes loses.',
+  'Siga o ritmo': 'Follow the rhythm', 'Synthwave: setas no beat com lasers': 'Synthwave: arrows on the beat with lasers',
+  'Setas no compasso enquanto ela dança': 'Arrows on the beat while she dances',
+  'Visual synthwave: setas neon descem nas 4 pistas. Aperte ← ↑ ↓ → (ou os botões) na linha de julgamento.': 'Synthwave look: neon arrows fall on 4 lanes. Press ← ↑ ↓ → (or the buttons) on the judgement line.',
+  'Lasers laterais e a batida acompanham a música energética. Acertos em sequência fazem combo.': 'Side lasers and the beat follow the energetic track. Hits in a row build a combo.',
+  '40 segundos · quanto maior o combo, mais ela se empolga.': '40 seconds · the bigger the combo, the more hyped she gets.',
+  'Synthwave! Sente o beat! 🎵': 'Synthwave! Feel the beat! 🎵', 'Luzes no máximo — vamos dançar!': 'Lights all the way up — let\'s dance!',
+  'Também dá para clicar nos botões embaixo de cada pista.': 'You can also click the buttons under each lane.',
+  'Acertos em sequência fazem combo. 40 segundos.': 'Hits in a row make a combo. 40 seconds.',
+  'Pescaria': 'Fishing', 'Fisgue na hora certa': 'Hook at the right moment', 'A Persocon joga a linha na água ao lado dela.': 'The Persocon casts the line into the water beside her.',
+  'Quando a boia afundar e aparecer "!", clique em qualquer lugar para fisgar.': 'When the float sinks and "!" shows up, click anywhere to hook.',
+  'Clicar cedo demais espanta o peixe. Peixes raros valem mais. 60 segundos.': 'Clicking too early scares the fish. Rare fish are worth more. 60 seconds.',
+  'Adivinhe o copo': 'Guess the cup', 'Siga a moeda embaixo dos copos': 'Follow the coin under the cups',
+  'Ela mostra a moeda embaixo de um copo e embaralha.': 'She shows the coin under a cup and shuffles.', 'Clique no copo onde a moeda está.': 'Click the cup where the coin is.',
+  'Cada rodada embaralha mais rápido, e mais ainda quanto maior a afeição. 5 rodadas.': 'Each round shuffles faster, and even more the higher the affection. 5 rounds.',
+  'Estátua': 'Statue', 'Congele a Persocon quando a música parar': 'Freeze the Persocon when the music stops', 'Ela dança enquanto a música toca.': 'She dances while the music plays.',
+  'Quando a música parar, clique nela rápido para ela virar estátua.': 'When the music stops, click her quickly to turn her into a statue.',
+  'Clicar com a música tocando ou demorar demais custa uma vida. 3 vidas.': 'Clicking while the music plays or taking too long costs a life. 3 lives.',
+  'Desenho': 'Drawing', 'Desenhe e ela tenta adivinhar': 'Draw and she tries to guess', 'Você recebe uma palavra secreta: desenhe-a no quadro.': 'You get a secret word: draw it on the board.',
+  'Clique em "Pronto!" e a Persocon tenta adivinhar.': 'Click "Done!" and the Persocon tries to guess.', 'Desenhos mais caprichados ajudam ela a acertar. 3 rodadas.': 'Neater drawings help her get it right. 3 rounds.',
+  'Bolhas de sabão': 'Soap bubbles', 'Estoure mais bolhas que ela': 'Pop more bubbles than her', 'A Persocon sopra bolhas. Clique nelas para estourar.': 'The Persocon blows bubbles. Click them to pop.',
+  'Bolhas douradas valem 5 pontos.': 'Golden bubbles are worth 5 points.', 'Ela também estoura as que passam perto dela. 45 segundos.': 'She also pops the ones that pass near her. 45 seconds.',
+  'Pedra, papel e tesoura': 'Rock, paper, scissors', 'Melhor de 5, com placar': 'Best of 5, with a scoreboard', 'Escolha pedra, papel ou tesoura.': 'Choose rock, paper or scissors.',
+  'Pedra quebra tesoura, tesoura corta papel, papel embrulha pedra.': 'Rock breaks scissors, scissors cut paper, paper wraps rock.',
+  'Quem fizer 3 pontos primeiro vence. Ela presta atenção nas suas escolhas!': 'First to 3 points wins. She pays attention to your choices!',
+  'Caça ao tesouro': 'Treasure hunt', 'Quente ou frio pela tela': 'Hot or cold around the screen', 'Há 3 tesouros escondidos na tela.': 'There are 3 treasures hidden on the screen.',
+  'Mova o mouse: o termômetro e a Persocon dizem se está quente ou frio.': 'Move the mouse: the thermometer and the Persocon tell you if it is hot or cold.',
+  'Clique para cavar. Você tem 10 escavações e 90 segundos.': 'Click to dig. You have 10 digs and 90 seconds.',
+  'Não mostrar novamente': "Don't show again", 'Começar!': 'Start!', 'Vitória!': 'Victory!', 'Fim de jogo': 'Game over',
+  'Achou! 😳': 'Found me! 😳', 'Ahh, me pegou!': 'Ahh, you got me!', 'Como você sabia?!': 'How did you know?!', 'Eu tava aqui o tempo todo!': 'I was here the whole time!',
+  'Hehe, ganhei essa!': 'Hehe, I won this one!', 'Não está aqui!': 'Not here!', 'Batata quente! 🔥': 'Hot potato! 🔥', 'Hahaha! Explodiu com você!': 'Hahaha! It blew up on you!',
+  'Queimou! 🔥': 'Burned! 🔥', 'Aaai! Explodiu comigo!': 'Ouch! It blew up on me!', 'Nããão! 💥': 'Nooo! 💥', 'A batata explodiu com você': 'The potato blew up on you',
+  'A batata explodiu com ela!': 'The potato blew up on her!', 'Segurou demais! Queimou a mão!': 'Held it too long! Burned your hand!', 'Queimou a mão!': 'Burned your hand!',
+  'Perfeito!': 'Perfect!', 'Bom!': 'Good!', 'Errou': 'Miss', 'Vamos dançar! 🎵': "Let's dance! 🎵", 'Uau, que peixão!': 'Wow, what a fish!', 'Raro!!': 'Rare!!',
+  'Uma bota?! 😒': 'A boot?! 😒', 'Espantou!': 'Scared it off!', 'Presta atenção, hein!': 'Pay attention, okay!', 'Onde está a moeda?': 'Where is the coin?',
+  'Acertou! 🎉': 'Correct! 🎉', 'Errou! Estava ali.': 'Wrong! It was there.', 'Olho de águia!': 'Eagle eye!', 'Nossa, acertou!': 'Wow, you got it!',
+  'Hehe, te enganei!': 'Hehe, fooled you!', 'Quase!': 'Almost!', 'Ainda está tocando! 💔': 'Still playing! 💔', '🗿 Estátua!': '🗿 Statue!',
+  'PAROU! Clique nela!': 'STOPPED! Click her!', 'Muito lento! 💔': 'Too slow! 💔', 'Quando a música parar, me congela!': 'When the music stops, freeze me!',
+  'árvore': 'tree', 'coração': 'heart', 'óculos': 'glasses', 'maçã': 'apple', 'chapéu': 'hat', 'Limpar': 'Clear', 'Pronto!': 'Done!',
+  'A Persocon está pensando...': 'The Persocon is thinking...', 'Desisto! Que desenho é esse?': 'I give up! What is that drawing?', 'Ahh, agora eu vi!': 'Ahh, now I see it!',
+  'Vou soprar bolhas! 🧼': "I'm going to blow bubbles! 🧼", 'Você estourou mais! 😮': 'You popped more! 😮', 'Empate!': 'Tie!', 'Ganhei! Hehe 🧼': 'I won! Hehe 🧼',
+  'Pedra': 'Rock', 'Papel': 'Paper', 'Tesoura': 'Scissors', 'Pô!': 'Aw!', 'Te li!': 'Read you!', 'Essa foi minha!': 'That one was mine!', 'Escolha!': 'Choose!',
+  'Fervendo! 🔥': 'Boiling! 🔥', 'Quente!': 'Hot!', 'Morno': 'Warm', 'Frio': 'Cold', 'Congelando ❄️': 'Freezing ❄️', 'Achou um tesouro!': 'Found a treasure!',
+  'Uaaau, brilhante!': 'Wooow, shiny!', 'Nada aqui...': 'Nothing here...', 'Tem tesouro escondido na tela!': 'There is treasure hidden on the screen!',
+  // ---- Doll duos ----
+  'Abraço': 'Hug', 'A Persocon vai até o Doll e dá um abraço': 'The Persocon goes to the Doll and hugs it', 'Os dois correm um atrás do outro (30s)': 'The two chase each other (30s)',
+  'Corrida': 'Race', 'Aposte em quem chega primeiro': 'Bet on who gets there first', 'O Doll se esconde e a Persocon procura': 'The Doll hides and the Persocon seeks',
+  'Bate-bola': 'Kick-about', 'Os dois trocam passes com a bola': 'The two pass the ball back and forth',
+  'Coloque uma bola na área de trabalho primeiro': 'Place a ball on the desktop first', 'Pegou!': 'Tagged!', 'JÁ!': 'GO!', 'Já!': 'Go!',
+  'Você acertou a aposta!': 'You won the bet!', 'Errou a aposta...': 'You lost the bet...', 'Sem aposta': 'No bet', 'Em quem você aposta?': 'Who do you bet on?',
+  'Ela está com muita sede para brincar agora': 'She is too thirsty to play now', 'Ela está com muita fome para brincar agora': 'She is too hungry to play now',
+  'Ela está cansada demais para brincar agora': 'She is too tired to play now',
+  // ---- misc on-screen ----
+  'Comida': 'Food', 'Bebida': 'Drink', 'Clique para abrir o menu': 'Click to open the menu', 'Fuja! Aperte ← → rápido': 'Run! Press ← → fast',
+  'Espreguiçar': 'Stretch', 'Pulinhos': 'Hops', 'Rodopio': 'Twirl', 'Olhar em volta': 'Look around', 'Tropeçar': 'Trip', 'Cochilar em pé': 'Doze standing',
+  'Espirrar': 'Sneeze', 'Equilibrar': 'Balance', 'Agachamentos': 'Squats', 'Acenar': 'Wave', 'Cantarolar': 'Hum', 'Bater o pé': 'Tap foot',
+  'Olhar o desktop': 'Look at the desktop', 'Lutar com a sombra': 'Shadow boxing', 'Borboleta': 'Butterfly', 'Bocejar': 'Yawn', 'Ofegar': 'Pant',
+  'Oi!': 'Hi!', 'Ei, você!': 'Hey, you!', 'Olá!': 'Hello!', 'Tô te vendo!': 'I see you!', 'Cadê a comida...': "Where's the food...",
+  'Tô esperando...': "I'm waiting...", 'Minha barriga...': 'My tummy...', 'Que vista bonita...': 'What a nice view...', 'Quantas janelas...': 'So many windows...',
+  'Toma!': 'Take that!', 'Ataque!': 'Attack!', 'Tchau, borboleta!': 'Bye, butterfly!', 'Quase peguei!': 'Almost got it!', 'Volta aqui!': 'Come back!', '*boceja*': '*yawns*',
+  'errou': 'miss',
+  'Achar jogos nos ícones da área de trabalho': 'Find games among the desktop icons', 'Procurar jogo na área de trabalho': 'Look for a game on the desktop',
+  '🖱 Clicar através': '🖱 Click through', 'Os cliques passam pela Persocon, objetos e mobília (para desligar: ícone da bandeja › Clicar através)': 'Clicks go through the Persocon, objects and furniture (to turn it off: tray icon › Click through)',
+  'Vending Machine de Comida': 'Food Vending Machine', 'Vending Machine de Bebida': 'Drink Vending Machine', 'Vending machines': 'Vending machines',
+  '🎞 Animação ': '🎞 Animation ', '🎲 Aleatória (alterna)': '🎲 Random (alternates)', 'Clássica': 'Classic', 'Turbo (gira rápido)': 'Turbo (fast crank)',
+  'Emperrada (chute na máquina)': 'Stuck (kicks the machine)', 'Suspense (rufar de tambores)': 'Suspense (drum roll)', 'Torcer a cápsula': 'Twist the capsule',
+  'Alavanca': 'Lever', 'Botão SPIN': 'SPIN button', 'Sopro da sorte': 'Lucky blow', 'Câmera lenta': 'Slow motion', 'Moedas e botão': 'Coins and button',
+  'Cartão por aproximação': 'Contactless card', 'Produto emperrado': 'Stuck product', 'Roleta da sorte': 'Lucky roulette', 'Indecisa': 'Indecisive',
+  'Tranquila': 'Calm', 'Empolgada': 'Hyped', 'Concentrada': 'Focused', 'Pavio curto': 'Short fuse', 'No ritmo': 'On the beat',
+  'Mais consumidos': 'Most consumed', '♥ Favoritos': '♥ Favorites', '👍 Gosta': '👍 Likes', '👎 Não gosta': '👎 Dislikes', '💢 Odeia': '💢 Hates', 'Gostos provados': 'Tastes tried',
+  '♥ favorita': '♥ favorite', '👍 gosta': '👍 likes', '✓ neutra': '✓ neutral', '👎 não gosta': '👎 dislikes', '💢 odeia': '💢 hates', '? nunca provou': '? never tasted',
+  'Ela ama: dá Humor extra sempre que come': 'She loves it: extra Mood every time', 'Ela odeia: perde Humor quando come': 'She hates it: loses Mood when eating it',
+  'Ela gosta: um pouco de Humor extra quando come': 'She likes it: a little extra Mood', 'Ela não gosta muito: perde um pouco de Humor quando come': 'She dislikes it: loses a little Mood',
+  'Ela já provou e achou normal': 'She tried it and found it ok', 'Na primeira vez ela decide: na maioria das vezes acha normal, às vezes adora ou detesta': 'The first time she decides: usually it is just ok, sometimes she loves or hates it',
+  'Reagir ao que acontece no desktop (janelas, mouse)': 'React to what happens on the desktop (windows, mouse)', 'Status fixo': 'Pinned status',
+  'Impressora 3D': '3D Printer', 'na fila da impressora': 'in the printer queue', 'impresso, a guardar': 'printed, to be stored', 'Fila vazia: compre algo na Shop': 'Queue empty: buy something in the Shop',
+  'Imprime as compras uma de cada vez, em fila · a Persocon pega cada item e guarda': 'Prints purchases one at a time, in a queue · the Persocon picks each item up and stores it',
+  'Gráficos': 'Graphics', 'Estilo dos ícones': 'Icon style', 'Clássico': 'Classic', 'Largura': 'Width', 'Altura': 'Height', '🎯 Modo foco': '🎯 Focus mode',
+  'Menos distrativa: fala e se mexe menos, não pede coisas, não escala janelas nem reage ao desktop': 'Less distracting: talks and moves less, asks for nothing, no window climbing or desktop reactions',
+  'Sempre na frente': 'Always on top', '✓ Sempre na frente': '✓ Always on top', '◻ Sempre na frente': '◻ Always on top', '✓ Clicar através': '✓ Click through', '◻ Clicar através': '◻ Click through',
+  '✥ Mudar a posição': '✥ Move it', '✕ Fechar': '✕ Close', 'Clique para abrir o menu · botão direito: opções': 'Click to open the menu · right click: options',
+  '♥ +10 Humor': '♥ +10 Mood', '👎 −8 Humor': '👎 −8 Mood', 'Depois': 'Later', '▶ Jogar': '▶ Play',
+  // ---- v1.21.2: options, debug, header ----
+  'Bebendo': 'Drinking', 'ligado': 'on', 'desligado': 'off', 'principal': 'primary', 'aqui agora': 'here now', 'Álbum': 'Album',
+  'Debug': 'Debug', '🎮 Modo debug ligado': '🎮 Debug mode on', '🎮 Modo debug desligado': '🎮 Debug mode off',
+  'Abrir console': 'Open console',
+  'Modo debug ligado: os logs vão para a pasta "log" em %APPDATA%\\My Persocon. O console fica aberto até você fechar (mesmo com o debug desligado).': 'Debug mode on: logs go to the "log" folder in %APPDATA%\\My Persocon. The console stays open until you close it (even with debug off).',
+  'Modo debug ligado: os logs vão para a pasta "log" em %APPDATA%\\My Persocon. Digite o código de novo para desligar.': 'Debug mode on: logs go to the "log" folder in %APPDATA%\\My Persocon. Enter the code again to turn it off.',
+  'Iniciar com o Windows': 'Start with Windows', 'Encontrou um bug?': 'Found a bug?', '🐞 Gerar relatório de erro': '🐞 Create bug report',
+  'Cria um .zip com versão, configurações, save e logs recentes para enviar ao desenvolvedor.': 'Creates a .zip with version, settings, save and recent logs to send to the developer.',
+  'Afeição: sobe devagar com carinho e cuidados; cai com maus-tratos e fome/sede. Em −100 a Persocon vai embora.': 'Affection: rises slowly with affection and care; drops with mistreatment and hunger/thirst. At −100 the Persocon leaves.',
+  'Dinheiro infinito (fase de testes)': 'Infinite money (testing phase)',
+  'Moedas: ganhe com o tempo (mais se ela estiver feliz e bem cuidada) e com o bônus diário': 'Coins: earn them over time (more if she is happy and well cared for) and with the daily bonus',
+  'Interações com o desktop/cursor': 'Desktop/cursor interactions', 'Roubar o cursor de vez em quando (1-3 s)': 'Steal the cursor now and then (1-3 s)',
+  'Brincar com os ícones (chutar cópias, lixeira, empurrar e devolver)': 'Play with the icons (kick copies, recycle bin, push and put back)',
+  'Sentar na barra de título da janela ativa': "Sit on the active window's title bar", 'Dançar / tapar os ouvidos com o som do PC': "Dance / cover her ears at the PC's sound",
+  'Pedir atenção (bater na tela) quando esquecida': 'Ask for attention (knock on the screen) when ignored', 'Lembretes de pausa (água/alongar a cada 1-2 h)': 'Break reminders (water/stretch every 1-2 h)',
+  'O Modo foco e o Streamer Mode desligam as interações com o desktop/cursor. Ícones empurrados de verdade voltam ao lugar em segundos.': 'Focus mode and Streamer Mode turn off desktop/cursor interactions. Icons that really get pushed go back in place within seconds.',
+  'Interações (v1.19)': 'Interactions (v1.19)', 'Mostrar tudo': 'Show all', 'em uso': 'in use', 'Braços finos': 'Slim arms',
+  'Girando (animado)': 'Spinning (animated)', 'Escolher resourcepack (.zip)': 'Choose resourcepack (.zip)', 'Barril (comida)': 'Barrel (food)', 'Baú (cartuchos)': 'Chest (cartridges)',
+  'PNG/GIF com transparência. Modelos 3D (.glb/.vrm) viram imagem na rotação escolhida (ou girando).': 'PNG/GIF with transparency. 3D models (.glb/.vrm) become an image at the chosen rotation (or spinning).',
+  'Desmarque uma parte para escondê-la (vale também após reiniciar).': 'Uncheck a part to hide it (also applies after restarting).',
+  'Guarda todos os objetos da área de trabalho (útil se algum sumiu da tela); ao colocar de novo, voltam para perto da Persocon': 'Stores every object on the desktop (useful if one went off screen); when placed again, they come back near the Persocon',
+  'Janelas (tema)': 'Windows (theme)', 'Suave': 'Soft', 'Fofo': 'Cute', 'Skin inválida': 'Invalid skin',
+  'Clique onde está o vídeo · Esc ou botão direito para pular': 'Click where the video is · Esc or right click to skip', 'Clicar através': 'Click through', 'Arraste para mover': 'Drag to move',
+  // ---- wallet / machines / profile ----
+  'Trato feito: a próxima comida que ela não gosta não tira Humor': "Deal: the next food she dislikes costs no Mood", '+5% de sorte na Gacha, na Slot e nas caixas por 30 min': '+5% luck on the Gacha, the Slot and boxes for 30 min',
+  '+25 de Higiene': '+25 Hygiene', 'Peixe assado no Inventário (2 com 50 pts)': 'Grilled fish in the Inventory (2 with 50 pts)', 'Zera o tédio: cafuné e brinquedos voltam a render Humor cheio': 'Clears boredom: pats and toys give full Mood again',
+  'Comportada por 1h: não mexe no cursor nem nos ícones': "Behaved for 1h: won't touch the cursor or the icons", 'Ela acha uma Caixa Comum': 'She finds a Common Box', 'Ela aprende um passo novo no Jam (até 4)': 'She learns a new Jam step (up to 4)',
+  'Seu melhor desenho vai para o Álbum': 'Your best drawing goes to the Album', 'Caixa Comum (achando os 3 tesouros: Caixa Rara)': 'Common Box (finding all 3 treasures: Rare Box)',
+  'bônus de hoje esgotado': "today's bonus used up", 'bônus do dia esgotado': "today's bonus used up", 'Trato feito!': 'Deal!', 'Sorte +5% por 30 min': 'Luck +5% for 30 min', 'Tédio zerado!': 'Boredom cleared!',
+  'Comportada por 1h': 'Behaved for 1h', 'Ela já sabe todos os passos': 'She already knows every step', 'Desenho guardado no Álbum': 'Drawing saved to the Album', 'Trato é trato!': 'A deal is a deal!',
+  'Sorte +5%': 'Luck +5%', 'Trato feito': 'Deal', 'Comportada': 'Behaved', 'Bater um recorde em um minijogo': 'Beat a minigame record',
+  'Parceira de Jogo': 'Game Buddy', 'Chegar ao nível 5 em um minijogo': 'Reach level 5 in a minigame', 'Mestra dos Jogos': 'Game Master', 'Chegar ao nível 10 em um minijogo': 'Reach level 10 in a minigame',
+  'Prêmio Merecido': 'Well Earned', 'Ganhar 20 bônus de minijogos': 'Earn 20 minigame bonuses',
+  '🎮 Modo debug': '🎮 Debug mode', 'Aproximação (lembrete)': 'Close-up (reminder)', 'Aproximação (alarme)': 'Close-up (alarm)', 'Efeito de Afeição': 'Affection effect',
+  'Código promocional': 'Promo code', 'Resgatar': 'Redeem', 'Código': 'Code', 'Código inválido': 'Invalid code', 'Código já usado': 'Code already used',
+  'Você já tem a Caixa Misteriosa': 'You already have the Mystery Box', 'Você já tem este item': 'You already have this item',
+  'Caixa Misteriosa grátis!': 'Free Mystery Box!',
+  'Lembretes e alarmes': 'Reminders and alarms', 'Ela vem bater na tela para lembrar': 'She comes knocking on the screen to remind you', 'Uma vez': 'Once', 'Todo dia': 'Every day', 'Seg a sex': 'Mon to Fri',
+  'Lembrete': 'Reminder', 'Alarme': 'Alarm', 'Novo': 'New', 'Ouvir': 'Listen', 'Adicionar': 'Add', 'Testar': 'Test', 'Remover': 'Remove', 'Sem texto': 'No text', 'Nenhum lembrete ainda.': 'No reminders yet.',
+  'O que ela deve lembrar (ex.: reunião às 15h)': 'What she should remind you (e.g. meeting at 3pm)', 'Visitas automáticas (água, postura, refeições, datas)': 'Automatic visits (water, posture, meals, dates)',
+  'Frequência das visitas': 'Visit frequency', 'Tamanho dela na tela': 'Her size on screen', 'Volume dos lembretes': 'Reminder volume', 'Testar aproximação': 'Test the close-up',
+  'Sininho': 'Little bell', 'Sino': 'Bell', 'Bipe': 'Beep', 'Voz dela': 'Her voice',
+  'Na hora marcada ela pula para trás da barra de tarefas, aparece bem grande na frente da tela e bate no vidro. Clique nela para um cafuné. Alarmes tocam até você responder; lembretes tocam duas vezes.': 'At the set time she hops behind the taskbar, pops up huge in front of the screen and knocks on the glass. Click her for a head pat. Alarms ring until you answer; reminders ring twice.',
+  'Carteira dela': 'Her wallet', 'Carteira': 'Wallet', 'Suas moedas': 'Your coins', 'Sorte nos jogos': 'Luck in games', 'Moedas ganhas nas máquinas': 'Coins won on the machines',
+  'Bonecos': 'Figures', 'na carteira dela': 'in her wallet', 'Sem sono (Energia acima de 70%)': 'Not sleepy (Energy above 70%)',
+  'Pegue o mouse! (60s, contagem 3-2-1)': 'Catch the mouse! (60s, 3-2-1 countdown)',
+  'Jam e Assistir usam o som do computador. O susto e a risada são detectados pelo áudio (estimativa).': 'Jam and Watch use the computer sound. Scares and laughs are detected from the audio (estimate).',
+  'O Doll está dormindo (botão direito nele para acordar).': 'The Doll is sleeping (right click it to wake it up).',
+  'Com o Crystal Mágico (Shop → Specials) o Doll ganha vida e brinca de muito mais coisas.': 'With the Magic Crystal (Shop → Specials) the Doll comes to life and plays many more games.',
+  'Bonecos colecionáveis saem da Gacha-Machine e ficam na Estante (cada estante guarda 65 mangás ou 30 bonecos; compre mais estantes em Mobília). Repetidos viram moedas para você.': 'Collectible figures come out of the Gacha-Machine and go on the Bookshelf (each one holds 65 manga or 30 figures; buy more bookshelves in Furniture). Duplicates turn into coins for you.',
+  'Novas missões todo dia. Cada uma vale uma Caixa Comum; completar as três dá uma Caixa Rara extra.': 'New missions every day. Each one is worth a Common Box; completing all three gives an extra Rare Box.',
+  'Bônus: todas as missões do dia': "Bonus: all of today's missions", 'Prêmios': 'Prizes', 'Abrir': 'Open',
+  'Compre uma Estante (Mobília) para liberar os mangás.': 'Buy a Bookshelf (Furniture) to unlock manga.',
+  'Brinquedos vão para o inventário; coloque na área de trabalho e a Persocon brinca sozinha. Quebram depois de um tempo.': 'Toys go to the inventory; place them on the desktop and the Persocon plays on her own. They break after a while.',
+  'Remédios curam na hora; PowerUps dão efeitos temporários. A Persocon pega sozinha da mochila quando a Saúde está baixa.': 'Medicine heals at once; PowerUps give temporary effects. The Persocon takes them from the backpack herself when Health is low.',
+  'Cartuchos vão para a bolsa do GameBuddy. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores.': 'Cartridges go into the GameBuddy bag. The more complex the game, the pricier. The Persocon gets better with practice and has favorites (♥, give more Mood). All have a 2-player mode.',
+  'Ela já está jogando!': 'She is already playing!', 'Ela está ocupada agora': 'She is busy right now', 'Carteira dela vazia · Ações → Carteira': 'Her wallet is empty · Actions → Wallet',
+  'Ela já está comprando!': 'She is already buying!', 'Ela está sem fome agora': "She isn't hungry right now", 'Ela está sem sede agora': "She isn't thirsty right now",
+  'Nada aqui que ela queira': 'Nothing here she wants', 'Mais um grátis': 'One more free', 'Girando…': 'Spinning…', 'Pegar ✓': 'Take ✓', 'caixas com sorte': 'lucky boxes',
+  'Clique para jogar (3 min) · botão direito para opções': 'Click to play (3 min) · right click for options',
+  'Arraste e solte para jogar a bola · botão direito guarda no inventário': 'Drag and drop to throw the ball · right click stores it in the inventory',
+  'Guarda 65 mangás ou 30 bonecos colecionáveis · pode ter várias · a Persocon lê e brinca sozinha': 'Holds 65 manga or 30 collectible figures · you can have several · the Persocon reads and plays on her own',
+  'Ela aposta as moedas da carteira dela · os ganhos vão para você · clique para pedir uma rodada · a sorte vem da Afeição': 'She bets the coins in her wallet · the winnings go to you · click to ask for a round · luck comes from Affection',
+  'Máquina japonesa · com fome, a Persocon compra sozinha, com a carteira dela, uma comida que ela ama ou gosta (preço da loja +20%) e come na hora · clique para pedir que ela compre · botão direito: animação': 'Japanese machine · when hungry, the Persocon buys on her own, with her wallet, a food she loves or likes (shop price +20%) and eats it right away · click to ask her to buy · right click: animation',
+  'Máquina japonesa · com sede, a Persocon compra sozinha, com a carteira dela, uma bebida que ela ama ou gosta (preço da loja +20%) e bebe na hora · clique para pedir que ela compre · botão direito: animação': 'Japanese machine · when thirsty, the Persocon buys on her own, with her wallet, a drink she loves or likes (shop price +20%) and drinks it right away · click to ask her to buy · right click: animation',
+  'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade': 'Turns on in Jam · move it in Edit furniture (even up high) · you can have several · right click: color and intensity',
+  'Máquina japonesa · com fome, a Persocon compra sozinha, com a carteira dela, uma comida favorita, de que gosta ou neutra (preço da loja +20%) e come na hora · clique para pedir que ela compre': 'Japanese machine · when hungry, the Persocon buys on her own, with her wallet, a favorite, liked or neutral food (shop price +20%) and eats it right away · click to ask her to buy',
+  'Máquina japonesa · com sede, a Persocon compra sozinha, com a carteira dela, uma bebida favorita, de que gosta ou neutra (preço da loja +20%) e bebe na hora · clique para pedir que ela compre': 'Japanese machine · when thirsty, the Persocon buys on her own, with her wallet, a favorite, liked or neutral drink (shop price +20%) and drinks it right away · click to ask her to buy',
+  'Moedas em dobro': 'Double coins', 'Doll (boneco articulado)': 'Doll (articulated figure)',
+  'Dá vida ao Doll: ele passeia, investiga objetos e mobília e brinca com a Persocon (precisa do Doll na área de trabalho)': 'Brings the Doll to life: it wanders, inspects objects and furniture and plays with the Persocon (needs the Doll on the desktop)',
+  'Chutam a bola um para o outro (precisa de uma bola)': 'They kick the ball to each other (needs a ball)',
+  // ---- interactions / antics / minigames ----
+  'Pedir atenção': 'Ask for attention', 'Roubar o cursor': 'Steal the cursor', 'Lembrete de pausa': 'Break reminder', 'Presente': 'Gift', 'Sentar na janela': 'Sit on the window',
+  'Ouvir o som': 'Listen to the sound', 'Chutar ícones': 'Kick icons', 'Lixeira': 'Recycle bin', 'Empurrar ícone': 'Push icon', 'Notas': 'Notes', 'Gol!': 'Goal!',
+  'Não achei ícones pra isso!': "I couldn't find any icons for that!", 'Atchim!': 'Achoo!', 'Atchiiim!': 'Achooo!', 'Atchô!': 'Atchoo!', 'Hmpf.': 'Hmph.',
+  'As setas descem nas 4 pistas. Aperte a seta do teclado (← ↑ ↓ →) quando a seta passar pela linha.': 'Arrows fall down the 4 lanes. Press the arrow key (← ↑ ↓ →) when one crosses the line.',
+  'Escapou...': 'It got away...', 'Embaralhando...': 'Shuffling...',
+  'Sobe e desce': 'Up and down', 'Dormir': 'Sleep', 'Passear com o cachorro': 'Walk the dog', 'Elevador': 'Elevator', 'Volta ao mundo': 'Around the world',
+  'Berço do gato': "Cat's cradle", 'Torre Eiffel': 'Eiffel Tower',
+  // ---- collectible figures ----
+  'Slime Azul': 'Blue Slime', 'Fantasminha Faminto': 'Hungry Little Ghost', 'Cogumelo Saltitante': 'Bouncing Mushroom', 'Estudante de Uniforme': 'Uniformed Student',
+  'Ninja da Névoa': 'Mist Ninja', 'Carteiro Saltador': 'Jumping Mail Carrier', 'Ouriço Velocista': 'Sprinter Hedgehog', 'Gato-Robô': 'Robot Cat',
+  'Garota Mágica': 'Magical Girl', 'Samurai Errante': 'Wandering Samurai', 'Caçadora Espacial': 'Space Huntress', 'Pirata dos Sete Mares': 'Seven Seas Pirate',
+  'Mecha Gigante': 'Giant Mecha', 'Dragão Ancestral': 'Ancient Dragon', 'Idol Virtual': 'Virtual Idol', 'Herói da Espada Antiga': 'Hero of the Ancient Sword',
+  'VideoGame (TV + console)': 'VideoGame (TV + console)',
+  // ---- loot boxes / prizes ----
+  'Comum': 'Common', 'Incomum': 'Uncommon', 'Raro': 'Rare', 'Lendário': 'Legendary', 'Épico': 'Epic', 'Rara': 'Rare', 'Épica': 'Epic',
+  'Caixa Comum': 'Common Box', 'Caixa Rara': 'Rare Box', 'Caixa Lendária': 'Legendary Box',
+  'Abra no Inventário: a Persocon abre e sai um prêmio na roleta': 'Open it in the Inventory: the Persocon opens it and a prize comes out of the roulette',
+  'Mais chance de prêmios incomuns, raros e lendários': 'Better chance of uncommon, rare and legendary prizes', 'Nunca sai prêmio comum · grande chance de lendário': 'Never a common prize · high chance of legendary',
+  'Biscoito da Sorte': 'Fortune Cookie', 'Ela lê a sorte do dia': "She reads the day's fortune", 'Lança-confete de bolso': 'Pocket confetti launcher',
+  'Uma chuva de confete em volta dela': 'A shower of confetti around her', 'Frasco de Bolhas': 'Bubble Bottle', 'Bolhas de sabão subindo': 'Soap bubbles rising',
+  'Bala de Energia': 'Energy Candy', 'Picolé de Frutas': 'Fruit Popsicle', 'Banho Instantâneo': 'Instant Bath', 'Limpinha na hora': 'Squeaky clean at once',
+  'Soneca em Lata': 'Canned Nap', 'Banquete Completo': 'Full Feast', 'Kit de Primeiros Socorros': 'First Aid Kit', 'Chuva de Corações': 'Heart Shower',
+  'Corações caindo em volta dela': 'Hearts falling around her', 'Pote de Vagalumes': 'Jar of Fireflies', 'Vagalumes voam em volta dela por 2 minutos': 'Fireflies fly around her for 2 minutes',
+  'Fogos de Artifício': 'Fireworks', 'Um show de fogos na área de trabalho': 'A fireworks show on the desktop', 'Ímã de Moedas': 'Coin Magnet',
+  'Moedas por tempo em dobro': 'Double coins over time', 'Cristal de Afeição': 'Affection Crystal', 'Cartucho Misterioso': 'Mystery Cartridge',
+  'Um cartucho que ela ainda não tem (ou moedas, se já tiver todos)': "A cartridge she doesn't have yet (or coins, if she has them all)",
+  'Relógio Parado': 'Stopped Clock', 'Fome e cansaço param por 15 min': 'Hunger and tiredness stop for 15 min', 'Pena da Fênix': 'Phoenix Feather',
+  'Tudo no máximo e escudo por 1 hora': 'Everything maxed and a shield for 1 hour', 'Estrela Cadente': 'Shooting Star', 'As próximas 3 caixas vêm com mais sorte': 'The next 3 boxes come with more luck',
+  'Coroa Real': 'Royal Crown', 'Ela usa a coroa por 15 minutos': 'She wears the crown for 15 minutes', 'Elixir Arco-íris': 'Rainbow Elixir',
+  'Ela fica com as cores do arco-íris por 3 minutos': 'She takes on rainbow colors for 3 minutes',
+  // ---- achievements / missions ----
+  'Primeiro Cafuné': 'First Head Pat', 'Faça carinho pela primeira vez': 'Pet her for the first time', 'Mãos Mágicas': 'Magic Hands', 'Mestre do Cafuné': 'Head Pat Master',
+  'Barriguinha Feliz': 'Happy Tummy', 'Gourmet': 'Gourmet', 'Paladar Refinado': 'Refined Palate', 'Pega-Pega': 'Tag', 'Escapista': 'Escape Artist', 'Colecionadora': 'Collector',
+  'Hora do Recreio': 'Recess Time', 'Campeã': 'Champion', 'Amizade': 'Friendship', 'Melhores Amigas': 'Best Friends', 'Laço Eterno': 'Eternal Bond',
+  'Afeição máxima (1000)': 'Maximum Affection (1000)', 'Tudo Liberado': 'All Unlocked', 'Desbloquear todos os minijogos': 'Unlock every minigame', 'Cofrinho': 'Piggy Bank',
+  'Magnata': 'Tycoon', 'Atenciosa': 'Attentive', 'Viciada em Caixas': 'Box Addict', 'Sorte Grande': 'Big Luck', 'Tirar um prêmio Lendário': 'Get a Legendary prize',
+  'Rotina Exemplar': 'Model Routine', 'Uma Semana Juntas': 'One Week Together', 'Um Mês Juntas': 'One Month Together', 'Consumista': 'Shopaholic', 'Mesada': 'Allowance',
+  'Gira-Gira': 'Spin-Spin', 'Épico!': 'Epic!', 'Tirar uma cápsula Épica na Gacha': 'Get an Epic capsule from the Gacha', 'Colecionadora de Bonecos': 'Figure Collector',
+  'Coleção Completa': 'Complete Collection', 'Ter todos os bonecos colecionáveis': 'Own every collectible figure', 'Trinca!': 'Three of a Kind!',
+  'Ela tirar 3 iguais na Slot-Machine': 'She gets 3 of a kind on the Slot-Machine', 'Ela tirar 7-7-7 na Slot-Machine': 'She gets 7-7-7 on the Slot-Machine',
+  'Vencer um minijogo': 'Win a minigame', 'Dar um banho': 'Give her a bath', 'Brincar de pega-pega': 'Play tag', 'Ela ler um mangá': 'She reads a manga',
+  'Dar moedas para a carteira dela': 'Give coins to her wallet', 'Ela jogar na Slot-Machine': 'She plays the Slot-Machine',
+  'CONQUISTA DESBLOQUEADA': 'ACHIEVEMENT UNLOCKED', 'MINIJOGO DESBLOQUEADO': 'MINIGAME UNLOCKED', 'Já dá pra jogar em Brincar': 'You can play it in Play now',
+  'MISSÃO CONCLUÍDA': 'MISSION COMPLETE', 'MISSÕES DO DIA COMPLETAS': "TODAY'S MISSIONS COMPLETE", 'Dia Perfeito!': 'Perfect Day!', 'Todas as missões de hoje': "All of today's missions",
+  'A sorte sorri para quem faz cafuné.': 'Luck smiles on those who give head pats.', 'Uma caixa lendária está no seu futuro...': 'A legendary box is in your future...',
+  'Hoje é um ótimo dia para um lanchinho.': 'Today is a great day for a snack.', 'Quem brinca junto, fica junto!': 'Those who play together, stay together!',
+  'Um cartucho perdido vai te encontrar.': 'A lost cartridge will find you.', 'Sua paciência será recompensada em moedas.': 'Your patience will be rewarded in coins.',
+  'Grandes aventuras começam com um bocejo.': 'Great adventures begin with a yawn.', 'Alguém está pensando em você agora mesmo.': 'Someone is thinking of you right now.',
+  'Viciada em Gacha': 'Gacha Addict', 'Apostadora': 'Gambler', 'Freguesa da Máquina': 'Machine Regular', 'Cliente VIP': 'VIP Customer', 'Mais Um Grátis!': 'One More Free!',
+  'Tirar 7777 na roleta da vending machine': 'Get 7777 on the vending machine roulette', 'Favoritas': 'Favorites', 'Crítica Gastronômica': 'Food Critic',
+  'Truque na Manga': 'Trick Up the Sleeve', 'Mestre do Ioiô': 'Yo-yo Master', 'Rainha do Bambolê': 'Hula Hoop Queen', 'Cubo Relâmpago': 'Lightning Cube',
+  'Fotógrafa': 'Photographer', 'Aquarista': 'Aquarist', 'Mamãe Virtual': 'Virtual Mom', 'Skatista': 'Skater', 'Manobra Radical': 'Radical Trick',
+  'Lá no Alto!': 'Up High!', 'Pular do pula-pula para cima de uma janela': 'Jump from the trampoline onto a window', 'Parque de Diversões': 'Amusement Park',
+  'Amigo de Pano': 'Cloth Friend', 'Campeã do Doll': 'Doll Champion', 'Bolada!': 'Windfall!', 'Tirar a bolada de moedas numa caixa': 'Get the coin windfall from a box',
+  'Doll venceu!': 'Doll won!',
+  'Ela comprar algo na vending machine': 'She buys something from a vending machine', 'Ela brincar com o Doll': 'She plays with the Doll', 'Bolada de moedas!': 'Coin windfall!',
+};
+
+// Texts with numbers or names in them.
+const PATTERNS = [
+  [/ · Nv (\d+)/g, ' · Lv $1'],
+  [/vencer: /g, 'win: '],
+  [/\((\d+)\/(\d+) hoje\)/g, '($1/$2 today)'],
+  [/(próximo )?bônus em (\d+) min/g, 'next bonus in $2 min'],
+  [/^⬆️ Nível (\d+) em (.+): ela joga melhor agora!$/, '⬆️ Level $1 in $2: she plays better now!'],
+  [/\+(\d+) Peixe assado/g, '+$1 Grilled fish'],
+  [/Passo novo no Jam! \((\d)\/4\)/g, 'New Jam step! ($1/4)'],
+  [/^Ganhar (\d+) bônus de minijogos?$/, 'Earn $1 minigame bonus(es)'],
+  [/^¥ (\d+) resgatados!$/, '¥ $1 redeemed!'],
+  [/^\+(\d+) (.+) → Inventário$/, '+$1 $2 → Inventory'],
+  [/^(\d+) ativo\(s\) · ela vem bater na tela$/, '$1 active · she comes knocking on the screen'],
+  [/^(\d\d:\d\d) · Lembrete$/, '$1 · Reminder'],
+  [/^(\d\d:\d\d) · Alarme$/, '$1 · Alarm'],
+  [/^Ela quer: (.+) · ainda (\d+)h$/, 'She wants: $1 · $2h left'],
+  [/^(\d+) dia\(s\) e (\d+)h$/, '$1 day(s) and $2h'],
+  [/^(.+) no inventário$/, '$1 in the inventory'],
+  [/^(\d+)s restantes$/, '$1s left'],
+  [/^(.+) · recorde (.+)$/, '$1 · record $2'],
+  [/\(ganhou (\d+)\)/g, '(earned $1)'],
+  [/(\d+) partidas · (\d+) vitórias da Persocon · (\d+) fugas/, '$1 matches · $2 Persocon wins · $3 escapes'],
+  [/\(nv (\d+)\)/g, '(lv $1)'],
+  [/^tem (.+)$/, 'has $1'],
+  [/^Usado (\d+)×$/, 'Used $1×'],
+  [/Colocados/g, 'Placed'],
+  [/^(\d+) animações$/, '$1 animations'],
+  [/^Usando set gerado #(\d+)\. Gere outro até gostar\.$/, 'Using generated set #$1. Generate another until you like it.'],
+  [/^(.+) arrumou as coisas e foi embora para sempre\.$/, '$1 packed up and left for good.'],
+  [/^(.+) ficou sem saúde\.$/, '$1 ran out of health.'],
+  [/^Pega-pega! (\d+)s$/, 'Tag! $1s'],
+  [/^Pegou o mouse! Fuja com ← →$/, 'Caught the mouse! Escape with ← →'],
+  [/^Jogando (.+)$/, 'Playing $1'],
+  [/^(\d+) por (\d+) min$/, '$1 for $2 min'],
+  [/Vai para a bolsa de cartuchos \(GameBuddy, GameGlow, PlayPocket e TV\) · complexidade/, 'Goes into the cartridge bag (GameBuddy, GameGlow, PlayPocket and TV) · complexity'],
+  [/ · vai para a Estante$/, ' · goes on the Bookshelf'],
+  [/ vol\. (\d+)/, ' vol. $1'],
+  [/ · nova compra: a Persocon vai checar e guardar · clique para guardar agora/, ' · new purchase: the Persocon will check and store it · click to store now'],
+  [/ · nível (\d+)/, ' · level $1'],
+  [/^Quebrado — clique para consertar \((\d+) moedas\)$/, 'Broken — click to repair ($1 coins)'],
+  [/^Clique nele para consertar/, 'Click it to repair'],
+  [/^Quebrado — clique para consertar \(¥ (\d+)\)$/, 'Broken — click to repair (¥ $1)'],
+  [/^(🔧 )?Consertar ¥ (\d+)$/, '$1Repair ¥ $2'],
+  [/^Conserto: ¥ (\d+) \(metade do preço\)$/, 'Repair: ¥ $1 (half the price)'],
+  [/^Vender ¥ (\d+)$/, 'Sell ¥ $1'],
+  [/^Vender ¥ (\d+) \(×(\d+)\)$/, 'Sell ¥ $1 (×$2)'],
+  [/^(\d+) PowerUps no Inventário!$/, '$1 PowerUps in the Inventory!'],
+  [/^\+(\d+) PowerUps$/, '+$1 PowerUps'],
+  [/^(.+) consertad[oa]$/, '$1 repaired'],
+  [/^Corvo: (.+)$/, 'Crow: $1'],
+  [/^(.+) · carteira dela$/, '$1 · her wallet'],
+  [/^(.+) repetido$/, '$1 (duplicate)'],
+  [/^(.+) · aperfeiçoada$/, '$1 · upgraded'],
+  [/^Aperfeiçoar todas as (\d+) mobílias$/, 'Upgrade all $1 pieces of furniture'],
+  [/^⬆️ Aperfeiçoar \(¥ (\d+)\)$/, '⬆️ Upgrade (¥ $1)'],
+  [/^▶ Tocar a playlist \((\d+)\)$/, '▶ Play the playlist ($1)'],
+  [/^Playlist \((\d+)\)$/, 'Playlist ($1)'],
+  [/^(\d+) notas$/, '$1 notes'],
+  [/^(\d+) → mochila$/, '$1 → backpack'],
+  [/^(\d+) → inventário$/, '$1 → inventory'],
+  [/^Bolsa dela pausada \((\d+) item\(ns\) ainda guardados — menu rápido para devolver\)\.$/, 'Her bag is paused ($1 item(s) still stored — quick menu to return them).'],
+  [/^\+(\d+) humor$/, '+$1 mood'], [/^Consertou: /, 'Repaired: '], [/^➕ Aumentar \((\d+)%\)$/, '➕ Bigger ($1%)'], [/^✨ Habilidades \((\d+)\) (.)$/, '✨ Skills ($1) $2'],
+  [/^Rodada /, 'Round '],
+  [/(\d+)\/(\d+) acertos/, '$1/$2 correct'],
+  [/(\d+)% de acertos · combo máx\. (\d+)/, '$1% hits · max combo $2'],
+  [/olhe a moeda!/, 'watch the coin!'],
+  [/(\d+) peixes/, '$1 fish'], [/(\d+) fisgados/, '$1 hooked'], [/(\d+) estátuas/, '$1 statues'], [/(\d+) passes/, '$1 passes'],
+  [/(\d+)\/3 tesouros/, '$1/3 treasures'], [/(\d+) escavações/, '$1 digs'],
+  [/^Desenhe: (.+)$/, 'Draw: $1'], [/^(.+)! Acertei\?$/, '$1! Did I get it?'], [/^Hmm\.\.\. (.+)\?$/, 'Hmm... $1?'], [/^Seria\.\.\. (.+)\?$/, 'Could it be... $1?'],
+  [/^Já sei! (.+)!$/, 'I know! $1!'], [/^Ela acertou na (\d+)ª tentativa! (.+)$/, 'She got it on try #$1! $2'], [/^Ela desistiu! Era: (.+)$/, 'She gave up! It was: $1'],
+  [/^Isso era (.+)\?! 😂$/, 'That was $1?! 😂'],
+  [/^Você (\d+) × (\d+) Persocon/, 'You $1 × $2 Persocon'],
+  [/^Placar geral: (\d+) vitórias · (\d+) derrotas · (\d+) empates$/, 'Overall: $1 wins · $2 losses · $3 ties'],
+  [/^Primeiro a 3 vence · /, 'First to 3 wins · '],
+  [/^(Pedra|Papel|Tesoura) vence (pedra|papel|tesoura)! Ponto (seu|dela)\.$/, (_, a, b, w) => {
+    const R = { pedra: 'rock', papel: 'paper', tesoura: 'scissors' };
+    const n = R[a.toLowerCase()];
+    return `${n[0].toUpperCase() + n.slice(1)} beats ${R[b]}! ${w === 'seu' ? 'Your' : 'Her'} point.`;
+  }],
+  [/ · 🔥 vai explodir!$/, ' · 🔥 about to blow!'],
+  [/^Treinos: (\d+) · Presentes trazidos: (\d+)$/, 'Training sessions: $1 · Presents brought: $2'], [/^(\d+)% · treinando$/, '$1% · training'],
+  [/^O Corvo aprendeu: /, 'The Crow learned: '],
+  [/^O Corvo está preocupado: (Fome|Sede|Energia|Higiene|Saúde)$/, (_, s) => `The Crow is worried: ${{ Fome: 'Hunger', Sede: 'Thirst', Energia: 'Energy', Higiene: 'Hygiene', Saúde: 'Health' }[s]}`], [/ \(não tem\)$/, ' (missing)'],
+  [/Tá esquentando!/, 'Getting warmer!'], [/Esfriou\.\.\./, 'Getting colder...'],
+  [/^🙈 Contando\.\.\. (\d+)$/, '🙈 Counting... $1'],
+  [/^Bate-bola: (\d+) passes!$/, 'Kick-about: $1 passes!'],
+  [/^Força da Persocon: (alta|média|baixa) \(Saúde (\d+)%\)$/, (_, f, h) => `Persocon's strength: ${{ alta: 'high', 'média': 'medium', baixa: 'low' }[f]} (Health ${h}%)`],
+  [/^🎾 Pega o mouse! (\d+)s$/, '🎾 Catch the mouse! $1s'],
+  [/^Animações do modelo/, 'Model animations'],
+  [/^Monitor (\d+)/, 'Monitor $1'],
+  [/ · VS Doll$/, ' · VS Doll'],
+  [/ pts/g, ' pts'],
+  [/^📷 Álbum:? (\d+)\/(\d+)$/, '📷 Album $1/$2'],
+  [/^🪀 Nível (\d+) · (\d+) truques feitos$/, '🪀 Level $1 · $2 tricks done'],
+  [/^(⏱|🧩) Recorde: (.+)$/, '$1 Record: $2'],
+  [/^🥚 Bichinho: fome (\d+)% · humor (\d+)%$/, '🥚 Pet: hunger $1% · mood $2%'],
+  [/^🐟 Água (\d+)% limpa$/, '🐟 Water $1% clean'],
+  [/^nível (\d+) · (\d+) truques$/, 'level $1 · $2 tricks'],
+  [/fome (\d+)% · humor (\d+)%/, 'hunger $1% · mood $2%'],
+  [/ · água /, ' · water '],
+  [/^🪀 Nível (\d+)!$/, '🪀 Level $1!'],
+  [/^🏆 Recorde! (.+)$/, '🏆 Record! $1'],
+  // ---- v1.21.2 ----
+  [/^Boneco: (.+)$/, 'Figure: $1'],
+  [/^(\d+) moedas para você$/, '$1 coins for you'], [/^(💰 )?(\d+) moedas$/, '$1$2 coins'],
+  [/ · repetido: \+(\d+) ¥ para você/, ' · duplicate: +$1 ¥ for you'], [/^\+(\d+) ¥ para você$/, '+$1 ¥ for you'],
+  [/^Precisa de ¥ (\d+)$/, 'Needs ¥ $1'],
+  [/^Carteira dela: ¥ (\d+) · não dá para nada que ela goste \(Ações → Carteira\)$/, 'Her wallet: ¥ $1 · not enough for anything she likes (Actions → Wallet)'],
+  [/Girar a Gacha \(¥ (\d+), você paga\)$/, 'Spin the Gacha (¥ $1, you pay)'],
+  [/Pedir para ela jogar \(carteira dela: ¥ (\d+)\)$/, 'Ask her to play (her wallet: ¥ $1)'],
+  [/Pedir para ela comprar \(carteira dela: ¥ (\d+)\)$/, 'Ask her to buy (her wallet: ¥ $1)'],
+  [/^Clique: girar a Gacha \(¥ (\d+), você paga\) · ela também gira com a carteira dela$/, 'Click: spin the Gacha (¥ $1, you pay) · she also spins with her wallet'],
+  [/^Clique: pedir para ela jogar · aposta da carteira dela \(¥ (\d+)\), os ganhos vão para você · a sorte vem da Afeição$/, 'Click: ask her to play · bets from her wallet (¥ $1), the winnings go to you · luck comes from Affection'],
+  [/^Clique: pedir para ela comprar algo que ela gosta com a carteira dela \(¥ (\d+)\) · com (sede|fome) ela vem sozinha$/,
+    (_, n, k) => `Click: ask her to buy something she likes with her wallet (¥ ${n}) · when ${k === 'sede' ? 'thirsty' : 'hungry'} she comes on her own`],
+  [/^Clique para girar \(¥ (\d+), você paga\) · ela também gira sozinha com a carteira dela · cápsulas Comum, Incomum, Rara e Épica: moedas \(para você\), comidas, bebidas e bonecos colecionáveis$/,
+    'Click to spin (¥ $1, you pay) · she also spins on her own with her wallet · Common, Uncommon, Rare and Epic capsules: coins (for you), food, drinks and collectible figures'],
+  [/^🎞 Animação (.+)$/, '🎞 Animation $1'],
+  [/ · pronto na impressora 3D: a Persocon vai pegar e guardar · clique para guardar agora/, ' · ready on the 3D printer: the Persocon will pick it up and store it · click to store now'],
+  [/^Imprimindo /, 'Printing '], [/ · (\d+) na fila/, ' · $1 in queue'],
+  [/^Ela tira fotos da cena, que vão para o Álbum \(Perfil\) · até (\d+) fotos$/, 'She takes photos of the scene, which go to the Album (Profile) · up to $1 photos'],
+  [/^Fotos tiradas pela Persocon com a Câmera instantânea \(até (\d+); quando enche, a mais antiga sai\)\. Clique numa foto para ampliar\.$/,
+    'Photos taken by the Persocon with the Instant camera (up to $1; when full, the oldest goes). Click a photo to enlarge.'],
+  [/^¥ (\d+) na carteira · dar moedas$/, '¥ $1 in the wallet · give coins'], [/^Dar ¥ (\d+)$/, 'Give ¥ $1'],
+  [/ · espuma e bolhas$/, ' · foam and bubbles'], [/ \(vem da Afeição\)$/, ' (comes from Affection)'], [/ \(vão para você\)$/, ' (go to you)'],
+  [/^(\d+) compras · ¥ (\d+) gastos da carteira dela$/, '$1 purchases · ¥ $2 spent from her wallet'],
+  [/ · sorte nos jogos (\d+)%/, ' · luck in games $1%'], [/ · moedas ×/, ' · coins ×'],
+  [/^Dar moedas deixa ela feliz e aumenta a Afeição \(presentes seguidos rendem menos\)\. Ela aposta a carteira sozinha na Slot-Machine e gira a Gacha-Machine \(¥ (\d+)\); os prêmios em moedas e os ganhos da Slot vão para você\. Com as Vending Machines, ela compra com a carteira o que gosta de comer e beber quando tem fome ou sede\. Ela guarda o bastante para comer e beber e só aposta o que sobra, com calma\.$/,
+    'Giving coins makes her happy and raises Affection (gifts in a row give less). She bets her wallet on the Slot-Machine and spins the Gacha-Machine (¥ $1) on her own; coin prizes and Slot winnings go to you. With the Vending Machines, she uses her wallet to buy food and drinks she likes when hungry or thirsty. She keeps enough to eat and drink and only bets what is left, calmly.'],
+  [/^Desbloqueia com (\d+) de Afeição \(agora (-?\d+)\)$/, 'Unlocks at $1 Affection (now $2)'],
+  [/^📅 Missões (\d+)\/(\d+)$/, '📅 Missions $1/$2'], [/^🏆 Conquistas (\d+)\/(\d+)$/, '🏆 Achievements $1/$2'], [/^🧸 Coleção (\d+)\/(\d+)$/, '🧸 Collection $1/$2'],
+  [/^🍀 Próximas (\d+) caixa\(s\) com sorte aumentada\.$/, '🍀 Next $1 box(es) with boosted luck.'],
+  [/^Conquistada em (.+)$/, 'Earned on $1'],
+  [/^(\d+) procedurais \(geradas para a Persocon\)$/, '$1 procedural (generated for the Persocon)'], [/^(\d+) em (\d+) arquivo\(s\)$/, '$1 in $2 file(s)'],
+  [/^Animações \((\d+)\) — clique para ver ao lado$/, 'Animations ($1) — click to see it on the side'],
+  [/^Importar: (.+)$/, 'Import: $1'], [/^Não foi possível abrir o modelo: (.+)$/, 'Could not open the model: $1'], [/^Atual: (.+)$/, 'Current: $1'],
+  // achievements and daily missions
+  [/^(\d+) cafunés$/, '$1 head pats'], [/^Fazer (\d+) cafunés$/, 'Give $1 head pats'], [/^Consumir (\d+) itens$/, 'Consume $1 items'],
+  [/^Provar (\d+) sabores diferentes$/, 'Taste $1 different flavors'], [/^Brincar de pega-pega (\d+) vezes$/, 'Play tag $1 times'], [/^Escapar (\d+) vezes$/, 'Escape $1 times'],
+  [/^Jogar (\d+) partidas de videogame$/, 'Play $1 video game matches'], [/^Ter (\d+) cartuchos$/, 'Own $1 cartridges'], [/^Ter (\d+) mangás$/, 'Own $1 manga'],
+  [/^Jogar 1 minijogo$/, 'Play 1 minigame'], [/^Jogar (\d+) minijogos$/, 'Play $1 minigames'], [/^Vencer (\d+) minijogos$/, 'Win $1 minigames'],
+  [/^Chegar a (\d+) de Afeição$/, 'Reach $1 Affection'], [/^Ganhar ([\d.]+) moedas$/, (_, n) => `Earn ${n.replace(/\./g, ',')} coins`],
+  [/^Atender (\d+) pedidos$/, 'Fulfill $1 requests'], [/^Abrir (\d+) caixas$/, 'Open $1 boxes'], [/^Concluir (\d+) missões diárias$/, 'Complete $1 daily missions'],
+  [/^(\d+) dias de convivência$/, '$1 days together'], [/^Fazer (\d+) compras$/, 'Make $1 purchases'], [/^Dar (\d+) moedas para a carteira dela$/, 'Give $1 coins to her wallet'],
+  [/^Girar a Gacha-Machine (\d+)(?: vezes|×)$/, 'Spin the Gacha-Machine $1 times'], [/^Ter (\d+) bonecos colecionáveis$/, 'Own $1 collectible figures'],
+  [/^Dar comida (\d+) vezes$/, 'Feed her $1 times'], [/^Dar (\d+) bebidas$/, 'Give $1 drinks'], [/^Ela brincar (\d+)× com brinquedos$/, 'She plays with toys $1×'],
+  [/^Comprar (\d+) itens$/, 'Buy $1 items'], [/^Manter o Humor acima de (\d+) por (\d+) min$/, 'Keep Mood above $1 for $2 min'], [/^Passar (\d+) min com ela$/, 'Spend $1 min with her'],
+  [/^Ela girar a Slot-Machine (\d+) vezes$/, 'She spins the Slot-Machine $1 times'], [/^Ela comprar (\d+) vezes nas vending machines$/, 'She buys from the vending machines $1 times'],
+  [/^Ter (\d+) comidas ou bebidas favoritas$/, 'Have $1 favorite foods or drinks'], [/^Ioiô no nível máximo \((\d+)\)$/, 'Yo-yo at max level ($1)'], [/^Ioiô no nível (\d+)$/, 'Yo-yo at level $1'],
+  [/^Recorde de (\d+)s no bambolê$/, 'Hula hoop record of $1s'], [/^Resolver o cubo mágico em até (\d+)s$/, 'Solve the magic cube in $1s or less'],
+  [/^Encher o álbum de fotos \((\d+)\)$/, 'Fill the photo album ($1)'], [/^Alimentar os peixes do aquário (\d+) vezes$/, 'Feed the aquarium fish $1 times'],
+  [/^Deixar o Tamapet feliz (\d+) vezes$/, 'Make the Tamapet happy $1 times'], [/^Andar de skate (\d+) vezes$/, 'Ride the skateboard $1 times'],
+  [/^Deslizar de skate em cima de janelas (\d+) vezes$/, 'Grind on top of windows $1 times'], [/^Brincar com todos os (\d+) brinquedos novos$/, 'Play with all $1 new toys'],
+  [/^Brincar com o Doll (\d+) vezes$/, 'Play with the Doll $1 times'], [/^Vencer o Doll (\d+) vezes$/, 'Beat the Doll $1 times'],
+  [/^Ela alimentar os peixes (\d+)×$/, 'She feeds the fish $1×'], [/^Ela tirar (\d+) fotos?$/, (_, n) => `She takes ${n} photo${n === '1' ? '' : 's'}`],
+  [/^Ela já tinha · \+(\d+) moedas para você$/, 'She already had it · +$1 coins for you'],
+  [/ por (\d+(?:[.,]\d+)?) min\b/g, ' for $1 min'],
+];
+
+// Single words/phrases replaced inside longer texts (stat lines, labels with numbers…).
+let fragRe = null;
+function fragments() {
+  if (fragRe) return fragRe;
+  const keys = Object.keys(EN).filter((k) => k.length >= 3 && /\p{L}/u.test(k)).sort((a, b) => b.length - a.length);
+  const esc = keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  fragRe = new RegExp(`(?<![\\p{L}])(${esc.join('|')})(?![\\p{L}])`, 'gu');
+  return fragRe;
+}
+
+export function translate(s) {
+  if (!s || !/\p{L}/u.test(s)) return s;
+  const m = s.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  const [, pre, core, post] = m;
+  if (EN[core]) return pre + EN[core] + post;
+  // Emoji/symbol prefix or punctuation suffix around a known text.
+  const p = core.match(/^([^\p{L}]*)([\s\S]*?)([:.…!?]*)$/u);
+  if (p && EN[p[2]]) return pre + p[1] + EN[p[2]] + p[3] + post;
+  if (p && p[3] && EN[p[2] + p[3]]) return pre + p[1] + EN[p[2] + p[3]] + post;
+  let out = core;
+  for (const [re, rep] of PATTERNS) out = out.replace(re, rep);
+  out = out.replace(fragments(), (w) => EN[w] || w);
+  return pre + out + post;
+}
+
+// ---------- the Persocon's gender ----------
+// Texts are written for a female unit ("ela", "cansada", "she"); for M and ??? (X) the words that
+// refer to the Persocon are swapped on display. Only words that always mean the pet go here.
+const PT_WORDS = {
+  ela: ['ele', 'elu'], dela: ['dele', 'delu'], nela: ['nele', 'nelu'],
+};
+for (const w of ['cansada', 'sozinha', 'entediada', 'sonolenta', 'animada', 'suja', 'limpinha', 'obrigada', 'preocupada', 'assustada', 'machucada',
+  'cheirosa', 'tonta', 'sentada', 'carregada', 'esquecida', 'cuidada', 'exausta', 'suada', 'imunda', 'ocupada', 'faminta', 'acordada', 'deitada',
+  'curiosa', 'empolgada', 'brava', 'chateada', 'irritada', 'travada', 'mimada']) {
+  PT_WORDS[w] = [w.slice(0, -1) + 'o', w.slice(0, -1) + 'e'];
+}
+Object.assign(PT_WORDS, { apostadora: ['apostador', 'apostadore'], freguesa: ['freguês', 'freguese'] });
+const PT_ARTICLES = { a: 'o', da: 'do', na: 'no', pela: 'pelo', 'à': 'ao', uma: 'um', sua: 'seu', minha: 'meu' };
+const EN_WORDS = { she: ['he', 'it'], "she's": ["he's", "it's"], herself: ['himself', 'itself'], hers: ['his', 'its'] };
+const EN_OBJ = /^\s*(?:$|[.,!?;:)…]|(?:to|and|or|with|for|in|on|at|from|by|up|down|out|off|away|back|again|now|too|a|an|the|some|something|anything)\b)/i;
+let sex = 'F';
+
+const keepCase = (src, out) => (src === src.toUpperCase() && src.length > 1 ? out.toUpperCase() : src[0] === src[0].toUpperCase() ? out[0].toUpperCase() + out.slice(1) : out);
+let ptRe = null;
+export function genderize(s) {
+  if (sex === 'F' || !s || !/\p{L}/u.test(s)) return s;
+  const k = sex === 'M' ? 0 : 1;
+  if (lang === 'en') {
+    s = s.replace(/\b(she's|she|herself|hers)\b/gi, (w) => keepCase(w, EN_WORDS[w.toLowerCase()][k]));
+    return s.replace(/\bher\b/gi, (w, at, all) => keepCase(w, EN_OBJ.test(all.slice(at + 3)) ? (k ? 'it' : 'him') : (k ? 'its' : 'his')));
+  }
+  ptRe ||= new RegExp(`(?<![\\p{L}])(${Object.keys(PT_WORDS).join('|')})(?![\\p{L}])`, 'giu');
+  s = s.replace(ptRe, (w) => keepCase(w, PT_WORDS[w.toLowerCase()][k]));
+  if (k === 0) s = s.replace(/(?<![\p{L}])(a|da|na|pela|à|uma|sua|minha)(\s+Persocon)(?![\p{L}])/giu, (_, art, rest) => keepCase(art, PT_ARTICLES[art.toLowerCase()]) + rest);
+  return s;
+}
+
+const ATTRS = ['title', 'placeholder'];
+let lang = 'pt';
+let observer = null;
+const active = () => lang === 'en' || sex !== 'F';
+const convert = (v) => genderize(lang === 'en' ? translate(v) : v);
+
+function doText(node) {
+  const v = node.nodeValue;
+  if (v === node.__en) return;
+  node.__pt = v;
+  const en = convert(v);
+  node.__en = en;
+  if (en !== v) node.nodeValue = en;
+}
+
+function doAttrs(el) {
+  for (const a of ATTRS) {
+    const v = el.getAttribute?.(a);
+    if (!v) continue;
+    el.__ptAttr ||= {};
+    if (el.__enAttr?.[a] === v) continue;
+    el.__ptAttr[a] = v;
+    const en = convert(v);
+    (el.__enAttr ||= {})[a] = en;
+    if (en !== v) el.setAttribute(a, en);
+  }
+}
+
+function walk(root) {
+  if (root.nodeType === 3) return doText(root);
+  if (root.nodeType !== 1 || root.closest?.('[data-no-i18n]')) return;
+  if (root.tagName === 'SCRIPT' || root.tagName === 'STYLE') return;
+  doAttrs(root);
+  const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let n = it.nextNode(); n; n = it.nextNode()) {
+    if (n.nodeType === 3) {
+      if (!n.parentElement?.closest('[data-no-i18n],script,style')) doText(n);
+    } else doAttrs(n);
+  }
+}
+
+function restore(root) {
+  const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let n = it.nextNode(); n; n = it.nextNode()) {
+    if (n.nodeType === 3) {
+      if (n.__pt != null && n.nodeValue === n.__en) n.nodeValue = n.__pt;
+      n.__en = n.__pt = undefined;
+    } else if (n.__ptAttr) {
+      for (const [a, v] of Object.entries(n.__ptAttr)) if (n.getAttribute(a) === n.__enAttr?.[a]) n.setAttribute(a, v);
+      n.__ptAttr = n.__enAttr = undefined;
+    }
+  }
+}
+
+function refresh() {
+  observer?.disconnect();
+  restore(document.body);
+  if (!active()) return;
+  walk(document.body);
+  observer ||= new MutationObserver((list) => {
+    if (!active()) return;
+    for (const m of list) {
+      if (m.type === 'characterData') doText(m.target);
+      else if (m.type === 'attributes') doAttrs(m.target);
+      else for (const n of m.addedNodes) walk(n);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+}
+
+export function setLang(l) {
+  const next = l === 'en' ? 'en' : 'pt';
+  if (next === lang) return;
+  lang = next;
+  refresh();
+}
+
+// 'M', 'F' or 'X' (???); anything else counts as F (saves from before the choice existed).
+export function setSex(s) {
+  const next = s === 'M' || s === 'X' ? s : 'F';
+  if (next === sex) return;
+  sex = next;
+  refresh();
+}

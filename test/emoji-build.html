@@ -1,0 +1,86 @@
+<!doctype html>
+<meta charset="utf-8">
+<body style="background:#888">
+<pre id="__report"></pre>
+<script type="module">
+// Rasterizes test/emoji-svg/* into a 24x24 pixel-art atlas: each pixel takes the dominant colour of its 4x4 block at 96x96.
+const map = await (await fetch('emoji-map.json')).json();
+const files = [...new Set(map.map((e) => e.file))];
+const N = 24, S = 4, COLS = 16, rows = Math.ceil((files.length + 107) / COLS);
+const atlas = document.createElement('canvas');
+atlas.width = COLS * N; atlas.height = rows * N;
+const actx = atlas.getContext('2d');
+const big = document.createElement('canvas');
+big.width = big.height = N * S;
+const bctx = big.getContext('2d', { willReadFrequently: true });
+const load = (src) => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
+const q = (v) => Math.min(255, Math.round(v / 17) * 17);
+const lum = (k) => 0.3 * (k >> 16) + 0.59 * ((k >> 8) & 255) + 0.11 * (k & 255);
+const LIGHT = new Set(['2714.svg', '2716.svg']);
+const index = {};
+for (let k = 0; k < files.length; k++) {
+  const img = await load('emoji-svg/' + files[k]);
+  bctx.clearRect(0, 0, N * S, N * S);
+  bctx.drawImage(img, 0, 0, N * S, N * S);
+  const d = bctx.getImageData(0, 0, N * S, N * S).data;
+  const out = actx.createImageData(N, N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const votes = new Map(); let opaque = 0;
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+      const p = ((y * S + j) * N * S + x * S + i) * 4;
+      if (d[p + 3] < 140) continue;
+      opaque++;
+      const key = (q(d[p]) << 16) | (q(d[p + 1]) << 8) | q(d[p + 2]);
+      votes.set(key, (votes.get(key) || 0) + 1);
+    }
+    if (opaque < 7) continue;
+    let best = 0, bn = -1;
+    for (const [key, n] of votes) if (n > bn) { bn = n; best = key; }
+    const bl = lum(best);
+    for (const [key, n] of votes) if (n >= 3 && lum(key) < bl - 70) { best = key; break; }
+    const o = (y * N + x) * 4;
+    out.data[o] = best >> 16; out.data[o + 1] = (best >> 8) & 255; out.data[o + 2] = best & 255; out.data[o + 3] = 255;
+  }
+  const px = out.data;
+  if (LIGHT.has(files[k])) for (let o = 0; o < px.length; o += 4) if (px[o + 3]) px[o] = px[o + 1] = px[o + 2] = 232;
+  const src = new Uint8ClampedArray(px);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const o = (y * N + x) * 4;
+    if (src[o + 3]) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const n = (ny * N + nx) * 4;
+      if (!src[n + 3]) continue;
+      px[o] = src[n] * 0.35; px[o + 1] = src[n + 1] * 0.35; px[o + 2] = src[n + 2] * 0.35; px[o + 3] = 255;
+      break;
+    }
+  }
+  actx.putImageData(out, (k % COLS) * N, Math.floor(k / COLS) * N);
+  index[files[k]] = k;
+}
+const icons = {};
+for (const e of map) icons[e.s] = index[e.file];
+// "Pixel Art Emojis" by jfranci_px (test/emoji-pae/EmojiIcon<n>.png, 24px): its faces win over Twemoji.
+const PACK = {
+  1: '😀', 2: '😃', 3: '😄', 4: '😁', 5: '😆', 6: '😅', 7: '😂', 8: '🤣', 9: '🥲', 10: '🥹', 11: '☺', 12: '😊', 13: '😇', 14: '🙂',
+  15: '🙃', 16: '😉', 17: '😌', 18: '😍', 19: '🥰', 20: '😘', 21: '😗', 22: '😙', 23: '😚', 24: '😋', 25: '😛', 26: '😝', 27: '😜',
+  28: '🤪', 29: '🤨', 30: '🧐', 31: '🤓', 32: '😎', 33: '🥸', 34: '🤩', 35: '🥳', 37: '😏', 38: '😒', 40: '😞', 41: '😔', 42: '😟',
+  43: '😕', 44: '🙁', 45: '☹', 46: '😣', 47: '😖', 48: '😫', 49: '😩', 50: '🥺', 51: '😢', 52: '😭', 54: '😤', 55: '😠', 56: '😡',
+  57: '🤬', 58: '🤯', 59: '😳', 60: '🥵', 61: '🥶', 62: '😱', 63: '😨', 64: '😰', 65: '😥', 66: '😓', 67: '🤗', 68: '🫡', 69: '🤔',
+  70: '🤭', 71: '🫢', 72: '🤫', 73: '🤥', 74: '😶', 76: '😐', 77: '😑', 78: '😬', 79: '🫨', 80: '🫠', 81: '🙄', 82: '😯', 83: '😦',
+  84: '😧', 85: '😮', 86: '😲', 87: '🥱', 88: '😴', 90: '🤤', 91: '😪', 92: '😵', 94: '🤐', 95: '🥴', 97: '🤢', 98: '🤮', 99: '🤧',
+  100: '😷', 101: '🤒', 102: '🤕', 103: '🤑', 104: '🤠', 105: '😈', 106: '👿', 107: '🤡',
+};
+const sheet = {};
+let next = files.length;
+for (const [n, chars] of Object.entries(PACK)) {
+  actx.drawImage(await load(`emoji-pae/EmojiIcon${n}.png`), (next % COLS) * N, Math.floor(next / COLS) * N, N, N);
+  for (const ch of chars) sheet[ch] = next;
+  next++;
+}
+document.body.appendChild(atlas);
+atlas.style.cssText = 'image-rendering:pixelated;width:' + COLS * N * 4 + 'px';
+document.getElementById('__report').textContent = JSON.stringify({ cols: COLS, n: N, png: atlas.toDataURL('image/png'), icons, sheet,
+  raw: btoa(Array.from(actx.getImageData(0, 0, atlas.width, atlas.height).data, (b) => String.fromCharCode(b)).join('')) });
+</script>

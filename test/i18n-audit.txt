@@ -1,0 +1,21 @@
+casino.js:368: · repetido: +7 ¥ para você  =>  · repetido: +7 ¥ para você
+game.js:81: Matcha frappé  =>  Matcha frappé
+minigames.js:443: · 🔥 vai explodir!  =>  · 🔥 vai explodir!
+minigames.js:1015: 7 vence 7! Ponto seu.  =>  7 vence 7! Ponto seu.
+minigames.js:1020: 7 vence 7! Ponto dela.  =>  7 vence 7! Ponto dela.
+pet.js:929: média  =>  média
+pet.js:929: Força da Persocon: 7 (Saúde 7%)  =>  Strength da Persocon: 7 (Health 7%)
+pet.js:1264: início · modelo 7 · dpr=7 tela=7x7 · idioma 7  =>  início · modelo 7 · dpr=7 tela=7x7 · idioma 7
+pet.js:1282: ação 7 → 77  =>  ação 7 → 77
+pet.js:1428: posição inválida (7, 7) em "7"  =>  posição inválida (7, 7) em "7"
+rewards.js:225: Ela tirar 7 foto7  =>  Ela tirar 7 foto7
+title.js:307: Português  =>  Português
+toys.js:180: 🎞 Animação  =>  🎞 Animação
+toys.js:1020: pronto na impressora 3D: a Persocon vai pegar e guardar  =>  pronto na impressora 3D: a Persocon vai pegar e guardar
+toys.js:1020: nova compra: a Persocon vai checar e guardar  =>  nova compra: a Persocon vai checar e guardar
+toys.js:1020: 77 · 7 · clique para guardar agora  =>  77 · 7 · clique para guardar agora
+toys.js:1108: · 7 na fila  =>  · 7 na fila
+toys.js:1394: Clique: pedir para ela comprar algo que ela gosta com a carteira dela (¥ 7) · com 7 ela vem sozinha   =>  Clique: pedir para ela comprar algo que ela gosta com a carteira dela (¥ 7) · com 7 ela vem sozinha 
+ui.js:931: Modelo: 7 · ação 7 · modo 7  =>  Model: 7 · ação 7 · modo 7
+ui.js:1023: Modo debug ligado: os logs vão para a pasta "log" em %APPDATA%\\My Persocon. Digite o código de novo  =>  Debug mode on: os logs vão para a pasta "log" em %APPDATA%\\My Persocon. Digite o código de novo par
+ui.js:1883: (não tem)  =>  (não tem)

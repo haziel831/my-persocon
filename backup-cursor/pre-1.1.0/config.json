@@ -1,0 +1,64 @@
+{
+  "actionWeights": {
+    "emote": 12,
+    "idle": 18,
+    "run": 7,
+    "sit": 10,
+    "sleep": 6,
+    "walk": 45
+  },
+  "animRoles": {
+    "extra0": "comemorar",
+    "extra1": "emote_pos",
+    "extra2": "emote_pos",
+    "extra3": "emote_pos",
+    "extra4": "emote_neg",
+    "extra6": "emote_pos",
+    "extra7": "danca"
+  },
+  "approach": false,
+  "climbChance": 0.6,
+  "climbSpeed": 0.5,
+  "debug": false,
+  "difficulty": "normal",
+  "display": 0,
+  "emoteTheme": "gameboy",
+  "emotes": [
+    "extra0",
+    "extra1",
+    "extra2",
+    "extra3",
+    "extra4",
+    "extra6"
+  ],
+  "emoticonOffsetX": 0,
+  "emoticonOffsetY": 0,
+  "emoticonRate": 1.0,
+  "emoticonScale": 1.0,
+  "emoticons": true,
+  "footsteps": false,
+  "gbVolume": 0.7,
+  "gravity": 16,
+  "hiddenParts": {
+    "models/Lain": []
+  },
+  "jumpReach": 1.6,
+  "menuPos": {
+    "left": 796.8000183105469,
+    "top": 67.47500228881836
+  },
+  "modelDir": "models/Lain",
+  "monitors": [
+    0
+  ],
+  "name": "Lain",
+  "noAttention": true,
+  "petHeight": 160.0,
+  "runSpeed": 1.4,
+  "screenHit": false,
+  "sound": true,
+  "soundSeed": 1625551,
+  "theme": "gameboy",
+  "volume": 0.3,
+  "walkSpeed": 0.5
+}

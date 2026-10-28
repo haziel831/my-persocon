@@ -1,0 +1,8 @@
+node_modules/
+dist/
+preview/
+src-tauri/target/
+src-tauri/gen/
+test/shots/
+*_out.txt
+*_err.txt

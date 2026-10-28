@@ -1,0 +1,79 @@
+{
+  "actionWeights": {
+    "emote": 12,
+    "idle": 18,
+    "run": 7,
+    "sit": 10,
+    "sleep": 6,
+    "walk": 45
+  },
+  "animRoles": {
+    "extra0": "comemorar",
+    "extra1": "emote_pos",
+    "extra2": "emote_pos",
+    "extra3": "emote_pos",
+    "extra4": "emote_neg",
+    "extra5": "triste",
+    "extra6": "emote_pos",
+    "extra7": "danca"
+  },
+  "approach": false,
+  "climbChance": 0.6,
+  "climbSpeed": 0.5,
+  "cursorSteal": false,
+  "debug": false,
+  "defaultsRev": 2,
+  "desktopGames": false,
+  "difficulty": "normal",
+  "display": 0,
+  "emotePack": "gerados",
+  "emoteTheme": "auto",
+  "emotes": [
+    "extra0",
+    "extra1",
+    "extra2",
+    "extra3",
+    "extra4",
+    "extra6"
+  ],
+  "emoticonOffsetX": -26,
+  "emoticonOffsetY": 10,
+  "emoticonRate": 1.0,
+  "emoticonScale": 0.75,
+  "emoticons": true,
+  "footsteps": false,
+  "gbScreenOffset": {
+    "behind": true,
+    "dx": -0.42,
+    "dy": -1.65
+  },
+  "gbVolume": 0.7,
+  "gravity": 16,
+  "iconPlay": false,
+  "jumpReach": 1.6,
+  "lang": "en",
+  "menuHeight": 70,
+  "menuPinned": false,
+  "menuWidth": 430,
+  "modelDir": "models/MyPersocon",
+  "monitors": [
+    0
+  ],
+  "name": "Persocon",
+  "noAttention": true,
+  "petHeight": 130,
+  "recentModels": [
+    {
+      "at": 1791851689064,
+      "dir": "models/MyPersocon",
+      "name": "Persocon"
+    }
+  ],
+  "runSpeed": 1.4,
+  "screenHit": false,
+  "sound": true,
+  "statusDock": "tr",
+  "theme": "padrao",
+  "volume": 0.3,
+  "walkSpeed": 0.5
+}

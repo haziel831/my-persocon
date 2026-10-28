@@ -1,0 +1,329 @@
+# Histórico de versões — My Persocon
+
+Cada versão gerada com `npm run dist` fica na sua própria pasta: `dist\My Persocon vX.Y.Z\My Persocon.exe`.
+Desde a v1.1.0 os arquivos do jogador (configurações, save + 3 backups, modelos importados e logs) ficam em `%APPDATA%\My Persocon` e passam de uma versão para a outra. Cada versão tem um arquivo próprio em `ChangeLogs\vX.Y.Z.md` (copiado para a pasta do app).
+
+Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tauri\Cargo.toml`), anote as mudanças aqui e em `ChangeLogs`, e rode `npm run dist`.
+
+A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
+
+## v1.8 — 20/10/2026
+Streamer Mode sem crash; PowerUps com animações clássicas; hookshoot, venda de prêmios e promo powermeup.
+Detalhes em `ChangeLogs\v1.8.md`.
+
+## v1.7 — 17/10/2026
+Syntoyo/espada/boneco; fila; neon/CRT/HD nos portáteis; fantasma do GameBuddy corrigido.
+Detalhes em `ChangeLogs\v1.7.md`.
+
+## v1.6 — 17/10/2026
+Arcade/CRT; portáteis LCD + proporção 80×72; Assistir/jogar; corvo Guardar; treino ≥50%; status; Streamer chroma; 5 danças; promo letmesmash.
+Detalhes em `ChangeLogs\v1.6.md`.
+
+## v1.5 — 16/10/2026
+Bolsa dela / "Dar a ela" pausada; Corvo pega da impressora para o Inventário; volumes do corvo isolados + asas.
+Detalhes em `ChangeLogs\v1.5.md`.
+
+## v1.4 — 15/10/2026
+Bolsa dela com comidas e brinquedos portáteis, combate mais próximo no boneco, caixas em fila, várias bolas no desktop, queimada com arremesso, e correções.
+Detalhes em `ChangeLogs\v1.4.md`.
+
+## v1.3 — 15/10/2026
+Boneco de treino (mobília), combate/kendô, inventário na bolsa, minijogos sem cobrir o desktop, ajustes de energia e console de logs no modo debug.
+Detalhes em `ChangeLogs\v1.3.md`.
+
+## v1.2 — 15/10/2026
+Inventário dela, Syntoyo, boneco de treino, skills de armas, jokenpô synthwave e ajustes de brinquedos.
+Detalhes em `ChangeLogs\v1.2.md`.
+
+## v1.1 — 15/10/2026
+Aproximação na tela (lembretes/alarmes), minijogos com bônus e nível, synthwave no Siga o ritmo e no teclado, e várias correções.
+Detalhes em `ChangeLogs\v1.1.md`.
+
+## v1.0 — 14/10/2026 (First Release)
+Primeira versão oficial. A partir daqui as versões sobem de 0.1 em 0.1.
+Detalhes em `ChangeLogs\v1.0.md`.
+- Importar modelo 3D na mobília aceita .gltf com o .bin e a textura ao lado.
+- O Sintetizador Neon importa só MIDI, de um arquivo local ou de um link.
+- Modelo padrão novo em estilo anime (Ninna: cabelo prateado com twintails com física, vestido branco, rosto anime, olhos que piscam, animações mais suaves).
+- Nova Persocon Aghata (cabelo e vestido pretos, detalhes roxos, expressão neutra); escolha entre Ninna e Aghata no início.
+- Compras voam da Impressora 3D para o Inventário.
+- Assistir/Jam: ela pausa para cuidar de status muito baixo e depois volta.
+- Ligar/desligar animações em Modelo; tutorial refeito.
+- Minijogos e figuras do gacha com identidade própria; importação de resourcepack removida.
+- Novo `npm run demo`: gera a Demo (loja, brinquedos e minijogos reduzidos).
+
+## v1.2.0 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.2.0.md`.
+
+## v1.1.9 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.9.md`.
+
+## v1.1.8 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.8.md`.
+
+## v1.1.7 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.7.md`.
+
+## v1.1.6 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.6.md`.
+
+## v1.1.5 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.5.md`.
+
+## v1.1.4 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.4.md`.
+
+## v1.1.3 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.3.md`.
+- Emojis do Windows trocados por pixel art em todo o jogo (fonte PxEmoji: rostos do pacote Pixel Art Emojis, o resto em pixel 24x24).
+- Fala com só um emoji aparece sem balão; setas do ritmo e "!"/"?" soltos viraram ícones pixel.
+
+## v1.1.2 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.2.md`.
+- Corvo: habilidades Vigiar, Brilhos, Sorte, Truques e Imitar; brinca com o Doll; pousa nos móveis; 11 conquistas.
+- Ícone de pássaro preto; o Corvo não treme mais na cabeça da Persocon.
+
+## v1.1.1 — 13/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.1.md`.
+- Corvo: volume e frequência da fala, sons mais altos, sem borda clara, cliques não o espantam.
+- A Persocon volta a buscar as impressões quando o Corvo não pode ir.
+
+## v1.1.0 — 12/10/2026 (Early Access)
+Detalhes em `ChangeLogs\v1.1.0.md`.
+- Novo nome **My Persocon**; pague quanto quiser; português e inglês.
+- Tela de título synthwave com música original e menu Continuar / Novo jogo / Opções / Tutorial / Créditos.
+- Primeira execução: caixa, carta de seleção assinada por -HaZ, assinatura do jogador, nome e sexo do Persocon, abertura da caixa e boot.
+- Modelo padrão original (humanoide robótico) com todas as animações, incluindo desligado e boot.
+- Sexo M/F/???: pronomes, concordâncias e timbre da voz.
+- Save em `%APPDATA%` com 3 backups e exportar/importar; bandeja + Iniciar com o Windows; relatório de erro; dicas contextuais; validação de nomes.
+- Marcas registradas removidas ou renomeadas.
+
+## v1.0.0 — 12/10/2026
+Nova numeração (sucede a v1.21.1). Detalhes em `ChangeLogs\v1.0.0.md`.
+
+## v1.21.1 — 12/10/2026
+- Correção - Persocon "travada": com fome e com o Gancho, ela puxava a comida e ao mesmo tempo tentava andar até um ponto inexistente; a posição virava inválida e ela ficava parada tremendo (cai/aterrissa sem parar), sem comer nem dormir até os status zerarem.
+- Proteção extra: se a posição dela ficar inválida por qualquer motivo, ela volta ao chão e segue a rotina.
+
+## v1.21.0 — 12/10/2026
+- **11 brinquedos novos (Shop → Fun / Mobília).** Nenhum dá moedas; o progresso fica salvo no perfil (não some ao recomprar).
+- **Ioiô (🪙 60).** Truques que melhoram com o uso (nível 1–10 pelo total de truques); às vezes erra e o ioiô enrola.
+- **Bambolê (🪙 70).** Gira mais tempo quanto mais Energia; guarda o recorde (Perfil).
+- **Pipa (🪙 110).** Solta pipa perto da borda da tela ou de uma janela; a linha pode enroscar num ícone do desktop (só visual) e ela puxa até soltar.
+- **Cubo mágico (🪙 90).** Ela resolve sozinha, mais rápido com mais Afeição; guarda o recorde.
+- **Skate (🪙 220).** Anda no chão, dá ollies e "grinda" no topo das janelas; às vezes cai, perde um pouco de Humor/Saúde e fica com um curativo por 8 min.
+- **Aquário (Mobília, 🪙 420).** Ela alimenta os peixes e limpa o vidro; sem comida por mais de 6 h a água fica turva (conta o tempo com o app fechado) e ela fica triste. Clique para pedir que ela alimente.
+- **Teclado musical (Mobília, 🪙 350).** Ela canta melodias 8-bit com a própria voz; clique nas teclas para tocar também.
+- **Pula-pula (Mobília, 🪙 380).** Pulos altos e piruetas; às vezes alcança o topo de uma janela e fica lá em cima.
+- **Câmera instantânea (🪙 300).** Ela tira fotos da cena (montadas com o overlay, não é print real) que vão para o **Álbum** no Perfil (até 12; a mais antiga sai). Clique para ampliar, ✕ para apagar.
+- **Robô de corda (🪙 140).** Ela dá corda, ele anda pela tela e ela persegue; esbarra no Doll.
+- **Tamagotchi (🪙 160).** Bichinho virtual com fome e humor próprios; ela alimenta e brinca com ele e reclama quando ele precisa.
+
+## v1.20.0 — 12/10/2026
+- **Gostos em 5 níveis.** Favorita (~10%), gosta (~20%), neutra (~45%, a mais comum), não gosta (~17%) e odeia (~8%). Itens grátis (Sobras, Água de Torneira) tendem a "não gosta"/"odeia". O Humor ao comer é proporcional (+10, +4, 0, −4, −8) e aparece flutuando. Saves antigos são rebalanceados uma vez. O Perfil lista os gostos por nível.
+- **Correção: "ela não gosta de nada".** Ela se alimentava sozinha com o item de maior efeito da bolsa (geralmente Sobras/Água de Torneira, que ela odeia) e pedia itens aleatórios, incluindo os odiados. Agora prefere o que gosta e não pede itens grátis nem odiados.
+- **Vending Machines japonesas (Mobília).** Vending Machine de Comida (🪙 2200) e de Bebida (🪙 1600). Com fome/sede, ela vai até a máquina e compra com a carteira dela (preço +20%) uma comida/bebida que gosta e consome na hora. Animações: moeda ou cartão, escolha (às vezes indecisa), queda do produto, máquina travada que ela chuta, roleta da sorte (7777 dá um item extra). Sem dinheiro, ela fica decepcionada. Botão direito → "Pedir para ela comprar". A Carteira mostra compras e gastos.
+- **Máquinas com várias animações e sons novos.** Gacha (clássica, turbo, chute, drama, giro), Slot (alavanca, botão, turbo, sorte, câmera lenta) e Videogame/TV (calma, empolgada, concentrada, raiva, ritmo, às vezes soprando o cartucho). Ela alterna sozinha, ou escolha no botão direito → Animação. ~30 efeitos sonoros sintetizados novos.
+- **Doll.** 14 animações novas (sentar, pensar, olhar em volta, continência, palmas, guitarra no ar, robô, alongar, ioga, giro, reverência, susto, desmaio, tremer) e reações ao que a Persocon faz (palmas nas máquinas, senta junto enquanto ela come, abraço com Humor baixo).
+- **Estante de mangás.** Os bonecos colecionáveis aparecem em pixel art fiel a cada item; mangás como lombadas.
+- **Suor.** Bem menos frequente: só em esforço intenso, a cada 2,5–4,5 s (antes 0,2–0,9 s em qualquer esforço moderado).
+
+## v1.19.0 — 12/10/2026
+Nove interações autônomas novas (módulo `interact.js`). Todas têm chance e intervalo próprios e não acontecem com ela ocupada, dormindo, morta, em minijogo ou com um menu aberto.
+- **Pedir atenção.** Depois de 20–35 min sem você mexer nela (com você no PC), ela vem para a frente e bate na "tela": ondas no vidro, uma rachadura leve e a tela tremendo. Entre as batidas ela acena. Se você clicar nela, ela comemora e ganha Afeição; se ninguém clicar em 25 s, ela desiste chateada. Intervalo mínimo de 30 min.
+- **Roubar o cursor.** Com o mouse parado perto dela, de vez em quando ela corre até o ponteiro, agarra e corre 1–3 s com ele. Ela move o cursor do Windows de verdade (comando `set_cursor`). Puxar o mouse com força solta o cursor. Ela não rouba enquanto você digita ou segura um botão (comando `input_state`). Intervalo mínimo de 30 min.
+- **Lembretes de pausa.** A cada 1–2 h de uso contínuo, ela sugere beber água (bebe junto) ou alongar (faz o alongamento contando). Uma pausa real de uns 8 min zera a contagem. Funciona também no Modo foco.
+- **Presentes.** Com Afeição ≥ 250, ela "acha" uma **Caixa Comum** no chão e entrega a você, até 2 por dia e com pelo menos 4 h entre elas. Nunca dá moedas.
+- **Sentar nas janelas.** Ela sobe na barra de título da janela ativa (de gancho, escalando a lateral ou pelo papel de parede) e senta balançando. Se a janela for arrastada ou minimizada, ela cai. A janela ativa vem do Rust (`active` em cada janela do mundo).
+- **Som do PC.** De tempos em tempos ela escuta o som por 4 s (mesma captura do Jam): dança se houver música e tapa os ouvidos se estiver alto.
+- **Chutar e empilhar ícones.** Cópias de 1 a 3 ícones da área de trabalho voam até ela e formam uma torre. Ela recua, corre e chuta; as cópias quicam e voltam para o lugar. Os ícones reais não mudam.
+- **Lixeira.** Ela vai até a Lixeira e joga algo dentro (🎯) ou mergulha nela e sai pulando. É só animação: a Lixeira de verdade nunca é tocada.
+- **Empurrar um ícone e rir.** Ela empurra (ou puxa, perto da borda) um ícone real alguns pixels, olha para você e ri. Uns 5 s depois ele volta à posição original. Se a área de trabalho não deixar mover (organização automática), ela move uma cópia.
+- **Opções › Interações com o desktop/cursor.** Liga/desliga para roubar o cursor, brincar com os ícones, sentar nas janelas, reagir ao som, pedir atenção e lembretes de pausa. O Modo foco e o Streamer Mode desligam as interações com o desktop/cursor. No debug, "Testar novidades" tem um botão para cada interação.
+- **Rust.** Comandos novos `desktop_all` (todos os ícones, com a Lixeira marcada), `move_icon`/`place_icon` (LVM_SETITEMPOSITION32, sempre com volta), `set_cursor` e `input_state`.
+- **Correção — Acessórios (aba Modelo):** a lista mostra só partes que existem (sem ossos vazios ou que escondiam o corpo todo), skins Minecraft podem esconder a 2ª camada (Hat/Jacket/Sleeves/Pants) e há o botão "Mostrar tudo".
+
+## v1.18.0 — 12/10/2026
+- **Carteira dela.** Em Ações › 👛 Carteira dela, você pode dar 10, 50 ou 100 🪙 para a Persocon. Cada presente dá Humor e Afeição, mas o efeito diminui se você der muito em 30 minutos. Ela usa essas moedas nas máquinas.
+- **Gacha-Machine** (600 🪙). Ela gira a manivela, a cúpula brilha e treme nos prêmios raros, e uma cápsula da cor da raridade cai e quica até os pés dela. Ela pega a cápsula, sacode e abre.
+  - Se você clicar na máquina, você paga 30 🪙. Quando ela joga sozinha, paga com a carteira dela.
+  - Prêmios: moedas, comidas e bebidas, ou bonecos colecionáveis de videogame e anime.
+  - Reação por raridade:
+    - Comum: ela fica triste e perde Humor.
+    - Incomum: ela fica feliz e ganha Humor.
+    - Raro: ganha mais Humor, com fanfarra, flash e confete.
+    - Épico: ganha ainda mais Humor e Afeição, com fogos de artifício.
+- **Slot-Machine** (800 🪙). Ela aposta as moedas da **carteira dela** (5, 10 ou 25 por giro) em sessões de alguns giros.
+  - Os rolos param um de cada vez. Quando os dois primeiros combinam, o terceiro demora mais para parar.
+  - Pagamentos: dois 🍒 pagam ×2, e três iguais pagam de ×5 a ×100 (777 é o jackpot).
+  - Animações por tamanho do prêmio: chuva de moedas na bandeja, luzes piscando, flash, confete, fogos e "JACKPOT!". Perder várias vezes seguidas a deixa chateada.
+- **As moedas que as máquinas pagam vão para a sua carteira** (pedido do usuário): moedas da Gacha, bonecos repetidos convertidos em moedas e os ganhos da Slot.
+- **Sorte pela Afeição.** Quanto maior a Afeição, melhores as chances na Gacha, na Slot e nas caixas de prêmio.
+- **16 bonecos colecionáveis**, 4 de cada raridade. Eles ficam na Estante de mangás (cada boneco ocupa 2 espaços) e às vezes a Persocon brinca com eles. A coleção aparece no Perfil, na aba 🧸 Coleção.
+- **Várias estantes**: agora é possível comprar mais de uma Estante de mangás.
+- Novas conquistas: Mesada, Gacha ×10, Épico, 8 bonecos, coleção completa, Trinca e Jackpot. Novas missões diárias para a Carteira, a Gacha e a Slot.
+- O balão de fala agora digita com a voz da Persocon (mesmo timbre, tom e volume das reações, sílabas estilo Animal Crossing).
+- A Persocon não consome Sobras nem Água de Torneira sozinha enquanto assiste ou joga.
+
+## v1.17.1 — 11/10/2026
+- Fora do Editar mobília, o **clique esquerdo atravessa os móveis**: vai para a Persocon se ela estiver no ponto, senão para o desktop. A janela solta o mouse e reenvia o clique, então os ícones atrás dos móveis funcionam, inclusive com clique duplo. Alvo, banheira e móveis quebrados continuam clicáveis, e o botão direito continua abrindo as opções do móvel.
+- O clique direito em cima da Persocon abre o menu dela mesmo quando há um móvel na frente.
+- **Correção: Persocon parada sem fazer nada.** Agora há uma rede de segurança: se ela ficar 2 s presa num estado sem dono (antic, brinquedo, comida, gancho, minijogo encerrado, idle infinito ou timer inválido), escolhe outra coisa para fazer. Um erro no loop de frames também deixou de congelar tudo: o erro vai para o `pet.log` (com `debug` ligado) e ela recomeça.
+- A Afeição sobe na metade da velocidade. A Afeição também acelera as moedas por minuto em ×(1 + Afeição/500), até ×3; o multiplicador aparece no Perfil.
+
+## v1.17.0 — 11/10/2026
+- **Caixas de prêmio** (Comum, Rara e Lendária) ficam no inventário, na aba 🎁 Prêmios. Ao clicar em "Abrir", a Persocon sacode a caixa até ela estourar e aparece uma roleta estilo CS2 com prêmios comuns, incomuns, raros e lendários. A revelação tem raios e confete, e os prêmios lendários ainda trazem fogos e fanfarra.
+- Os prêmios podem ser moedas, consumíveis da loja ou **19 itens de uso único que não estão à venda**: biscoito da sorte, lança-confete, ímã de moedas, cristal de afeição, cartucho misterioso, relógio parado, pena de fênix, estrela cadente (as próximas caixas vêm com mais sorte), coroa, elixir arco-íris, fogos de artifício e outros.
+- **27 conquistas** que dão caixas, cada uma com banner dourado, flash, confete e comemoração da Persocon e da Doll.
+- **Missões diárias**: 3 por dia, cada uma vale uma Caixa Comum, e completar todas dá uma Caixa Rara extra. Ficam em Perfil → Missões e Conquistas.
+- Os **minijogos** agora são desbloqueados pela Afeição; os bloqueados aparecem como 🔒 ??? e há um aviso quando um novo é liberado.
+- **Editar mobília**: os móveis podem ser colocados livremente pela tela, inclusive um pouco abaixo da barra de tarefas. A Persocon não usa móveis que estão no alto, e a impressora continua no chão.
+
+## v1.16.0 — 11/10/2026
+
+- **Impressora 3D** (mobília fixa, vem em todo jogo novo e é adicionada aos saves antigos; não vai para o inventário nem para a Shop): toda compra entra numa fila e é impressa uma por vez, com tempo aleatório (5–15 s, um pouco mais para quantidades maiores). A peça sobe em camadas sob o cabeçote, a telinha mostra o progresso e um selo mostra quantas compras faltam. Botão direito mostra a fila.
+- Quando um item fica pronto ela **larga o que está fazendo** (brinquedo, truque, bola, Jam/Assistir, até acorda) e vai **correndo** (andando se estiver sem energia) pegar, depois leva para o lugar (mochila, bolsa de cartuchos, estante ou inventário). A impressora só começa o próximo item depois que o atual é pego. Clicar no item pronto guarda na hora.
+- **Gasto por atividade** (`effort()` em `behavior.js`): Energia, Fome, Sede e Higiene caem conforme o esforço. Dormir recupera; sentar, ler, jogar videogame ou ser carregada gastam pouco; andar um pouco mais; correr, escalar, pendurar no gancho, pular, dançar, esportes e truques puxados (agachamento, boxe) gastam bem mais. O cansaço (ofegar) também vem do esforço.
+- Moedas continuam vindo só com o tempo (por minuto e bônus diário).
+
+## v1.15.0 — 11/10/2026
+
+- **Pixel art 16-bit (SNES)**: novo acabamento para todos os ícones gerados (`detail16` em `pixel.js`): volume pela silhueta em rampa de 5 tons (luz quente, sombra roxa/fria), pontilhado só na transição, brilho nas formas grandes, contorno interno onde uma cor escura encontra uma clara e contorno seletivo. O acabamento antigo continua em Opções › Gráficos › "Clássico" (troca ao vivo) e os arquivos antigos estão em `backup-cursor/graficos-classicos/`.
+- **Tamanho do menu**: Opções › Menu com sliders de largura (300–640 px) e altura (40–95% da tela).
+- **Modo foco** (Quick Menu): fala 5x menos, emoticons mais raros, anda pouco (mais sentada/parada), não corre, não escala janelas, não pede coisas, sem gancho/microfone/Doll por conta própria, sem Jam/Assistir automáticos, sem achar jogos nem reagir ao desktop, sem passos e barriga roncando.
+- **Fix**: depois de provar um consumível pela primeira vez, a Shop e o Inventário não mostravam o gosto novo (o `taste()` não avisava a interface).
+
+## v1.14.0 — 11/10/2026
+
+- **Menu compacto**: o menu do botão direito ocupa ~56% da altura da tela (cabeçalho, barras e abas menores; só o painel rola).
+- **Piscar ao comprar/usar**: a linha do item (ou a aba da categoria, se a linha sumiu) pisca na cor de destaque.
+- **Status fixo**: botão direito abre "Sempre na frente", "Clicar através", "Mudar a posição" (arrastar; posição livre salva) e "Fechar".
+- **Tela dos portáteis**: arrastada, guarda a posição em relação à Persocon (e se fica atrás dela) e acompanha ela.
+- **Achar jogos**: ela fica curiosa (❓/❗), vai até o ícone (andando, pulando, escalando ou com o gancho), pega uma cópia e mostra para o player antes de recomendar.
+- **Reações ao desktop** (`watch.js`): janelas abrindo, maximizando, fechando ou sendo arrastadas, muitas janelas, desktop vazio, player ausente/voltando, mouse rápido ou parado perto dela. Falas novas e ações da Persocon e da Doll; desligável em Opções.
+
+## v1.13.0 — 11/10/2026
+
+- **Jogos na área de trabalho**: de vez em quando a Persocon lê os ícones visíveis do desktop (atalhos da Steam, Epic, GOG, Riot, Battle.net, Roblox, pastas de jogos…), vai até um deles (andando, pulando ou escalando o papel de parede) ou puxa uma cópia do ícone com o gancho, e recomenda jogar: um balão ao lado do ícone com "▶ Jogar" (abre o jogo) e "Depois". Pode ser desligado em Opções › Comportamento. Não acontece com os ícones ocultos, cobertos por janelas ou no Streamer Mode.
+- **Removidos**: ela não vem mais até a tela (nem bate nela) e não chama mais para jogar o Game Boy; as opções correspondentes saíram. A aba "Controle" do menu também saiu.
+- **Preços**: comidas, bebidas e remédios custam pelo que dão (Saúde e Energia valem mais; efeitos ruins baixam o preço; remédio age na hora e custa o dobro por ponto).
+- **Gostos**: na primeira vez que prova uma comida/bebida/remédio ela pode amar (vira favorita, +10 Humor toda vez), achar normal ou detestar (−8 Humor toda vez). Shop, Inventário e a escolha de comida mostram ♥ favorita, 👎 não gostou, ✓ provou ou ? nunca provou. Sobras e Água de Torneira ela sempre detesta.
+- **Caixa de papelão**: ao levar uma compra para guardar, ela carrega uma caixa de papelão genérica.
+- **Quick Menu**: nova opção "Clicar através" (os cliques passam pela Persocon, objetos e mobília). Para desligar sem clicar nela: ícone da bandeja › "Clicar através".
+- **Videogame na TV**: Persocon e Doll ficam de costas olhando a TV, sem controles aparecendo nas costas, e a tela do jogo fica atrás deles.
+
+## v1.12.0 — 11/10/2026
+
+- **Incentivos funcionando**: cada cafuné era tão pequeno que era apagado na hora; agora acumula, aparece no Perfil (em % real) e mostra "👍 Andando +12%" sobre a Persocon (👎 no tapa).
+- **Doll no videogame**: ele só entra como 2º jogador no console de TV (mobília); nos portáteis ela joga sozinha, então a tela de 2 jogadores só aparece na TV.
+- **Animações geradas para modelos YSM**: os clipes que faltam no modelo (aceno, dança, triste, bravo, comemorar, rir, medo, cantar, chutar, arremessar, pegar, golpe, e os básicos se faltarem) são gerados com os ossos do modelo, usando antebraços e canelas quando existem. Só preenchem papéis que o modelo não tem.
+- **Debug → Animações do modelo**: lista todas (✨ = gerada), ▶ mostra na Persocon e cada uma pode ser ligada/desligada (por modelo).
+- **Moedas** só pelo tempo (1–3/min) e pelo bônus diário (agora 100). Minijogos, dardos, pega-pega, pedidos e aposta não dão mais moedas.
+- **Shop**: Sobras (comida) e Água de Torneira (bebida) de graça: matam a fome/sede, mas tiram muito humor.
+- **Idioma**: com a Persocon em English, os textos do app também ficam em inglês (menus, shop, itens, minijogos, avisos); voltam ao português ao trocar.
+- **Bolas**: o mouse não empurra mais a bola; só clicar, arrastar e soltar para arremessar.
+- **Brincadeiras com o Doll**: no pega-pega, quem vira pegador espera ~1,8 s enquanto o outro foge e um novo toque só vale depois de 3 s (acabou o empurra-empurra); no bate-bola o intervalo entre chutes subiu.
+- **Doll com cotovelos e joelhos**: cada braço/perna virou dois segmentos (mesma skin, compatível); todas as poses foram refeitas (andar/correr com joelho dobrando, aceno só do antebraço, abraço envolvendo, soco, chute, dormir encolhido…).
+
+## v1.11.0 — 11/10/2026
+
+- **Editar uma mobília**: duplo clique num móvel abre "Editar esta mobília" (entra no modo de edição já com ele selecionado); também no menu do botão direito. Clicar na banheira manda a Persocon tomar banho.
+- **Streamer Mode**: o OBS continua capturando mesmo com a janela atrás de outros apps; ao ligar/desligar o modo, a janela é recriada, então a borda amarela da captura não fica mais no app.
+- **Coleta rápida**: com 3+ pacotes (ou 4+ itens) no chão, ela corre até eles, abre rapidinho e guarda direto o que vai para o inventário, até acabar.
+- **Economia**: fim do dinheiro infinito. Começa com 500; ganha 1 moeda/min (+1 se feliz, +1 se bem cuidada), bônus diário de 50, pega-pega 20, pedidos 15; repetir o mesmo minijogo em menos de 5 min paga metade; dardos no máximo 25. No modo debug: botões +100/+1000/+5000 moedas.
+- **Novos padrões**: emoticons 0,50× (X −28 px, Y 12 px) e só GIFs; volume 30%, Game Boy 25%, passos desligados. Aplicados uma vez nas configurações existentes; botão "Restaurar padrões" em Opções.
+- Importar modelo: só pasta exportada ou .zip (arquivos .ysm removidos).
+
+## v1.10.0 — 11/10/2026
+
+- **Quick Menu**: duplo clique na Persocon abre um menu rápido (por enquanto só "Streamer Mode"). Fecha com Esc ou clicando fora.
+- **Streamer Mode**: o app sai do overlay da tela inteira e vira uma janela normal (1280×720, redimensionável, na barra de tarefas) com fundo transparente — ou verde/azul/magenta para Chroma Key — para capturar no OBS (Captura de janela, "Persocon - Streamer Mode"). A Persocon vive dentro da janela, que é o "chão" dela. Continua funcionando minimizada (status, comportamento e minijogos seguem rodando). Liga/desliga pelo Quick Menu, Opções → Streamer Mode ou o ícone da bandeja; fechar a janela só sai do modo.
+- Ícone do app com a arte maior (recorte mais justo da logo).
+
+## v1.9.0 — 11/10/2026
+
+- Novo status **Higiene** (barra no menu e no status fixo): cai devagar com o tempo e mais rápido com esforço físico. Abaixo de 30 saem ondinhas de mau cheiro; abaixo de 15 uma mosca fica voando em volta da cabeça; suja demais, o humor cai e ela reclama.
+- **Dar banho** (Ações): espuma e bolhas pelo corpo todo, ela se mexe com as cócegas e sai cheirosa.
+- **Banheira** (Shop → Mobília): ela toma banho de espuma sozinha quando está suja (ou ao clicar), sentada dentro da banheira.
+- Cansaço visível: gotas de suor depois de esforço (ou quando exausta), ofegar curvada depois de correr/brincar muito, bocejos quando com sono, e anda/corre mais devagar com pouca energia.
+- Com muita sede, fome ou sem energia ela recusa brincadeiras pesadas (bola, espada, pega-pega, minijogos, Pega-pega/Corrida/Bate-bola com o Doll) e pede água/comida/descanso.
+- Modo debug: botões Exausta, Suada, Suja, Imunda e Dar banho; mostra Higiene e Esforço.
+
+## v1.8.0 — 11/10/2026
+
+- Atividades físicas cansam: brincar de bola e espada, pega-pega com o mouse, Pega-pega/Corrida/Bate-bola com o Doll, dançar no Jam, correr, escalar e as rotinas mais puxadas (pulinhos, agachamentos, lutar com a sombra, borboleta...) gastam energia, fome e sede. Com fome ou sede abaixo de 30 ela evita as rotinas pesadas.
+- Novo ícone do jogo (a logo da pasta Assets) no executável, na janela e na bandeja.
+- Modo debug (Opções): seção "Testar novidades" (status cheios/cansada, disparar cada rotina, dar o Crystal, animação do Doll acordando, truque e minijogos em dupla) e um changelog resumido.
+
+## v1.7.0 — 11/10/2026
+
+- 15 rotinas autônomas novas da Persocon, animadas por cima de qualquer modelo (achatar/esticar, pulinhos, inclinações, giros): espreguiçar, pulinhos de alegria, rodopio, olhar em volta, tropeçar e levantar, cochilar em pé (e acordar no susto), espirrar, se equilibrar, agachamentos, acenar para o cursor, cantarolar, bater o pé com fome, sentar olhando a área de trabalho, lutar com a sombra e perseguir uma borboleta. Elas aparecem conforme humor, energia, saúde e fome, sem repetir a mesma em seguida.
+- Doll vivo: faz estrelinha, mortal e plantar bananeira, e imita a Persocon (pula, dança, polichinelo, soquinhos, acena) quando ela faz uma rotina perto dele.
+
+## v1.6.1 — 11/10/2026
+
+- Bolas: o gráfico agora gira certo — a arte ficou centralizada (antes balançava fora do eixo) e a luz/sombra não gira mais junto com a bola.
+- Mangás: enquanto ela (ou o Doll) lê, o jogador vê o lado de fora do mangá aberto (capa, lombada e contracapa).
+- Doll ganhando vida (Crystal Mágico ou "Acordar o Doll"): brilha juntando faíscas, flutua de braços abertos, explode em luz, pousa e se espreguiça; a Persocon comenta.
+- Importar modelo: lista "Modelos recentes" (os últimos usados/importados primeiro, depois os outros instalados) — clique para trocar de volta.
+
+## v1.6.0 — 11/10/2026
+
+- Shop: nova categoria **💎 Specials**, com itens raros e caros: Crystal Mágico, Trevo da Sorte (+50% moedas), Elixir Dourado (enche todos os status + escudo 30 min), Ampulheta Encantada (3 power-ups por 30 min) e Estrela dos Desejos (+afeição e humor).
+- **Crystal Mágico**: dá vida ao Doll. Ele passeia pela área de trabalho, investiga objetos e móveis (com balõezinhos), cochila na cama/almofada, acena, pula e reage a cliques (clicar muito deixa ele tonto). Botão direito no Doll: fazer dormir / acordar.
+- Doll + Persocon: entra como player 2 nos consoles e na TV ("VS Doll"), lê mangás sozinho (perto da estante) ou junto com ela, chuta a bola para ela, dança com ela no Jam e dorme ao lado dela.
+- Minijogos em dupla (Brincar → Persocon & Doll, e às vezes sozinhos): Abraço, Pega-pega, Corrida com aposta (+30 moedas), Esconde-esconde e Bate-bola.
+- Mais interações com o Doll mesmo sem o cristal: clicar faz ele pular, a Persocon vai abraçá-lo por conta própria.
+- Física das bolas: sem atravessar janelas em alta velocidade, resistência do ar e atrito de rolagem por tipo de bola, giro real (desliza e depois rola), quica nas bordas perdendo giro e derruba o Doll ao acertá-lo.
+- Microfone um pouco maior na mão dela.
+
+## v1.5.0 — 11/10/2026
+
+- Pixel art mais detalhada em todos os gráficos gerados pelo app (itens, móveis, consoles, cartuchos, mangás, bolas): resolução dobrada com diagonais suavizadas, brilho e sombra nas bordas, volume e contorno fino colorido. Os balões de emoticon continuam no estilo do pacote de GIFs.
+- Game Gear e PSP: enquanto ela joga, aparece a traseira do console (como já era no Game Boy).
+- Mangás: enquanto ela lê, o mangá aparece aberto, com quadrinhos nas páginas.
+- Móveis só podem ser movidos no "Editar mobília" (clique e botão direito continuam funcionando; tentar arrastar mostra a dica).
+- Muito mais falas: novas variações para quase todas as situações, reações ao comer, ser pega e arremessada, ler mangá (por gênero), fim do pega-pega, e falas conforme a hora do dia.
+
+## v1.4.0 — 11/10/2026
+
+- **10 minijogos** em Brincar: Esconde-esconde, Batata quente, Siga o ritmo, Pescaria, Adivinhe o copo, Estátua, Desenho, Bolhas de sabão, Pedra-papel-tesoura (com placar geral) e Caça ao tesouro. Cada um abre com um guia curto e a opção "Não mostrar novamente" (dá para reativar os guias em Brincar). Dão moedas, humor e afeição; o recorde aparece no botão.
+- Itens de festa: cor e intensidade ficam salvas por tipo de item e valem também para cópias novas e depois de guardar e recolocar.
+- Itens de festa mais leves: efeitos desenhados a no máximo 30 quadros por segundo, lasers sem desfoque caro, fumaça pré-desenhada, limite de partículas e sem mistura de cores na janela inteira.
+- Removido do Perfil: "O que a Persocon sabe sobre você".
+
+## v1.3.0 — 11/10/2026
+
+- Botões 📌 (manter o menu aberto) e ⬆ (sempre no topo) mostram ON/OFF e ficam destacados quando ligados. Corrigido: o clique neles era engolido pelo arraste do cabeçalho.
+- Ações como Cafuné ou Colocar para dormir não fecham mais o menu quando 📌 está ligado.
+- Microfone um pouco maior; consoles portáteis (Game Boy, Game Gear, PSP) seguros mais embaixo.
+- Shop e inventário mantêm a posição da barra de rolagem depois de comprar ou usar algo.
+- O menu do botão direito dos móveis fecha ao clicar fora dele.
+- Volume: reaplicado quando o áudio do sistema é retomado.
+- Globo de luz, holofote, lasers, máquina de fumaça e lança-confete: podem ser comprados e colocados várias vezes, e arrastados para qualquer lugar da tela (inclusive para o alto); ficam onde forem soltos.
+
+## v1.2.0 — 11/10/2026
+
+- Projeto renomeado para **Persocon**: janela, ícone da bandeja, executável (`Persocon.exe`), pasta do build e textos do menu.
+- Compras não vão mais direto para o inventário: ficam no chão até a Persocon ir até elas, examinar e guardar no lugar certo (comida, bebida e remédio na mochila; cartuchos na bolsa; mangás na estante; o resto no inventário). Clicar no pacote guarda na hora. O save lembra das compras ainda no chão.
+- Editar mobília: botões − e + (e Shift + roda do mouse) para mudar o tamanho; "Espelhar" virou "Virar para o outro lado"; ⊙ também volta o tamanho ao normal.
+- Globo de luz, holofote, lasers, máquina de fumaça e lança-confete ficam apagados (dormentes) fora do modo Jam e pulsam com a música no Jam.
+- Corrigido: o botão 📌 "Manter o menu aberto" deixava o menu sem responder a cliques.
+- Removidos: chat por duplo clique, perguntas da Persocon ao jogador e o botão "Brincadeiras" em Ações (já tem categoria própria).
+
+## v1.1.1 — 11/10/2026
+
+- Corrigido: no "Editar mobília", cama, estante, alvo e almofada não podiam ser clicados nem arrastados (ficavam atrás do fundo da janela). Isso também liberou o clique e o botão direito nesses móveis fora do modo de edição.
+
+## v1.1.0 — 10/10/2026
+
+- Inventário dividido em categorias (abas com contagem, "Todos" agrupado e "Colocados"), com botões "Guardar tudo" e "Editar mobília".
+- Novo modo **Editar mobília** (menu Ações): arrastar, girar (botões ou roda do mouse), espelhar e guardar móveis. Esc ou "Concluir" sai do modo.
+- Contraste corrigido nos temas: texto de botões, abas e chips legível em todos os temas.
+- Balões de fala e de pedidos não balançam mais junto com o pet.
+- Espada menor e proporcional ao pet; microfone bem menor e posicionado na mão, perto da boca.
+- Versão do app exibida no fim da aba Opções.
+
+## v1.0.0
+
+- Versão trazida do outro computador.

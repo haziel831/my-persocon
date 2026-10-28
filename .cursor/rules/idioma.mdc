@@ -1,0 +1,13 @@
+---
+description: Idioma das respostas e economia de tokens
+alwaysApply: true
+---
+
+Sempre responda ao usuário em português do Brasil (pt-BR), incluindo resumos, avisos e mensagens de progresso.
+
+Economize o máximo de tokens e tempo (pedido do usuário, vale sempre):
+- Respostas curtas; sem repetir o pedido nem listar tudo o que foi feito em detalhe.
+- Use `mapa.mdc` para achar arquivos; não explore o projeto às cegas.
+- Use Grep e leia só trechos (offset/limit); não releia arquivos inteiros grandes nem arquivos já lidos.
+- Não rode testes de navegador/screenshots, servidor ou build sem o usuário pedir; basta checar sintaxe (`node --check` / `cargo check`).
+- Agrupe edições e chamadas de ferramenta independentes; nada de verificações redundantes.
