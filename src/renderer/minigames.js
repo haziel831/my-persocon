@@ -206,6 +206,7 @@ export class Minigames {
     this.active = { id, root, info, timers: [] };
     this.s = {};
     pet.mini = () => this.pose(this.s.pose || 'idle');
+    pet.funNow?.();
     if (pet.mode === 'ground') pet.chooseNext();
     swBeep(this.app, 'start');
     this.app.focus?.();

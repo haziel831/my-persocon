@@ -750,6 +750,8 @@ export class Game {
     const deal = TASTE_MOOD[taste] < 0 && this.pet.buff('deal');
     if (deal) delete this.pet.buffs.deal;
     else if (TASTE_MOOD[taste]) this.pet.punish({ mood: TASTE_MOOD[taste], ...(taste === 'hate' ? { affection: -3 } : {}) });
+    // Something she hates sitting in her stomach makes her queasy.
+    if (taste === 'hate') this.pet.addDebuff('nausea');
     this.pet.emit('taste', { item, taste, first, deal });
     this.changed();
   }

@@ -1,6 +1,6 @@
 import { PetView } from './view.js';
 import { World } from './world.js';
-import { Pet, AFFECTION_LEAVE, AFFECTION_MAX } from './behavior.js';
+import { Pet, AFFECTION_LEAVE, AFFECTION_MAX, DEBUFFS } from './behavior.js';
 import { Emoticons } from './emoticons.js';
 import { Menu, ImportDialog, ObjectsDialog, showGameOver, DEFAULT_OPTS, prefLabel } from './ui.js';
 import { Game, ITEMS, TASTE_MOOD, TASTE_RANK, BUFF_LABELS, BUFF_ICONS, itemById, HER_BAG } from './game.js';
@@ -987,7 +987,7 @@ export async function startPet(files, config) {
       + bar('❤️', s.health, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + buffChips() + queueChips() + wishChips();
+      + buffChips() + debuffChips() + queueChips() + wishChips();
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
@@ -1038,6 +1038,20 @@ export async function startPet(files, config) {
     const now = Date.now();
     const on = Object.entries(pet.buffs || {}).filter(([, t]) => t > now);
     return on.length ? `<div class="sd-buffs">${on.map(([k, t]) => `<span title="${BUFF_LABELS[k] || k}">${BUFF_ICONS[k] || '✨'} ${Math.ceil((t - now) / 60000)}m</span>`).join('')}</div>` : '';
+  }
+  // Negative statuses: red squares under the bars; the hover says what it does and the cure.
+  function debuffChips() {
+    const now = Date.now();
+    const en = config.lang === 'en';
+    const on = Object.entries(pet.debuffs || {}).filter(([, t]) => t > now);
+    return on.length
+      ? `<div class="sd-debuffs">${on.map(([id, t]) => {
+        const d = DEBUFFS[id];
+        const L = d ? d[en ? 'en' : 'pt'] : null;
+        const title = L ? `${L.name} — ${L.desc} · ${L.cure} (${Math.ceil((t - now) / 60000)}m)` : id;
+        return `<span title="${title.replace(/[<>&"]/g, '')}">${d?.icon || '❗'}</span>`;
+      }).join('')}</div>`
+      : '';
   }
 
   function updateOverlays(dt, head, hidden, calm) {

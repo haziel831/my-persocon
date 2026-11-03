@@ -28,6 +28,41 @@ const RATES = {
   hygiene: 0.004,
 };
 
+// Negative status effects: red squares in the status dock. auto = ms before it wears off on its
+// own; most also have a cure (food, drink, bath, sleep, cafuné, medicine, play). fx = per second.
+export const DEBUFFS = {
+  gripe: { icon: '😷', auto: 300e3, fx: { energy: -0.04, mood: -0.015, health: -0.008 },
+    pt: { name: 'Gripe', desc: 'Energia e humor caem mais rápido', cure: 'Remédio ou dormir bem' },
+    en: { name: 'Flu', desc: 'Drains Energy and Mood faster', cure: 'Medicine or good sleep' } },
+  fome: { icon: '🍗', auto: 300e3, fx: { mood: -0.03, health: -0.025, energy: -0.015 },
+    pt: { name: 'Fome Extrema', desc: 'Humor e saúde caem', cure: 'Comer algo' },
+    en: { name: 'Starving', desc: 'Mood and Health drop', cure: 'Eat something' } },
+  desidratacao: { icon: '💧', auto: 300e3, fx: { energy: -0.03, mood: -0.02, health: -0.015 },
+    pt: { name: 'Desidratação', desc: 'Energia e humor caem', cure: 'Beber algo' },
+    en: { name: 'Dehydration', desc: 'Energy and Mood drop', cure: 'Drink something' } },
+  suja: { icon: '🧼', auto: 300e3, fx: { mood: -0.025 },
+    pt: { name: 'Suja Demais', desc: 'Humor cai', cure: 'Banho' },
+    en: { name: 'Filthy', desc: 'Mood drops', cure: 'A bath' } },
+  exausta: { icon: '😴', auto: 300e3, fx: { mood: -0.02, health: -0.005 },
+    pt: { name: 'Exausta', desc: 'Humor e saúde caem', cure: 'Dormir (de preferência na cama)' },
+    en: { name: 'Exhausted', desc: 'Mood and Health drop', cure: 'Sleep (a bed is best)' } },
+  abatida: { icon: '😢', auto: 600e3, fx: { mood: -0.01 },
+    pt: { name: 'Abatida', desc: 'Ganhos de Humor e Afecção −30%', cure: 'Cafuné ou recuperar o humor' },
+    en: { name: 'Dejected', desc: 'Mood and Affection gains −30%', cure: 'A pat or better Mood' } },
+  estressada: { icon: '😤', auto: 180e3, fx: { mood: -0.025, energy: -0.015 },
+    pt: { name: 'Estressada', desc: 'Humor e energia caem', cure: 'Cafuné ou tempo' },
+    en: { name: 'Stressed', desc: 'Mood and Energy drop', cure: 'A pat or time' } },
+  prisao: { icon: '🌀', auto: 300e3, fx: { mood: -0.015, health: -0.015 },
+    pt: { name: 'Prisão de Ventre', desc: 'Humor e saúde caem', cure: 'Remédio ou tempo' },
+    en: { name: 'Constipation', desc: 'Mood and Health drop', cure: 'Medicine or time' } },
+  nausea: { icon: '😵', auto: 150e3, fx: { mood: -0.03, health: -0.02 },
+    pt: { name: 'Náusea', desc: 'Humor e saúde caem', cure: 'Remédio ou tempo' },
+    en: { name: 'Nausea', desc: 'Mood and Health drop', cure: 'Medicine or time' } },
+  tedio: { icon: '🥱', auto: 420e3, fx: { mood: -0.02 },
+    pt: { name: 'Tédio', desc: 'Ganhos de Humor e Afecção −30%', cure: 'Brincar, minijogo ou TV' },
+    en: { name: 'Boredom', desc: 'Mood and Affection gains −30%', cure: 'Play, minigame or TV' } },
+};
+
 const ACTION_EFFORT = { run: 2.3, chase: 2.4, qte: 2.2, jam: 2, mini: 2, ball: 2.2, walk: 1.25, climbRest: 1.2, sit: 0.65, watch: 0.65, emote: 1.1 };
 const ANTIC_EFFORT = { squats: 2.2, shadowbox: 2.3, hops: 2, twirl: 1.8, butterfly: 1.9, balance: 1.4, trip: 1.5, doze: 0.5, yawn: 0.7, gaze: 0.7, hum: 0.8, tap: 0.8, look: 0.8, pant: 0.5 };
 
@@ -89,6 +124,12 @@ export class Pet {
     this.clock = 0;
     this.patTimes = [];
     this.buffs = {};
+    this.debuffs = {};
+    this.dbcd = {};
+    this.lastFun = 0;
+    this.lowMoodT = 0;
+    this.overeat = 0;
+    this.stressHits = [];
     this.activity = null;
     this.toyPlay = null;
     this.goal = null;
@@ -128,6 +169,7 @@ export class Pet {
       n *= 0.5 * (1 - Math.max(0, this.affection) / (AFFECTION_MAX * 1.25));
       // Poor survival needs slow down how fast Affection grows (0.65x worst, 1.1x best).
       n *= 0.5 + 0.6 * this.needN();
+      n *= this.debuffGain();
     }
     const before = this.affection;
     this.affection = clamp(this.affection + n, AFFECTION_LEAVE, AFFECTION_MAX);
@@ -209,6 +251,73 @@ export class Pet {
     return (this.buffs?.[name] || 0) > Date.now();
   }
 
+  // ---------- negative status effects ----------
+  // At most 3 at once; the same one never stacks (its timer just refreshes). A status with a
+  // cure stays until the cure happens; the rest wear off after DEBUFFS[id].auto milliseconds.
+  hasDebuff(id) {
+    return (this.debuffs?.[id] || 0) > Date.now();
+  }
+
+  addDebuff(id) {
+    if (this.dead || !DEBUFFS[id]) return false;
+    const now = Date.now();
+    const list = (this.debuffs ||= {});
+    if (list[id] > now) return false; // already active: no stacking, no re-announce
+    if (Object.keys(list).filter((k) => list[k] > now).length >= 3) return false;
+    list[id] = now + DEBUFFS[id].auto;
+    this.emit('debuff', { id, on: true });
+    return true;
+  }
+
+  // A cure or a natural end: drops the status and tells the UI.
+  cureDebuff(id) {
+    if (this.debuffs?.[id]) {
+      delete this.debuffs[id];
+      this.emit('debuff', { id, on: false });
+    }
+  }
+
+  cureAllDebuffs() {
+    for (const id of Object.keys(this.debuffs || {})) this.cureDebuff(id);
+  }
+
+  // Triggers from neglected stats, the stat-based cures, the per-second effects and expiry.
+  updateDebuffs(dt) {
+    if (this.dead) return;
+    const s = this.stats;
+    const sleep = this.action === 'sleep';
+    // --- triggers ---
+    if (s.hunger <= 5) this.addDebuff('fome');
+    if (s.thirst <= 5) this.addDebuff('desidratacao');
+    if (s.hygiene <= 8) this.addDebuff('suja');
+    if (!sleep && s.energy <= 6) this.addDebuff('exausta');
+    if (s.hygiene < 15 && s.energy < 30) this.addDebuff('gripe');
+    this.lowMoodT = s.mood <= 30 ? this.lowMoodT + dt : 0;
+    if (this.lowMoodT > 60) this.addDebuff('abatida');
+    // Bored: no play/toy/activity/minigame for 10 minutes while awake and in a decent mood.
+    if (this.action !== 'sleep' && this.clock - this.lastFun > 600 && s.mood >= 40 && s.mood <= 75) this.addDebuff('tedio');
+    // --- stat cures (the actions that heal by doing) ---
+    if (s.hunger >= 40) this.cureDebuff('fome');
+    if (s.thirst >= 40) this.cureDebuff('desidratacao');
+    if (s.hygiene >= 40) this.cureDebuff('suja');
+    if (s.energy >= 45) this.cureDebuff('exausta');
+    if (s.hygiene >= 40 && s.energy >= 45) this.cureDebuff('gripe');
+    if (s.mood >= 55) this.cureDebuff('abatida');
+    // --- effects + expiry ---
+    const now = Date.now();
+    for (const id of Object.keys(this.debuffs)) {
+      if (this.debuffs[id] <= now) { this.cureDebuff(id); continue; }
+      const fx = DEBUFFS[id].fx;
+      const delta = {};
+      for (const [k, v] of Object.entries(fx)) {
+        // Mood keeps its 50 floor and Health respects the shield: both go through adjust().
+        if (k === 'mood' || k === 'health') delta[k] = v * dt;
+        else s[k] = clamp(s[k] + v * dt, 0, 100);
+      }
+      if (Object.keys(delta).length) this.adjust(delta);
+    }
+  }
+
   // Highest jump: a quarter of the monitor height.
   maxJump() {
     return Math.min(this.P * 4.5, (this.world.height || 1e9) * 0.25);
@@ -241,16 +350,25 @@ export class Pet {
   }
 
   // Direct mistreatment (slap, hated food, hard throw, floor sleep, forced wake): the only
-  // source allowed to push Humor below 50.
+  // source allowed to push Humor below 50. Two hits in a minute also stress her out.
   punish(delta, src) {
     this.harsh = true;
     this.adjust(delta, src);
     this.harsh = false;
+    const now = Date.now();
+    this.stressHits = (this.stressHits || []).filter((t) => now - t < 60e3);
+    this.stressHits.push(now);
+    if (this.stressHits.length >= 2) this.addDebuff('estressada');
   }
 
   // 0..1: how settled the affection is (600+ counts as full). One of the two Mood multipliers.
   affT() {
     return clamp((this.affection || 0) / 600, 0, 1);
+  }
+
+  // Dejected / bored: everything she wins from care or fun counts ~30% less.
+  debuffGain() {
+    return (this.hasDebuff('abatida') || this.hasDebuff('tedio')) ? 0.7 : 1;
   }
 
   // 0.25..1 per survival need (50+ is fine), averaged: the worse she is cared for, the slower
@@ -267,7 +385,7 @@ export class Pet {
     const m = this.stats.mood;
     const sat = m > 90 ? 0.2 : m > 70 ? 0.5 : 1;
     const bored = (this.bored ||= {});
-    const out = ((v * sat) / (1 + (bored[src] || 0) / 25)) * (0.6 + 0.5 * this.affT()) * (0.7 + 0.4 * this.needN());
+    const out = ((v * sat) / (1 + (bored[src] || 0) / 25)) * (0.6 + 0.5 * this.affT()) * (0.7 + 0.4 * this.needN()) * this.debuffGain();
     bored[src] = Math.min(150, (bored[src] || 0) + out);
     return out;
   }
@@ -472,6 +590,9 @@ export class Pet {
       return this.emit('patAngry');
     }
     this.adjust({ mood: 8, affection: 0.6 }, 'cafune');
+    // A good cafuné pulls her out of the blues and melts the stress away.
+    this.cureDebuff('abatida');
+    this.cureDebuff('estressada');
     this.fulfill('pat');
     if (this.mode !== 'ground') return this.emit('pet');
     if (!['dizzy', 'land', 'chase', 'qte', 'eat'].includes(this.action)) {
@@ -487,6 +608,12 @@ export class Pet {
     if (this.toyPlay) return this.toyPlay.id;
     if (this.action === 'ball') return 'bola';
     return this.activity || this.action;
+  }
+
+  // Any fun resets the boredom timer and clears Tédio.
+  funNow() {
+    this.lastFun = this.clock;
+    this.cureDebuff('tedio');
   }
 
   prefMul(k) {
@@ -572,6 +699,10 @@ export class Pet {
     if (item.clearBuffs) this.buffs = {};
     else {
       for (const [b, s] of item.buffs || (item.buff ? [item.buff] : [])) this.buffs[b] = Math.max(Date.now(), this.buffs[b] || 0) + s * 1000;
+    }
+    // Medicine fixes what medicine can fix: flu, constipation and nausea.
+    if (item.cat === 'medicina' && !item.clearBuffs) {
+      for (const id of ['gripe', 'prisao', 'nausea']) this.cureDebuff(id);
     }
     // Glow animation is 2.6s; keep the pose until it ends (queue waits for dosing + doseGap).
     if (item.clearBuffs) this.dosing = 0.7;
@@ -697,6 +828,8 @@ export class Pet {
   // With pickAnim the pet first bends down for the toy (it stays on the floor until holdFrom).
   playToy(opts) {
     if (this.dead || this.action === 'sleep') return;
+    // Bath is care, not fun — it does not cure Tédio.
+    if (!/^banho/.test(String(opts.id))) this.funNow();
     // Toys played sitting down go to the cushion (she takes the toy along).
     if (opts.pose === 'sit' && !opts.cushioned && !SEAT_TOYS.has(String(opts.id).split('#')[0])) {
       const c = this.paused ? null : this.findCushion?.() ?? null;
@@ -781,6 +914,7 @@ export class Pet {
 
   startBall(excited = false) {
     if (!this.ball || this.dead || this.chase || this.eating || this.mode !== 'ground') return false;
+    this.funNow();
     this.ballPlay = { t: rand(25, 45), cool: 0.4, excite: excited ? 1 : 0, onEnd: this.ballPlay?.onEnd };
     this.action = 'ball';
     this.timer = Infinity;
@@ -1073,6 +1207,7 @@ export class Pet {
   startActivity(kind) {
     if (this.dead || this.action === 'sleep') return false;
     this.endChase(false);
+    this.funNow();
     this.activity = kind;
     this.paused = false;
     this.fulfill('play');
@@ -1138,6 +1273,14 @@ export class Pet {
       return;
     }
     const drink = item.cat === 'bebidas';
+    // Stuffed and still eating: one more full-belly meal and her stomach rebels (3 = Prisão).
+    if (!drink) {
+      this.overeat = this.stats.hunger >= 88 ? this.overeat + 1 : Math.max(0, this.overeat - 1);
+      if (this.overeat >= 3) {
+        this.overeat = 0;
+        this.addDebuff('prisao');
+      }
+    }
     const wasSleeping = this.action === 'sleep';
     this.action = 'eat';
     this.timer = Infinity;
@@ -1264,6 +1407,7 @@ export class Pet {
       this.emit('tooTired');
       return false;
     }
+    this.funNow();
     this.adjust({ mood: 8, hunger: -6, thirst: -8, energy: -10 });
     this.paused = false;
     this.finishEating();
@@ -2308,6 +2452,7 @@ export class Pet {
       this.moodTimer = rand(25, 50);
       this.emit('mood', { ...s });
     }
+    this.updateDebuffs(dt);
     this.checkDeath();
   }
 
