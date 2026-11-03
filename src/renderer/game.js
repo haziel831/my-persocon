@@ -424,6 +424,7 @@ export class Game {
     if (this.gear.trevo && n > 0) n = Math.round(n * 1.5);
     this.coins += n;
     this.profile.coinsEarned += n;
+    if (n > 0) this.pet?.emit('earn', { n });
     this.changed();
   }
 

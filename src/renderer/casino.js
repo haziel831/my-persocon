@@ -434,6 +434,7 @@ export class Casino {
     game.coins += n;
     const p = game.profile;
     p.casinoCoins = (p.casinoCoins || 0) + n;
+    if (n > 0) this.app.pet?.emit('earn', { n });
   }
 
   popCap(g, pet, high) {

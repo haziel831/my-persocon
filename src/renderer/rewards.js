@@ -460,10 +460,11 @@ export class Rewards {
       : item?.manga ? game.mangas.includes(p.id)
       : item?.toy && !item.decor ? !!game.toys[p.id] && !game.toys[p.id].broken
       : false;
-    if (p.kind === 'coins') game.coins += p.n;
+    if (p.kind === 'coins') { game.coins += p.n; this.app.pet?.emit('earn', { n: p.n }); }
     else if (owned) {
       p.dupe = DUPE[p.rarity] || DUPE.comum;
       game.coins += p.dupe;
+      this.app.pet?.emit('earn', { n: p.dupe });
     } else if (p.kind === 'figure') game.figures.push(p.id);
     else if (item && (item.cart || item.manga || item.toy)) {
       game.deliveries.unshift({ id: p.id, n: p.n, x: null, display: null });
@@ -554,6 +555,7 @@ export class Rewards {
           toys.furn.floatText(h.x, h.y - 10, `💾 ${GAMES[g].name}`);
         } else {
           game.coins += 200;
+          this.app.pet?.emit('earn', { n: 200 });
           toys.furn.floatText(h.x, h.y - 10, '+200 ¥');
         }
         game.changed();
