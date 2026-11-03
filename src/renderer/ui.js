@@ -1362,7 +1362,8 @@ export class Menu {
         ...DUOS.filter((d) => !d.alive || alive).map((d) => btn(d.name, () => doll.brain.startDuo(d.id, true)))) : null,
       this.animRows(),
       h('div.group', {}, 'Changelog'),
-      ...CHANGES.map(([v, items]) => h('div.note', {}, h('b', {}, `v${v}: `), items.join(' · '))),
+      ...CHANGES.map(([v, items]) => h('div.note', {}, h('b', {}, `v${v}: `),
+        items.map((x) => (app.config.lang === 'en' ? x[1] : x[0])).join(' · '))),
     ];
   }
 

@@ -7,6 +7,12 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9 — 03/11/2026
+Humor ligado à Afecção (drenagem natural para em 50, só maus-trato desce abaixo), sono ininterrupto com raiva ao ser acordada, teto de 3 pedidos, 10 status negativos com gatilhos e curas, chip de missões do dia e auditoria de idioma.
+Mood tied to Affection (natural drain stops at 50, only mistreatment goes below), uninterrupted sleep with a furious wake-up, a 3-request cap, 10 negative statuses with triggers and cures, a daily missions chip and a language audit.
+The in-app changelog is now bilingual (EN + PT) / O changelog do app agora é bilíngue (EN + PT).
+Detalhes em `ChangeLogs\v1.9.md`.
+
 ## v1.8 — 20/10/2026
 Streamer Mode sem crash; PowerUps com animações clássicas; hookshoot, venda de prêmios e promo powermeup.
 Detalhes em `ChangeLogs\v1.8.md`.
