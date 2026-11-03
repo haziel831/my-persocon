@@ -68,7 +68,7 @@ export class Antics {
 
   tryStart(kind) {
     const { pet, minigames } = this.app;
-    if (this.cur || pet.mode !== 'ground' || pet.dead || pet.toyPlay || pet.activity || pet.mini || pet.chase || pet.eating || minigames?.active) return false;
+    if (this.cur || pet.mode !== 'ground' || pet.dead || pet.action === 'sleep' || pet.toyPlay || pet.activity || pet.mini || pet.chase || pet.eating || minigames?.active) return false;
     if (!kind) {
       const now = performance.now();
       const w = Object.entries(this.weights()).filter(([k, v]) => v > 0 && now - (this.last[k] || -1e9) > 120000);

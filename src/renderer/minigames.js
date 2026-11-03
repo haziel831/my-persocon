@@ -146,7 +146,7 @@ export class Minigames {
 
   start(id) {
     const { pet } = this.app;
-    if (this.active || this.guide || pet.dead || pet.chase || !byId(id) || !mgUnlocked(id, pet.affection)) return;
+    if (this.active || this.guide || pet.dead || pet.chase || pet.action === 'sleep' || !byId(id) || !mgUnlocked(id, pet.affection)) return;
     if (this.app.care?.refuse()) return;
     if (this.app.config.guidesOff?.[id]) return this.begin(id);
     this.showGuide(id);

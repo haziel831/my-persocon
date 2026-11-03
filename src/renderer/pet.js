@@ -461,6 +461,7 @@ export async function startPet(files, config) {
     bump: () => sound.play('bonk', { volume: 0.8 }),
     hardLand: (d) => sound.play(d.thrown ? 'explode' : 'hit', { volume: d.thrown ? 0.5 : 0.8 }),
     slap: () => sound.play('hit', { volume: 0.9 }),
+    wakeAngry: () => sound.play('hit', { volume: 0.7 }),
     land: (d) => sound.play('landing', { volume: clamp(0.25 + (d.impact || 0) / 20, 0.25, 0.8) }),
     hop: () => sound.play('jump', { volume: 0.5 }),
     chaseJump: () => sound.play('jump', { volume: 0.5 }),
@@ -526,7 +527,7 @@ export async function startPet(files, config) {
     pet: 'happy', ate: 'happy', bought: 'happy', requestDone: 'happy', ballFetch: 'happy', gameExcite: 'happy', toyRepaired: 'happy',
     dollHug: 'happy', dollFound: 'happy', dollAlive: 'surprised', dollToy: 'happy',
     crowBorn: 'surprised', crowLearn: 'happy', crowGift: 'happy', crowPlay: 'happy', crowTrick: 'happy',
-    slap: 'angry', patAngry: 'angry', toyBroke: 'sad', leave: 'sad', death: 'sad', toySad: 'sad',
+    slap: 'angry', patAngry: 'angry', wakeAngry: 'angry', toyBroke: 'sad', leave: 'sad', death: 'sad', toySad: 'sad',
     grab: 'surprised', qteStart: 'surprised', ambush: 'surprised', hardLand: 'surprised', react: 'surprised',
   };
 

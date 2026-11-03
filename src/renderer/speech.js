@@ -14,6 +14,8 @@ const LINES = {
   patAngry: [['Chega, chega!', 'Para com isso!', 'Meu cabelo!'], ['Enough, enough!', 'Stop that!', 'My hair!'], 0.8],
   pet: [['Hehe~', 'Mais!', 'Que gostoso...', 'Ronrom~', 'Aí sim...', 'Adoro isso!'], ['Hehe~', 'More!', 'That feels nice...', 'Purr~', 'Right there...', 'I love that!'], 0.2],
   wake: [['Bom dia!', 'Hmm... dormi bem.', 'Que soninho bom...', '*boceja*'], ['Good morning!', 'Hmm... slept well.', 'What a nice nap...', '*yawns*'], 0.4],
+  wakeAngry: [['Ei! Tava dormindo!', 'Que isso?! Deixa eu dormir!', 'Me arrastou?! Sério agora...', 'Acordei com raiva agora...', 'Hmpf... não falo com você.'], ['Hey! I was sleeping!', 'What the heck?! Let me sleep!', 'You dragged me?! Seriously?', 'Now I woke up grumpy...', "Hmph... I'm not talking to you."], 1],
+  newgame: [['Cadê eu? Que lugar é esse?', 'O que é esse monte de janelas?', 'Eu tava na cama... agora tô onde?', 'Que desktop é esse?', 'Hmm... não lembro de ter vindo pra cá.'], ['Where am I? What is this place?', "What's with all these windows?", 'I was in bed... now where am I?', 'What is this desktop?', "Hmm... I don't remember coming here."], 1],
   toyBroke: [['Quebrou...', 'Ah não...', 'Meu brinquedo!'], ['It broke...', 'Oh no...', 'My toy!'], 1],
   toyRepaired: [['Consertou! Obrigada!', 'Novinho de novo!'], ['Fixed! Thank you!', 'Good as new!'], 1],
   chaseStart: [['Vou te pegar!', 'Corre, corre!', 'Não foge não!'], ["I'm gonna get you!", 'Run, run!', "Don't run away!"], 0.7],
@@ -383,6 +385,8 @@ export class Speech {
 
   react(type, data) {
     if (this.app.config.speech === false) return;
+    // Asleep she stays completely quiet (wake lines only fire after she is up).
+    if (this.app.pet.action === 'sleep') return;
     const entry = LINES[type];
     if (!entry) return;
     const [pt, en, p] = entry;

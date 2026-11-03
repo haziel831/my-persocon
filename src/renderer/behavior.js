@@ -228,7 +228,7 @@ export class Pet {
       if (k === 'mood' && v > 0) v = this.moodGain(v, src);
       if (k === 'mood' && v > 0 && this.buff('doubleMood')) v *= 2;
       // Event dips never take Humor under 50: only punish() (direct mistreatment) does.
-      if (k === 'mood' && v < 0 && !this.harsh) v = Math.max(v, 50 - this.stats.mood);
+      if (k === 'mood' && v < 0 && !this.harsh) v = Math.max(v, Math.min(0, 50 - this.stats.mood));
       if (k === 'health' && v < 0 && this.buff('shield')) continue;
       if (k === 'affection') this.love(v);
       else if (k in this.stats) this.stats[k] = clamp(this.stats[k] + v, 0, 100);
@@ -364,7 +364,8 @@ export class Pet {
     const a = this.actionQueue.shift();
     if (!a) return false;
     if (a.kind === 'sleep') {
-      this.requestGround('sleepLong');
+      // Too annoyed to go back to sleep: the request is dropped.
+      if (Date.now() >= (this.noSleepUntil || 0)) this.requestGround('sleepLong');
       return true;
     }
     if (a.kind === 'bath') {
@@ -455,8 +456,9 @@ export class Pet {
   // Cafuné (also a short click on the pet).
   pat() {
     if (this.dead) return;
-    // While sleeping she ignores the player (no wake, no mood/emote).
-    if (this.action === 'sleep') return;
+    // While sleeping she ignores the player (no wake, no mood/emote); so does she right
+    // after being dragged awake (annoyedUntil).
+    if (this.action === 'sleep' || this.clock < (this.annoyedUntil || -1e9)) return;
     // Too many in a short time gets annoying.
     this.patTimes = this.patTimes.filter((t) => this.clock - t < 10);
     this.patTimes.push(this.clock);
@@ -502,7 +504,7 @@ export class Pet {
 
   // Cafuné by rubbing the cursor over the pet: never interrupts, encourages what it is doing.
   rub() {
-    if (this.dead || this.action === 'sleep' || this.clock - (this.rubAt || 0) < 0.35) return;
+    if (this.dead || this.action === 'sleep' || this.clock < (this.annoyedUntil || -1e9) || this.clock - (this.rubAt || 0) < 0.35) return;
     this.rubAt = this.clock;
     this.adjust({ mood: 2, affection: 0.25 }, 'cafune');
     this.encourage(this.actKey(), 0.5);
@@ -612,14 +614,21 @@ export class Pet {
     this.emit('requestDone', { ...r, love });
   }
 
+  // Live requests (the balloon + the remembered "wants"): never more than 3 at once.
+  liveWishes() {
+    const now = Date.now();
+    this.wishes = (this.wishes || []).filter((w) => w.until > now);
+    return this.wishes;
+  }
+
   // What she asked for stays pending for 3 hours (shown in the docked status) after the balloon goes.
   rememberWish(r) {
-    const list = (this.wishes ||= []);
+    const list = this.liveWishes();
     const until = Date.now() + 3 * 3600e3;
     const old = list.find((w) => w.kind === r.kind && (w.id || '') === (r.id || ''));
     if (old) old.until = until;
     else list.push({ kind: r.kind, id: r.id, name: r.name, label: r.label, img: r.img, wish: !!r.wish, at: Date.now(), until });
-    if (list.length > 8) list.shift();
+    if (list.length > 3) list.shift();
   }
 
   pendingWish(kind, id) {
@@ -637,7 +646,7 @@ export class Pet {
 
   // Something she asks for out of the blue (from pet.js: toys she owns, a bath, music...).
   wish() {
-    if (this.request || this.dead || this.cfg.focus) return false;
+    if (this.request || this.dead || this.cfg.focus || this.liveWishes().length >= 3) return false;
     const w = this.wishPool?.();
     if (!w) return false;
     this.request = { ...w, wish: true, t: 60 };
@@ -647,6 +656,8 @@ export class Pet {
   }
 
   updateRequest(dt) {
+    // Asleep she neither asks nor counts down what she asked.
+    if (this.action === 'sleep') return;
     if (this.request) {
       this.request.t -= dt;
       if (this.request.t <= 0) {
@@ -655,7 +666,7 @@ export class Pet {
       }
       return;
     }
-    if (this.stats.mood >= 60 || this.activity || this.chase || this.cfg.focus) return;
+    if (this.stats.mood >= 60 || this.activity || this.chase || this.cfg.focus || this.liveWishes().length >= 3) return;
     this.requestTimer -= dt;
     if (this.requestTimer > 0) return;
     this.requestTimer = rand(60, 120);
@@ -685,6 +696,7 @@ export class Pet {
   // opts: { id, dur, gain, hold (img), holdFrom (s), wobble, anim, pose, facing, pickAnim, tick(dt, tp), onEnd }
   // With pickAnim the pet first bends down for the toy (it stays on the floor until holdFrom).
   playToy(opts) {
+    if (this.dead || this.action === 'sleep') return;
     // Toys played sitting down go to the cushion (she takes the toy along).
     if (opts.pose === 'sit' && !opts.cushioned && !SEAT_TOYS.has(String(opts.id).split('#')[0])) {
       const c = this.paused ? null : this.findCushion?.() ?? null;
@@ -1059,7 +1071,7 @@ export class Pet {
   // ---------- Jam / Assistir ----------
 
   startActivity(kind) {
-    if (this.dead) return false;
+    if (this.dead || this.action === 'sleep') return false;
     this.endChase(false);
     this.activity = kind;
     this.paused = false;
@@ -1079,7 +1091,7 @@ export class Pet {
     }
     const bath = s.hygiene < 15 && this.findBath?.();
     if (bath && this.goTo(bath.x, () => bath.play(this))) return true;
-    if (s.energy <= 50) {
+    if (s.energy <= 50 && Date.now() >= (this.noSleepUntil || 0)) {
       this.startGround('sleepLong');
       return true;
     }
@@ -1213,6 +1225,11 @@ export class Pet {
   putToSleep() {
     if (this.dead) return false;
     if (this.action === 'sleep') return true;
+    // Woken up angrily: refuses to go back to sleep for two minutes.
+    if (Date.now() < (this.noSleepUntil || 0)) {
+      this.emit('notSleepy');
+      return false;
+    }
     if (this.stats.energy > 70) {
       this.emit('notSleepy');
       return false;
@@ -1226,9 +1243,23 @@ export class Pet {
     return true;
   }
 
+  // Dragged out of sleep: extremely annoyed — big Mood hit, ignores cafuné for a while and
+  // refuses to sleep again for two minutes.
+  wakeAngry() {
+    this.punish({ mood: -25, affection: -4 });
+    this.annoyedUntil = this.clock + 45;
+    this.noSleepUntil = Date.now() + 120e3;
+    this.slept = 0;
+    this.emit('wakeAngry');
+  }
+
   // Brincar: 60 s of trying to catch the mouse cursor.
   play() {
     if (this.dead) return false;
+    if (this.action === 'sleep') {
+      this.emit('notSleepy');
+      return false;
+    }
     if (this.stats.energy < 12) {
       this.emit('tooTired');
       return false;
@@ -1300,6 +1331,7 @@ export class Pet {
   // (cx, cy): cursor position. The pet swings to hang from its raised hand under the cursor.
   grab(cx, cy) {
     if (this.dead) return;
+    const wasSleeping = this.action === 'sleep';
     this.endChase(false);
     this.anim('jump', { facing: 'front' });
     this.view.setHold(cx >= this.x ? 'right' : 'left');
@@ -1320,6 +1352,7 @@ export class Pet {
     this.action = 'held';
     this.adjust({ mood: -1 });
     this.emit('grab');
+    if (wasSleeping) this.wakeAngry();
   }
 
   drag(cx, cy) {
@@ -1701,9 +1734,14 @@ export class Pet {
         if (bed) this[bed.cushion ? 'onCushion' : 'onBed'] = true;
       }
         this.action = 'sleep';
-        this.timer = this.onBed ? Infinity : kind === 'sleepLong' ? 240 : rand(30, 60);
+        // Sleeps until fully recharged (or dragged awake); no bed/cushion = cold floor penalty.
+        this.timer = Infinity;
         this.awake = 0;
         this.slept = 0;
+        if (!this.onBed && !this.onCushion) {
+          this.punish({ mood: -10 });
+          this.app?.toys?.furn?.floatText?.(this.x, this.y - this.P * 1.2, this.cfg?.lang === 'en' ? 'Cold floor… −10 Mood' : 'Chão frio… −10 Humor');
+        }
         this.anim('sleep', { pose: 'lie', facing: f });
         break;
       case 'emote': {
@@ -1800,6 +1838,7 @@ export class Pet {
     const bath = this.stats.hygiene < 40 && this.surfaceId === 'floor' && this.findBath?.();
     if (bath && this.goTo(bath.x, () => bath.play(this))) return;
     if (e > 70 || (this.awake < 90 && e >= 40)) w.sleep = 0;
+    if (Date.now() < (this.noSleepUntil || 0)) w.sleep = 0;
     if (e < 50) {
       w.sleep *= e < 25 ? 8 : 2.5;
       w.sit *= 2;
@@ -1917,7 +1956,7 @@ export class Pet {
     if (this.action === 'sleep') {
       this.slept = (this.slept || 0) + dt;
       if (this.stats.energy >= 98 && this.slept > 20) this.timer = 0;
-      else if (this.onBed) this.timer = Infinity;
+      else this.timer = Infinity;
     }
     this.timer -= dt;
     if (this.timer <= 0) {
@@ -2222,7 +2261,7 @@ export class Pet {
       // Bed: faster rest and the hunger stops at half; floor: slow.
       // Upgraded bed: 1.5x faster, no hunger nor thirst; upgraded cushion: comfier.
       const up = !!this.furnUp?.(this.onBed ? 'cama' : this.onCushion ? 'almofada' : '');
-      s.energy += RATES.energySleep * (this.onBed ? (up ? 3 : 2) : this.onCushion ? (up ? 2.1 : 1.4) : 1) * dt;
+      s.energy += RATES.energySleep * (this.onBed ? (up ? 3 : 2) : this.onCushion ? (up ? 2.1 : 1.4) : 0.6) * dt;
       if (up) s.mood += this.moodGain((this.onBed ? 0.02 : 0.03) * dt);
       if (!noHunger && !(this.onBed && (up || s.hunger <= 50))) s.hunger -= RATES.hungerSleep * d * dt;
     } else {

@@ -452,6 +452,8 @@ export class Intro {
     this.stage = 'done';
     document.body.classList.remove('intro-on');
     app.speech?.say?.(this.T.hello(owner, name), 6);
+    // New game: after the greeting she looks around, confused about where she is.
+    setTimeout(() => app.pet.emit('newgame'), 6500);
     if (app.head) app.fx?.heart?.('love', app.head, true);
     this.onDone?.();
   }
