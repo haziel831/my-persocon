@@ -494,7 +494,7 @@ export class Menu {
       ['Gacha-Machine', `${p.gachaPulls || 0} giros`],
       ['Slot-Machine', `${p.slotSpins || 0} rodadas · ${p.slotTriples || 0} trincas · ${p.jackpots || 0} jackpots`],
       ['Moedas ganhas nas máquinas', `¥ ${p.casinoCoins || 0} (vão para você)`],
-      ['Vending machines', `${p.vendBuys || 0} compras · ¥ ${p.vendSpent || 0} gastos da carteira dela`],
+      ['Compras nas Vending Machines', `${p.vendBuys || 0} compras · ¥ ${p.vendSpent || 0} gastos da carteira dela`],
       ['Bonecos', `${g.figures.length} / ${FIGURES.length}`],
     ];
     return [back,
