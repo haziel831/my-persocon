@@ -495,6 +495,7 @@ const EN = {
   'Pedir atenção': 'Ask for attention', 'Roubar o cursor': 'Steal the cursor', 'Lembrete de pausa': 'Break reminder', 'Presente': 'Gift', 'Sentar na janela': 'Sit on the window',
   'Ouvir o som': 'Listen to the sound', 'Chutar ícones': 'Kick icons', 'Lixeira': 'Recycle bin', 'Empurrar ícone': 'Push icon', 'Notas': 'Notes', 'Gol!': 'Goal!',
   'Não achei ícones pra isso!': "I couldn't find any icons for that!", 'Atchim!': 'Achoo!', 'Atchiiim!': 'Achooo!', 'Atchô!': 'Atchoo!', 'Hmpf.': 'Hmph.',
+  'copiado para a área de transferência': 'copied to the clipboard',
   'As setas descem nas 4 pistas. Aperte a seta do teclado (← ↑ ↓ →) quando a seta passar pela linha.': 'Arrows fall down the 4 lanes. Press the arrow key (← ↑ ↓ →) when one crosses the line.',
   'Escapou...': 'It got away...', 'Embaralhando...': 'Shuffling...',
   'Sobe e desce': 'Up and down', 'Dormir': 'Sleep', 'Passear com o cachorro': 'Walk the dog', 'Elevador': 'Elevator', 'Volta ao mundo': 'Around the world',
@@ -774,6 +775,8 @@ const PATTERNS = [
   [/^Músicas dela \((\d+)\)$/, 'Her songs ($1)'],
   [/^▶ Tocar músicas \((\d+)\)$/, '▶ Play songs ($1)'],
   [/ por (\d+(?:[.,]\d+)?) min\b/g, ' for $1 min'],
+  [/^Não achei "(.+)" na pasta do modelo\.$/, (_, u) => `I couldn't find "${u}" in the model folder.`],
+  [/^Este \.gltf não traz a malha num único arquivo ao lado\.$/, "This .gltf doesn't bring the mesh in a single file next to it."],
 ];
 
 // Single words/phrases replaced inside longer texts (stat lines, labels with numbers…).
