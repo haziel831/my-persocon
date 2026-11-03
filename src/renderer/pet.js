@@ -987,7 +987,7 @@ export async function startPet(files, config) {
       + bar('❤️', s.health, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + buffChips() + debuffChips() + queueChips() + wishChips();
+      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips();
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
@@ -1052,6 +1052,14 @@ export async function startPet(files, config) {
         return `<span title="${title.replace(/[<>&"]/g, '')}">${d?.icon || '❗'}</span>`;
       }).join('')}</div>`
       : '';
+  }
+  // Daily missions reminder: hidden once all three are done (the bonus celebrates instead).
+  function missionChip() {
+    const list = rewards.missions();
+    if (!list.length || list.every((m) => m.done)) return '';
+    const en = config.lang === 'en';
+    const tip = list.map((m) => `${m.done ? '✔' : '·'} ${m.text} (${Math.min(m.n, m.goal)}/${m.goal})`).join('\n');
+    return `<div class="sd-missions" title="${en ? 'Daily missions' : 'Missões do dia'}: ${tip.replace(/[<>&"]/g, '')}">📅 ${list.filter((m) => m.done).length}/${list.length}</div>`;
   }
 
   function updateOverlays(dt, head, hidden, calm) {
