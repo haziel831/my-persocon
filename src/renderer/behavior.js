@@ -28,40 +28,52 @@ const RATES = {
   hygiene: 0.004,
 };
 
-// Negative status effects: red squares in the status dock. auto = ms before it wears off on its
-// own; most also have a cure (food, drink, bath, sleep, cafuné, medicine, play). fx = per second.
+// Negative status effects: cards in the status dock (art + color per status). auto = ms before it
+// wears off on its own; most also have a cure (food, drink, bath, sleep, cafuné, medicine, play).
+// fx = per second. art = pixel icon defined in statusicons.js.
 export const DEBUFFS = {
-  gripe: { icon: '😷', auto: 300e3, fx: { energy: -0.04, mood: -0.015, health: -0.008 },
+  gripe: { icon: '😷', art: 'db_gripe', color: '#8fd07a', auto: 300e3, fx: { energy: -0.04, mood: -0.015, health: -0.008 },
     pt: { name: 'Gripe', desc: 'Energia e humor caem mais rápido', cure: 'Remédio ou dormir bem' },
     en: { name: 'Flu', desc: 'Drains Energy and Mood faster', cure: 'Medicine or good sleep' } },
-  fome: { icon: '🍗', auto: 300e3, fx: { mood: -0.03, health: -0.025, energy: -0.015 },
+  fome: { icon: '🍗', art: 'db_fome', color: '#f0a030', auto: 300e3, fx: { mood: -0.03, health: -0.025, energy: -0.015 },
     pt: { name: 'Fome Extrema', desc: 'Humor e saúde caem', cure: 'Comer algo' },
     en: { name: 'Starving', desc: 'Mood and Health drop', cure: 'Eat something' } },
-  desidratacao: { icon: '💧', auto: 300e3, fx: { energy: -0.03, mood: -0.02, health: -0.015 },
+  desidratacao: { icon: '💧', art: 'db_desidratacao', color: '#3fa2e8', auto: 300e3, fx: { energy: -0.03, mood: -0.02, health: -0.015 },
     pt: { name: 'Desidratação', desc: 'Energia e humor caem', cure: 'Beber algo' },
     en: { name: 'Dehydration', desc: 'Energy and Mood drop', cure: 'Drink something' } },
-  suja: { icon: '🧼', auto: 300e3, fx: { mood: -0.025 },
+  suja: { icon: '🧼', art: 'db_suja', color: '#c8a06a', auto: 300e3, fx: { mood: -0.025 },
     pt: { name: 'Suja Demais', desc: 'Humor cai', cure: 'Banho' },
     en: { name: 'Filthy', desc: 'Mood drops', cure: 'A bath' } },
-  exausta: { icon: '😴', auto: 300e3, fx: { mood: -0.02, health: -0.005 },
+  exausta: { icon: '😴', art: 'db_exausta', color: '#9a8fd8', auto: 300e3, fx: { mood: -0.02, health: -0.005 },
     pt: { name: 'Exausta', desc: 'Humor e saúde caem', cure: 'Dormir (de preferência na cama)' },
     en: { name: 'Exhausted', desc: 'Mood and Health drop', cure: 'Sleep (a bed is best)' } },
-  abatida: { icon: '😢', auto: 600e3, fx: { mood: -0.01 },
+  abatida: { icon: '😢', art: 'db_abatida', color: '#7fa8d8', auto: 600e3, fx: { mood: -0.01 },
     pt: { name: 'Abatida', desc: 'Ganhos de Humor e Afecção −30%', cure: 'Cafuné ou recuperar o humor' },
     en: { name: 'Dejected', desc: 'Mood and Affection gains −30%', cure: 'A pat or better Mood' } },
-  estressada: { icon: '😤', auto: 180e3, fx: { mood: -0.025, energy: -0.015 },
+  estressada: { icon: '😤', art: 'db_estressada', color: '#e2475a', auto: 180e3, fx: { mood: -0.025, energy: -0.015 },
     pt: { name: 'Estressada', desc: 'Humor e energia caem', cure: 'Cafuné ou tempo' },
     en: { name: 'Stressed', desc: 'Mood and Energy drop', cure: 'A pat or time' } },
-  prisao: { icon: '🌀', auto: 300e3, fx: { mood: -0.015, health: -0.015 },
+  prisao: { icon: '🌀', art: 'db_prisao', color: '#c88f5a', auto: 300e3, fx: { mood: -0.015, health: -0.015 },
     pt: { name: 'Prisão de Ventre', desc: 'Humor e saúde caem', cure: 'Remédio ou tempo' },
     en: { name: 'Constipation', desc: 'Mood and Health drop', cure: 'Medicine or time' } },
-  nausea: { icon: '😵', auto: 150e3, fx: { mood: -0.03, health: -0.02 },
+  nausea: { icon: '😵', art: 'db_nausea', color: '#7ec850', auto: 150e3, fx: { mood: -0.03, health: -0.02 },
     pt: { name: 'Náusea', desc: 'Humor e saúde caem', cure: 'Remédio ou tempo' },
     en: { name: 'Nausea', desc: 'Mood and Health drop', cure: 'Medicine or time' } },
-  tedio: { icon: '🥱', auto: 420e3, fx: { mood: -0.02 },
+  tedio: { icon: '🥱', art: 'db_tedio', color: '#a0a0b8', auto: 420e3, fx: { mood: -0.02 },
     pt: { name: 'Tédio', desc: 'Ganhos de Humor e Afecção −30%', cure: 'Brincar, minijogo ou TV' },
     en: { name: 'Boredom', desc: 'Mood and Affection gains −30%', cure: 'Play, minigame or TV' } },
+  lesao: { icon: '🩹', art: 'db_lesao', color: '#ff8a8a', auto: 300e3, fx: { energy: -0.03, mood: -0.02, health: -0.012 },
+    pt: { name: 'Lesão', desc: 'Energia, humor e saúde caem', cure: 'Remédio ou tempo' },
+    en: { name: 'Injury', desc: 'Energy, Mood and Health drop', cure: 'Medicine or time' } },
 };
+
+// How low her core stats are (0 = fine, 1 = everything critical): scales the random rolls, so
+// statuses show up more often when she is being neglected on several fronts at once.
+function riskOf(s) {
+  const low = (v, t) => Math.max(0, (t - v) / t);
+  return (low(s.hunger, 40) + low(s.thirst, 40) + low(s.hygiene, 40)
+    + low(s.energy, 40) + low(s.health, 40) + low(s.mood, 40)) / 6;
+}
 
 const ACTION_EFFORT = { run: 2.3, chase: 2.4, qte: 2.2, jam: 2, mini: 2, ball: 2.2, walk: 1.25, climbRest: 1.2, sit: 0.65, watch: 0.65, emote: 1.1 };
 const ANTIC_EFFORT = { squats: 2.2, shadowbox: 2.3, hops: 2, twirl: 1.8, butterfly: 1.9, balance: 1.4, trip: 1.5, doze: 0.5, yawn: 0.7, gaze: 0.7, hum: 0.8, tap: 0.8, look: 0.8, pant: 0.5 };
@@ -263,16 +275,18 @@ export class Pet {
     const now = Date.now();
     const list = (this.debuffs ||= {});
     if (list[id] > now) return false; // already active: no stacking, no re-announce
+    if ((this.debuffCool?.[id] || 0) > now) return false; // just cured / wore off: stays clean for a while
     if (Object.keys(list).filter((k) => list[k] > now).length >= 3) return false;
     list[id] = now + DEBUFFS[id].auto;
     this.emit('debuff', { id, on: true });
     return true;
   }
 
-  // A cure or a natural end: drops the status and tells the UI.
+  // A cure or a natural end: drops the status and tells the UI (60s before it can come back).
   cureDebuff(id) {
     if (this.debuffs?.[id]) {
       delete this.debuffs[id];
+      (this.debuffCool ||= {})[id] = Date.now() + 60e3;
       this.emit('debuff', { id, on: false });
     }
   }
@@ -287,15 +301,26 @@ export class Pet {
     const s = this.stats;
     const sleep = this.action === 'sleep';
     // --- triggers ---
+    // Certain: a need crossed the red line or stayed there for long.
     if (s.hunger <= 5) this.addDebuff('fome');
     if (s.thirst <= 5) this.addDebuff('desidratacao');
     if (s.hygiene <= 8) this.addDebuff('suja');
     if (!sleep && s.energy <= 6) this.addDebuff('exausta');
-    if (s.hygiene < 15 && s.energy < 30) this.addDebuff('gripe');
     this.lowMoodT = s.mood <= 30 ? this.lowMoodT + dt : 0;
     if (this.lowMoodT > 60) this.addDebuff('abatida');
     // Bored: no play/toy/activity/minigame for 10 minutes while awake and in a decent mood.
     if (this.action !== 'sleep' && this.clock - this.lastFun > 600 && s.mood >= 40 && s.mood <= 75) this.addDebuff('tedio');
+    // Probabilistic, rolled every 10s: the lower her core stats, the higher the chance.
+    this.rollT = (this.rollT || 0) + dt;
+    if (this.rollT >= 10) {
+      this.rollT = 0;
+      const r = riskOf(s);
+      const p = (base) => chance(Math.min(0.9, base * (1 + 2.5 * r)));
+      // Neglected hygiene + exhaustion: she catches something.
+      if (s.hygiene < 15 && s.energy < 30 && p(0.3)) this.addDebuff('gripe');
+      // Rare bad luck when everything is low at once (a cold or a stress crisis).
+      if (r > 0.45 && p(0.15)) this.addDebuff(chance(0.5) ? 'nausea' : 'estressada');
+    }
     // --- stat cures (the actions that heal by doing) ---
     if (s.hunger >= 40) this.cureDebuff('fome');
     if (s.thirst >= 40) this.cureDebuff('desidratacao');
@@ -700,9 +725,9 @@ export class Pet {
     else {
       for (const [b, s] of item.buffs || (item.buff ? [item.buff] : [])) this.buffs[b] = Math.max(Date.now(), this.buffs[b] || 0) + s * 1000;
     }
-    // Medicine fixes what medicine can fix: flu, constipation and nausea.
+    // Medicine fixes what medicine can fix: flu, constipation, nausea and injuries.
     if (item.cat === 'medicina' && !item.clearBuffs) {
-      for (const id of ['gripe', 'prisao', 'nausea']) this.cureDebuff(id);
+      for (const id of ['gripe', 'prisao', 'nausea', 'lesao']) this.cureDebuff(id);
     }
     // Glow animation is 2.6s; keep the pose until it ends (queue waits for dosing + doseGap).
     if (item.clearBuffs) this.dosing = 0.7;
@@ -1823,6 +1848,9 @@ export class Pet {
         ? { mood: -32, health: -8, affection: -8 }
         : { mood: -16, health: -4, affection: -4 });
       else this.adjust({ mood: -6 });
+      // A real fall hurts: her own hard tumbles always injure; a hard throw half the time.
+      if (!thrown || impact > this.P * 15) this.addDebuff('lesao');
+      else if (chance(0.4)) this.addDebuff('lesao');
       this.anim('sit', { pose: 'sit', facing: 'front' });
       this.emit('hardLand', { thrown });
       this.checkDeath();
