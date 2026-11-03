@@ -11,6 +11,8 @@ import { Toys } from './toys.js';
 import { Modes } from './modes.js';
 import { GameScreen } from './games.js';
 import { icon, glyphIcon, setArtStyle } from './pixel.js';
+import { EventLog } from './eventlog.js';
+import './statusicons.js';
 import { baseId } from './furniture.js';
 import { Ball } from './ball.js';
 import { Speech } from './speech.js';
@@ -457,7 +459,9 @@ export async function startPet(files, config) {
   if (config.alwaysOnTop === false) api.setAlwaysOnTop?.(false).catch(() => {});
 
   // ---------- sound effects ----------
+  // A low descending sting: the "something is wrong" cue when a negative status lands.
   const EVENT_SOUNDS = {
+    debuff: (d) => { if (!d?.on) return; sound.tone8(190, 95, 0.4, 'sawtooth', 0.12); sound.play('cancel', { volume: 0.3, rate: 0.85 }); },
     bump: () => sound.play('bonk', { volume: 0.8 }),
     hardLand: (d) => sound.play(d.thrown ? 'explode' : 'hit', { volume: d.thrown ? 0.5 : 0.8 }),
     slap: () => sound.play('hit', { volume: 0.9 }),
@@ -549,6 +553,25 @@ export async function startPet(files, config) {
   }
   app.loveFx = loveFx;
 
+  // Ominous popup above her head + a log line whenever a negative status starts or ends.
+  function debuffEvent(data) {
+    const d = DEBUFFS[data.id];
+    const L = d && d[config.lang === 'en' ? 'en' : 'pt'];
+    if (!L) return;
+    if (data.on) {
+      const el = document.createElement('div');
+      el.className = 'debuff-pop';
+      el.innerHTML = `<img src="${icon(d.art)}" alt=""><b>${L.name.replace(/[<>&"]/g, '')}</b>`;
+      if (pet.x != null) {
+        el.style.left = `${Math.round(pet.x)}px`;
+        el.style.top = `${Math.round(pet.y - pet.P * 1.3)}px`;
+        document.body.append(el);
+        setTimeout(() => el.remove(), 2800);
+      }
+      pushLog(`Status negativo: ${L.name}`, `Negative status: ${L.name}`);
+    } else pushLog(`${L.name} curada`, `${L.name} cured`);
+  }
+
   pet.on((type, data) => {
     if (type === 'loveMilestone' && data.level > (game.profile.loveTop || 0)) {
       game.profile.loveTop = data.level;
@@ -557,6 +580,11 @@ export async function startPet(files, config) {
     }
     emoticons.react(type, data);
     EVENT_SOUNDS[type]?.(data);
+    if (type === 'debuff') debuffEvent(data);
+    if (type === 'missionDone' && data.name) pushLog(`Missão concluída: ${data.name}`, `Mission done: ${translate(data.name)}`);
+    if (type === 'achievement' && data.name) pushLog(`Conquista: ${data.name}`, `Achievement: ${translate(data.name)}`);
+    if ((type === 'lootPrize' || type === 'gachaPrize') && data.name && !/moedas/i.test(data.name)) pushLog(`Prêmio: ${data.name}`, `Prize: ${translate(data.name)}`);
+    if (type === 'earn' && data.n > 0 && pet.clock > 2) pushLog(`+${data.n} ¥ ganhas`, `+${data.n} ¥ earned`);
     if (EXPRESSIONS[type]) view.setExpression?.(type === 'react' && data.kind !== 'scare' ? 'happy' : type === 'dollToy' && data.kind === 'cubeLose' ? 'surprised' : EXPRESSIONS[type]);
     if (LOG_EVENTS.has(type) && logEnabled()) logInfo('evento', `${type} ${brief(data)}`);
     if (type === 'pet') patHand.t = 1.3;
@@ -706,6 +734,9 @@ export async function startPet(files, config) {
   let dockMoving = false;
   let bagDockMoving = false;
   let dockMenuOff = null;
+  // Event log under the dock: 5 latest big events, [pt, en] pairs picked at render time.
+  const eventLog = new EventLog(config);
+  const pushLog = (pt, en) => { eventLog.push(pt, en); dockT = 0; };
 
   function closeDockMenu() {
     if (!dockMenuEl) return;
@@ -930,11 +961,12 @@ export async function startPet(files, config) {
       dockEl.addEventListener('click', (e) => {
         if (dockMoving || rmb?.moved) return;
         if (e.target.closest('.sd-hide') || appHidden) return setAppHidden(!appHidden);
+        if (e.target.closest('.sd-log-toggle')) { app.setOption('logOff', !config.logOff); dockT = 0; return; }
         app.openMenu();
       });
       dockEl.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        if (dockMoving) return;
+        if (dockMoving || e.target.closest('.sd-log-toggle')) return;
         const r = dockEl.getBoundingClientRect();
         app.quick?.show?.(r.left + r.width / 2, r.bottom);
       });
@@ -987,7 +1019,7 @@ export async function startPet(files, config) {
       + bar('❤️', s.health, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips();
+      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock();
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
@@ -1039,7 +1071,7 @@ export async function startPet(files, config) {
     const on = Object.entries(pet.buffs || {}).filter(([, t]) => t > now);
     return on.length ? `<div class="sd-buffs">${on.map(([k, t]) => `<span title="${BUFF_LABELS[k] || k}">${BUFF_ICONS[k] || '✨'} ${Math.ceil((t - now) / 60000)}m</span>`).join('')}</div>` : '';
   }
-  // Negative statuses: red squares under the bars; the hover says what it does and the cure.
+  // Negative statuses: pixel-art cards with the name anchored at the bottom of the icon.
   function debuffChips() {
     const now = Date.now();
     const en = config.lang === 'en';
@@ -1049,17 +1081,28 @@ export async function startPet(files, config) {
         const d = DEBUFFS[id];
         const L = d ? d[en ? 'en' : 'pt'] : null;
         const title = L ? `${L.name} — ${L.desc} · ${L.cure} (${Math.ceil((t - now) / 60000)}m)` : id;
-        return `<span title="${title.replace(/[<>&"]/g, '')}">${d?.icon || '❗'}</span>`;
+        return `<span class="sd-debuff" style="--c:${d?.color || '#e2475a'}" title="${title.replace(/[<>&"]/g, '')}">`
+          + `<img src="${icon(d?.art || 'db_gripe')}" alt=""><u>${L ? L.name : id}</u></span>`;
       }).join('')}</div>`
       : '';
   }
-  // Daily missions reminder: hidden once all three are done (the bonus celebrates instead).
+  // Daily missions as a list with their exact names: hidden once all three are done.
   function missionChip() {
     const list = rewards.missions();
     if (!list.length || list.every((m) => m.done)) return '';
     const en = config.lang === 'en';
-    const tip = list.map((m) => `${m.done ? '✔' : '·'} ${m.text} (${Math.min(m.n, m.goal)}/${m.goal})`).join('\n');
-    return `<div class="sd-missions" title="${en ? 'Daily missions' : 'Missões do dia'}: ${tip.replace(/[<>&"]/g, '')}">📅 ${list.filter((m) => m.done).length}/${list.length}</div>`;
+    const rows = list.map((m) => `<li class="${m.done ? 'done' : ''}">${m.done ? '✔' : '·'} ${String(en ? translate(m.text) : m.text).replace(/[<>&"]/g, '')} <em>${Math.min(m.n, m.goal)}/${m.goal}</em></li>`).join('');
+    return `<div class="sd-missions"><b>📅 ${en ? 'Daily missions' : 'Missões do dia'}</b><ul>${rows}</ul></div>`;
+  }
+  // Event log right under the pinned status: 5 latest lines, with a toggle to collapse it.
+  function logBlock() {
+    const en = config.lang === 'en';
+    const open = !config.logOff;
+    const tip = en ? 'Show or hide the log' : 'Mostrar ou ocultar o registro';
+    const head = `<div class="sd-log-head"><b>📝 ${en ? 'Log' : 'Registro'}</b><button class="sd-log-toggle" type="button" title="${tip}">${open ? '−' : '+'}</button></div>`;
+    if (!open) return `<div class="sd-log">${head}</div>`;
+    const rows = eventLog.lines.map(([pt, t]) => `<div>${String(en ? t : pt).replace(/[<>&"]/g, '')}</div>`).join('');
+    return `<div class="sd-log">${head}<div class="sd-log-rows">${rows}</div></div>`;
   }
 
   function updateOverlays(dt, head, hidden, calm) {
