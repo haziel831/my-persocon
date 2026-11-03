@@ -21,7 +21,7 @@ const RATES = {
   energySleep: 0.3,
   hunger: 0.011,
   hungerSleep: 0.016,
-  mood: 0.021,
+  mood: 0.024,
   healthStarve: 0.02,
   healthRegen: 0.004,
   thirst: 0.014,
@@ -124,7 +124,11 @@ export class Pet {
   // Affection: slowest stat, -100..1000. Gains shrink as it grows; at -100 the pet leaves.
   love(n) {
     if (this.dead) return;
-    if (n > 0) n *= 0.5 * (1 - Math.max(0, this.affection) / (AFFECTION_MAX * 1.25));
+    if (n > 0) {
+      n *= 0.5 * (1 - Math.max(0, this.affection) / (AFFECTION_MAX * 1.25));
+      // Poor survival needs slow down how fast Affection grows (0.65x worst, 1.1x best).
+      n *= 0.5 + 0.6 * this.needN();
+    }
     const before = this.affection;
     this.affection = clamp(this.affection + n, AFFECTION_LEAVE, AFFECTION_MAX);
     const mark = Math.floor(this.affection / 100) * 100;
@@ -223,6 +227,8 @@ export class Pet {
     for (let [k, v] of Object.entries(delta)) {
       if (k === 'mood' && v > 0) v = this.moodGain(v, src);
       if (k === 'mood' && v > 0 && this.buff('doubleMood')) v *= 2;
+      // Event dips never take Humor under 50: only punish() (direct mistreatment) does.
+      if (k === 'mood' && v < 0 && !this.harsh) v = Math.max(v, 50 - this.stats.mood);
       if (k === 'health' && v < 0 && this.buff('shield')) continue;
       if (k === 'affection') this.love(v);
       else if (k in this.stats) this.stats[k] = clamp(this.stats[k] + v, 0, 100);
@@ -234,13 +240,34 @@ export class Pet {
     }
   }
 
+  // Direct mistreatment (slap, hated food, hard throw, floor sleep, forced wake): the only
+  // source allowed to push Humor below 50.
+  punish(delta, src) {
+    this.harsh = true;
+    this.adjust(delta, src);
+    this.harsh = false;
+  }
+
+  // 0..1: how settled the affection is (600+ counts as full). One of the two Mood multipliers.
+  affT() {
+    return clamp((this.affection || 0) / 600, 0, 1);
+  }
+
+  // 0.25..1 per survival need (50+ is fine), averaged: the worse she is cared for, the slower
+  // Humor grows, the faster it drains and the slower Affection grows (0.48x..1.21x on Humor gains).
+  needN() {
+    const s = this.stats;
+    const w = (x) => (x >= 50 ? 1 : 0.25 + 0.75 * (x / 50));
+    return (w(s.hunger) + w(s.thirst) + w(s.hygiene) + w(s.energy)) / 4;
+  }
+
   // Humor gains shrink near the top (half above 70, a fifth above 90) and with boredom: every point
   // won from one source makes the next ones from it smaller, recovering over a few minutes.
   moodGain(v, src = this.actKey()) {
     const m = this.stats.mood;
     const sat = m > 90 ? 0.2 : m > 70 ? 0.5 : 1;
     const bored = (this.bored ||= {});
-    const out = (v * sat) / (1 + (bored[src] || 0) / 25);
+    const out = ((v * sat) / (1 + (bored[src] || 0) / 25)) * (0.6 + 0.5 * this.affT()) * (0.7 + 0.4 * this.needN());
     bored[src] = Math.min(150, (bored[src] || 0) + out);
     return out;
   }
@@ -494,7 +521,7 @@ export class Pet {
     this.lift = 0;
     this.squash = null;
     this.setCombat(false);
-    this.adjust({ mood: -15, health: -6, affection: -8 });
+    this.punish({ mood: -22, health: -6, affection: -10 });
     if (this.dead) return;
     if (this.mode === 'ground' && this.action !== 'chase' && this.action !== 'qte') {
       const startled = this.action === 'sleep';
@@ -1614,7 +1641,11 @@ export class Pet {
     if (impact > this.P * (thrown ? 9 : 20)) {
       this.action = 'dizzy';
       this.timer = this.paused ? Infinity : rand(2.2, 3.2);
-      this.adjust({ mood: -6, health: thrown ? -3 : 0 });
+      // Her own clumsy falls stay mild; a throw that lands hard is mistreatment.
+      if (thrown) this.punish(impact > this.P * 15
+        ? { mood: -32, health: -8, affection: -8 }
+        : { mood: -16, health: -4, affection: -4 });
+      else this.adjust({ mood: -6 });
       this.anim('sit', { pose: 'sit', facing: 'front' });
       this.emit('hardLand', { thrown });
       this.checkDeath();
@@ -2200,7 +2231,6 @@ export class Pet {
     }
     if (!(sleeping && this.onBed && this.furnUp?.('cama'))) s.thirst -= RATES.thirst * d * (sleeping ? 0.5 : Math.max(0.5, e)) * dt;
     s.hygiene = Math.max(0, s.hygiene - RATES.hygiene * d * (sleeping ? 0.3 : Math.max(0.3, 1 + (e - 1) * 4)) * dt);
-    if (s.hygiene < 25) s.mood -= 0.012 * dt;
     this.exertion = clamp(this.exertion + ((e >= 1.8 ? 2 * (e - 1) : 0) - 1.2) * dt, 0, 100);
     // Jam / Assistir: fun but tiring and makes the pet hungry.
     const act = this.activity;
@@ -2218,12 +2248,12 @@ export class Pet {
       this.neglect += dt;
       if (this.neglect > 180) this.love(-0.012 * d * dt);
     } else this.neglect = 0;
-    let moodDrain = RATES.mood;
-    if (s.hunger < 25) moodDrain += 0.02;
-    if (s.thirst < 25) moodDrain += 0.015;
-    if (s.energy < 20) moodDrain += 0.015;
-    if (s.hygiene < 25) moodDrain += 0.008;
-    s.mood -= moodDrain * d * dt;
+    // Natural drain: affection and survival needs scale it, and it hard-stops at 50 — below that,
+    // only direct mistreatment (punish) can take Humor lower.
+    if (s.mood > 50) {
+      const moodDrain = RATES.mood * (1 + 0.35 * (1 - this.affT())) * (1 + 0.6 * (1 - this.needN()));
+      s.mood = Math.max(50, s.mood - moodDrain * d * dt);
+    }
     if (this.bored) {
       for (const k of Object.keys(this.bored)) if ((this.bored[k] -= dt * 0.08) <= 0) delete this.bored[k];
     }

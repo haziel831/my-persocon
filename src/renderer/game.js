@@ -195,7 +195,7 @@ export const isEdible = (item) => item && (item.cat === 'comidas' || item.cat ==
 // Things she tastes the first time: from favorite to hated, neutral being the most common.
 export const hasTaste = (item) => isEdible(item) || item?.cat === 'medicina';
 export const TASTES = ['love', 'like', 'ok', 'dislike', 'hate'];
-export const TASTE_MOOD = { love: 10, like: 4, ok: 0, dislike: -4, hate: -8 };
+export const TASTE_MOOD = { love: 10, like: 4, ok: 0, dislike: -10, hate: -18 };
 // Higher = she picks it first (her own food bag, requests, vending machines).
 export const TASTE_RANK = { love: 4, like: 3, ok: 2, dislike: 1, hate: 0 };
 export function rollTaste(item) {
@@ -749,7 +749,7 @@ export class Game {
     // Jokenpô "deal": the next food she dislikes costs no Humor.
     const deal = TASTE_MOOD[taste] < 0 && this.pet.buff('deal');
     if (deal) delete this.pet.buffs.deal;
-    else if (TASTE_MOOD[taste]) this.pet.adjust({ mood: TASTE_MOOD[taste] });
+    else if (TASTE_MOOD[taste]) this.pet.punish({ mood: TASTE_MOOD[taste], ...(taste === 'hate' ? { affection: -3 } : {}) });
     this.pet.emit('taste', { item, taste, first, deal });
     this.changed();
   }
