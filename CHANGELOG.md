@@ -7,6 +7,11 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.1 — 04/11/2026
+Atalho no balão de desejo (clique para atender/comprar) e recuperação pela bandeja do sistema (clique no ícone reabre dock e janela principal).
+Wish balloon shortcut (click to fulfill/buy) and system tray recovery (tray click reopens dock and main window).
+Detalhes em `ChangeLogs\v1.9.1.md`.
+
 ## v1.9 — 03/11/2026
 Humor ligado à Afecção (drenagem natural para em 50, só maus-trato desce abaixo), sono ininterrupto com raiva ao ser acordada, teto de 3 pedidos, 10 status negativos com gatilhos e curas, chip de missões do dia e auditoria de idioma.
 Mood tied to Affection (natural drain stops at 50, only mistreatment goes below), uninterrupted sleep with a furious wake-up, a 3-request cap, 10 negative statuses with triggers and cures, a daily missions chip and a language audit.

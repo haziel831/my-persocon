@@ -629,6 +629,45 @@ export async function startPet(files, config) {
   // ---------- cafuné hand, request balloon, held toy, chase bell, countdown ----------
   const patHand = { el: div('pat-hand', `<img src="${icon('hand')}" draggable="false">`), t: 0 };
   const requestEl = div('request');
+  requestEl.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    const r = pet.request;
+    if (!r) return;
+    const itemId = r.id;
+    if (itemId) {
+      const item = itemById(itemId);
+      if (item) {
+        if (game.count(itemId) > 0) {
+          game.inventory[itemId] = game.count(itemId) - 1;
+          if (!game.inventory[itemId]) delete game.inventory[itemId];
+          game.changed();
+          pet.fulfill(r.kind, itemId);
+          sound.play('ok', { volume: 0.5 });
+          toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `✔ ${item.name || itemId}`);
+          return;
+        } else if (game.canBuy(item, 1)) {
+          const bought = game.buy(itemId, 1);
+          if (bought) {
+            pet.fulfill(r.kind, itemId);
+            sound.play('ok', { volume: 0.5 });
+            toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `¥ Comprado e entregue!`);
+            return;
+          }
+        }
+      }
+    }
+    if (r.kind === 'pat') {
+      pet.pat();
+    } else if (r.kind === 'play' || r.kind === 'ball') {
+      pet.play();
+    } else if (itemId && !game.canBuy(itemById(itemId), 1)) {
+      sound.play('cancel', { volume: 0.5 });
+      toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `⚠ ¥ Insuficiente!`);
+    } else {
+      pet.fulfill(r.kind, itemId);
+      sound.play('ok', { volume: 0.5 });
+    }
+  });
   const toyEl = div('held-toy');
   const bell = { el: div('bell', `<img src="${icon('bell')}" draggable="false">`), a: 0, w: 0, x: null, vx: 0, cool: 0 };
   const countEl = div('countdown');

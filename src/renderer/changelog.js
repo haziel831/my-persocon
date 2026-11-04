@@ -1,6 +1,12 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.1', [
+    ['Atalho no balão de desejo: clicar no balão atende ao pedido (usa do inventário ou compra se houver fundos)',
+      'Wish balloon shortcut: clicking the balloon fulfills the request (uses from inventory or buys if funds available)'],
+    ['Recuperação pela bandeja do sistema: clique no ícone da bandeja reabre o dock fixo e revela a janela principal',
+      'System tray recovery: clicking the tray icon reopens the docked status and reveals the main window'],
+  ]],
   ['1.9', [
     ['Humor ligado à Afecção: manter o Humor alto exige Afecção alta; a drenagem natural subiu e trava em 50 (só maus-trato desce abaixo)',
       'Mood tied to Affection: keeping Mood high takes high Affection; natural drain went up and stops at 50 (only mistreatment goes below)'],
