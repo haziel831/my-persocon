@@ -1122,7 +1122,7 @@ api.onTrayClick?.(() => {
     const tip = en ? 'Show or hide the log' : 'Mostrar ou ocultar o registro';
     const head = `<div class="sd-log-head"><b>📝 ${en ? 'Log' : 'Registro'}</b><button class="sd-log-toggle" type="button" title="${tip}">${open ? '−' : '+'}</button></div>`;
     if (!open) return `<div class="sd-log">${head}</div>`;
-    const rows = eventLog.lines.filter((r) => (config.logFilter?.[r[2] || 'general'] ?? true)).map(([pt, t]) => `<div>${String(en ? t : pt).replace(/[<>&"]/g, '')}</div>`).join('') || `<div>${en ? 'No events yet' : 'Ainda sem eventos'}</div>`;
+    const rows = eventLog.lines.filter((r) => (config.logFilter?.[r[2] || 'general'] ?? true)).map(([pt, t, , n]) => `<div>${String(en ? t : pt).replace(/[<>&"]/g, '')}${n > 1 ? ` <b>(${n}x)</b>` : ''}</div>`).join('') || `<div>${en ? 'No events yet' : 'Ainda sem eventos'}</div>`;
     return `<div class="sd-log">${head}<div class="sd-log-rows">${rows}</div></div>`;
   }
 

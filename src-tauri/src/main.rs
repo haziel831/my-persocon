@@ -988,8 +988,9 @@ fn tray_menu<R: tauri::Runtime, M: Manager<R>>(m: &M, en: bool) -> tauri::Result
     let t = |pt: &'static str, en_text: &'static str| if en { en_text } else { pt };
     let streamer = MenuItem::with_id(m, "streamer", t("Streamer Mode (liga/desliga)", "Streamer Mode (on/off)"), true, None::<&str>)?;
     let through = MenuItem::with_id(m, "through", t("Clicar através (liga/desliga)", "Click through (on/off)"), true, None::<&str>)?;
+    let show_app = MenuItem::with_id(m, "show_app", t("Mostrar app de novo", "Show app again"), true, None::<&str>)?;
     let quit = MenuItem::with_id(m, "quit", t("Sair", "Quit"), true, None::<&str>)?;
-    Menu::with_items(m, &[&streamer, &through, &quit])
+    Menu::with_items(m, &[&streamer, &through, &show_app, &quit])
 }
 
 // Keeps the overlay covering the chosen monitor's work area and streams window geometry
@@ -1204,6 +1205,8 @@ fn main() {
                     |app, event| {
                         if event.id() == "quit" {
                             app.exit(0);
+                        } else if event.id() == "show_app" {
+                            let _ = app.emit("tray_click", ());
                         } else if event.id() == "streamer" {
                             let _ = app.emit("streamer", !STREAMER.load(Ordering::Relaxed));
                         } else if event.id() == "through" {

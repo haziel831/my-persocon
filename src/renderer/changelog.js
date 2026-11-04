@@ -1,6 +1,12 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.3', [
+    ['Log mescla repetições consecutivas com contador (ex.: (3x))', 'Log merges consecutive identical lines with a counter (e.g. (3x))'],
+    ['Status fixo: menu direito com "Mostrar app de novo"', 'Dock: right-click now includes "Show app again"'],
+    ['Status negativos duram mais (30 min / 1 h por gravidade)', 'Negative statuses last longer (30 min / 1 h by severity)'],
+    ['Tabelas de assets e consumíveis em Assets/', 'Asset/consumables tables in Assets/'],
+  ]],
   ['1.9.2', [
     ['Log: moedas ganhas/perdidas com a fonte (corvo, slot, venda, renda)', 'Log: coins earned/lost with source'],
     ['Filtro de moedas e corvo no painel de status fixo (clique direito)', 'Coins and crow filter in the dock menu (right-click)'],
