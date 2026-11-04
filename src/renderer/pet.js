@@ -339,7 +339,39 @@ export async function startPet(files, config) {
   const quick = new QuickMenu(app);
   app.quick = quick;
   const importDialog = new ImportDialog(app);
-  const screen = new GameScreen(sound);
+  screen.el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const m = document.createElement('div');
+    m.className = 'toy-menu hitzone';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = config.lang === 'en' ? 'Console screen' : 'Tela do console';
+    m.append(title);
+    const btn = (label, fn) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.onclick = (ev) => {
+        ev.stopPropagation();
+        sound.play('ok', { volume: 0.4 });
+        fn();
+        m.remove();
+        app.uiChanged();
+      };
+      m.append(b);
+    };
+    btn(config.lang === 'en' ? 'Opacity 30%' : 'Opacidade 30%', () => { screen.el.style.opacity = '0.3'; });
+    btn(config.lang === 'en' ? 'Opacity 60%' : 'Opacidade 60%', () => { screen.el.style.opacity = '0.6'; });
+    btn(config.lang === 'en' ? 'Opacity 100%' : 'Opacidade 100%', () => { screen.el.style.opacity = '1.0'; });
+    btn(config.lang === 'en' ? 'Size small' : 'Tamanho pequeno', () => { screen.el.style.transform = `${screen.el.style.transform.replace(/ scale\([^)]*\)/, '')} scale(0.85)`; });
+    btn(config.lang === 'en' ? 'Size normal' : 'Tamanho normal', () => { screen.el.style.transform = `${screen.el.style.transform.replace(/ scale\([^)]*\)/, '')} scale(1)`; });
+    btn(config.lang === 'en' ? 'Size large' : 'Tamanho grande', () => { screen.el.style.transform = `${screen.el.style.transform.replace(/ scale\([^)]*\)/, '')} scale(1.2)`; });
+    document.body.append(m);
+    m.style.left = `${Math.min(e.clientX, innerWidth - m.offsetWidth - 8)}px`;
+    m.style.top = `${Math.min(e.clientY, innerHeight - m.offsetHeight - 8)}px`;
+    const off = (ev) => { if (!m.contains(ev.target)) { m.remove(); window.removeEventListener('pointerdown', off, true); } };
+    setTimeout(() => window.addEventListener('pointerdown', off, true), 0);
+  });
   const toys = new Toys(app, screen);
   const dummy = new TrainingDummy(app);
   app.dummy = dummy;
