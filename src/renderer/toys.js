@@ -2311,7 +2311,8 @@ export class Toys {
     if (this.want && !this.editing) this.goPlay();
     // GameBuddy must stay on the desk (and keeps the cartridge bag visible beside it).
     const gb0 = game.toys.gameboy;
-    if (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x == null)) || game.count?.('gameboy') > 0 || game.cartridges?.length) {
+    const restore = game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x == null)) || (game.count('gameboy') > 0 && !game.manualGameboyStored) || game.cartridges?.length;
+    if (restore) {
       game.ensureDesktopBuddy?.();
     }
     const gb = game.toys.gameboy;

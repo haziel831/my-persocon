@@ -841,6 +841,7 @@ export class Game {
     if (id === 'gameboy') {
     t.placed = false;
     this.inventory.gameboy = (this.inventory.gameboy || 0) + 1;
+    this.manualGameboyStored = true;
     this.changed();
     return;
   }

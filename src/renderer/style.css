@@ -1220,3 +1220,6 @@ body.editing-furn .toy[data-id].broken { animation: none; }
 .dbg-warn { color: #f0c674; }
 .dbg-error { color: #ff7b72; }
 .dbg-info { color: #d8dee8; }
+ 
+
+body.pet-debuffed #pet { filter: drop-shadow(0 0 3px rgba(0,0,0,0.9)) saturate(0.85); }
