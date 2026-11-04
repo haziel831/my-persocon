@@ -584,7 +584,7 @@ export async function startPet(files, config) {
     if (type === 'missionDone' && data.name) pushLog(`Missão concluída: ${data.name}`, `Mission done: ${translate(data.name)}`);
     if (type === 'achievement' && data.name) pushLog(`Conquista: ${data.name}`, `Achievement: ${translate(data.name)}`);
     if ((type === 'lootPrize' || type === 'gachaPrize') && data.name && !/moedas/i.test(data.name)) pushLog(`Prêmio: ${data.name}`, `Prize: ${translate(data.name)}`);
-    if (type === 'earn' && data.n > 0 && pet.clock > 2) pushLog(`+${data.n} ¥ ganhas`, `+${data.n} ¥ earned`);
+    
     if (EXPRESSIONS[type]) view.setExpression?.(type === 'react' && data.kind !== 'scare' ? 'happy' : type === 'dollToy' && data.kind === 'cubeLose' ? 'surprised' : EXPRESSIONS[type]);
     if (LOG_EVENTS.has(type) && logEnabled()) logInfo('evento', `${type} ${brief(data)}`);
     if (type === 'pet') patHand.t = 1.3;
@@ -634,23 +634,44 @@ export async function startPet(files, config) {
     const r = pet.request;
     if (!r) return;
     const itemId = r.id;
+    if (r.kind === 'toy') {
+      // Placed on the desktop: have her interact with it (goes and plays) and it auto-fulfills via toyStart.
+      if (itemId && game.toys?.[itemId]?.placed) {
+        toys.want = itemId;
+        toys.goPlay();
+        sound.play('ok', { volume: 0.5 });
+        return;
+      }
+      const b = itemId ? baseId(itemId) : null;
+      const idInStock = [itemId, b].filter(Boolean).find((id) => game.count(id) > 0);
+      if (idInStock) {
+        // Stored in inventory: place it next to her, then play — toyStart triggers fulfill.
+        toys.place(idInStock);
+        sound.play('ok', { volume: 0.5 });
+        return;
+      }
+      sound.play('cancel', { volume: 0.5 });
+      toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `⚠ ${config.lang === 'en' ? 'Item unavailable' : 'Item indisponível'}`);
+      return;
+    }
     if (itemId) {
       const item = itemById(itemId);
       if (item) {
         if (game.count(itemId) > 0) {
-          game.inventory[itemId] = game.count(itemId) - 1;
-          if (!game.inventory[itemId]) delete game.inventory[itemId];
-          game.changed();
-          pet.fulfill(r.kind, itemId);
-          sound.play('ok', { volume: 0.5 });
-          toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `✔ ${item.name || itemId}`);
-          return;
+          // Use from inventory: game.use handles consume/medicate and take.
+          const ok = game.use(itemId);
+          if (ok) {
+            pet.fulfill(r.kind, itemId);
+            sound.play('ok', { volume: 0.5 });
+            toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `✔ ${item.name || itemId}`);
+            return;
+          }
         } else if (game.canBuy(item, 1)) {
           const bought = game.buy(itemId, 1);
           if (bought) {
             pet.fulfill(r.kind, itemId);
             sound.play('ok', { volume: 0.5 });
-            toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `¥ Comprado e entregue!`);
+            toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `¥ ${config.lang === 'en' ? 'Purchased' : 'Comprado'}`);
             return;
           }
         }
@@ -662,7 +683,7 @@ export async function startPet(files, config) {
       pet.play();
     } else if (itemId && !game.canBuy(itemById(itemId), 1)) {
       sound.play('cancel', { volume: 0.5 });
-      toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `⚠ ¥ Insuficiente!`);
+      toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `⚠ ¥ ${config.lang === 'en' ? 'Insufficient funds' : 'Fundo insuficiente!'}`);
     } else {
       pet.fulfill(r.kind, itemId);
       sound.play('ok', { volume: 0.5 });
@@ -871,6 +892,13 @@ export async function startPet(files, config) {
     app.uiChanged();
   }
 
+api.onTrayClick?.(() => {
+    setAppHidden(false);
+    appHidden = false;
+    dockT = 0;
+    api.focusWindow?.();
+    app.uiChanged();
+  });
   // "Mudar a posição": drag the status anywhere; released, it stays there.
   function dragDock(e) {
     const r = dockEl.getBoundingClientRect();

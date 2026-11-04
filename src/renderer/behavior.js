@@ -41,16 +41,16 @@ export const DEBUFFS = {
   desidratacao: { icon: '💧', art: 'db_desidratacao', color: '#3fa2e8', auto: 300e3, fx: { energy: -0.03, mood: -0.02, health: -0.015 },
     pt: { name: 'Desidratação', desc: 'Energia e humor caem', cure: 'Beber algo' },
     en: { name: 'Dehydration', desc: 'Energy and Mood drop', cure: 'Drink something' } },
-  suja: { icon: '🧼', art: 'db_suja', color: '#c8a06a', auto: 300e3, fx: { mood: -0.025 },
+  suja: { icon: '🧼', art: 'db_suja', color: '#c8a06a', auto: 300e3, fx: { mood: -0.025, health: -0.005 },
     pt: { name: 'Suja Demais', desc: 'Humor cai', cure: 'Banho' },
     en: { name: 'Filthy', desc: 'Mood drops', cure: 'A bath' } },
   exausta: { icon: '😴', art: 'db_exausta', color: '#9a8fd8', auto: 300e3, fx: { mood: -0.02, health: -0.005 },
     pt: { name: 'Exausta', desc: 'Humor e saúde caem', cure: 'Dormir (de preferência na cama)' },
     en: { name: 'Exhausted', desc: 'Mood and Health drop', cure: 'Sleep (a bed is best)' } },
-  abatida: { icon: '😢', art: 'db_abatida', color: '#7fa8d8', auto: 600e3, fx: { mood: -0.01 },
+  abatida: { icon: '😢', art: 'db_abatida', color: '#7fa8d8', auto: 600e3, fx: { mood: -0.01, health: -0.003 },
     pt: { name: 'Abatida', desc: 'Ganhos de Humor e Afecção −30%', cure: 'Cafuné ou recuperar o humor' },
     en: { name: 'Dejected', desc: 'Mood and Affection gains −30%', cure: 'A pat or better Mood' } },
-  estressada: { icon: '😤', art: 'db_estressada', color: '#e2475a', auto: 180e3, fx: { mood: -0.025, energy: -0.015 },
+  estressada: { icon: '😤', art: 'db_estressada', color: '#e2475a', auto: 180e3, fx: { mood: -0.025, energy: -0.015, health: -0.01 },
     pt: { name: 'Estressada', desc: 'Humor e energia caem', cure: 'Cafuné ou tempo' },
     en: { name: 'Stressed', desc: 'Mood and Energy drop', cure: 'A pat or time' } },
   prisao: { icon: '🌀', art: 'db_prisao', color: '#c88f5a', auto: 300e3, fx: { mood: -0.015, health: -0.015 },
@@ -727,7 +727,7 @@ export class Pet {
     }
     // Medicine fixes what medicine can fix: flu, constipation, nausea and injuries.
     if (item.cat === 'medicina' && !item.clearBuffs) {
-      for (const id of ['gripe', 'prisao', 'nausea', 'lesao']) this.cureDebuff(id);
+      for (const id of (item.cures || ['gripe', 'prisao', 'nausea', 'lesao'])) this.cureDebuff(id);
     }
     // Glow animation is 2.6s; keep the pose until it ends (queue waits for dosing + doseGap).
     if (item.clearBuffs) this.dosing = 0.7;
