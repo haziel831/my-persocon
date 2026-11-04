@@ -1837,6 +1837,9 @@ api.onTrayClick?.(() => {
   // Negative statuses: occasionally complain; subtle visual class on the body.
   const hasDebuff = Object.keys(pet.debuffs || {}).length > 0;
   document.body.classList.toggle('pet-debuffed', hasDebuff);
+  const weight = { lesao:3, nausea:2.5, fome:2, desidratacao:2, prisao:1.5, exausta:1.2, gripe:1.2, estressada:1.5, abatida:1, suja:0.8, tedio:0.8 };
+  const level = Object.keys(pet.debuffs || {}).reduce((a,id)=>a+(weight[id]||1),0);
+  document.body.style.setProperty('--debuff-level', String(level || 0));
   if (hasDebuff) {
     pet.complainT = (pet.complainT || 0) + dt;
     const threshold = 18 + Math.random() * 25;
