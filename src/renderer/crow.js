@@ -147,6 +147,7 @@ export class Crow {
   // Entry in the gains feed when it uses a skill.
   used(id, text, kind = 'skill', ic = null) {
     this.app.gains?.show(text, kind, `Corvo: ${CROW_SKILLS[id].name}`, ic || CROW_SKILLS[id].icon);
+    this.app.pet?.emit('crowSkill', { id, name: CROW_SKILLS[id].name });
   }
 
   learned(id) {
@@ -567,7 +568,7 @@ export class Crow {
     const r = Math.random();
     if (r < 0.35) {
       const n = chance(0.06) ? 150 : Math.round(rand(10, 70));
-      game.earn(n);
+      game.earn(n, 'Corvo');
       sound.sfx('coin');
       this.float(`+${n} ¥`);
       this.used('procurar', `+¥ ${n}`, 'gain', '💰');
@@ -648,7 +649,7 @@ export class Crow {
     this.say('✨', 1.6);
     if (chance(0.75)) {
       const n = Math.round(rand(2, 12));
-      game.earn(n);
+      game.earn(n, 'Corvo');
       sound.sfx('coin');
       this.float(`+${n} ¥`);
       this.used('brilhos', `+¥ ${n}`, 'gain');

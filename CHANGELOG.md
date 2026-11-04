@@ -7,6 +7,10 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.2 — 04/11/2026
+Log de moedas ganhas/perdidas com fonte; filtro de moedas e corvo; status fixo exibe carteira do persocon e ação atual.
+Detalhes em `ChangeLogs\v1.9.2.md`.
+
 ## v1.9.1 — 04/11/2026
 Atalho no balão de desejo (clique para atender/comprar) e recuperação pela bandeja do sistema (clique no ícone reabre dock e janela principal).
 Wish balloon shortcut (click to fulfill/buy) and system tray recovery (tray click reopens dock and main window).

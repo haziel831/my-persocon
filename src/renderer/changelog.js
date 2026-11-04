@@ -1,6 +1,12 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.2', [
+    ['Log: moedas ganhas/perdidas com a fonte (corvo, slot, venda, renda)', 'Log: coins earned/lost with source'],
+    ['Filtro de moedas e corvo no painel de status fixo (clique direito)', 'Coins and crow filter in the dock menu (right-click)'],
+    ['Status fixo exibe player+carteira e o que ela está fazendo agora', 'Pinned status shows player+wallet and current activity'],
+    ['Status: mouse hover mostra fonte / resumo', ''],
+  ]],
   ['1.9.1', [
     ['Atalho no balão de desejo: clicar no balão atende ao pedido (usa do inventário ou compra se houver fundos)',
       'Wish balloon shortcut: clicking the balloon fulfills the request (uses from inventory or buys if funds available)'],

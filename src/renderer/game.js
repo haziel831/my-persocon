@@ -283,14 +283,14 @@ export class Game {
       p.coinFrac = (p.coinFrac || 0) + (1 + (s.mood >= 60 ? 1 : 0) + (cared ? 1 : 0)) * k;
       const n = Math.floor(p.coinFrac);
       p.coinFrac -= n;
-      if (n) this.earn(n);
+      if (n) this.earn(n, 'Renda (tempo)');
     }, 60000);
     // Daily bonus on the first start of each day.
     const today = new Date().toDateString();
     if (this.profile.lastDaily !== today) {
       this.dailyBonus = !!this.profile.lastDaily;
       this.profile.lastDaily = today;
-      if (this.dailyBonus) this.earn(100);
+      if (this.dailyBonus) this.earn(100, 'Bônus diário');
     }
     pet.on((type, data) => {
       const p = this.profile;
@@ -426,11 +426,11 @@ export class Game {
     this.persist();
   }
 
-  earn(n) {
+  earn(n, source = 'Geral') {
     if (this.gear.trevo && n > 0) n = Math.round(n * 1.5);
     this.coins += n;
     this.profile.coinsEarned += n;
-    if (n > 0) this.pet?.emit('earn', { n });
+    if (n > 0) this.pet?.emit('earn', { n, src: source });
     this.changed();
   }
 
@@ -651,12 +651,13 @@ export class Game {
     const got = sellPrice(item) * n;
     this.inventory[id] = this.count(id) - n;
     if (!this.inventory[id]) delete this.inventory[id];
-    this.earn(got);
+    this.earn(got, 'Venda');
     return got;
   }
 
-  pay(n) {
+  pay(n, source = 'Geral') {
     if (!INFINITE_MONEY) this.coins -= n;
+    if (n > 0) this.pet?.emit('pay', { n, src: source });
   }
 
   // Returns the bought item (for the purchase reaction) or null. It goes into the 3D printer queue

@@ -587,6 +587,9 @@ export async function startPet(files, config) {
     
     if (EXPRESSIONS[type]) view.setExpression?.(type === 'react' && data.kind !== 'scare' ? 'happy' : type === 'dollToy' && data.kind === 'cubeLose' ? 'surprised' : EXPRESSIONS[type]);
     if (LOG_EVENTS.has(type) && logEnabled()) logInfo('evento', `${type} ${brief(data)}`);
+    if (type === 'earn') pushLog(`+${data.n} ¥ (${data.src || '?'})`, `+${data.n} ¥ (${data.src || '?'})`, 'money');
+    if (type === 'pay') pushLog(`-${data.n} ¥ (${data.src || '?'})`, `-${data.n} ¥ (${data.src || '?'})`, 'money');
+    if (type === 'crowSkill' && data?.name) pushLog(`Corvo usou: ${data.name}`, `Crow used: ${data.name}`, 'crow');
     if (type === 'pet') patHand.t = 1.3;
     if (type === 'bounce') {
       if (data.sfx === 'tramp') {
@@ -854,7 +857,8 @@ const toggleLogFilter = (cat) => {
     item('➖ Diminuir', undefined, () => scale(k - 0.2));
   item('Filtro do log: status', config.logFilter?.status !== false, () => toggleLogFilter('status'));
   item('Filtro do log: missões', config.logFilter?.mission !== false, () => toggleLogFilter('mission'));
-  item('Filtro do log: prêmios', config.logFilter?.prize !== false, () => toggleLogFilter('prize'));
+  item('Filtro do log: moedas', config.logFilter?.money !== false, () => toggleLogFilter('money'));
+  item('Filtro do log: corvo', config.logFilter?.crow !== false, () => toggleLogFilter('crow'));
   item('✕ Fechar', undefined, () => app.setOption('statusDock', 'off'));
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
     document.body.append(el);
@@ -1102,7 +1106,7 @@ api.onTrayClick?.(() => {
     const s = pet.stats;
     const bar = (ic, v, col) => `<div class="sd-row"><span>${ic}</span><i><b style="width:${Math.round(Math.max(0, Math.min(100, v)))}%;background:${col}"></b></i></div>`;
     const hideTip = appHidden ? (config.lang === 'en' ? 'Show the app' : 'Mostrar o app') : (config.lang === 'en' ? 'Hide the app' : 'Esconder o app');
-    dockEl.innerHTML = `<div class="sd-name">${(config.name || 'Ninna').replace(/[<>&']/g, '')} · ¥ ${Math.floor(game.coins)}`
+    dockEl.innerHTML = `<div class="sd-name">${(config.name || 'Ninna').replace(/[<>&']/g, '')} · ¥ ${Math.floor(game.coins)} · ${config.lang === 'en' ? 'Wallet' : 'Carteira'} ¥ ${Math.floor(game.profile?.wallet || 0)} · ${config.lang === 'en' ? 'Doing' : 'Fazendo'}: ${String(pet.activity || pet.action || 'idle').replace(/[<>&']/g, '')}`
       + `<button class="sd-hide" type="button" title="${hideTip}" aria-label="${hideTip}">${appHidden ? '😑' : '👁'}</button></div>`
       + bar('❤️', s.health, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
