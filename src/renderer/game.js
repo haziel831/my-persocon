@@ -107,17 +107,7 @@ export const ITEMS = [
   snack('chips_p', 'comidas', 'Batata chips pequena', 'chips_p', 1, { hunger: 16, mood: 10, thirst: -4 }),
   snack('chips_m', 'comidas', 'Batata chips média', 'chips_m', 2, { hunger: 28, mood: 17, thirst: -6 }),
   snack('chips_g', 'comidas', 'Batata chips grande', 'chips_g', 3, { hunger: 44, mood: 26, thirst: -9 }),
-med('vitamina', 'Vitamina', 'med_vitamin', { health: 8, energy: 4 }, ['gripe', 'exausta']),
-  med('curativo', 'Curativo', 'med_bandage', { health: 12 }, ['lesao', 'nausea']),
-  med('remedio', 'Remédio', 'med_pill', { health: 30, mood: -3 }, ['gripe', 'prisao', 'nausea', 'lesao']),
-  med('pocao', 'Poção de cura', 'med_potion', { health: 60, energy: 20 }, ['gripe', 'prisao', 'nausea', 'lesao']),
-  // New: targeted cures for each negative status.
-  med('antigripal', 'Antigripal', 'med_vitamin', { health: 5, energy: 6 }, ['gripe']),
-  med('laxante', 'Laxante', 'med_pill', { health: 3, mood: 2 }, ['prisao']),
-  med('antinausea', 'Antinausea', 'med_potion', { health: 8, mood: 3 }, ['nausea']),
-  med('bandagem_lesao', 'Curativo para lesão', 'med_bandage', { health: 14, energy: 3 }, ['lesao']),
-  med('energetico', 'Energético', 'med_bolt', { energy: 25, mood: -6 }, ['exausta']),
-  pix('pu_saciedade', 'medicina', 'PowerUp: Saciedade', 280, 'med_star', { buff: ['noHunger', 300], rarity: 'comum' }),
+pix('pu_saciedade', 'medicina', 'PowerUp: Saciedade', 280, 'med_star', { buff: ['noHunger', 300], rarity: 'comum' }),
   pix('pu_alegria', 'medicina', 'PowerUp: Alegria', 280, 'med_heart', { buff: ['doubleMood', 300], rarity: 'comum' }),
   pix('pu_energia', 'medicina', 'PowerUp: Energia', 280, 'med_bolt', { buff: ['noTired', 300], rarity: 'comum' }),
   pix('pu_sorte', 'medicina', 'PowerUp: Sorte', 320, 'med_clover', { buff: ['luck', 600], rarity: 'incomum' }),
@@ -162,6 +152,14 @@ med('vitamina', 'Vitamina', 'med_vitamin', { health: 8, energy: 4 }, ['gripe', '
   ...VEND_ITEMS,
   ...legacyItems(),
 ];
+const __tierMeds = [];
+for (let t = 1; t <= 5; t++) {
+  __tierMeds.push(med(`pilula_t${t}`, `Pílula Tier ${t}`, 'med_pill', { health: 6 * t, mood: -1 }, ['gripe', 'prisao', 'nausea', 'lesao']));
+  __tierMeds.push(med(`pocao_t${t}`, `Poção Tier ${t}`, 'med_potion', { health: 12 * t, energy: 4 * t }, ['gripe', 'prisao', 'nausea', 'lesao']));
+  __tierMeds.push(med(`energetico_t${t}`, `Energético Tier ${t}`, 'med_bolt', { energy: 5 * t, mood: -2 }, ['exausta']));
+  if (t <= 3) __tierMeds.push(med(`curativo_t${t}`, `Curativo Tier ${t}`, 'med_bandage', { health: 8 * t }, ['lesao', 'nausea']));
+}
+ITEMS.push(...__tierMeds);
 
 // Items from the first catalog: no longer sold, but still usable if they are in a saved inventory.
 function legacyItems() {
