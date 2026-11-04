@@ -8,8 +8,8 @@ export class EventLog {
   }
 
   // [pt, en] pair: the dock picks the Persocon's language when it renders.
-  push(pt, en) {
-    this.lines.push([String(pt ?? ''), String(en ?? pt ?? '')]);
+  push(pt, en, cat = 'general') {
+    this.lines.push([String(pt ?? ''), String(en ?? pt ?? ''), String(cat || 'general')]);
     if (this.lines.length > this.max) this.lines.shift();
   }
 }

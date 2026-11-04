@@ -568,8 +568,8 @@ export async function startPet(files, config) {
         document.body.append(el);
         setTimeout(() => el.remove(), 2800);
       }
-      pushLog(`Status negativo: ${L.name}`, `Negative status: ${L.name}`);
-    } else pushLog(`${L.name} curada`, `${L.name} cured`);
+      pushLog(`Status negativo: ${L.name}`, `Negative status: ${L.name}`, 'status');
+    } else pushLog(`${L.name} curada`, `${L.name} cured`, 'status');
   }
 
   pet.on((type, data) => {
@@ -581,9 +581,9 @@ export async function startPet(files, config) {
     emoticons.react(type, data);
     EVENT_SOUNDS[type]?.(data);
     if (type === 'debuff') debuffEvent(data);
-    if (type === 'missionDone' && data.name) pushLog(`Missão concluída: ${data.name}`, `Mission done: ${translate(data.name)}`);
-    if (type === 'achievement' && data.name) pushLog(`Conquista: ${data.name}`, `Achievement: ${translate(data.name)}`);
-    if ((type === 'lootPrize' || type === 'gachaPrize') && data.name && !/moedas/i.test(data.name)) pushLog(`Prêmio: ${data.name}`, `Prize: ${translate(data.name)}`);
+    if (type === 'missionDone' && data.name) pushLog(`Missão concluída: ${data.name}`, `Mission done: ${translate(data.name)}`, 'mission');
+    if (type === 'achievement' && data.name) pushLog(`Conquista: ${data.name}`, `Achievement: ${translate(data.name)}`, 'mission');
+    if ((type === 'lootPrize' || type === 'gachaPrize') && data.name && !/moedas/i.test(data.name)) pushLog(`Prêmio: ${data.name}`, `Prize: ${translate(data.name)}`, 'prize');
     
     if (EXPRESSIONS[type]) view.setExpression?.(type === 'react' && data.kind !== 'scare' ? 'happy' : type === 'dollToy' && data.kind === 'cubeLose' ? 'surprised' : EXPRESSIONS[type]);
     if (LOG_EVENTS.has(type) && logEnabled()) logInfo('evento', `${type} ${brief(data)}`);
@@ -634,6 +634,18 @@ export async function startPet(files, config) {
     const r = pet.request;
     if (!r) return;
     const itemId = r.id;
+    if (r.kind === 'tv') {
+      app.tvWatch?.start?.(null);
+      pet.fulfill('tv', itemId);
+      sound.play('ok', { volume: 0.5 });
+      return;
+    }
+    if (r.kind === 'ball') {
+      const ok = pet.startBall(true);
+      if (ok) pet.fulfill('ball', itemId);
+      else sound.play('cancel', { volume: 0.5 });
+      return;
+    }
     if (r.kind === 'toy') {
       // Placed on the desktop: have her interact with it (goes and plays) and it auto-fulfills via toyStart.
       if (itemId && game.toys?.[itemId]?.placed) {
@@ -796,7 +808,13 @@ export async function startPet(files, config) {
   let dockMenuOff = null;
   // Event log under the dock: 5 latest big events, [pt, en] pairs picked at render time.
   const eventLog = new EventLog(config);
-  const pushLog = (pt, en) => { eventLog.push(pt, en); dockT = 0; };
+  const pushLog = (pt, en, cat = 'general') => { eventLog.push(pt, en, cat); dockT = 0; };
+const toggleLogFilter = (cat) => {
+  config.logFilter = { ...(config.logFilter || {}), [cat]: !(config.logFilter?.[cat] ?? true) };
+  app.setOption('logFilter', config.logFilter);
+  dockT = 0;
+  app.uiChanged();
+};
 
   function closeDockMenu() {
     if (!dockMenuEl) return;
@@ -834,7 +852,10 @@ export async function startPet(files, config) {
     const scale = (v) => { app.setOption('statusDockScale', Math.round(Math.min(2.5, Math.max(0.8, v)) * 10) / 10); dockT = 0; };
     item(`➕ Aumentar (${Math.round(k * 100)}%)`, undefined, () => scale(k + 0.2));
     item('➖ Diminuir', undefined, () => scale(k - 0.2));
-    item('✕ Fechar', undefined, () => app.setOption('statusDock', 'off'));
+  item('Filtro do log: status', config.logFilter?.status !== false, () => toggleLogFilter('status'));
+  item('Filtro do log: missões', config.logFilter?.mission !== false, () => toggleLogFilter('mission'));
+  item('Filtro do log: prêmios', config.logFilter?.prize !== false, () => toggleLogFilter('prize'));
+  item('✕ Fechar', undefined, () => app.setOption('statusDock', 'off'));
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
     document.body.append(el);
     el.style.left = `${Math.min(x, innerWidth - el.offsetWidth - 6)}px`;
@@ -1168,7 +1189,7 @@ api.onTrayClick?.(() => {
     const tip = en ? 'Show or hide the log' : 'Mostrar ou ocultar o registro';
     const head = `<div class="sd-log-head"><b>📝 ${en ? 'Log' : 'Registro'}</b><button class="sd-log-toggle" type="button" title="${tip}">${open ? '−' : '+'}</button></div>`;
     if (!open) return `<div class="sd-log">${head}</div>`;
-    const rows = eventLog.lines.map(([pt, t]) => `<div>${String(en ? t : pt).replace(/[<>&"]/g, '')}</div>`).join('');
+    const rows = eventLog.lines.filter((r) => (config.logFilter?.[r[2] || 'general'] ?? true)).map(([pt, t]) => `<div>${String(en ? t : pt).replace(/[<>&"]/g, '')}</div>`).join('') || `<div>${en ? 'No events yet' : 'Ainda sem eventos'}</div>`;
     return `<div class="sd-log">${head}<div class="sd-log-rows">${rows}</div></div>`;
   }
 
