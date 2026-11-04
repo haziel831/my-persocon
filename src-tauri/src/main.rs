@@ -1217,6 +1217,11 @@ fn main() {
                 if let Some(icon) = app.default_window_icon() {
                     tray = tray.icon(icon.clone());
                 }
+                tray = tray.on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click { .. } = event {
+                        let _ = tray.app_handle().emit("tray_click", ());
+                    }
+                });
                 tray.build(app)?;
                 start_world_polling(app.handle().clone());
             }
