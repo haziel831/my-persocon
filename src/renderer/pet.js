@@ -1834,6 +1834,21 @@ api.onTrayClick?.(() => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     pet.update(dt);
+  // Negative statuses: occasionally complain; subtle visual class on the body.
+  const hasDebuff = Object.keys(pet.debuffs || {}).length > 0;
+  document.body.classList.toggle('pet-debuffed', hasDebuff);
+  if (hasDebuff) {
+    pet.complainT = (pet.complainT || 0) + dt;
+    const threshold = 18 + Math.random() * 25;
+    if (!pet.offstage && !pet.dead && pet.complainT >= threshold) {
+      pet.complainT = 0;
+      const en = config.lang === 'en';
+      const lines = en
+        ? ['I feel awful...', 'Something is wrong with me...', 'I do not feel well...', 'Ouch... I hurt...']
+        : ['Tô me sentindo mal...', 'Tem algo de errado comigo...', 'Não estou me sentindo bem...', 'Ai... tô dolorida...'];
+      speech.say(lines[Math.floor(Math.random() * lines.length)], 3.2);
+    }
+  } else pet.complainT = 0;
     closeup.update(dt, offscreen || appHidden);
     const tp = pet.toyPlay;
     const holdingToy = tp?.hold && tp.t >= tp.holdFrom;

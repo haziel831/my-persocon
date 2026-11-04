@@ -838,7 +838,12 @@ export class Game {
     if (!t?.placed || itemById(baseId(key))?.fixed) return;
     const id = baseId(key);
     // GameBuddy (and its cartridge bag) stay on the desktop.
-    if (id === 'gameboy') return;
+    if (id === 'gameboy') {
+    t.placed = false;
+    this.inventory.gameboy = (this.inventory.gameboy || 0) + 1;
+    this.changed();
+    return;
+  }
     if (itemById(id)?.decor) {
       delete this.toys[key];
       this.inventory[id] = this.count(id) + 1;

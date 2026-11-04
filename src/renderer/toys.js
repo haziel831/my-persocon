@@ -380,7 +380,7 @@ export class Toys {
     btn('🎨 Mudar visual / importar…', () => this.app.openObjects?.(baseId(id)));
     if (id === 'impressora') this.printerInfo(el);
     if (t && !t.broken && this.fun.owns(id)) this.fun.menu(baseId(id), btn, el);
-    if (t && !itemById(baseId(id))?.fixed && baseId(id) !== 'gameboy') btn('📦 Guardar no inventário', () => game.pickUpToy(id));
+    if (t && !itemById(baseId(id))?.fixed && baseId(id) !== 'gameboy_verde') btn('📦 Guardar no inventário', () => game.pickUpToy(id));
     this.openMenu(el, x, y);
   }
 
