@@ -154,7 +154,7 @@ export class Casino {
     if (id === 'gacha') {
       if (!game.canBuy({ price: GACHA_PRICE })) return no(`Precisa de ¥ ${GACHA_PRICE}`);
       if (!this.send(id, 'player')) return no('Ela está ocupada agora');
-      game.pay(GACHA_PRICE);
+      game.pay(GACHA_PRICE, 'Gacha');
       game.changed();
       sound.play('ok', { volume: 0.4 });
       this.app.gains?.show(`−¥ ${GACHA_PRICE}`, 'spend', 'Gacha');
@@ -418,11 +418,11 @@ export class Casino {
 
   grant(p) {
     const { game } = this.app;
-    if (p.kind === 'coins') this.pay(p.n);
+    if (p.kind === 'coins') game.earn(p.n, 'Casino');
     else if (p.kind === 'figure') {
       if (game.figures.includes(p.id)) {
         p.dupe = DUPE_COINS[p.rarity];
-        this.pay(p.dupe);
+        if (p.dupe) game.earn(p.dupe, 'Casino (fig. duplicada)');
       } else game.figures.push(p.id);
     } else game.inventory[p.id] = Math.min(999, game.count(p.id) + p.n);
     game.changed();
@@ -651,7 +651,7 @@ export class Casino {
     const rw = app.rewards;
     const mult = slotPayout(s.result);
     const win = Math.round(s.bet * mult * (s.up ? 1.5 : 1));
-    this.pay(win);
+    game.earn(win, 'Slot (caça-níquel)');
     s.net += win - s.bet;
     const p = game.profile;
     if (s.result[0] === s.result[1] && s.result[1] === s.result[2]) p.slotTriples = (p.slotTriples || 0) + 1;
