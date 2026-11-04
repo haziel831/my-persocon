@@ -161,6 +161,12 @@ export class Minigames {
     const ul = document.createElement('ul');
     for (const line of g.guide) ul.append(Object.assign(document.createElement('li'), { textContent: line }));
     card.append(ul);
+    const res = document.createElement('div');
+    res.className = 'mg-guide-result';
+    const bonusText = MG_BONUS[id] ? MG_BONUS[id][0] : (this.app.config?.lang === 'en' ? 'no special bonus (default Mood/Energy only)' : 'sem bônus especial (apenas Humor/Energia padrão)');
+    const en = this.app.config?.lang === 'en';
+    res.innerHTML = `<b>${en ? 'If you win' : 'Se você vencer'}</b>: +10 Humor${MG_BONUS[id] ? ` + (${bonusText})` : ''}<br><b>${en ? 'If you lose' : 'Se você perder'}</b>: +5 Humor, -6 Energia (Persocon).`;
+    card.append(res);
     const label = document.createElement('label');
     const box = Object.assign(document.createElement('input'), { type: 'checkbox' });
     label.append(box, ' Não mostrar novamente');

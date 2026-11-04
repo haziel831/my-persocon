@@ -587,7 +587,7 @@ export async function startPet(files, config) {
     
     if (EXPRESSIONS[type]) view.setExpression?.(type === 'react' && data.kind !== 'scare' ? 'happy' : type === 'dollToy' && data.kind === 'cubeLose' ? 'surprised' : EXPRESSIONS[type]);
     if (LOG_EVENTS.has(type) && logEnabled()) logInfo('evento', `${type} ${brief(data)}`);
-    if (type === 'earn') pushLog(`+${data.n} ¥ (${data.src || '?'})`, `+${data.n} ¥ (${data.src || '?'})`, 'money');
+    if (type === 'earn' && !(data.src || '').toLowerCase().includes('tempo')) pushLog(`+${data.n} ¥ (${data.src || '?'})`, `+${data.n} ¥ (${data.src || '?'})`, 'money');
     if (type === 'pay') pushLog(`-${data.n} ¥ (${data.src || '?'})`, `-${data.n} ¥ (${data.src || '?'})`, 'money');
     if (type === 'crowSkill' && data?.name) pushLog(`Corvo usou: ${data.name}`, `Crow used: ${data.name}`, 'crow');
     if (type === 'pet') patHand.t = 1.3;
@@ -632,78 +632,7 @@ export async function startPet(files, config) {
   // ---------- cafuné hand, request balloon, held toy, chase bell, countdown ----------
   const patHand = { el: div('pat-hand', `<img src="${icon('hand')}" draggable="false">`), t: 0 };
   const requestEl = div('request');
-  requestEl.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    const r = pet.request;
-    if (!r) return;
-    const itemId = r.id;
-    if (r.kind === 'tv') {
-      app.tvWatch?.start?.(null);
-      pet.fulfill('tv', itemId);
-      sound.play('ok', { volume: 0.5 });
-      return;
-    }
-    if (r.kind === 'ball') {
-      const ok = pet.startBall(true);
-      if (ok) pet.fulfill('ball', itemId);
-      else sound.play('cancel', { volume: 0.5 });
-      return;
-    }
-    if (r.kind === 'toy') {
-      // Placed on the desktop: have her interact with it (goes and plays) and it auto-fulfills via toyStart.
-      if (itemId && game.toys?.[itemId]?.placed) {
-        toys.want = itemId;
-        toys.goPlay();
-        sound.play('ok', { volume: 0.5 });
-        return;
-      }
-      const b = itemId ? baseId(itemId) : null;
-      const idInStock = [itemId, b].filter(Boolean).find((id) => game.count(id) > 0);
-      if (idInStock) {
-        // Stored in inventory: place it next to her, then play — toyStart triggers fulfill.
-        toys.place(idInStock);
-        sound.play('ok', { volume: 0.5 });
-        return;
-      }
-      sound.play('cancel', { volume: 0.5 });
-      toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `⚠ ${config.lang === 'en' ? 'Item unavailable' : 'Item indisponível'}`);
-      return;
-    }
-    if (itemId) {
-      const item = itemById(itemId);
-      if (item) {
-        if (game.count(itemId) > 0) {
-          // Use from inventory: game.use handles consume/medicate and take.
-          const ok = game.use(itemId);
-          if (ok) {
-            pet.fulfill(r.kind, itemId);
-            sound.play('ok', { volume: 0.5 });
-            toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `✔ ${item.name || itemId}`);
-            return;
-          }
-        } else if (game.canBuy(item, 1)) {
-          const bought = game.buy(itemId, 1);
-          if (bought) {
-            pet.fulfill(r.kind, itemId);
-            sound.play('ok', { volume: 0.5 });
-            toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `¥ ${config.lang === 'en' ? 'Purchased' : 'Comprado'}`);
-            return;
-          }
-        }
-      }
-    }
-    if (r.kind === 'pat') {
-      pet.pat();
-    } else if (r.kind === 'play' || r.kind === 'ball') {
-      pet.play();
-    } else if (itemId && !game.canBuy(itemById(itemId), 1)) {
-      sound.play('cancel', { volume: 0.5 });
-      toys.furn.floatText(pet.x, pet.y - pet.P * 1.2, `⚠ ¥ ${config.lang === 'en' ? 'Insufficient funds' : 'Fundo insuficiente!'}`);
-    } else {
-      pet.fulfill(r.kind, itemId);
-      sound.play('ok', { volume: 0.5 });
-    }
-  });
+  requestEl.style.pointerEvents = 'none';
   const toyEl = div('held-toy');
   const bell = { el: div('bell', `<img src="${icon('bell')}" draggable="false">`), a: 0, w: 0, x: null, vx: 0, cool: 0 };
   const countEl = div('countdown');
