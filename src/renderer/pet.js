@@ -87,6 +87,7 @@ function div(className, html = '') {
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
 export async function startPet(files, config) {
+  logInfo('app', 'startPet begin');
   setArtStyle(config.artStyle);
   if ((config.defaultsRev ?? 0) < 1) {
     Object.assign(config, DEFAULT_OPTS, { defaultsRev: 1 });
@@ -192,7 +193,7 @@ export async function startPet(files, config) {
     pause: () => pet.pause(),
     resume: () => pet.resume(),
     restart: () => pet.restart(),
-    quit: () => flushLog().finally(() => api.quit()),
+    quit: () => { const st = new Error().stack; try { window.__TAURI__.core.invoke('log', { msg: `[diag] app.quit início · ${st}` }); } catch {} flushLog().finally(() => api.quit()); },
     focus: () => api.focusWindow(),
     openImport: () => importDialog.show(),
     openObjects: (id, preset) => new ObjectsDialog(app).show(id, preset),
@@ -340,6 +341,7 @@ export async function startPet(files, config) {
   app.quick = quick;
   const importDialog = new ImportDialog(app);
   const screen = new GameScreen(sound);
+  logInfo('app', 'startPet: screen ok');
   screen.el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -364,9 +366,10 @@ export async function startPet(files, config) {
     btn(config.lang === 'en' ? 'Opacity 30%' : 'Opacidade 30%', () => { screen.el.style.opacity = '0.3'; });
     btn(config.lang === 'en' ? 'Opacity 60%' : 'Opacidade 60%', () => { screen.el.style.opacity = '0.6'; });
     btn(config.lang === 'en' ? 'Opacity 100%' : 'Opacidade 100%', () => { screen.el.style.opacity = '1.0'; });
-    btn(config.lang === 'en' ? 'Size small' : 'Tamanho pequeno', () => { screen.el.style.transform = `${screen.el.style.transform.replace(/ scale\([^)]*\)/, '')} scale(0.85)`; });
-    btn(config.lang === 'en' ? 'Size normal' : 'Tamanho normal', () => { screen.el.style.transform = `${screen.el.style.transform.replace(/ scale\([^)]*\)/, '')} scale(1)`; });
-    btn(config.lang === 'en' ? 'Size large' : 'Tamanho grande', () => { screen.el.style.transform = `${screen.el.style.transform.replace(/ scale\([^)]*\)/, '')} scale(1.2)`; });
+    const zoom = (v) => { gbZoom = clamp(v, 0.6, 1.6); app.setOption('gbZoom', gbZoom); };
+    btn(config.lang === 'en' ? 'Small' : 'Pequeno', () => zoom(0.7));
+    btn(config.lang === 'en' ? 'Normal' : 'Normal', () => zoom(1));
+    btn(config.lang === 'en' ? 'Large' : 'Grande', () => zoom(1.4));
     document.body.append(m);
     m.style.left = `${Math.min(e.clientX, innerWidth - m.offsetWidth - 8)}px`;
     m.style.top = `${Math.min(e.clientY, innerHeight - m.offsetHeight - 8)}px`;
@@ -676,6 +679,8 @@ export async function startPet(files, config) {
   let screenAt = null;
   let screenOff = null;
   let screenDragging = false;
+  // Zoom do casco do console (tela GameBuddy/GG/PSP), pelo menu de contexto; fica no config.
+  let gbZoom = clamp(Number(config.gbZoom) || 1, 0.6, 1.6);
 
   // Assistir: the player clicks where the video is so the pet sits turned toward it.
   app.markVideo = (done) => {
@@ -1239,7 +1244,7 @@ api.onTrayClick?.(() => {
       el.style.width = `${Math.round(tv.w)}px`;
       el.style.height = `${Math.round(tv.h)}px`;
       el.style.transformOrigin = `${Math.round(tv.ox - tv.x)}px ${Math.round(tv.oy - tv.y)}px`;
-      el.style.transform = `translate(${Math.round(tv.x)}px, ${Math.round(tv.y)}px)${tv.rot ? ` rotate(${tv.rot}deg)` : ''}`;
+      el.style.transform = `translate(${Math.round(tv.x)}px, ${Math.round(tv.y)}px)${tv.rot ? ` rotate(${tv.rot}deg)` : ''}${gbZoom !== 1 ? ` scale(${gbZoom})` : ''}`;
       screenAt = null;
     } else if (tp?.console && !tp.tv && tp.picked && !hidden) {
       // GameGlow / PlayPocket: mesmos gráficos HD da TV; limpa tamanho residual da TV.
@@ -1265,7 +1270,7 @@ api.onTrayClick?.(() => {
           y: Math.round(Math.min(Math.max(4, pet.y + screenOff.dy), innerHeight - h - 4)),
         };
       }
-      el.style.transform = `translate(${screenAt.x}px, ${screenAt.y}px)`;
+      el.style.transform = `translate(${screenAt.x}px, ${screenAt.y}px)${gbZoom !== 1 ? ` scale(${gbZoom})` : ''}`;
     } else {
       screenAt = screenOff = null;
       screen.el.classList.remove('tvback');
@@ -2031,9 +2036,12 @@ api.onTrayClick?.(() => {
     lastStep = now;
   };
   let lastStep = performance.now();
+  logInfo('app', 'startPet: loop ready');
+  let ticked = false;
   const frame = (now) => {
     lastRaf = performance.now();
     offscreen = false;
+    if (!ticked) { ticked = true; logInfo('app', 'startPet: tick1'); }
     fpsFrames++;
     requestAnimationFrame(frame);
     safeStep(now);
