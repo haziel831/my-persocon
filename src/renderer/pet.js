@@ -87,7 +87,6 @@ function div(className, html = '') {
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
 export async function startPet(files, config) {
-  logInfo('app', 'startPet begin');
   setArtStyle(config.artStyle);
   if ((config.defaultsRev ?? 0) < 1) {
     Object.assign(config, DEFAULT_OPTS, { defaultsRev: 1 });
@@ -193,7 +192,7 @@ export async function startPet(files, config) {
     pause: () => pet.pause(),
     resume: () => pet.resume(),
     restart: () => pet.restart(),
-    quit: () => { const st = new Error().stack; try { window.__TAURI__.core.invoke('log', { msg: `[diag] app.quit início · ${st}` }); } catch {} flushLog().finally(() => api.quit()); },
+    quit: () => flushLog().finally(() => api.quit()),
     focus: () => api.focusWindow(),
     openImport: () => importDialog.show(),
     openObjects: (id, preset) => new ObjectsDialog(app).show(id, preset),
@@ -341,7 +340,6 @@ export async function startPet(files, config) {
   app.quick = quick;
   const importDialog = new ImportDialog(app);
   const screen = new GameScreen(sound);
-  logInfo('app', 'startPet: screen ok');
   screen.el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -2036,12 +2034,9 @@ api.onTrayClick?.(() => {
     lastStep = now;
   };
   let lastStep = performance.now();
-  logInfo('app', 'startPet: loop ready');
-  let ticked = false;
   const frame = (now) => {
     lastRaf = performance.now();
     offscreen = false;
-    if (!ticked) { ticked = true; logInfo('app', 'startPet: tick1'); }
     fpsFrames++;
     requestAnimationFrame(frame);
     safeStep(now);
