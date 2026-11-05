@@ -339,6 +339,7 @@ export async function startPet(files, config) {
   const quick = new QuickMenu(app);
   app.quick = quick;
   const importDialog = new ImportDialog(app);
+  const screen = new GameScreen(sound);
   screen.el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
