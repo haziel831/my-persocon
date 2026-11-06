@@ -50,6 +50,7 @@ const med = (id, name, pixName, effects, cures = []) => pix(id, 'medicina', name
 const pix = (id, cat, name, price, pixName, extra = {}) => ({
   id, cat, name, price, pix: pixName, effects: {}, ...extra,
   get img() {
+    if (extra?.imgAsset) return new URL(extra.imgAsset, import.meta.url).href;
     return typeof document === 'undefined' ? '' : icon(this.pix);
   },
 });
@@ -160,6 +161,13 @@ for (let t = 1; t <= 5; t++) {
   if (t <= 3) __tierMeds.push(med(`curativo_t${t}`, `Curativo Tier ${t}`, 'med_bandage', { health: 8 * t }, ['lesao', 'nausea']));
 }
 ITEMS.push(...__tierMeds);
+// BETA: consome assets novos da Shared Library (16x16 Icon Pack) para testar as artes in-game.
+ITEMS.push(
+  pix('pocao_azul_test', 'medicina', 'Poção Azul (asset NEW)', 120, 'med_potion', { effects: { health: 10, energy: 4, mood: 3 }, cures: ['gripe', 'nausea'], imgAsset: './assets/NEWPICKS/Potion_Blue_1.png' }),
+  pix('pocao_rubi_test', 'medicina', 'Poção Rubi (asset NEW)', 180, 'med_potion', { effects: { health: 16, energy: 6, mood: 5 }, cures: ['gripe', 'nausea', 'prisao'], imgAsset: './assets/NEWPICKS/Potion_Red_4.png' }),
+  pix('energetico_ambar_test', 'medicina', 'Energético Âmbar (asset NEW)', 90, 'med_bolt', { effects: { energy: 9, mood: -1 }, cures: ['exausta'], imgAsset: './assets/NEWPICKS/Coffee_Cup_1.png' }),
+  pix('soda_capiroba_test', 'bebidas', 'Soda Capiroba (asset NEW)', 35, 'soda', { effects: { thirst: 40, mood: 15 }, watchOnly: false, imgAsset: './assets/NEWPICKS/Soda_Can_3.png' })
+);
 
 // Items from the first catalog: no longer sold, but still usable if they are in a saved inventory.
 function legacyItems() {
