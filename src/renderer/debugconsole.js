@@ -1,17 +1,22 @@
 // Floating log console: opens when debug mode is turned on, stays open until the player
-// closes it (turning debug off does not hide it). Shows logger lines and console.* output.
+// closes it (turning debug off does not hide it). Shows logger lines and console.* output, plus a chat tab.
 import { onLog, recentLog, logInfo } from './logger.js';
 
 const MAX_LINES = 800;
 
 export class DebugConsole {
-  constructor() {
+  constructor(app) {
+    this.app = app;
     this.el = null;
     this.body = null;
+    this.chatBody = null;
     this.open = false;
+    this.view = 'log';
     this.autoScroll = true;
     this.offLog = null;
     this.orig = null;
+    this.chatTimer = null;
+    this.speechHistory = app.speechHistory || [];
   }
 
   show() {
@@ -31,13 +36,24 @@ export class DebugConsole {
         <button type="button" class="dbg-btn" data-act="copy" title="Copiar">Copiar</button>
         <button type="button" class="dbg-btn dbg-close" data-act="close" title="Fechar">✕</button>
       </div>
-      <pre class="dbg-body"></pre>`;
+      <div class="dbg-tabs">
+        <button type="button" class="dbg-btn dbg-tab active" data-act="tab-log">Log</button>
+        <button type="button" class="dbg-btn dbg-tab" data-act="tab-chat">Chat</button>
+      </div>
+      <pre class="dbg-body dbg-log"></pre>
+      <pre class="dbg-body dbg-chat" style="display:none"></pre>`;
     document.body.append(root);
     this.el = root;
-    this.body = root.querySelector('.dbg-body');
+    this.body = root.querySelector('.dbg-log');
+    this.chatBody = root.querySelector('.dbg-chat');
+    this.view = 'log';
     this.autoScroll = true;
     this.body.addEventListener('scroll', () => {
       const el = this.body;
+      this.autoScroll = el.scrollTop + el.clientHeight >= el.scrollHeight - 24;
+    });
+    this.chatBody.addEventListener('scroll', () => {
+      const el = this.chatBody;
       this.autoScroll = el.scrollTop + el.clientHeight >= el.scrollHeight - 24;
     });
     root.querySelector('.dbg-head').addEventListener('pointerdown', (e) => {
@@ -49,13 +65,16 @@ export class DebugConsole {
       if (act === 'close') this.hide();
       else if (act === 'clear') this.clear();
       else if (act === 'copy') this.copy();
+      else if (act === 'tab-log') this.setView('log');
+      else if (act === 'tab-chat') this.setView('chat');
     });
-    // Seed with recent buffer, then follow live lines.
     const seed = recentLog();
     if (seed) this.body.textContent = seed + '\n';
     this.offLog = onLog((line, level) => this.append(line, level));
     this.hookConsole();
+    this.refreshChat();
     this.scrollEnd();
+    this.chatTimer = setInterval(() => this.refreshChat(), 1500);
     logInfo('console', 'console aberto');
   }
 
@@ -66,7 +85,8 @@ export class DebugConsole {
     this.offLog = null;
     this.unhookConsole();
     this.el?.remove();
-    this.el = this.body = null;
+    this.el = this.body = this.chatBody = null;
+    if (this.chatTimer) { clearInterval(this.chatTimer); this.chatTimer = null; }
   }
 
   clear() {
@@ -83,6 +103,15 @@ export class DebugConsole {
     }
   }
 
+  setView(v) {
+    this.view = v;
+    this.el?.querySelectorAll('.dbg-tab').forEach((b) => b.classList.toggle('active', b.dataset.act === `tab-${v}`));
+    if (this.body) this.body.style.display = v === 'log' ? '' : 'none';
+    if (this.chatBody) this.chatBody.style.display = v === 'chat' ? '' : 'none';
+    if (v === 'chat') this.refreshChat();
+    this.scrollEnd();
+  }
+
   append(line, level) {
     if (!this.body) return;
     const span = document.createElement('span');
@@ -90,11 +119,18 @@ export class DebugConsole {
     span.textContent = line + '\n';
     this.body.append(span);
     while (this.body.childNodes.length > MAX_LINES) this.body.firstChild.remove();
-    if (this.autoScroll) this.scrollEnd();
+    if (this.autoScroll && this.view === 'log') this.scrollEnd();
+  }
+
+  refreshChat() {
+    if (!this.chatBody) return;
+    this.chatBody.textContent = (this.app.speechHistory || []).map((t) => '• ' + t).join('\n');
+    if (this.view === 'chat' && this.autoScroll) this.scrollEnd();
   }
 
   scrollEnd() {
-    if (this.body) this.body.scrollTop = this.body.scrollHeight;
+    const target = this.view === 'chat' ? this.chatBody : this.body;
+    if (target) target.scrollTop = target.scrollHeight;
   }
 
   drag(e) {
@@ -118,37 +154,13 @@ export class DebugConsole {
     addEventListener('pointerup', up);
   }
 
-  // Mirror console.* into the panel while it is open (does not replace the originals).
   hookConsole() {
-    if (this.orig) return;
-    const self = this;
-    this.orig = {
-      log: console.log.bind(console),
-      info: console.info.bind(console),
-      warn: console.warn.bind(console),
-      error: console.error.bind(console),
-    };
-    const wrap = (level, fn) => (...args) => {
-      fn(...args);
-      if (!self.open) return;
-      const msg = args.map((a) => {
-        if (typeof a === 'string') return a;
-        try { return JSON.stringify(a); } catch { return String(a); }
-      }).join(' ');
-      self.append(`${new Date().toLocaleTimeString('pt-BR', { hour12: false })} [${level}] [js] ${msg}`, level);
-    };
-    console.log = wrap('INFO', this.orig.log);
-    console.info = wrap('INFO', this.orig.info);
-    console.warn = wrap('WARN', this.orig.warn);
-    console.error = wrap('ERROR', this.orig.error);
+    const orig = console.log.bind(console);
+    this.orig = orig;
+    console.log = (...a) => { orig(...a); logInfo('console', a.map((x) => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join(' ')); };
   }
 
   unhookConsole() {
-    if (!this.orig) return;
-    console.log = this.orig.log;
-    console.info = this.orig.info;
-    console.warn = this.orig.warn;
-    console.error = this.orig.error;
-    this.orig = null;
+    if (this.orig) console.log = this.orig;
   }
 }

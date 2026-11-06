@@ -406,6 +406,8 @@ export class Speech {
     this.cool = this.life + 6 / Math.max(0.2, this.freq);
     this.el.textContent = '';
     this.el.classList.toggle('emoji-only', emojiOnly(this.text));
+    (this.app.speechHistory ||= []).push(this.text);
+    if (this.app.speechHistory.length > 250) this.app.speechHistory.shift();
   }
 
   // Idle chatter.

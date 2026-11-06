@@ -185,7 +185,7 @@ export async function startPet(files, config) {
     sound,
     avatar,
     gameOver: null,
-    debugConsole: new DebugConsole(),
+    debugConsole: new DebugConsole(app),
     openDebugConsole: () => app.debugConsole.show(),
     emoticons,
     previewEmoticon: () => emoticons.preview(),
@@ -381,6 +381,7 @@ export async function startPet(files, config) {
   const modes = new Modes(app);
   const ball = new Ball(app);
   const speech = new Speech(app);
+  app.speechHistory = [];
   // Lines said straight from other modules are Portuguese; the balloon types them letter by
   // letter, so it is translated up front instead of by the page translator.
   speech.el.dataset.noI18n = '';
