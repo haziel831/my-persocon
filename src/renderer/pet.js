@@ -185,7 +185,7 @@ export async function startPet(files, config) {
     sound,
     avatar,
     gameOver: null,
-    debugConsole: new DebugConsole(app),
+    debugConsole: null,
     openDebugConsole: () => app.debugConsole.show(),
     emoticons,
     previewEmoticon: () => emoticons.preview(),
@@ -335,6 +335,7 @@ export async function startPet(files, config) {
     },
     setDisplay: (i) => switchDisplay(i, { spawn: true }),
   };
+  app.debugConsole = new DebugConsole(app);
   const menu = new Menu(app);
   const quick = new QuickMenu(app);
   app.quick = quick;
@@ -825,6 +826,7 @@ const toggleLogFilter = (cat) => {
   item('Filtro do log: missões', config.logFilter?.mission !== false, () => toggleLogFilter('mission'));
   item('Filtro do log: moedas', config.logFilter?.money !== false, () => toggleLogFilter('money'));
   item('Filtro do log: corvo', config.logFilter?.crow !== false, () => toggleLogFilter('crow'));
+  item('Chat log (o que ela fala)', config.chatLogOff !== true, () => { app.setOption('chatLogOff', config.chatLogOff !== true); dockT = 0; });
   item('✕ Fechar', undefined, () => app.setOption('statusDock', 'off'));
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
     document.body.append(el);
@@ -1020,6 +1022,7 @@ api.onTrayClick?.(() => {
         if (dockMoving || rmb?.moved) return;
         if (e.target.closest('.sd-hide') || appHidden) return setAppHidden(!appHidden);
         if (e.target.closest('.sd-log-toggle')) { app.setOption('logOff', !config.logOff); dockT = 0; return; }
+        if (e.target.closest('.sd-chat-toggle')) { app.setOption('chatLogOff', !config.chatLogOff); dockT = 0; return; }
         app.openMenu();
       });
       dockEl.addEventListener('dblclick', (e) => {
@@ -1077,7 +1080,7 @@ api.onTrayClick?.(() => {
       + bar('❤️', s.health, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock();
+      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock();
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
@@ -1157,10 +1160,20 @@ api.onTrayClick?.(() => {
     const en = config.lang === 'en';
     const open = !config.logOff;
     const tip = en ? 'Show or hide the log' : 'Mostrar ou ocultar o registro';
-    const head = `<div class="sd-log-head"><b>📝 ${en ? 'Log' : 'Registro'}</b><button class="sd-log-toggle" type="button" title="${tip}">${open ? '−' : '+'}</button></div>`;
-    if (!open) return `<div class="sd-log">${head}</div>`;
+    const head = `<div class="sd-log-head"><b>📝 ${en ? 'Log' : 'Registro'}</b><button class="sd-log-toggle" type="button" title="${tip}" aria-label="${tip}">${open ? 'X' : '+'}</button></div>`;
+    if (!open) return `<div class="sd-log sd-eventlog">${head}</div>`;
     const rows = eventLog.lines.filter((r) => (config.logFilter?.[r[2] || 'general'] ?? true)).map(([pt, t, , n]) => `<div>${String(en ? t : pt).replace(/[<>&"]/g, '')}${n > 1 ? ` <b>(${n}x)</b>` : ''}</div>`).join('') || `<div>${en ? 'No events yet' : 'Ainda sem eventos'}</div>`;
-    return `<div class="sd-log">${head}<div class="sd-log-rows">${rows}</div></div>`;
+    return `<div class="sd-log sd-eventlog">${head}<div class="sd-log-rows">${rows}</div></div>`;
+  }
+  // Chat log right under the event log: the last 5 phrases the Persocon said.
+  function chatLogBlock() {
+    const en = config.lang === 'en';
+    const open = config.chatLogOff !== true;
+    const tip = en ? 'Show or hide the chat log' : 'Mostrar ou ocultar o chat log';
+    const head = `<div class="sd-log-head"><b>💬 ${en ? 'Chat' : 'Chat'}</b><button class="sd-chat-toggle" type="button" title="${tip}" aria-label="${tip}">${open ? 'X' : '+'}</button></div>`;
+    if (!open) return `<div class="sd-log sd-chat">${head}</div>`;
+    const rows = (app.speechHistory || []).slice(-5).reverse().map((t) => `<div>${String(t).replace(/[<>&"]/g, '')}</div>`).join('') || `<div>${en ? 'She has not spoken yet' : 'Ela ainda não falou'}</div>`;
+    return `<div class="sd-log sd-chat">${head}<div class="sd-log-rows">${rows}</div></div>`;
   }
 
   function updateOverlays(dt, head, hidden, calm) {

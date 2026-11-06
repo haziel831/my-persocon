@@ -836,7 +836,16 @@ body.app-hidden .bag-dock { opacity: 1; }
 .sd-log { margin-top: 4px; padding: 2px 5px 3px; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--line); border-radius: 6px; font-size: 0.85em; }
 .sd-log-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .sd-log-head b { opacity: 0.85; }
-.sd-log-toggle { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; line-height: 1; cursor: pointer; padding: 0 2px; }
+.sd-log-toggle, .sd-chat-toggle {
+  border: 1px solid var(--accent, rgba(255,255,255,0.4)); background: var(--panel, rgba(255,255,255,0.12));
+  color: inherit; border-radius: 5px; cursor: pointer;
+  min-width: calc(20px * var(--k)); height: calc(18px * var(--k)); padding: 0 4px;
+  font: 700 calc(12px * var(--k))/1 PxEmoji, system-ui, sans-serif;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
+}
+.sd-log-toggle:hover, .sd-chat-toggle:hover { background: var(--panel-hover, rgba(255,255,255,0.22)); }
+.sd-chat { border-color: color-mix(in srgb, var(--accent, #7aa2ff) 55%, transparent); }
 .sd-log-rows { margin-top: 1px; }
 .sd-log-rows div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sd-log-rows div:nth-child(1) { opacity: 1; }

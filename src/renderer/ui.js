@@ -1210,7 +1210,7 @@ export class Menu {
       if (game.toys.impressora) {
         const waiting = game.queue.find((j, i) => j.id === item.id && (i > 0 || !j.t));
         if (waiting) waiting.n += 1;
-        else game.queue.push({ id: item.id, n: 1, t: 0, dur: Math.min(30, 5 + Math.random() * 10) });
+        else game.queue.push({ id: item.id, n: 1, t: 0, dur: Math.min(30, 5 + Math.random() * 10), paid: 0 });
       } else {
         const d = game.deliveries.find((e) => e.id === item.id);
         if (d) d.n += 1;

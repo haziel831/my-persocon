@@ -677,8 +677,10 @@ export class Game {
     this.profile.purchases = (this.profile.purchases || 0) + 1;
     if (this.toys.impressora) {
       const waiting = this.queue.find((j, i) => j.id === id && (i > 0 || !j.t));
-      if (waiting) waiting.n += n;
-      else this.queue.push({ id, n, t: 0, dur: Math.min(30, (5 + Math.random() * 10) * (1 + 0.12 * (n - 1))) });
+      if (waiting) {
+        waiting.n += n;
+        waiting.paid = (waiting.paid || 0) + (item.price || 0) * n;
+      } else this.queue.push({ id, n, t: 0, dur: Math.min(30, (5 + Math.random() * 10) * (1 + 0.12 * (n - 1))), paid: (item.price || 0) * n });
     } else {
       const d = this.deliveries.find((e) => e.id === id);
       if (d) d.n += n;

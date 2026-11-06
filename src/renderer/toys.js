@@ -2016,7 +2016,8 @@ export class Toys {
   }
 
   printerInfo(menu) {
-    const { game } = this.app;
+    const app = this.app;
+    const { game } = app;
     const render = () => {
       menu.querySelector('.pj-list')?.remove();
       const list = document.createElement('div');
@@ -2040,23 +2041,20 @@ export class Toys {
             }
             const c = game.queue[i];
             if (!c) return;
+            const it = itemById(c.id);
+            const refund = c.paid ?? (it?.price || 0) * (c.n || 1);
             if (i > 0) {
-              // Waiting job: refund coins (half? whole?). Refund full item value.
-              const it = itemById(c.id);
-              this.app.sound.play('cancel');
-              game.coins += (it?.price || 0) * (c.n || 1);
+              // Waiting job: cancel it and refund the full amount paid.
               game.queue.splice(i, 1);
-              game.changed();
-              app.gains?.show(`-${it?.price * c.n}`, 'loss', 'Impressão cancelada');
             } else {
-              // current: remove and let pet restart
-              const it = itemById(c.id);
-              this.app.sound.play('cancel');
-              game.coins += (it?.price || 0) * (c.n || 1);
+              // Current job: the confirmation above is enough; refund and let her stop.
               game.queue.shift();
-              game.changed();
             }
-            this.app.uiChanged?.();
+            this.app.sound.play('cancel');
+            game.coins += refund;
+            game.changed();
+            app.gains?.show(`+¥ ${refund}`, 'gain', (c.n > 1 ? `${it?.name || c.id} ×${c.n} · ` : '') + 'Impressão cancelada');
+            app.uiChanged?.();
             render();
           };
           row.append(cancel);
