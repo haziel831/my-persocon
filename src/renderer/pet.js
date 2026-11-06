@@ -1242,7 +1242,7 @@ api.onTrayClick?.(() => {
       el.style.width = `${Math.round(tv.w)}px`;
       el.style.height = `${Math.round(tv.h)}px`;
       el.style.transformOrigin = `${Math.round(tv.ox - tv.x)}px ${Math.round(tv.oy - tv.y)}px`;
-      el.style.transform = `translate(${Math.round(tv.x)}px, ${Math.round(tv.y)}px)${tv.rot ? ` rotate(${tv.rot}deg)` : ''}${gbZoom !== 1 ? ` scale(${gbZoom})` : ''}`;
+      el.style.transform = `translate(${Math.round(tv.x)}px, ${Math.round(tv.y)}px)${tv.rot ? ` rotate(${tv.rot}deg)` : ''}`;
       screenAt = null;
     } else if (tp?.console && !tp.tv && tp.picked && !hidden) {
       // GameGlow / PlayPocket: mesmos gráficos HD da TV; limpa tamanho residual da TV.

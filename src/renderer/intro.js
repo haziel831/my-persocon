@@ -297,6 +297,13 @@ export class Intro {
       if (app.setSex) app.setSex(sex);
       else app.game.profile.sex = sex;
       app.setOption('voicePitch', VOICE[sex]);
+      if (n === 'HaZ') {
+        app.setOption('debug', true);
+        app.setOption('debugUnlocked', true);
+        app.game.coins = 5000;
+        app.game.changed();
+        await app.game.persist?.();
+      }
       app.game.changed?.();
       if (unit !== current) {
         go.dataset.busy = '1';

@@ -903,6 +903,14 @@ export class Menu {
         isConsumable(item) && h('button.buy', {
           onclick: () => {
             this.flashItem(item.id);
+            if (item.box && (game.count(item.id) || 0) > 1) {
+              const raw = prompt(`Abrir quantas caixas? (1-${game.count(item.id)})`, '1');
+              const n = Math.max(1, Math.min(game.count(item.id), parseInt(raw, 10) || 1));
+              if (n > 1) {
+                app.rewards?.openMany?.(item.id, n);
+                return;
+              }
+            }
             if (!game.use(item.id)) app.sound.play('cancel', { volume: 0.4 });
             this.refreshStats();
             this.render();

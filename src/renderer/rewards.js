@@ -276,6 +276,8 @@ export class Rewards {
     app.game.onOpenBox = (id) => this.open(id);
     app.pet.on((type, data) => this.onEvent(type, data));
     this.daily();
+    this.repeatRemaining = 0;
+    this.repeatId = null;
   }
 
   get profile() {
@@ -287,7 +289,17 @@ export class Rewards {
   open(id) {
     const { game, pet } = this.app;
     const box = BOXES[id];
-    if (!box || !game.count(id) || pet.dead) return false;
+    // Support multi-open: call openMany(id, n) before.
+    if (!box || !game.count(id) || pet.dead) {
+      this.repeatRemaining = 0;
+      this.repeatId = null;
+      return false;
+    }
+    if (this.repeatId !== id) {
+      // single open triggered outside run
+      this.repeatRemaining = 0;
+      this.repeatId = null;
+    }
     // Só uma caixa por vez — sem enfileirar várias (travava a fila de ações).
     const hasBox = !!(this.opening || (pet.actionQueue || []).some((a) => a.kind === 'box'));
     if (hasBox) return false;
@@ -296,6 +308,13 @@ export class Rewards {
       return true;
     }
     return this.openNow(id);
+  }
+
+  openMany(id, n) {
+    const cnt = Math.max(1, Math.min(n || 1, this.app.game.count(id) || 1));
+    this.repeatId = cnt > 1 ? id : null;
+    this.repeatRemaining = cnt > 1 ? cnt - 1 : 0;
+    return this.open(id);
   }
 
   // Starts the open right away (also used when the action queue drains a box).
@@ -445,7 +464,17 @@ export class Rewards {
       // Next box in the queue (or whatever she was going to do).
       if (app.pet?.mode === 'ground') app.pet.chooseNext?.();
     };
-    btn.onclick = close;
+    btn.onclick = () => {
+      const repeat = this.repeatRemaining > 0;
+      const rid = this.repeatId;
+      close();
+      if (repeat) {
+        this.repeatRemaining--;
+        setTimeout(() => this.open(rid), 800);
+      } else {
+        this.repeatId = null;
+      }
+    };
     root.addEventListener('click', (e) => e.target === root && close());
     setTimeout(close, 9000);
   }

@@ -2017,12 +2017,55 @@ export class Toys {
 
   printerInfo(menu) {
     const { game } = this.app;
-    const list = document.createElement('div');
-    list.className = 'pj-list';
-    list.textContent = game.queue.length
-      ? game.queue.map((j, i) => `${i ? `${i + 1}.` : '▶'} ${itemById(j.id)?.name || j.id}${j.n > 1 ? ` ×${j.n}` : ''}`).join('\n')
-      : 'Fila vazia: compre algo na Shop';
-    menu.append(list);
+    const render = () => {
+      menu.querySelector('.pj-list')?.remove();
+      const list = document.createElement('div');
+      list.className = 'pj-list';
+      if (!game.queue.length) {
+        list.textContent = 'Fila vazia: compre algo na Shop';
+      } else {
+        game.queue.forEach((job, i) => {
+          const row = document.createElement('div');
+          row.className = 'pj-row';
+          row.style = 'display:flex;align-items:center;justify-content:space-between;gap:6px;padding:2px 0;';
+          const item = itemById(job.id);
+          row.append(document.createTextNode(`${i ? `${i + 1}.` : '▶'} ${item?.name || job.id}${job.n > 1 ? ` ×${job.n}` : ''}`));
+          const cancel = document.createElement('button');
+          cancel.textContent = '✕';
+          cancel.title = 'Cancelar esta impressão';
+          cancel.onclick = async (e) => {
+            e.stopPropagation();
+            if (i === 0) {
+              if (!confirm('Cancelar a impressão em curso?')) return;
+            }
+            const c = game.queue[i];
+            if (!c) return;
+            if (i > 0) {
+              // Waiting job: refund coins (half? whole?). Refund full item value.
+              const it = itemById(c.id);
+              this.app.sound.play('cancel');
+              game.coins += (it?.price || 0) * (c.n || 1);
+              game.queue.splice(i, 1);
+              game.changed();
+              app.gains?.show(`-${it?.price * c.n}`, 'loss', 'Impressão cancelada');
+            } else {
+              // current: remove and let pet restart
+              const it = itemById(c.id);
+              this.app.sound.play('cancel');
+              game.coins += (it?.price || 0) * (c.n || 1);
+              game.queue.shift();
+              game.changed();
+            }
+            this.app.uiChanged?.();
+            render();
+          };
+          row.append(cancel);
+          list.append(row);
+        });
+      }
+      menu.append(list);
+    };
+    render();
   }
 
   // A print is ready: she drops what she's doing and goes to get it (running if she has energy).

@@ -322,8 +322,10 @@ export class Game {
 
   // Placed furniture and fun stuff (not broken, minus the printer): +6% coins each, up to x2.
   decorBonus() {
-    const n = Object.entries(this.toys).filter(([k, t]) => t.placed && !t.broken && baseId(k) !== 'impressora').length;
-    return 1 + Math.min(1, n * 0.06);
+    const placed = Object.entries(this.toys).filter(([k, t]) => t?.placed && !t.broken && baseId(k) !== 'impressora');
+    const upgraded = placed.filter(([k, t]) => t?.up).length;
+    const n = placed.length;
+    return 1 + Math.min(1.5, n * 0.06 + upgraded * 0.08);
   }
 
   load(save) {
