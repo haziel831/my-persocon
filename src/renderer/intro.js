@@ -303,6 +303,10 @@ export class Intro {
         app.game.coins = 5000;
         app.game.changed();
         await app.game.persist?.();
+        app.sound?.sfx?.('levelup', 1);
+      } else {
+        app.setOption('debug', false);
+        app.setOption('debugUnlocked', false);
       }
       app.game.changed?.();
       if (unit !== current) {
