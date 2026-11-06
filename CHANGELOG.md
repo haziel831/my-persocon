@@ -9,6 +9,7 @@ A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
 ## v1.9.3 — 04/11/2026
 Log com merge de linhas iguais; menu da bandeja com "mostrar app"; status negativos mais longos; tabelas de assets/status em Assets.
+Estante renomeada e nova Gaming Shelf para cartuchos (substitui a bolsa, guarda portáteis no topo, upgrade Pro e lista de conteúdo ao clicar).
 Detalhes em `ChangeLogs\v1.9.3.md`.
 
 ## v1.9.2 — 04/11/2026

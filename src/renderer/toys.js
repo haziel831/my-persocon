@@ -4,9 +4,9 @@ import { itemById, TASTE_RANK, HER_BAG } from './game.js';
 import { DIFFICULTIES } from './behavior.js';
 import { icon, cartridge } from './pixel.js';
 import { GAMES } from './games.js';
-import { FURN, BALLS, CONSOLES, Furniture, baseId, PRINT_AREA } from './furniture.js';
+import { FURN, BALLS, CONSOLES, Furniture, baseId, PRINT_AREA, MANGAS, MANGA_GENRES } from './furniture.js';
 import { Casino } from './casino.js';
-import { GACHA_PRICE, STYLES, pickStyle } from './casinoitems.js';
+import { GACHA_PRICE, STYLES, pickStyle, figureById } from './casinoitems.js';
 import { FunToys, FUN_SIZE } from './funtoys.js';
 import { UPGRADES, upgradeCost, upSize, upRatio, upIcon } from './upgrades.js';
 import { upgradeFx } from './upgradefx.js';
@@ -327,6 +327,8 @@ export class Toys {
       else btn('📺 Assistir na TV…', () => setTimeout(() => tw?.panel(x, y), 0));
       if (game.cartridges.length) btn('🎮 Chamar para jogar na TV', () => this.callTv());
     }
+    if (baseId(id) === 'estante' && t) btn('📚 Ver conteúdo da estante', () => this.showShelfContents(id));
+    if (baseId(id) === 'estante_cartuchos' && t) btn('🕹 Ver conteúdo da Gaming Shelf', () => this.showShelfContents(id));
     if (baseId(id) === 'estante' && t && !t.broken) {
       const list = this.furn.shelves().get(id) || [];
       if (list.some((e) => e.manga)) btn('📖 Chamar para ler mangá', () => this.callFurn(id, 'manga'));
@@ -2253,6 +2255,8 @@ export class Toys {
       }
       const single = () => {
         if (!game.toys[id]) return;
+        const sb = baseId(id);
+        if (sb === 'estante' || sb === 'estante_cartuchos') return this.showShelfContents(id);
         if (id === 'alvo' && !game.toys[id].broken) return this.furn.startTargetGame();
         if (this.casino.owns(id) && !game.toys[id].broken) return this.casino.click(id, ev.clientX, ev.clientY);
         if (id === 'banheira' && !game.toys[id].broken) {
@@ -2289,6 +2293,7 @@ export class Toys {
   }
 
   toggleBag() {
+    if (this.app.game.hasGamingShelf?.()) return;
     if (this.popup) return this.closeBag();
     const { game, sound } = this.app;
     const el = document.createElement('div');
@@ -2326,12 +2331,96 @@ export class Toys {
     this.app.uiChanged();
   }
 
+  // Shelf contents as a list: owned titles/cartridges by name, locked ones as "???".
+  // Any click closes it (an owned cartridge row equips that cartridge first).
+  showShelfContents(id) {
+    this.closeShelf();
+    const { game, sound } = this.app;
+    const b = baseId(id);
+    const kind = this.furn.shelfKind(id);
+    const en = this.app.config.lang === 'en';
+    const el = document.createElement('div');
+    el.className = 'shelf-pop hitzone';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = (game.toys[id]?.up && UPGRADES[b]?.name) || itemById(b)?.name || b;
+    const info = document.createElement('div');
+    info.className = 'shelf-info';
+    const used = this.furn.shelfList(id).reduce((a, e) => a + (e.figure ? 2 : 1), 0);
+    info.textContent = `${en ? 'Used' : 'Ocupado'}: ${used}/${this.furn.shelfCapacity(id)} · ${en ? 'click anywhere to close' : 'clique em qualquer lugar para fechar'}`;
+    const list = document.createElement('div');
+    list.className = 'shelf-rows';
+    const mkRow = (owned, text, cart) => {
+      const r = document.createElement('div');
+      r.className = `shelf-row ${owned ? 'owned' : 'unknown'}`;
+      r.textContent = `${owned ? '•' : '?'} ${text}`;
+      if (cart) {
+        r.dataset.cart = cart;
+        r.title = en ? 'Use this cartridge' : 'Usar este cartucho';
+        if (game.cartridge === cart) r.classList.add('active');
+      }
+      return r;
+    };
+    if (kind === 'cart') {
+      for (const [gid, g] of Object.entries(GAMES)) {
+        const own = (game.cartridges || []).includes(gid);
+        list.append(mkRow(own, own ? g.name : '???', own ? gid : null));
+      }
+      const seenConsoles = ['gameboy', 'gamegear', 'psp'].filter((c) => game.toys[c] || game.count(c) > 0);
+      if (seenConsoles.length) {
+        const h = document.createElement('div');
+        h.className = 'shelf-sub';
+        h.textContent = en ? 'Consoles on top' : 'Consoles no topo';
+        list.append(h);
+        for (const c of seenConsoles) list.append(mkRow(true, itemById(c)?.name || c));
+      }
+    } else {
+      for (const m of MANGAS) {
+        const own = (game.mangas || []).includes(m.id);
+        list.append(mkRow(own, own ? `${m.title} vol. ${m.vol}` : `??? · ${MANGA_GENRES[m.genre].label}`));
+      }
+      const figs = (game.figures || []).map((fid) => figureById(fid)).filter(Boolean);
+      if (figs.length) {
+        const h = document.createElement('div');
+        h.className = 'shelf-sub';
+        h.textContent = en ? 'Figures' : 'Miniaturas';
+        list.append(h);
+        for (const f of figs) list.append(mkRow(true, f.name));
+      }
+    }
+    el.append(title, info, list);
+    document.body.append(el);
+    this.shelfPopup = el;
+    sound.play('blip', { volume: 0.45 });
+    const onDown = (ev) => {
+      const cart = ev?.target?.closest?.('[data-cart]')?.dataset.cart;
+      if (cart) {
+        game.cartridge = cart;
+        game.changed();
+        if (this.screen?.game) this.screen.start(cart);
+        sound.play('ok', { volume: 0.4 });
+      }
+      this.closeShelf();
+    };
+    this.shelfOff = onDown;
+    setTimeout(() => { if (this.shelfPopup === el) window.addEventListener('pointerdown', onDown, true); }, 0);
+    this.app.uiChanged();
+  }
+
+  closeShelf() {
+    if (this.shelfOff) window.removeEventListener('pointerdown', this.shelfOff, true);
+    this.shelfOff = null;
+    this.shelfPopup?.remove();
+    this.shelfPopup = null;
+    this.app.uiChanged();
+  }
+
   // Whether (x, y) is over a toy (makes the click-through overlay clickable there).
   hit(x, y) {
     if (this.furn.hit?.(x, y)) return true;
     const pass = this.passing;
     if (pass && performance.now() > pass.until) this.passing = null;
-    for (const el of [...this.els.values(), ...this.parcels.values(), this.popup, this.menuEl]) {
+    for (const el of [...this.els.values(), ...this.parcels.values(), this.popup, this.menuEl, this.shelfPopup]) {
       if (!el || el.style.display === 'none') continue;
       const r = el.getBoundingClientRect();
       // After a click went through, the piece stays see-through until the cursor leaves it
@@ -2364,9 +2453,28 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       game.dirty = true;
     }
     const seen = new Set();
+    // Portable consoles rest on top of the Gaming Shelf (and follow it when it moves).
+    const gshelf = Object.keys(game.toys)
+      .filter((k) => baseId(k) === 'estante_cartuchos' && game.toys[k].placed)
+      .sort((a, b) => (Number(a.split('#')[1]) || 1) - (Number(b.split('#')[1]) || 1))[0];
+    if (gshelf) {
+      const sw = this.size(gshelf);
+      let ci = 0;
+      for (const cid of Object.keys(CONSOLES)) {
+        if (cid === 'gameboy') continue; // GameBuddy stays on the desktop next to the printer
+        const ct = game.toys[cid];
+        if (!ct?.placed || ct.broken) continue;
+        if (!ct.on || baseId(ct.on) !== 'estante_cartuchos') {
+          ct.on = gshelf;
+          ct.dx = (ci - 1) * sw * 0.24;
+          ct.y = undefined;
+        }
+        ci++;
+      }
+    }
     const list = Object.entries(game.toys).filter(([id, t]) => t.placed && !BALLS[id] && id !== 'pelucia' && this.here(t));
-    // Cartridge bag: show whenever she owns any cartridge (always keep on-screen).
-    if (game.bag || game.cartridges?.length) {
+    // Cartridge bag: only without a Gaming Shelf (the shelf is the cartridge storage).
+    if (!game.hasGamingShelf?.() && (game.bag || game.cartridges?.length)) {
       game.bag = true;
       let bx = game.bagX ?? this.bagX();
       if (!Number.isFinite(bx) || bx < this.P * 0.15 || bx > W - this.P * 0.15) {

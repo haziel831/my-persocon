@@ -6,6 +6,9 @@ export const CHANGES = [
     ['Status fixo: menu direito com "Mostrar app de novo"', 'Dock: right-click now includes "Show app again"'],
     ['Status negativos duram mais (30 min / 1 h por gravidade)', 'Negative statuses last longer (30 min / 1 h by severity)'],
     ['Tabelas de assets e consumíveis em Assets/', 'Asset/consumables tables in Assets/'],
+    ['Estante renomeada para "Estante" e novo "Gaming Shelf" com gráfico próprio e upgrade (Gaming Shelf Pro)', '"Estante" renamed and new "Gaming Shelf" with its own art and upgrade (Gaming Shelf Pro)'],
+    ['Gaming Shelf substitui a bolsa de cartuchos e guarda os portáteis no topo', 'Gaming Shelf replaces the cartridge bag and keeps the handhelds on top'],
+    ['Clique na estante para ver o conteúdo em lista (nomes possuídos e "???" nos desconhecidos)', 'Click a shelf to list its contents (owned names and "???" for the unknown ones)'],
   ]],
   ['1.9.2', [
     ['Log: moedas ganhas/perdidas com a fonte (corvo, slot, venda, renda)', 'Log: coins earned/lost with source'],

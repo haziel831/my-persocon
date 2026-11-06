@@ -4,7 +4,7 @@ import { icon, defineIcons, cartridge } from './pixel.js';
 import { GACHA_PRICE, figureById, paintFigure } from './casinoitems.js';
 import { upIcon, upSize, ARCADE_SCREEN } from './upgrades.js';
 import { ArcadeShooter } from './arcadeshooter.js';
-import { crtFilter } from './games.js';
+import { crtFilter, GAMES } from './games.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -222,8 +222,9 @@ export const FURN_ITEMS = [
   item('videogame', 'mobilia', 'VideoGame (TV + console)', 450, 'tvset', { furn: true, gain: { mood: 0.5 }, note: 'Senta de frente para a TV e joga qualquer cartucho · come pipoca e bebe refri enquanto joga' }),
   item('almofada', 'mobilia', 'Almofada', 90, 'almofada', { furn: true, gain: { mood: 0.2, energy: 0.12 }, note: 'Senta para descansar e brincar' }),
   item('banheira', 'mobilia', 'Banheira', 320, 'tub', { furn: true, gain: { hygiene: 6, mood: 0.3, energy: 0.05 }, note: 'Toma banho de espuma sozinha quando está suja · clique para mandar tomar banho' }),
-  item('estante', 'mobilia', 'Estante de Mangás', 250, 'estante_icon', { furn: true, decor: true, noWear: true, note: 'Guarda 65 mangás ou 30 bonecos colecionáveis · pode ter várias · a Persocon lê e brinca sozinha' }),
-  item('estante_cartuchos', 'mobilia', 'Estante de Cartuchos', 250, 'estante_icon', { furn: true, decor: true, noWear: true, note: 'Guarda cartuchos do GameBuddy/Consoles · aceita só cartuchos · mesmo gráfico da Estante de Mangás' }),  item('gacha', 'mobilia', 'Gacha-Machine', 600, 'gacha_icon', { furn: true, noWear: true, note: `Clique para girar (¥ ${GACHA_PRICE}, você paga) · ela também gira sozinha com a carteira dela · cápsulas Comum, Incomum, Rara e Épica: moedas (para você), comidas, bebidas e bonecos colecionáveis` }),
+  item('estante', 'mobilia', 'Estante', 250, 'estante_icon', { furn: true, decor: true, noWear: true, note: 'Guarda 65 mangás ou 30 bonecos colecionáveis · pode ter várias · a Persocon lê e brinca sozinha' }),
+  item('estante_cartuchos', 'mobilia', 'Gaming Shelf', 250, 'estante_cart_icon', { furn: true, decor: true, noWear: true, note: 'Guarda cartuchos e os portáteis no topo · aceita só cartuchos · com ela a bolsa de cartuchos some · clique para ver a lista' }),
+  item('gacha', 'mobilia', 'Gacha-Machine', 600, 'gacha_icon', { furn: true, noWear: true, note: `Clique para girar (¥ ${GACHA_PRICE}, você paga) · ela também gira sozinha com a carteira dela · cápsulas Comum, Incomum, Rara e Épica: moedas (para você), comidas, bebidas e bonecos colecionáveis` }),
   item('slot', 'mobilia', 'Slot-Machine', 800, 'slot_icon', { furn: true, noWear: true, note: 'Ela aposta as moedas da carteira dela · os ganhos vão para você · clique para pedir uma rodada · a sorte vem da Afeição' }),
   item('venda_comida', 'mobilia', 'Vending Machine de Comida', 2200, 'vend_comida_icon', { furn: true, noWear: true, note: 'Máquina japonesa · com fome, a Persocon compra sozinha, com a carteira dela, uma comida favorita, de que gosta ou neutra (preço da loja +20%) e come na hora · clique para pedir que ela compre' }),
   item('venda_bebida', 'mobilia', 'Vending Machine de Bebida', 1600, 'vend_bebida_icon', { furn: true, noWear: true, note: 'Máquina japonesa · com sede, a Persocon compra sozinha, com a carteira dela, uma bebida favorita, de que gosta ou neutra (preço da loja +20%) e bebe na hora · clique para pedir que ela compre' }),
@@ -250,6 +251,22 @@ export const FURN_ITEMS = [
   })),
 ];
 
+defineIcons({
+  estante_cart_icon: (sprite) => sprite(24, 30, ({ rect }) => {
+    rect(0, 0, 24, 30, '#262633'); rect(1, 1, 22, 28, '#14141c');
+    rect(0, 0, 24, 1, '#5ef0ff'); rect(23, 1, 1, 28, '#5ef0ff'); rect(0, 29, 24, 1, '#ff3ea5'); rect(0, 1, 1, 28, '#ff3ea5');
+    for (let r = 0; r < 4; r++) {
+      rect(1, 7 + r * 7, 22, 1, r % 2 ? '#ff7ac8' : '#7af4ff');
+      rect(1, 8 + r * 7, 22, 1, '#22222c');
+    }
+    ['#e94b6a', '#4c8ef0', '#7bd35a', '#ffa53a', '#ffd23f'].forEach((c, i) => {
+      const x = 3 + i * 4;
+      rect(x, 2, 3, 5, '#9a98a4');
+      rect(x, 2, 3, 1, '#bdbbc6');
+      rect(x + 1, 3, 1, 3, c);
+    });
+  }),
+});
 defineIcons({ estante_icon: (sprite) => sprite(24, 30, ({ rect }) => {
   rect(0, 0, 24, 30, '#8a5a2b'); rect(1, 1, 22, 28, '#5a3818');
   for (let r = 0; r < 4; r++) rect(1, 7 + r * 7, 22, 1, '#8a5a2b');
@@ -299,7 +316,7 @@ export class Furniture {
   }
 
   art(id, key = id) {
-    if (id === 'estante') return this.shelfImage(key);
+    if (id === 'estante' || id === 'estante_cartuchos') return this.shelfImage(key);
     if (this.toys.casino?.owns(id)) return this.toys.casino.art(id);
     return upIcon(id, this.app.game.toys[key]) || (this.toys.fun?.owns(id) ? this.toys.fun.art(id) : null);
   }
@@ -318,12 +335,23 @@ export class Furniture {
     return this.app.game.toys[key]?.up ? [6, 15] : [SHELF_ROWS, SHELF_COLS];
   }
 
-  // Placed shelves in order ("estante", "estante#2"…) and what each one holds: mangás first, then
+  shelfKind(key) {
+    return baseId(key) === 'estante_cartuchos' ? 'cart' : 'manga';
+  }
+
+  shelfKeys(kind) {
+    const { game } = this.app;
+    const base = kind === 'cart' ? 'estante_cartuchos' : 'estante';
+    return Object.keys(game.toys)
+      .filter((k) => baseId(k) === base && game.toys[k].placed)
+      .sort((a, b) => (Number(a.split('#')[1]) || 1) - (Number(b.split('#')[1]) || 1));
+  }
+
+  // Placed manga shelves in order ("estante", "estante#2"…) and what each one holds: mangás first, then
   // the figures, filling row by row ({ manga | figure, row, col }).
   shelves() {
     const { game } = this.app;
-    const keys = Object.keys(game.toys).filter((k) => baseId(k) === 'estante' && game.toys[k].placed)
-      .sort((a, b) => (Number(a.split('#')[1]) || 1) - (Number(b.split('#')[1]) || 1));
+    const keys = this.shelfKeys('manga');
     const out = new Map(keys.map((k) => [k, []]));
     let s = 0;
     let row = 0;
@@ -349,22 +377,72 @@ export class Furniture {
     return out;
   }
 
+  // Placed gaming shelves and the cartridges each one holds (one slot per cartridge).
+  cartShelves() {
+    const { game } = this.app;
+    const keys = this.shelfKeys('cart');
+    const out = new Map(keys.map((k) => [k, []]));
+    let s = 0;
+    let row = 0;
+    let col = 0;
+    for (const id of game.cartridges || []) {
+      if (s >= keys.length) break;
+      const [rows, cols] = this.shelfDims(keys[s]);
+      if (col >= cols) {
+        row++;
+        col = 0;
+      }
+      if (row >= rows) {
+        s++;
+        row = 0;
+        col = 0;
+      }
+      if (s >= keys.length) break;
+      out.get(keys[s]).push({ cart: id, row, col });
+      col++;
+    }
+    return out;
+  }
+
+  shelfList(key) {
+    return this.shelfKind(key) === 'cart'
+      ? this.cartShelves().get(key) || []
+      : this.shelves().get(key) || [];
+  }
+
+  shelfCapacity(key) {
+    const [rows, cols] = this.shelfDims(key);
+    return rows * cols;
+  }
+
   shelfImage(key) {
-    const list = this.shelves().get(key) || [];
+    const kind = this.shelfKind(key);
+    const list = this.shelfList(key);
     const up = !!this.app.game.toys[key]?.up;
-    const sig = (up ? '+' : '') + list.map((e) => `${e.manga || e.figure}@${e.row}.${e.col}`).join(',');
+    const sig = `${kind}${up ? '+' : ''}${list.map((e) => `${e.manga || e.figure || e.cart}@${e.row}.${e.col}`).join(',')}`;
     this.shelfArt ||= new Map();
     const cached = this.shelfArt.get(key);
     if (cached?.sig === sig) return cached.url;
     const [rows, cols] = this.shelfDims(key);
     const W = 6 + cols * 7;
     const H = 3 + rows * 23;
-    const name = `estante${up ? 'up' : ''}_${list.length}_${Math.abs([...sig].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7))}`;
-    // 97x118: 13 columns of 7 px and rows 21 px tall, so a figure is drawn pixel by pixel like its icon.
-    // Upgraded: 111x141 (15x6), the same wood with neon edges and a LED under each shelf.
+    const name = `shelf_${kind}${up ? 'up' : ''}_${list.length}_${Math.abs([...sig].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7))}`;
+    // Manga shelf: wood. Gaming shelf: graphite metal with neon strips. Same grid as before.
     defineIcons({ [name]: (sprite) => sprite(W, H, (p) => {
       const { rect } = p;
-      if (up) {
+      if (kind === 'cart') {
+        const frame = up ? '#221536' : '#262633';
+        const inner = up ? '#120c24' : '#14141c';
+        rect(0, 0, W, H, frame); rect(2, 2, W - 4, H - 4, inner);
+        rect(0, 0, W, 1, up ? '#5ef0ff' : '#5a5a70'); rect(0, H - 1, W, 1, up ? '#ff3ea5' : '#3a3a48');
+        rect(0, 1, 1, H - 2, up ? '#ff3ea5' : '#4a4a5a'); rect(W - 1, 1, 1, H - 2, up ? '#5ef0ff' : '#4a4a5a');
+        for (let r = 0; r < rows; r++) {
+          const y = 2 + r * 23;
+          rect(2, y, W - 4, 1, up ? '#7af4ff' : '#3a3a48');
+          rect(2, y + 21, W - 4, 2, up ? '#2c2048' : '#22222c');
+          rect(2, y + 21, W - 4, 1, up ? (r % 2 ? '#ff7ac8' : '#7af4ff') : '#3a3a48');
+        }
+      } else if (up) {
         rect(0, 0, W, H, '#8a5a2b'); rect(2, 2, W - 4, H - 4, '#5a3818'); rect(0, 0, W, 1, '#5ef0ff'); rect(0, H - 1, W, 1, '#ff3ea5');
         rect(0, 1, 1, H - 2, '#ff3ea5'); rect(W - 1, 1, 1, H - 2, '#5ef0ff');
         for (let r = 0; r < rows; r++) {
@@ -391,7 +469,19 @@ export class Furniture {
           rect(x + 1, top + 2, 5, 2, hsl(m.hue, 70, 75));
           rect(x + 2, top + 6, 3, 4, '#f4f1ea');
           rect(x + 1, top + h - 2, 5, 1, hsl(m.hue, 60, 35));
-        } else if (e.figure && figureById(e.figure)) paintFigure(e.figure, p, x, y + 1);
+        } else if (e.figure && figureById(e.figure)) {
+          paintFigure(e.figure, p, x, y + 1);
+        } else if (e.cart && GAMES[e.cart]) {
+          // Cartridge standing on the board: body + the game's colored label.
+          const col = GAMES[e.cart].color || '#888';
+          const body = up ? '#22222c' : '#9a98a4';
+          const top = y + 6;
+          rect(x + 1, top, 5, 14, body);
+          rect(x + 1, top, 5, 1, up ? '#5a5a70' : '#bdbbc6');
+          rect(x + 2, top + 2, 3, 8, col);
+          rect(x + 2, top + 10, 3, 2, up ? '#3a3a48' : '#6d6b78');
+          rect(x + 2, top + 13, 3, 1, up ? '#111' : '#4a4852');
+        }
       }
     }) });
     const url = icon(name);
@@ -404,6 +494,7 @@ export class Furniture {
     const b = baseId(id);
     if (FURN[b]?.disco || id === 'impressora') return false;
     if (b === 'estante') return (this.shelves().get(id) || []).length > 0;
+    if (b === 'estante_cartuchos') return false;
     if (id === 'videogame') return this.app.game.cartridges.length > 0;
     if (this.toys.casino?.owns(id)) return this.toys.casino.usable(id);
     if (this.toys.fun?.owns(b)) return this.toys.fun.usable(b);
@@ -469,6 +560,7 @@ export class Furniture {
     }
     if (this.toys.casino?.owns(id)) return this.toys.casino.play(id, pet, end);
     if (baseId(id) === 'estante') return this.playShelf(id, pet, end);
+    if (baseId(id) === 'estante_cartuchos') return false;
     if (id === 'alvo' && game.toys.alvo?.up) {
       const t = game.toys.alvo;
       pet.playToy({

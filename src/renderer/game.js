@@ -257,7 +257,7 @@ export function effectText(item) {
   if (item.rarity && (item.loot || isPowerUp(item))) parts.push(`★ ${RARITIES[item.rarity]?.label || item.rarity}`);
   if (item.loot && item.note) parts.push(item.note);
   if (item.toy) parts.push('Coloque na área de trabalho');
-  if (item.cart) parts.push(`Vai para a bolsa de cartuchos (GameBuddy, GameGlow, PlayPocket e TV) · complexidade ${'★'.repeat(GAMES[item.cart]?.tier || 1)}`);
+  if (item.cart) parts.push(`Vai para a Gaming Shelf (ou para a bolsa de cartuchos, sem ela) · complexidade ${'★'.repeat(GAMES[item.cart]?.tier || 1)}`);
   if ((item.toy || item.manga) && item.note) parts.push(item.note);
   if (item.watchOnly) parts.push('Petisco de sessão · assistindo ou jogando na TV ela prefere este');
   if (item.gear) parts.push(item.note || 'A Persocon guarda e usa sozinha: alcança lugares altos, puxa coisas e pega o mouse');
@@ -515,7 +515,7 @@ export class Game {
     if (!t && (this.count('gameboy') > 0 || i >= 0)) {
       t = this.toys.gameboy = { uses: 0, maxUses: 20 + Math.floor(Math.random() * 31), broken: false, placed: false, x: null };
     }
-    if (this.cartridges?.length) this.bag = true;
+    if (this.cartridges?.length && !this.hasGamingShelf()) this.bag = true;
     if (!t) return;
     if (this.count('gameboy') > 0) this.take('gameboy');
     if (!t.placed || t.x == null) {
@@ -622,6 +622,14 @@ export class Game {
 
   hasShelf() {
     return this.count('estante') > 0 || Object.keys(this.toys).some((k) => baseId(k) === 'estante');
+  }
+
+  // The gaming shelf replaces the cartridge bag — even while it is still being printed/placed.
+  hasGamingShelf() {
+    return this.count('estante_cartuchos') > 0
+      || Object.keys(this.toys).some((k) => baseId(k) === 'estante_cartuchos')
+      || (this.deliveries || []).some((d) => d.id === 'estante_cartuchos')
+      || (this.queue || []).some((j) => j.id === 'estante_cartuchos');
   }
 
   // Coins handed to the Persocon's own wallet (spent by her at the Gacha and the Slot): Humor and
@@ -741,7 +749,7 @@ export class Game {
       this.pet.gear = this.gear;
     } else if (item.cart) {
       if (!this.cartridges.includes(item.cart)) this.cartridges.push(item.cart);
-      this.bag = true;
+      if (!this.hasGamingShelf()) this.bag = true;
     } else if (item.decor) {
       this.inventory[id] = Math.min(99, this.count(id) + n);
     } else if (item.toy) {
