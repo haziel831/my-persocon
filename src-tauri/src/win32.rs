@@ -238,6 +238,29 @@ pub fn make_thread_dpi_aware() {
     }
 }
 
+/// The window in front belongs to another app and covers the whole screen of its monitor:
+/// a game in fullscreen. The mouse is its, so we must not move it or steal the focus.
+pub fn foreground_fullscreen() -> bool {
+    unsafe {
+        let fg = GetForegroundWindow();
+        if fg.is_null() {
+            return false;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(fg, &mut pid);
+        if pid == std::process::id() {
+            return false;
+        }
+        let Some(rect) = frame_rect(fg) else { return false };
+        monitors().iter().any(|m| {
+            rect.left <= m.bounds.left
+                && rect.top <= m.bounds.top
+                && rect.right >= m.bounds.right
+                && rect.bottom >= m.bounds.bottom
+        })
+    }
+}
+
 /// All monitors, primary first. Rects are physical pixels.
 pub fn monitors() -> Vec<MonitorInfo> {
     let mut list: Vec<MonitorInfo> = Vec::new();

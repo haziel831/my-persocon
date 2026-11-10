@@ -775,7 +775,8 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
             .title("My Persocon - Streamer Mode")
             .inner_size(1280.0, 720.0)
             .center()
-            .focused(true)
+            // A game in fullscreen keeps the focus: don't steal it when this window opens.
+            .focused(!win32::foreground_fullscreen())
             .build()?
     } else {
         builder
@@ -856,6 +857,10 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
 
 #[tauri::command]
 fn focus_window(window: WebviewWindow) {
+    // A game in fullscreen owns the focus (and the mouse): don't pull it away from it.
+    if win32::foreground_fullscreen() {
+        return;
+    }
     let _ = window.set_focus();
 }
 
@@ -934,6 +939,10 @@ async fn place_icon(name: String, x: i32, y: i32) -> bool {
 #[tauri::command]
 fn set_cursor(x: f64, y: f64) {
     if STREAMER.load(Ordering::Relaxed) {
+        return;
+    }
+    // A game in fullscreen owns the mouse: moving it would break the game.
+    if win32::foreground_fullscreen() {
         return;
     }
     win32::make_thread_dpi_aware();

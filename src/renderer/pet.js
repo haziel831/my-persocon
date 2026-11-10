@@ -116,7 +116,9 @@ export async function startPet(files, config) {
   if (window.__PET_TEST__) view.smoothTurn = false;
   // She asks for things she likes or hasn't tried, never for free items or ones she dislikes.
   pet.requestPool = (cat) => {
-    const list = ITEMS.filter((i) => i.cat === cat && !i.legacy && i.price > 0 && !i.watchOnly && !demoLocked(i.id) && (TASTE_RANK[game.tasteOf(i.id)] ?? 2) >= 2);
+    // Desserts are only requested when the player already owns them.
+    const owned = (i) => cat === 'sobremesas' ? game.count(i.id) > 0 : true;
+    const list = ITEMS.filter((i) => i.cat === cat && !i.legacy && i.price > 0 && !i.watchOnly && !demoLocked(i.id) && owned(i) && (TASTE_RANK[game.tasteOf(i.id)] ?? 2) >= 2);
     const fav = list.filter((i) => TASTE_RANK[game.tasteOf(i.id)] >= 3);
     const pool = fav.length && Math.random() < 0.6 ? fav : list;
     return pool[Math.floor(Math.random() * pool.length)];
@@ -239,7 +241,6 @@ export async function startPet(files, config) {
       if (key === 'voiceVolume' || key === 'voicePitch') sound.voice(3);
       if (key === 'theme') document.body.dataset.theme = value;
       if (key === 'artStyle') setArtStyle(value);
-      if (key === 'emoteTheme' || key === 'artStyle' || (key === 'theme' && config.emoteTheme === 'auto')) emoticons.reload();
       if (key === 'filter' || key === 'filterStrength') applyFilter(canvas, view, config.filter || 'nenhum', pet.P, config.filterStrength ?? 1);
       if (key === 'alwaysOnTop') api.setAlwaysOnTop?.(value).catch?.(() => {});
       if (key === 'clickThrough') refreshInteractive();
@@ -712,9 +713,9 @@ export async function startPet(files, config) {
   function showRequest(r) {
     requestEl.style.display = r ? 'block' : 'none';
     if (!r) return;
-    const src = r.img || icon({ food: 'food', drink: 'cup', pat: 'hand', play: 'ball' }[r.kind] || 'ball');
-    const text = r.label || { food: r.name || 'Comida', drink: r.name || 'Bebida', pat: 'Cafuné', play: 'Brincar' }[r.kind];
-    requestEl.innerHTML = `<img src="${src}" draggable="false"><span>${text}?</span>`;
+    const src = r.img || icon({ food: 'food', drink: 'cup', dessert: 'food', pat: 'hand', play: 'ball' }[r.kind] || 'ball');
+    const text = r.label || { food: r.name || 'Comida', drink: r.name || 'Bebida', dessert: r.name || 'Sobremesa', pat: 'Cafuné', play: 'Brincar' }[r.kind];
+    requestEl.innerHTML = `<img src="${src}" draggable="false" style="image-rendering:pixelated"><span>${text}?</span>`;
   }
 
   function countdown() {
@@ -1088,7 +1089,7 @@ api.onTrayClick?.(() => {
     const list = (pet.wishes || []).filter((w) => w.until > now);
     if (!list.length) return '';
     const en = config.lang === 'en';
-    const what = (w) => w.label || { food: w.name || (en ? 'Food' : 'Comida'), drink: w.name || (en ? 'Drink' : 'Bebida'), pat: en ? 'Head pat' : 'Cafuné', play: en ? 'Play' : 'Brincar' }[w.kind] || w.kind;
+    const what = (w) => w.label || { food: w.name || (en ? 'Food' : 'Comida'), drink: w.name || (en ? 'Drink' : 'Bebida'), dessert: w.name || (en ? 'Dessert' : 'Sobremesa'), pat: en ? 'Head pat' : 'Cafuné', play: en ? 'Play' : 'Brincar' }[w.kind] || w.kind;
     const chip = (w) => {
       const left = Math.max(1, Math.round((w.until - now) / 60000));
       const time = left >= 60 ? `${Math.floor(left / 60)}h${String(left % 60).padStart(2, '0')}` : `${left} min`;
@@ -1109,7 +1110,7 @@ api.onTrayClick?.(() => {
     if (pet.toyPlay?.id) push(pet.toyPlay.id, '🎮');
     if (pet.chase) push(en ? 'Tag' : 'Pega-pega', '🏃');
     for (const it of [pet.eating?.item, ...(pet.meals || [])].filter(Boolean)) {
-      push(it.name, it.img ? `<img src="${it.img}" alt="">` : (it.icon || '•'));
+      push(it.name, it.img ? `<img src="${it.img}" alt="" style="image-rendering:pixelated${it.tint ? `;filter:${it.tint}` : ''}">` : (it.icon || '•'));
     }
     for (const q of pet.actionQueue || []) {
       const icon = q.kind === 'sleep' ? '🌙' : q.kind === 'bath' ? '🛁' : q.kind === 'box' ? '🎁' : '⏭';
@@ -1117,7 +1118,7 @@ api.onTrayClick?.(() => {
     }
     for (const id of pet.afterPlay || []) {
       const it = itemById(id);
-      if (it) push(it.name, it.img ? `<img src="${it.img}" alt="">` : (it.icon || '•'));
+      if (it) push(it.name, it.img ? `<img src="${it.img}" alt="" style="image-rendering:pixelated${it.tint ? `;filter:${it.tint}` : ''}">` : (it.icon || '•'));
     }
     if (!chips.length) return '';
     if (pet.eating && chips.length) {
@@ -1355,6 +1356,7 @@ api.onTrayClick?.(() => {
         const img = document.createElement('img');
         img.src = foodSrc;
         img.draggable = false;
+        if (e.item.tint) img.style.filter = e.item.tint;
         foodEl.append(img);
       } else {
         const span = document.createElement('span');
@@ -1479,6 +1481,13 @@ api.onTrayClick?.(() => {
     if (uiOpen() || press) {
       document.body.classList.remove('hover');
       return setInteractive(true);
+    }
+    // Um jogo em tela cheia cobre a tela: o overlay fica transparente E devolve o mouse
+    // (senão o jogo perde o cursor). O título/intro continuam clicáveis (são .hitzone).
+    if (canvas.style.visibility === 'hidden') {
+      document.body.classList.remove('hover');
+      misses = 0;
+      return setInteractive(false);
     }
     const zone = !!cursor && [...document.querySelectorAll('.hitzone')].some((el) => {
       if (el.style.display === 'none' || (appHidden && !el.closest('.status-dock, .bag-dock, .toy-menu, .her-bag'))) return false;
