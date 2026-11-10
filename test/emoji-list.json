@@ -8,8 +8,8 @@
  {
   "s": "¥",
   "cp": "a5",
-  "n": 109,
-  "files": "casino.js,casinoitems.js,crow.js,doll.js,furniture.js,i18n.js,pet.js,rewards.js,speech.js,tips.js,toys.js,ui.js,vending.js"
+  "n": 119,
+  "files": "casino.js,casinoitems.js,changelog.js,crow.js,doll.js,furniture.js,i18n.js,pet.js,rewards.js,speech.js,tips.js,toys.js,ui.js,vending.js"
  },
  {
   "s": "…",
@@ -26,20 +26,20 @@
  {
   "s": "♥",
   "cp": "2665",
-  "n": 37,
+  "n": 40,
   "files": "antics.js,crow.js,dollai.js,funtoys.js,i18n.js,interact.js,introtext.js,pet.js,speech.js,toys.js,ui.js,watch.js"
  },
  {
   "s": "♪",
   "cp": "266a",
-  "n": 32,
-  "files": "antics.js,crow.js,dollai.js,funtoys.js,interact.js,pixel.js,speech.js,watch.js"
+  "n": 31,
+  "files": "antics.js,crow.js,dollai.js,funtoys.js,interact.js,speech.js,watch.js"
  },
  {
   "s": "❗",
   "cp": "2757",
-  "n": 29,
-  "files": "antics.js,crow.js,desktop.js,dollai.js,funtoys.js,interact.js,pet.js,rewards.js,vending.js,watch.js"
+  "n": 28,
+  "files": "antics.js,crow.js,desktop.js,dollai.js,funtoys.js,interact.js,rewards.js,vending.js,watch.js"
  },
  {
   "s": "▶",
@@ -48,40 +48,40 @@
   "files": "closeup.js,desktop.js,funtoys.js,i18n.js,intro.css,introtext.js,toys.js,tvwatch.js,ui.js"
  },
  {
-  "s": "🎮",
-  "cp": "1f3ae",
-  "n": 26,
-  "files": "crow.js,desktop.js,dollai.js,game.js,i18n.js,pet.js,pixel.js,quickmenu.js,rewards.js,toys.js,ui.js"
- },
- {
   "s": "🎒",
   "cp": "1f392",
   "n": 25,
   "files": "crow.js,i18n.js,quickmenu.js,toys.js,ui.js,vending.js"
  },
  {
+  "s": "🎮",
+  "cp": "1f3ae",
+  "n": 25,
+  "files": "crow.js,desktop.js,dollai.js,game.js,i18n.js,pet.js,quickmenu.js,rewards.js,toys.js,ui.js"
+ },
+ {
   "s": "🎁",
   "cp": "1f381",
-  "n": 23,
+  "n": 24,
   "files": "casino.js,crow.js,gains.js,i18n.js,interact.js,minigames.js,pet.js,rewards.js,speech.js,toys.js,ui.js"
  },
  {
   "s": "😵",
   "cp": "1f635",
-  "n": 21,
-  "files": "behavior.js,dollai.js,i18n.js,interact.js,pixel.js,toys.js,watch.js"
- },
- {
-  "s": "✓",
-  "cp": "2713",
-  "n": 21,
-  "files": "crow.js,i18n.js,pet.js,pixel.js,rewards.js,ui.js"
+  "n": 20,
+  "files": "behavior.js,dollai.js,i18n.js,interact.js,toys.js,watch.js"
  },
  {
   "s": "📦",
   "cp": "1f4e6",
   "n": 20,
   "files": "crow.js,i18n.js,minigames.js,toys.js,ui.js"
+ },
+ {
+  "s": "✓",
+  "cp": "2713",
+  "n": 20,
+  "files": "crow.js,i18n.js,pet.js,rewards.js,ui.js"
  },
  {
   "s": "🎵",
@@ -92,8 +92,8 @@
  {
   "s": "🔥",
   "cp": "1f525",
-  "n": 17,
-  "files": "dollai.js,funtoys.js,i18n.js,minigames.js,pixel.js,rewards.js,toys.js"
+  "n": 16,
+  "files": "dollai.js,funtoys.js,i18n.js,minigames.js,rewards.js,toys.js"
  },
  {
   "s": "⏹",
@@ -108,12 +108,6 @@
   "files": "behavior.js,i18n.js,minigames.js,pet.js,ui.js"
  },
  {
-  "s": "🐟",
-  "cp": "1f41f",
-  "n": 15,
-  "files": "crow.js,dollai.js,funtoys.js,game.js,i18n.js,minigames.js,rewards.js"
- },
- {
   "s": "😆",
   "cp": "1f606",
   "n": 15,
@@ -126,22 +120,22 @@
   "files": "dollai.js,funtoys.js,i18n.js,rewards.js,ui.js"
  },
  {
+  "s": "✕",
+  "cp": "2715",
+  "n": 14,
+  "files": "arcadeshooter.js,debugconsole.js,furniture.js,i18n.js,minigames.js,pet.js,toys.js,ui.js"
+ },
+ {
   "s": "💰",
   "cp": "1f4b0",
   "n": 14,
   "files": "casino.js,crow.js,gains.js,i18n.js,minigames.js,rewards.js,ui.js"
  },
  {
-  "s": "😊",
-  "cp": "1f60a",
+  "s": "🐟",
+  "cp": "1f41f",
   "n": 14,
-  "files": "dollai.js,game.js,pet.js,pixel.js"
- },
- {
-  "s": "😮",
-  "cp": "1f62e",
-  "n": 14,
-  "files": "dollai.js,funtoys.js,i18n.js,minigames.js,pixel.js,watch.js"
+  "files": "crow.js,dollai.js,funtoys.js,i18n.js,minigames.js,rewards.js"
  },
  {
   "s": "❓",
@@ -150,10 +144,16 @@
   "files": "antics.js,casino.js,crow.js,desktop.js,dollai.js,funtoys.js"
  },
  {
-  "s": "✕",
-  "cp": "2715",
+  "s": "😊",
+  "cp": "1f60a",
   "n": 13,
-  "files": "arcadeshooter.js,debugconsole.js,furniture.js,i18n.js,minigames.js,pet.js,ui.js"
+  "files": "dollai.js,game.js,pet.js"
+ },
+ {
+  "s": "😮",
+  "cp": "1f62e",
+  "n": 13,
+  "files": "dollai.js,funtoys.js,i18n.js,minigames.js,watch.js"
  },
  {
   "s": "💤",
@@ -210,12 +210,6 @@
   "files": "casino.js,crow.js,pet.js,rewards.js,toys.js"
  },
  {
-  "s": "🍙",
-  "cp": "1f359",
-  "n": 10,
-  "files": "crow.js,dollai.js,game.js,pet.js,rewards.js,toys.js,ui.js,vending.js"
- },
- {
   "s": "💢",
   "cp": "1f4a2",
   "n": 10,
@@ -238,12 +232,6 @@
   "cp": "1f3b2",
   "n": 10,
   "files": "i18n.js,rewards.js,tvwatch.js,ui.js"
- },
- {
-  "s": "♫",
-  "cp": "266b",
-  "n": 9,
-  "files": "antics.js,dollai.js,funtoys.js,interact.js,pixel.js,ui.js"
  },
  {
   "s": "🎯",
@@ -282,22 +270,22 @@
   "files": "antics.js,casino.js,dollai.js,funtoys.js,toys.js"
  },
  {
+  "s": "♫",
+  "cp": "266b",
+  "n": 8,
+  "files": "antics.js,dollai.js,funtoys.js,interact.js,ui.js"
+ },
+ {
   "s": "💥",
   "cp": "1f4a5",
   "n": 8,
   "files": "behavior.js,dollai.js,i18n.js,minigames.js,toys.js"
  },
  {
-  "s": "🥤",
-  "cp": "1f964",
+  "s": "🍙",
+  "cp": "1f359",
   "n": 8,
-  "files": "crow.js,game.js,minigames.js,pixel.js,rewards.js,toys.js,vending.js"
- },
- {
-  "s": "🎶",
-  "cp": "1f3b6",
-  "n": 8,
-  "files": "crow.js,funtoys.js,interact.js,minigames.js,pixel.js,rewards.js"
+  "files": "crow.js,dollai.js,game.js,pet.js,rewards.js,toys.js,vending.js"
  },
  {
   "s": "📷",
@@ -318,16 +306,16 @@
   "files": "i18n.js,ui.js"
  },
  {
-  "s": "💧",
-  "cp": "1f4a7",
-  "n": 7,
-  "files": "behavior.js,crow.js,game.js,interact.js,pet.js"
- },
- {
   "s": "⏰",
   "cp": "23f0",
   "n": 7,
   "files": "closeup.js,lootitems.js,ui.js"
+ },
+ {
+  "s": "📚",
+  "cp": "1f4da",
+  "n": 7,
+  "files": "crow.js,dollai.js,game.js,i18n.js,rewards.js,toys.js"
  },
  {
   "s": "💨",
@@ -336,16 +324,16 @@
   "files": "crow.js,dollai.js,interact.js,rewards.js,toys.js,watch.js"
  },
  {
+  "s": "🎶",
+  "cp": "1f3b6",
+  "n": 7,
+  "files": "crow.js,funtoys.js,interact.js,minigames.js,rewards.js"
+ },
+ {
   "s": "👀",
   "cp": "1f440",
   "n": 7,
   "files": "dollai.js,interact.js,watch.js"
- },
- {
-  "s": "✊",
-  "cp": "270a",
-  "n": 7,
-  "files": "game.js,minigames.js,pet.js,pixel.js"
  },
  {
   "s": "↑",
@@ -360,10 +348,10 @@
   "files": "i18n.js,minigames.js"
  },
  {
-  "s": "💔",
-  "cp": "1f494",
-  "n": 7,
-  "files": "i18n.js,minigames.js,pixel.js"
+  "s": "💧",
+  "cp": "1f4a7",
+  "n": 6,
+  "files": "behavior.js,crow.js,interact.js,pet.js"
  },
  {
   "s": "🔧",
@@ -372,28 +360,22 @@
   "files": "crow.js,i18n.js,rewards.js,ui.js"
  },
  {
+  "s": "🥤",
+  "cp": "1f964",
+  "n": 6,
+  "files": "crow.js,game.js,minigames.js,rewards.js,toys.js,vending.js"
+ },
+ {
   "s": "🔫",
   "cp": "1f52b",
   "n": 6,
   "files": "crow.js,i18n.js,rewards.js,toys.js"
  },
  {
-  "s": "⚽",
-  "cp": "26bd",
-  "n": 6,
-  "files": "dollai.js,interact.js,pixel.js"
- },
- {
   "s": "👋",
   "cp": "1f44b",
   "n": 6,
   "files": "dollai.js,interact.js,watch.js"
- },
- {
-  "s": "😂",
-  "cp": "1f602",
-  "n": 6,
-  "files": "dollai.js,i18n.js,interact.js,minigames.js,pixel.js"
  },
  {
   "s": "🥚",
@@ -420,6 +402,12 @@
   "files": "funtoys.js,introtext.js,tips.js,ui.js"
  },
  {
+  "s": "✊",
+  "cp": "270a",
+  "n": 6,
+  "files": "game.js,minigames.js,pet.js"
+ },
+ {
   "s": "🗿",
   "cp": "1f5ff",
   "n": 6,
@@ -444,22 +432,16 @@
   "files": "i18n.js,lootitems.js,minigames.js,vending.js,watch.js"
  },
  {
+  "s": "💔",
+  "cp": "1f494",
+  "n": 6,
+  "files": "i18n.js,minigames.js"
+ },
+ {
   "s": "📅",
   "cp": "1f4c5",
   "n": 6,
   "files": "i18n.js,pet.js,rewards.js,ui.js"
- },
- {
-  "s": "😴",
-  "cp": "1f634",
-  "n": 5,
-  "files": "behavior.js,i18n.js,pixel.js,toys.js"
- },
- {
-  "s": "😤",
-  "cp": "1f624",
-  "n": 5,
-  "files": "behavior.js,dollai.js,interact.js,pixel.js,toys.js"
  },
  {
   "s": "💗",
@@ -474,6 +456,12 @@
   "files": "crow.js,funtoys.js,i18n.js,tvwatch.js"
  },
  {
+  "s": "•",
+  "cp": "2022",
+  "n": 5,
+  "files": "debugconsole.js,pet.js,toys.js"
+ },
+ {
   "s": "🏁",
   "cp": "1f3c1",
   "n": 5,
@@ -486,16 +474,22 @@
   "files": "dollai.js,i18n.js,minigames.js"
  },
  {
-  "s": "😱",
-  "cp": "1f631",
+  "s": "⚽",
+  "cp": "26bd",
   "n": 5,
-  "files": "dollai.js,pixel.js"
+  "files": "dollai.js,interact.js"
  },
  {
   "s": "👏",
   "cp": "1f44f",
   "n": 5,
   "files": "dollai.js"
+ },
+ {
+  "s": "😂",
+  "cp": "1f602",
+  "n": 5,
+  "files": "dollai.js,i18n.js,interact.js,minigames.js"
  },
  {
   "s": "🧩",
@@ -508,6 +502,12 @@
   "cp": "2605",
   "n": 5,
   "files": "game.js,rewards.js,ui.js"
+ },
+ {
+  "s": "💾",
+  "cp": "1f4be",
+  "n": 5,
+  "files": "i18n.js,rewards.js,ui.js"
  },
  {
   "s": "✔",
@@ -540,10 +540,22 @@
   "files": "arcadeshooter.js,crow.js,minigames.js,pet.js"
  },
  {
+  "s": "😴",
+  "cp": "1f634",
+  "n": 4,
+  "files": "behavior.js,i18n.js,toys.js"
+ },
+ {
   "s": "😢",
   "cp": "1f622",
   "n": 4,
   "files": "behavior.js,speech.js,vending.js"
+ },
+ {
+  "s": "😤",
+  "cp": "1f624",
+  "n": 4,
+  "files": "behavior.js,dollai.js,interact.js,toys.js"
  },
  {
   "s": "⚡",
@@ -552,28 +564,10 @@
   "files": "casino.js,game.js,pet.js,ui.js"
  },
  {
-  "s": "🙂",
-  "cp": "1f642",
-  "n": 4,
-  "files": "casino.js,dollai.js,pixel.js"
- },
- {
-  "s": "🤩",
-  "cp": "1f929",
-  "n": 4,
-  "files": "casino.js,pixel.js,rewards.js"
- },
- {
   "s": "🌙",
   "cp": "1f319",
   "n": 4,
   "files": "crow.js,pet.js,ui.js"
- },
- {
-  "s": "📚",
-  "cp": "1f4da",
-  "n": 4,
-  "files": "crow.js,dollai.js,game.js,rewards.js"
  },
  {
   "s": "🤖",
@@ -594,10 +588,10 @@
   "files": "dollai.js"
  },
  {
-  "s": "💡",
-  "cp": "1f4a1",
+  "s": "😱",
+  "cp": "1f631",
   "n": 4,
-  "files": "dollai.js,pixel.js,tips.js"
+  "files": "dollai.js"
  },
  {
   "s": "😝",
@@ -624,10 +618,10 @@
   "files": "funtoys.js,rewards.js,toys.js,ui.js"
  },
  {
-  "s": "✦",
-  "cp": "2726",
+  "s": "🕹",
+  "cp": "1f579",
   "n": 4,
-  "files": "funtoys.js,pixel.js,ui.js"
+  "files": "game.js,i18n.js,toys.js"
  },
  {
   "s": "➖",
@@ -640,12 +634,6 @@
   "cp": "1f308",
   "n": 4,
   "files": "i18n.js,lootitems.js,toys.js"
- },
- {
-  "s": "😳",
-  "cp": "1f633",
-  "n": 4,
-  "files": "i18n.js,minigames.js,pixel.js"
  },
  {
   "s": "🎞",
@@ -670,6 +658,30 @@
   "cp": "1f6c1",
   "n": 4,
   "files": "pet.js,ui.js"
+ },
+ {
+  "s": "💬",
+  "cp": "1f4ac",
+  "n": 3,
+  "files": "antics.js,crow.js,pet.js"
+ },
+ {
+  "s": "🩹",
+  "cp": "1fa79",
+  "n": 3,
+  "files": "behavior.js,dollai.js,lootitems.js"
+ },
+ {
+  "s": "🙂",
+  "cp": "1f642",
+  "n": 3,
+  "files": "casino.js,dollai.js"
+ },
+ {
+  "s": "🤩",
+  "cp": "1f929",
+  "n": 3,
+  "files": "casino.js,rewards.js"
  },
  {
   "s": "💕",
@@ -702,18 +714,6 @@
   "files": "crow.js,rewards.js"
  },
  {
-  "s": "🤗",
-  "cp": "1f917",
-  "n": 3,
-  "files": "crow.js,dollai.js,pixel.js"
- },
- {
-  "s": "🍞",
-  "cp": "1f35e",
-  "n": 3,
-  "files": "crow.js,game.js"
- },
- {
   "s": "🏃",
   "cp": "1f3c3",
   "n": 3,
@@ -732,16 +732,10 @@
   "files": "dollai.js"
  },
  {
-  "s": "😅",
-  "cp": "1f605",
+  "s": "💡",
+  "cp": "1f4a1",
   "n": 3,
-  "files": "dollai.js,pixel.js"
- },
- {
-  "s": "😭",
-  "cp": "1f62d",
-  "n": 3,
-  "files": "dollai.js,pixel.js"
+  "files": "dollai.js,tips.js"
  },
  {
   "s": "⏱",
@@ -756,14 +750,20 @@
   "files": "funtoys.js,i18n.js"
  },
  {
-  "s": "🤔",
-  "cp": "1f914",
+  "s": "✦",
+  "cp": "2726",
   "n": 3,
-  "files": "funtoys.js,pixel.js,vending.js"
+  "files": "funtoys.js,ui.js"
  },
  {
   "s": "🧱",
   "cp": "1f9f1",
+  "n": 3,
+  "files": "i18n.js,ui.js"
+ },
+ {
+  "s": "☹",
+  "cp": "2639",
   "n": 3,
   "files": "i18n.js,ui.js"
  },
@@ -778,6 +778,12 @@
   "cp": "1f9cd",
   "n": 3,
   "files": "i18n.js,toys.js"
+ },
+ {
+  "s": "😳",
+  "cp": "1f633",
+  "n": 3,
+  "files": "i18n.js,minigames.js"
  },
  {
   "s": "❄️",
@@ -798,6 +804,12 @@
   "files": "i18n.js,ui.js"
  },
  {
+  "s": "📝",
+  "cp": "1f4dd",
+  "n": 3,
+  "files": "interact.js,pet.js,rewards.js"
+ },
+ {
   "s": "👑",
   "cp": "1f451",
   "n": 3,
@@ -810,16 +822,10 @@
   "files": "minigames.js"
  },
  {
-  "s": "✋",
-  "cp": "270b",
+  "s": "™",
+  "cp": "2122",
   "n": 3,
-  "files": "minigames.js,pixel.js,ui.js"
- },
- {
-  "s": "•",
-  "cp": "2022",
-  "n": 3,
-  "files": "pet.js"
+  "files": "pixel.js"
  },
  {
   "s": "📌",
@@ -840,12 +846,6 @@
   "files": "antics.js,interact.js"
  },
  {
-  "s": "💬",
-  "cp": "1f4ac",
-  "n": 2,
-  "files": "antics.js,crow.js"
- },
- {
   "s": "😷",
   "cp": "1f637",
   "n": 2,
@@ -862,12 +862,6 @@
   "cp": "1f300",
   "n": 2,
   "files": "behavior.js,rewards.js"
- },
- {
-  "s": "🥱",
-  "cp": "1f971",
-  "n": 2,
-  "files": "behavior.js,pixel.js"
  },
  {
   "s": "🍒",
@@ -894,6 +888,18 @@
   "files": "crow.js,rewards.js"
  },
  {
+  "s": "🤗",
+  "cp": "1f917",
+  "n": 2,
+  "files": "crow.js,dollai.js"
+ },
+ {
+  "s": "🍞",
+  "cp": "1f35e",
+  "n": 2,
+  "files": "crow.js"
+ },
+ {
   "s": "🙋",
   "cp": "1f64b",
   "n": 2,
@@ -912,22 +918,10 @@
   "files": "crow.js,quickmenu.js"
  },
  {
-  "s": "😋",
-  "cp": "1f60b",
+  "s": "😅",
+  "cp": "1f605",
   "n": 2,
-  "files": "dollai.js,pixel.js"
- },
- {
-  "s": "😎",
-  "cp": "1f60e",
-  "n": 2,
-  "files": "dollai.js,pixel.js"
- },
- {
-  "s": "😨",
-  "cp": "1f628",
-  "n": 2,
-  "files": "dollai.js,pixel.js"
+  "files": "dollai.js"
  },
  {
   "s": "🍿",
@@ -936,16 +930,16 @@
   "files": "dollai.js,pet.js"
  },
  {
-  "s": "🩹",
-  "cp": "1fa79",
+  "s": "😭",
+  "cp": "1f62d",
   "n": 2,
-  "files": "dollai.js,lootitems.js"
+  "files": "dollai.js"
  },
  {
-  "s": "🍔",
-  "cp": "1f354",
+  "s": "🤔",
+  "cp": "1f914",
   "n": 2,
-  "files": "game.js"
+  "files": "funtoys.js,vending.js"
  },
  {
   "s": "🧲",
@@ -954,22 +948,10 @@
   "files": "game.js,lootitems.js"
  },
  {
-  "s": "🍌",
-  "cp": "1f34c",
-  "n": 2,
-  "files": "game.js,interact.js"
- },
- {
   "s": "📁",
   "cp": "1f4c1",
   "n": 2,
   "files": "interact.js,ui.js"
- },
- {
-  "s": "📝",
-  "cp": "1f4dd",
-  "n": 2,
-  "files": "interact.js,rewards.js"
  },
  {
   "s": "🍱",
@@ -978,34 +960,28 @@
   "files": "lootitems.js,rewards.js"
  },
  {
+  "s": "🗼",
+  "cp": "1f5fc",
+  "n": 2,
+  "files": "minigames.js,ui.js"
+ },
+ {
+  "s": "✋",
+  "cp": "270b",
+  "n": 2,
+  "files": "minigames.js,ui.js"
+ },
+ {
   "s": "⏭",
   "cp": "23ed",
   "n": 2,
   "files": "pet.js"
  },
  {
-  "s": "😍",
-  "cp": "1f60d",
-  "n": 2,
-  "files": "pixel.js,rewards.js"
- },
- {
-  "s": "🎤",
-  "cp": "1f3a4",
-  "n": 2,
-  "files": "pixel.js,ui.js"
- },
- {
   "s": "🤚",
   "cp": "1f91a",
   "n": 2,
   "files": "rewards.js,ui.js"
- },
- {
-  "s": "💾",
-  "cp": "1f4be",
-  "n": 2,
-  "files": "rewards.js"
  },
  {
   "s": "👊",
@@ -1068,6 +1044,12 @@
   "files": "arcadeshooter.js"
  },
  {
+  "s": "🥱",
+  "cp": "1f971",
+  "n": 1,
+  "files": "behavior.js"
+ },
+ {
   "s": "😕",
   "cp": "1f615",
   "n": 1,
@@ -1098,6 +1080,12 @@
   "files": "crow.js"
  },
  {
+  "s": "😋",
+  "cp": "1f60b",
+  "n": 1,
+  "files": "dollai.js"
+ },
+ {
   "s": "💭",
   "cp": "1f4ad",
   "n": 1,
@@ -1116,8 +1104,20 @@
   "files": "dollai.js"
  },
  {
+  "s": "😎",
+  "cp": "1f60e",
+  "n": 1,
+  "files": "dollai.js"
+ },
+ {
   "s": "🥶",
   "cp": "1f976",
+  "n": 1,
+  "files": "dollai.js"
+ },
+ {
+  "s": "😨",
+  "cp": "1f628",
   "n": 1,
   "files": "dollai.js"
  },
@@ -1182,104 +1182,26 @@
   "files": "gains.js"
  },
  {
-  "s": "💊",
-  "cp": "1f48a",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🕹",
-  "cp": "1f579",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🛡️",
-  "cp": "1f6e1-fe0f",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🍎",
-  "cp": "1f34e",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🥕",
-  "cp": "1f955",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🍪",
-  "cp": "1f36a",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🥪",
-  "cp": "1f96a",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🥗",
-  "cp": "1f957",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🍲",
-  "cp": "1f372",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🍖",
-  "cp": "1f356",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🍕",
-  "cp": "1f355",
-  "n": 1,
-  "files": "game.js"
- },
- {
   "s": "🍰",
   "cp": "1f370",
   "n": 1,
   "files": "game.js"
  },
  {
-  "s": "🍨",
-  "cp": "1f368",
+  "s": "💊",
+  "cp": "1f48a",
   "n": 1,
   "files": "game.js"
  },
  {
-  "s": "🧃",
-  "cp": "1f9c3",
+  "s": "🍔",
+  "cp": "1f354",
   "n": 1,
   "files": "game.js"
  },
  {
-  "s": "🥛",
-  "cp": "1f95b",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "🍵",
-  "cp": "1f375",
-  "n": 1,
-  "files": "game.js"
- },
- {
-  "s": "☕",
-  "cp": "2615",
+  "s": "🛡️",
+  "cp": "1f6e1-fe0f",
   "n": 1,
   "files": "game.js"
  },
@@ -1322,6 +1244,12 @@
  {
   "s": "📃",
   "cp": "1f4c3",
+  "n": 1,
+  "files": "interact.js"
+ },
+ {
+  "s": "🍌",
+  "cp": "1f34c",
   "n": 1,
   "files": "interact.js"
  },
@@ -1398,12 +1326,6 @@
   "files": "minigames.js"
  },
  {
-  "s": "🗼",
-  "cp": "1f5fc",
-  "n": 1,
-  "files": "minigames.js"
- },
- {
   "s": "🐡",
   "cp": "1f421",
   "n": 1,
@@ -1464,68 +1386,8 @@
   "files": "pet.js"
  },
  {
-  "s": "😄",
-  "cp": "1f604",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "😠",
-  "cp": "1f620",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "😲",
-  "cp": "1f632",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "😶",
-  "cp": "1f636",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "😞",
-  "cp": "1f61e",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "🥰",
-  "cp": "1f970",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "😁",
-  "cp": "1f601",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "😰",
-  "cp": "1f630",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "✌",
-  "cp": "270c",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "♬",
-  "cp": "266c",
-  "n": 1,
-  "files": "pixel.js"
- },
- {
-  "s": "✧",
-  "cp": "2727",
+  "s": "©",
+  "cp": "a9",
   "n": 1,
   "files": "pixel.js"
  },
@@ -1620,6 +1482,12 @@
   "files": "rewards.js"
  },
  {
+  "s": "😍",
+  "cp": "1f60d",
+  "n": 1,
+  "files": "rewards.js"
+ },
+ {
   "s": "🍽️",
   "cp": "1f37d-fe0f",
   "n": 1,
@@ -1706,6 +1574,12 @@
  {
   "s": "⚙",
   "cp": "2699",
+  "n": 1,
+  "files": "ui.js"
+ },
+ {
+  "s": "🎤",
+  "cp": "1f3a4",
   "n": 1,
   "files": "ui.js"
  },
