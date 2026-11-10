@@ -1,18 +1,18 @@
 {
-  "affection": 23.483889446663408,
+  "affection": 25.053076657422412,
   "bag": true,
   "bagX": null,
   "buffs": {
-    "doubleMood": 1792377967565,
-    "noHunger": 1792377737053,
-    "noTired": 1792377737053,
-    "shield": 1792378454298
+    "doubleMood": 1792379747269,
+    "noHunger": 1792380042517,
+    "noTired": 1792380044902,
+    "shield": 1792380347269
   },
   "cartridge": "tetris",
   "cartridges": [
     "tetris"
   ],
-  "coins": 42267,
+  "coins": 42376,
   "deliveries": [],
   "disco": {},
   "dollAwake": true,
@@ -24,18 +24,16 @@
   "foodBagX": null,
   "gear": {},
   "inventory": {
-    "ampulheta": 3,
+    "ampulheta": 2,
     "caixa_comum": 2,
     "caixa_rara": 1,
-    "elixir": 3,
-    "elixir_synth": 1,
+    "elixir": 2,
     "ima_moedas": 3,
-    "pena_fenix": 4,
-    "pu_ima": 1,
-    "pu_limpar": 4,
-    "pu_saciedade": 1,
+    "pena_fenix": 8,
+    "pu_limpar": 7,
     "ramune_laser": 1,
-    "relogio_parado": 1
+    "relogio_parado": 1,
+    "soda_neon": 1
   },
   "mangas": [],
   "perch": {
@@ -65,19 +63,19 @@
     "boxesOpened": 4,
     "chaseWins": 0,
     "chases": 0,
-    "coinFrac": 0.45905968316705126,
-    "coinsEarned": 1331,
+    "coinFrac": 0.9100150630006548,
+    "coinsEarned": 1440,
     "consumed": {
-      "agua_ionica": 2,
+      "agua_ionica": 3,
       "agua_torneira": 1,
-      "ampulheta": 4,
-      "bento_cyber": 1,
+      "ampulheta": 5,
+      "bento_cyber": 2,
       "bubble_matcha": 1,
       "cafe_nebula": 2,
       "cafe_quente": 1,
       "dango": 1,
-      "elixir": 1,
-      "elixir_synth": 1,
+      "elixir": 2,
+      "elixir_synth": 2,
       "holo_mochi": 3,
       "ima_moedas": 1,
       "matcha_gelado": 1,
@@ -88,14 +86,15 @@
       "pena_fenix": 1,
       "picole": 1,
       "pu_alegria": 4,
-      "pu_energia": 2,
+      "pu_energia": 3,
       "pu_escudo": 5,
-      "pu_ima": 4,
-      "pu_limpar": 1,
-      "pu_saciedade": 3,
+      "pu_ima": 5,
+      "pu_limpar": 3,
+      "pu_saciedade": 4,
       "pu_sorte": 3,
-      "pu_supremo": 9,
+      "pu_supremo": 10,
       "ramen_plasma": 3,
+      "ramune_laser": 1,
       "relogio_parado": 1,
       "sobras": 1,
       "soda_neon": 3,
@@ -116,25 +115,25 @@
     },
     "daily": {
       "bonus": false,
-      "day": "Sun Oct 18 2026",
+      "day": "Tue Oct 27 2026",
       "list": [
         {
-          "done": true,
-          "goal": 3,
+          "done": false,
+          "goal": 4,
+          "id": "cafune",
+          "n": 0
+        },
+        {
+          "done": false,
+          "goal": 2,
           "id": "comer",
-          "n": 3
+          "n": 0
         },
         {
           "done": false,
           "goal": 1,
-          "id": "mesada",
+          "id": "vencer",
           "n": 0
-        },
-        {
-          "done": true,
-          "goal": 2,
-          "id": "comprar",
-          "n": 2
         }
       ]
     },
@@ -148,7 +147,7 @@
     "gamesPlayed": 0,
     "herBag": [],
     "invHints": 3,
-    "lastDaily": "Sun Oct 18 2026",
+    "lastDaily": "Tue Oct 27 2026",
     "loveTop": 0,
     "memory": {},
     "mgBonusAt": {
@@ -210,6 +209,7 @@
       "pu_sorte": "like",
       "pu_supremo": "like",
       "ramen_plasma": "hate",
+      "ramune_laser": "ok",
       "sobras": "hate",
       "soda_neon": "like",
       "soda_p": "like",
@@ -228,14 +228,14 @@
     "powermeup"
   ],
   "queue": [],
-  "savedAt": 1792377146833,
+  "savedAt": 1793152839414,
   "stats": {
-    "energy": 97.7606376000016,
+    "energy": 100,
     "health": 100,
-    "hunger": 99.87370314800113,
-    "hygiene": 98.47460580000607,
-    "mood": 97.3821622080056,
-    "thirst": 99.79029574999775
+    "hunger": 100,
+    "hygiene": 99.8935352000008,
+    "mood": 99.6888556000021,
+    "thirst": 99.7512710999978
   },
   "toys": {
     "impressora": {

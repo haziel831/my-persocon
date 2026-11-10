@@ -1,20 +1,18 @@
 {
-  "affection": 20.73297331332874,
+  "affection": 23.483889446663408,
   "bag": true,
   "bagX": null,
   "buffs": {
-    "coinMagnet": 1792378632751,
-    "doubleMood": 1792387599150,
-    "luck": 1792376598862,
-    "noHunger": 1792387359150,
-    "noTired": 1792386999150,
-    "shield": 1792387099934
+    "doubleMood": 1792377967565,
+    "noHunger": 1792377737053,
+    "noTired": 1792377737053,
+    "shield": 1792378454298
   },
   "cartridge": "tetris",
   "cartridges": [
     "tetris"
   ],
-  "coins": 41159,
+  "coins": 42267,
   "deliveries": [],
   "disco": {},
   "dollAwake": true,
@@ -26,19 +24,18 @@
   "foodBagX": null,
   "gear": {},
   "inventory": {
-    "agua_ionica": 1,
-    "ampulheta": 4,
-    "caixa_comum": 1,
+    "ampulheta": 3,
+    "caixa_comum": 2,
     "caixa_rara": 1,
     "elixir": 3,
     "elixir_synth": 1,
-    "ima_moedas": 2,
-    "pena_fenix": 3,
-    "pu_energia": 2,
-    "pu_sorte": 2,
-    "pu_supremo": 1,
-    "relogio_parado": 2,
-    "soda_neon": 2
+    "ima_moedas": 3,
+    "pena_fenix": 4,
+    "pu_ima": 1,
+    "pu_limpar": 4,
+    "pu_saciedade": 1,
+    "ramune_laser": 1,
+    "relogio_parado": 1
   },
   "mangas": [],
   "perch": {
@@ -49,6 +46,7 @@
     "achievements": {
       "carinho1": 1792095088017,
       "comilona": 1792375367593,
+      "moedas1k": 1792376907352,
       "paladar": 1792375383676
     },
     "attrs": {
@@ -67,38 +65,44 @@
     "boxesOpened": 4,
     "chaseWins": 0,
     "chases": 0,
-    "coinFrac": 0.04577384021506514,
-    "coinsEarned": 223,
+    "coinFrac": 0.45905968316705126,
+    "coinsEarned": 1331,
     "consumed": {
+      "agua_ionica": 2,
       "agua_torneira": 1,
-      "ampulheta": 3,
+      "ampulheta": 4,
       "bento_cyber": 1,
       "bubble_matcha": 1,
       "cafe_nebula": 2,
       "cafe_quente": 1,
       "dango": 1,
+      "elixir": 1,
       "elixir_synth": 1,
-      "holo_mochi": 1,
+      "holo_mochi": 3,
+      "ima_moedas": 1,
       "matcha_gelado": 1,
       "matcha_turbo": 1,
       "mochi": 1,
       "neo_onigiri": 1,
       "onigiri": 1,
+      "pena_fenix": 1,
       "picole": 1,
-      "pu_alegria": 3,
-      "pu_energia": 1,
+      "pu_alegria": 4,
+      "pu_energia": 2,
       "pu_escudo": 5,
       "pu_ima": 4,
+      "pu_limpar": 1,
       "pu_saciedade": 3,
-      "pu_sorte": 2,
-      "pu_supremo": 7,
+      "pu_sorte": 3,
+      "pu_supremo": 9,
       "ramen_plasma": 3,
+      "relogio_parado": 1,
       "sobras": 1,
-      "soda_neon": 2,
+      "soda_neon": 3,
       "soda_p": 1,
       "taiyaki_creme": 1,
-      "taiyaki_estelar": 4,
-      "takoyaki_quantico": 2
+      "taiyaki_estelar": 5,
+      "takoyaki_quantico": 3
     },
     "crow": {
       "away": null,
@@ -183,6 +187,7 @@
     "slaps": 0,
     "tasteRev": 2,
     "tastes": {
+      "agua_ionica": "ok",
       "agua_torneira": "hate",
       "bento_cyber": "dislike",
       "bubble_matcha": "hate",
@@ -200,6 +205,7 @@
       "pu_energia": "dislike",
       "pu_escudo": "ok",
       "pu_ima": "ok",
+      "pu_limpar": "hate",
       "pu_saciedade": "ok",
       "pu_sorte": "like",
       "pu_supremo": "like",
@@ -222,14 +228,14 @@
     "powermeup"
   ],
   "queue": [],
-  "savedAt": 1792376648529,
+  "savedAt": 1792377146833,
   "stats": {
-    "energy": 100,
+    "energy": 97.7606376000016,
     "health": 100,
-    "hunger": 100,
-    "hygiene": 56.69905952010452,
-    "mood": 99.75710350000163,
-    "thirst": 99.746007659997
+    "hunger": 99.87370314800113,
+    "hygiene": 98.47460580000607,
+    "mood": 97.3821622080056,
+    "thirst": 99.79029574999775
   },
   "toys": {
     "impressora": {
@@ -250,6 +256,14 @@
       "kind": "mini",
       "label": "Pedra, papel e tesoura",
       "until": 1792386738277,
+      "wish": true
+    },
+    {
+      "at": 1792376890938,
+      "img": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAA2CAYAAACIsLrgAAACxklEQVR4AexYsXLTQBBduc4MvwD6AgaXUKVPFTIDvVPHHXwABXSpSUVDA0ljygxfQCpSK2WUJs4XWNld3Tq6061PkSey5Jxnnnd0u3f33j6frNEItuwTBfXd0OhQdKjjDmzqJ5d83Htd+LCu/k0JWpe3Or9rQeLM4ufxB/BBXFMZBxJdCwrQWT/dVpB0unYODCUtvzB5NYhrbZ1qK0gltOlEU0Fux0NnQM2LA6XwAuDil40ysTxf4pREk1ZDU0HqAn1LhASJM7WOl0LqHbYdKKv07wRgfIB4r5bIehJDToUEqRv1NaEJqjnjFyAdpi4beAvrTi7PDtdX1uHrSj1fN//SBDVfoWeVLQVVOih3Ka8wqfv9kHXPjMyXyJWuYzzY6KuloEZrB4ueosAVlOzt7xeIxZcff4Fgb7qi41aH7Vl8xc7gOeMLcUC/u3EZyH74X1UOMCfihRyJJxaYhAmuIDM83CCCls4cn5wAwZaEjWAH3LPg6TjXYUfnc4D5Hf7HYA25Yy8YuPLsJ+uamcSR4DolgkzZ8ENYUPoJIP0McPDPBo9TropK3fgruoPw1smcSr2sz/We8TKP1q1ueljQ6vm9ywYFZXgWegS8PZY9nB4eAmF2epoQylGAoCApHEoUQQWpRIxI9dFkApN3uzB5uwvZt+82LjLIqug4z7yQG3K1nJGGiyC5Hnx0BbFTf87O3PHBCB0sca3DqqCdPIed/BrS83Mb4xRSwZtXdo5qJUfxCfIlr1zTs713OVXx0BLqT25oQoRvFCSd6GvUHCpmt3kym9+MpleXMM3+b5w/80AuzAu5aYQ0QbX6oQxEQX13KjoUHeq4A/En13HDH71ddOjRLet4wrNz6OGZ7uULmCI6bXiS8J60b+gZTng9O4dEOL8NwndhI3pvJziit5f4BCxPwhxpzGDdPO2De3rfvwkxN26dQ/cAAAD//4lVCtAAAAAGSURBVAMAVYlpK7zWnV8AAAAASUVORK5CYII=",
+      "kind": "watch",
+      "label": "Modo Assistir",
+      "until": 1792387690938,
       "wish": true
     }
   ]
