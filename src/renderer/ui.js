@@ -6,7 +6,7 @@ import { FILTERS } from './filters.js';
 import { AFFECTION_MAX, FULL_STATS } from './behavior.js';
 import { SOUND_THEMES } from './sound.js';
 import { RP_PARTS, readModel } from './skins.js';
-import { icon } from './pixel.js';
+import { icon, cartSheetStyle } from './pixel.js';
 import { baseId, FURN } from './furniture.js';
 import { luckOf, FIGURES, GACHA_PRICE } from './casinoitems.js';
 import { RARITIES } from './lootitems.js';
@@ -90,9 +90,6 @@ export const THEMES = [
 // YSM packs carry extra textures (arrows, effects): prefer the one named like the skin, else the biggest.
 const mainTexture = (list) => list.find((t) => /skin|default|main/i.test(t.name)) || [...list].sort((a, b) => b.width * b.height - a.width * a.height)[0];
 
-const EMOTE_THEME_NAMES = [['padrao', 'Emojis'], ['auto', 'Igual ao tema'], ['balao', 'Balão'], ['pixel', 'Pixel art'], ['retro', 'Retrô'], ['dark', 'Dark'], ['light', 'Light'], ['synthwave', 'Synthwave'],
-  ['gameboy', 'GameBuddy'], ['gameboy-light', 'Buddy Light'], ['gameboy-color', 'Buddy Color'], ['gameboy-advance', 'Buddy Advance'], ['gamegear', 'GameGlow'], ['psp', 'PlayPocket'], ['resourcepack', 'Resourcepack']];
-
 export const ANIM_ROLES = [
   ['', 'Não usar'], ['emote_pos', 'Emote positivo'], ['emote_neg', 'Emote negativo'], ['danca', 'Dança'], ['comemorar', 'Comemorar'],
   ['medo', 'Medo'], ['rir', 'Rir'], ['pegar', 'Pegar objeto'], ['golpe', 'Golpe (espada)'], ['arremessar', 'Arremessar'], ['gancho', 'Usar gancho'], ['sentar', 'Sentar'], ['triste', 'Triste'], ['cantar', 'Cantar'],
@@ -113,9 +110,17 @@ function age(born) {
 }
 
 const itemIcon = (item) => {
+  const sheet = item.cart ? cartSheetStyle(item.cart) : null;
+  if (sheet) return h('span.item-icon', {}, h('span.cart-sheet', { style: sheet }));
+  if (['comidas', 'bebidas', 'sobremesas', 'medicina'].includes(item.cat)) {
+    return h('span.item-icon', {}, h('img.consumable-img', { src: item.img, draggable: false }));
+  }
   const src = globalThis.petSkins?.art(item.id, item.img) || item.img;
   return h('span.item-icon', {}, src ? h('img', { src, draggable: false }) : item.icon);
 };
+
+// Item art can be a data: URL (generated icons) or an app URL; never render that as text.
+const isArtSrc = (v) => typeof v === 'string' && /^(data:|https?:|blob:|file:|asset:|\.?\/)/.test(v);
 
 // Click sounds for every button/input inside a menu or dialog.
 function wireSounds(root, sound) {
@@ -217,7 +222,7 @@ export class Menu {
     this.app = app;
     this.el = null;
     this.category = 'acoes';
-    this.shopCat = 'comidas';
+    this.shopCat = 'fun';
     this.invCat = 'todos';
     this.qty = 1;
     this.expanded = null;
@@ -462,7 +467,6 @@ export class Menu {
       this.tile('⏰', 'Lembretes e alarmes', alarms ? `${alarms} ativo(s) · ela vem bater na tela` : 'Ela vem bater na tela para lembrar', () => { this.reminding = true; this.render(); }, { disabled: dead }),
       this.tile('🤚', 'Cafuné', 'Segure e esfregue o cursor na Persocon · incentiva o que ela faz', () => { this.done(); this.app.setHand('pat'); }, { disabled: dead }),
       this.tile('✋', 'Dar tapa', 'Clique na Persocon · cancela e desincentiva a ação', () => { this.done(); this.app.setHand('slap'); }, { disabled: dead }),
-      this.tile('🍙', 'Alimentar', total ? `${total} no inventário` : 'Compre comida na Shop', () => { this.feeding = true; this.render(); }, { disabled: dead }),
       this.tile('🌙', 'Colocar para dormir', pet.stats.energy > 70 ? 'Sem sono (Energia acima de 70%)' : '+Energia −Fome',
         () => { if (pet.putToSleep()) this.done(); }, { disabled: dead || pet.action === 'sleep' || pet.stats.energy > 70 }),
       this.tile('🛁', 'Dar banho', `Higiene ${Math.round(pet.stats.hygiene)}% · espuma e bolhas`, () => { this.done(); setTimeout(() => app.care.bath(), 80); }, { disabled: dead || pet.toyPlay?.id === 'banho' }),
@@ -592,7 +596,6 @@ export class Menu {
         else app.startMode('watch');
         this.render();
       }, { disabled: pet.dead, active: act === 'watch' }),
-      this.tile('🍙', 'Dar comida', 'Também dá para alimentar assistindo', () => { this.category = 'acoes'; this.feeding = true; this.render(); }, { disabled: pet.dead }),
     ), h('div.note', {}, 'Modo Jam e Modo Assistir usam o som do PC. Enquanto fome, sede e energia estiverem acima de 50%, ela continua; se baixar, se cuida e volta. Sozinha, também para depois de um tempo.'),
     h('div.group', {}, 'Minijogos'),
     h('div.grid', {}, [...MINIGAMES].sort((a, b) => (MG_UNLOCK[a.id] ?? 0) - (MG_UNLOCK[b.id] ?? 0)).map((m) => {
@@ -793,8 +796,6 @@ export class Menu {
       h('div.themes', {}, THEMES.filter(([id]) => id !== 'resourcepack').map(([id, label, [bg, accent]]) =>
         h(`button.theme${id === cur ? '.active' : ''}`, { onclick: () => { app.setOption('theme', id); this.render(); } },
           h('span.swatch', { style: { background: `linear-gradient(135deg, ${bg} 55%, ${accent} 55%)` } }), label))),
-      h('div.group', {}, 'Emotes'),
-      chips(EMOTE_THEME_NAMES, c.emoteTheme || 'padrao', 'emoteTheme'),
       h('div.group', {}, 'Sons'),
       chips(Object.entries(SOUND_THEMES).map(([id, t]) => [id, t.label]), c.soundTheme || 'padrao', 'soundTheme'));
   }
@@ -816,14 +817,19 @@ export class Menu {
 
   shop() {
     const { game } = this.app;
-    const tabs = segmented(SHOP_CATEGORIES.map(([id, icon, label]) => [id, `${icon} ${label}`]), this.shopCat, (id) => {
+    // Cartridges only show up once a console (or the TV + console) is owned; mangas need the shelf.
+    const hasConsole = ['gameboy', 'gamegear', 'psp', 'videogame'].some((id) => game.count(id) > 0 || !!game.toys[id]);
+    const cats = SHOP_CATEGORIES.filter(([id]) =>
+      (id !== 'cartuchos' || hasConsole) && (id !== 'mangas' || game.hasShelf()));
+    if (!cats.some(([id]) => id === this.shopCat)) this.shopCat = 'fun';
+    const tabs = segmented(cats.map(([id, icon, label]) => [id, `${icon} ${label}`]), this.shopCat, (id) => {
       this.shopCat = id;
       this.render();
     });
-    const multi = ['comidas', 'bebidas', 'medicina'].includes(this.shopCat);
-    const n = multi ? this.qty : 1;
+    const multi = false;
+    const n = 1;
     const list = ITEMS.filter((i) => i.cat === this.shopCat && game.available(i) && (HER_BAG || !i.bagSlots));
-    if (['comidas', 'bebidas', 'cartuchos', 'medicina'].includes(this.shopCat)) list.sort((a, b) => (a.price || 0) - (b.price || 0));
+    if (['cartuchos', 'comidas', 'bebidas', 'sobremesas', 'medicina'].includes(this.shopCat)) list.sort((a, b) => (a.price || 0) - (b.price || 0));
     if (DEMO) list.sort((a, b) => demoLocked(a.id) - demoLocked(b.id));
     const price = (item) => (INFINITE_MONEY && item.price ? `¥ ∞` : item.price ? `¥ ${item.price * n}` : 'Grátis');
     const body = list.length
@@ -844,10 +850,12 @@ export class Menu {
     tabs.classList.add('wrap');
     const note = {
       fun: 'Brinquedos vão para o inventário; coloque na área de trabalho e a Persocon brinca sozinha. Quebram depois de um tempo.',
-      medicina: 'Remédios curam na hora; PowerUps dão efeitos temporários. A Persocon pega sozinha da mochila quando a Saúde está baixa.',
-      bebidas: 'Bebidas matam a Sede. Ordenadas do mais barato ao mais caro: quanto mais efeito, mais caro. Soda só no modo Assistir.',
-      cartuchos: 'Cartuchos vão para a bolsa do GameBuddy. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores.',
-    }[this.shopCat] || 'Ordenadas do mais barato ao mais caro: quanto mais efeito, mais caro. Pipoca só no modo Assistir. Ficam na mochila da área de trabalho.';
+      cartuchos: 'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores.',
+      comidas: 'Comida enche a Fome. Cada Persocon tem gostos próprios (♥ a ☹) e come sozinha quando está com fome.',
+      bebidas: 'Bebidas matam a Sede e algumas dão Energia. Servem também para acompanhar uma refeição.',
+      sobremesas: 'Sobremesas dão bastante Humor. Ela come como refeição, então não substituem um prato principal.',
+      medicina: 'Medicamentos curam efeitos negativos (gripe, prisão de ventre, náusea, lesão) ou dão bônus temporários. Todos custam um pouco de Humor.',
+    }[this.shopCat] || 'Ordenadas do mais barato ao mais caro.';
     return [tabs, qty, h('div.note', {}, '📦 Toda compra sai pela Impressora 3D e a Persocon guarda no 🎒 Inventário.'),
       DEMO ? h('div.note', {}, '🔒 Demo: os itens com cadeado ficam na versão completa.') : null, h('div.note', {}, note), body];
   }
@@ -901,15 +909,14 @@ export class Menu {
           title: 'Vende pela metade do preço da Shop · só o que está no inventário',
         }, `Vender ¥ ${sellYen}${nSell > 1 ? ` (×${nSell})` : ''}`),
         isConsumable(item) && h('button.buy', {
-          onclick: () => {
+          onclick: async () => {
             this.flashItem(item.id);
             if (item.box && (game.count(item.id) || 0) > 1) {
-              const raw = prompt(`Abrir quantas caixas? (1-${game.count(item.id)})`, '1');
-              const n = Math.max(1, Math.min(game.count(item.id), parseInt(raw, 10) || 1));
-              if (n > 1) {
-                app.rewards?.openMany?.(item.id, n);
-                return;
-              }
+              // Open dialog to select how many boxes to open
+              const { BoxOpenDialog } = await import('./ui.js');
+              const dialog = new BoxOpenDialog(app, item.id, game.count(item.id));
+              dialog.open();
+              return;
             }
             if (!game.use(item.id)) app.sound.play('cancel', { volume: 0.4 });
             this.refreshStats();
@@ -1124,6 +1131,8 @@ export class Menu {
         slider({ label: 'Tamanho', min: 0.7, max: 2.5, step: 0.1, value: c.herBagIconScale ?? 1.4, format: (v) => `${Math.round(v * 100)}%`, oninput: (v) => app.setOption('herBagIconScale', v) }),
         h('div.note', {}, 'Ícone separado do status (por padrão abaixo dele): clique abre a mochila dela; botão direito move e ajusta o tamanho.'),
       ] : []),
+      h('div.group', {}, 'Setups da mesa'),
+      this.setupRows(),
       h('div.group', {}, 'Streamer Mode'),
       toggle({ label: 'Streamer Mode (janela para o OBS)', value: !!c.streamer, onchange: (v) => app.setOption('streamer', v) }),
       h('div.row', {}, h('span.label', {}, 'Fundo'), segmented([['verde', 'Verde'], ['azul', 'Azul'], ['magenta', 'Magenta'], ['transparente', 'Transparente']], c.streamerBg || 'verde', (v) => app.setOption('streamerBg', v))),
@@ -1319,6 +1328,50 @@ export class Menu {
         app.setOption('foldedGroups', [...list]);
       });
     }
+  }
+
+  // Setups: save where every object on the desktop is and bring them back later.
+  setupRows() {
+    const { app } = this;
+    const game = app.game;
+    const input = h('input.text', { maxlength: 24, placeholder: 'Nome do setup', spellcheck: false, 'data-no-i18n': '' });
+    const save = () => {
+      const name = input.value.trim();
+      input.value = '';
+      game.captureSetup(name);
+      app.sound?.play('ok');
+      this.render();
+    };
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') save();
+    });
+    input.addEventListener('pointerdown', () => app.focus?.());
+    const setups = game.setups || [];
+    const when = (t) => new Date(t).toLocaleString();
+    return [
+      h('div.row.name-row', {}, input, h('button.primary', { onclick: save }, '💾 Salvar setup')),
+      h('div.note', {}, 'Salva a posição de todas as mobílias e objetos da área de trabalho. Depois é só carregar o setup para deixar tudo igual.'),
+      setups.length
+        ? h('div.rows', {}, setups.map((s, i) => h('div.row', {},
+          h('span.label', {}, `🗼 ${s.name} · ${when(s.at)}`),
+          h('button', {
+            onclick: () => {
+              game.applySetup(i);
+              app.ball?.syncFromRecords?.();
+              app.sound?.play('ok');
+              this.render();
+            },
+          }, 'Carregar'),
+          h('button', {
+            onclick: () => {
+              game.deleteSetup(i);
+              app.sound?.play('cancel');
+              this.render();
+            },
+          }, 'Excluir'))))
+        : h('div.note', {}, 'Nenhum setup salvo ainda.'),
+    ];
   }
 
   // Debug: shortcuts to try the latest features and a short changelog.
@@ -2217,5 +2270,87 @@ export class PackDialog extends Dialog {
     }, 'Importar');
     this.frame(h('div.rp', {}, h('div.rp-parts', {}, h('div.group', {}, 'O que usar'), checks), preview),
       [h('button', { onclick: () => this.stepPick() }, 'Voltar'), h('span.grow'), btn]);
+  }
+}
+
+// Dialog for opening multiple loot boxes with a slider
+export class BoxOpenDialog extends Dialog {
+  constructor(app, boxId, maxCount) {
+    super(app);
+    this.boxId = boxId;
+    this.maxCount = maxCount;
+    this.selectedCount = 1;
+  }
+
+  open() {
+    super.open('Abrir Caixas');
+    const { game } = this.app;
+    const boxItem = ITEMS.find((i) => i.id === this.boxId);
+    const boxIcon = boxItem?.img || '🎁';
+
+    const body = h('div.box-open-dialog', {},
+      h('div.box-preview.center', {},
+        h('div.box-icon', {}, isArtSrc(boxIcon) ? h('img', { src: boxIcon, alt: '', draggable: false }) : h('span.glyph', {}, boxIcon)),
+        h('div.box-name', {}, boxItem?.name || 'Caixa'),
+        h('div.box-count', {}, `Total: ${this.maxCount} caixa(s)`),
+      ),
+      h('div.slider-container.center', {},
+        h('div.slider-label', {}, 'Quantidade a abrir'),
+        h('div.slider-wrapper', {},
+          slider({
+            label: '',
+            min: 1,
+            max: this.maxCount,
+            step: 1,
+            value: 1,
+            format: (v) => `×${v}`,
+            oninput: (v) => { this.selectedCount = v; },
+            onchange: () => {},
+          }),
+        ),
+        h('div.slider-value.big', {}, `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`),
+      ),
+      h('div.quick-buttons.center', {},
+        h('button.quick-btn', { onclick: () => { this.selectedCount = Math.min(5, this.maxCount); this.render(); } }, '×5'),
+        h('button.quick-btn', { onclick: () => { this.selectedCount = Math.min(10, this.maxCount); this.render(); } }, '×10'),
+        h('button.quick-btn', { onclick: () => { this.selectedCount = this.maxCount; this.render(); } }, 'Todas'),
+      ),
+    );
+
+    const footer = [
+      h('button', { onclick: () => this.close() }, 'Cancelar'),
+      h('span.grow'),
+      h('button.primary', {
+        onclick: () => {
+          if (this.selectedCount > 1) {
+            this.app.rewards?.openMany?.(this.boxId, this.selectedCount);
+          } else {
+            game.use(this.boxId);
+          }
+          this.app.closeMenu?.();
+          this.close();
+        },
+      }, `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`),
+    ];
+
+    this.frame(body, footer);
+  }
+
+  render() {
+    // Update the slider value display
+    const valueEl = this.modal?.querySelector('.slider-value.big');
+    if (valueEl) {
+      valueEl.textContent = `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`;
+    }
+    // Update slider input
+    const sliderInput = this.modal?.querySelector('input[type="range"]');
+    if (sliderInput) {
+      sliderInput.value = this.selectedCount;
+    }
+    // Update button text
+    const primaryBtn = this.modal?.querySelector('.modal-foot button.primary');
+    if (primaryBtn) {
+      primaryBtn.textContent = `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`;
+    }
   }
 }

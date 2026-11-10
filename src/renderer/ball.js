@@ -352,6 +352,20 @@ export class Ball {
     if (sh) sh.style.display = art ? 'none' : '';
   }
 
+  // A setup was loaded: the records hold the new positions, so the cached bodies are dropped
+  // and the balls read them again on the next focus.
+  syncFromRecords() {
+    for (const [id, b] of this.bodies) {
+      const rec = this.app.game.toys[id];
+      if (!rec) continue;
+      b.x = rec.x;
+      b.y = rec.ballY ?? b.y;
+      b.vx = b.vy = b.w = b.spin = 0;
+      b.bounceCool = 0;
+    }
+    this.pullFocus();
+  }
+
   update(dt, hidden) {
     const { pet, world } = this.app;
     const ids = this.placedIds();

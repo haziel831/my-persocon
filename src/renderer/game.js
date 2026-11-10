@@ -1,11 +1,12 @@
 // Shop catalog, inventory, coins, toys and saved progress (save.json next to the app).
-import { FULL_STATS, DIFFICULTIES } from './behavior.js';
-import { icon, cartridge } from './pixel.js';
+import { FULL_STATS, DIFFICULTIES, DEBUFFS } from './behavior.js';
+import { icon } from './pixel.js';
 import { GAMES } from './games.js';
 import { FURN_ITEMS, baseId } from './furniture.js';
 import { FUN_ITEMS } from './funtoys.js';
 import { LOOT_ITEMS, RARITIES } from './lootitems.js';
-import { VEND_UP_ITEMS, VEND_ITEMS } from './vendupitems.js';
+import { FOOD_ITEMS } from './consumables.js';
+import { MED_ITEMS } from './meditems.js';
 import './medicons.js';
 import { DEMO } from './edition.js';
 import { BAG_ITEMS as BAGGABLE } from './skills.js';
@@ -19,34 +20,19 @@ const EDITION = DEMO ? 'demo' : 'full';
 export const HER_BAG = false;
 
 export const SHOP_CATEGORIES = [
-  ['comidas', '🍙', 'Comidas'],
-  ['bebidas', '🥤', 'Bebidas'],
-  ['medicina', '💊', 'Medicina'],
   ['fun', '🎮', 'Brinquedos'],
   ['cartuchos', '🕹', 'Cartuchos'],
+  ['comidas', '🍙', 'Comidas'],
+  ['bebidas', '🥤', 'Bebidas'],
+  ['sobremesas', '🍰', 'Sobremesas'],
+  ['medicina', '💊', 'Medicamentos'],
   ['mangas', '📚', 'Mangás'],
   ['mobilia', '🛋', 'Mobília'],
   ['specials', '💎', 'Specials'],
 ];
 
-// Price follows what it gives: Health and Energy weigh the most; bad side effects lower the price.
-const WEIGHT = { hunger: 1, thirst: 0.8, health: 2, energy: 1.5, mood: 1.2, hygiene: 1 };
-const valueOf = (fx) => Object.entries(fx).reduce((a, [k, v]) => a + (WEIGHT[k] ?? 1) * (v > 0 ? v : v * 0.5), 0);
-const foodPrice = (fx, k = 0.6) => {
-  const v = valueOf(fx) * k;
-  return Math.max(5, v < 40 ? Math.round(v) : Math.round(v / 5) * 5);
-};
-
 export const INFINITE_MONEY = false;
 
-const food = (id, cat, name, effects) => {
-  const fx = cat === 'bebidas' ? { thirst: 35, ...effects } : effects;
-  return { id, cat, name, effects: fx, price: foodPrice(fx), img: new URL(`./assets/food/${id}.png`, import.meta.url).href };
-};
-// Popcorn, chips and soda: session snacks. Usable any time; while watching she picks them first.
-const snack = (id, cat, name, pixName, size, effects) => pix(id, cat, name, foodPrice(effects), pixName, { effects, watchOnly: true, size });
-// Medicine works at once, so it costs double per point.
-const med = (id, name, pixName, effects, cures = []) => pix(id, 'medicina', name, foodPrice(effects, 2.8), pixName, { effects, cures });
 const pix = (id, cat, name, price, pixName, extra = {}) => ({
   id, cat, name, price, pix: pixName, effects: {}, ...extra,
   get img() {
@@ -67,60 +53,17 @@ export const BUFF_LABELS = {
 };
 export const BUFF_ICONS = { noHunger: '🍔', doubleMood: '😊', noTired: '⚡', shield: '🛡️', coinMagnet: '🧲', luck: '🍀', deal: '✊', behaved: '🗿' };
 
-// effects: changes applied to the pet's stats when consumed (hunger = satiety).
+// Cartridge prices fixed per game (1.9.4).
+const CART_PRICES = {
+  combat: 80, marioworld: 140, flappy: 50, sonic: 140, tetris: 80, pong: 50, mariokart: 170,
+  donkeykong: 110, pacman: 110, breakout: 50, asteroids: 80, riverraid: 110, invaders: 80, galaga: 80,
+};
+// Only games with art in the sheet are sold; the rest stay disabled for now.
+export const CART_GAMES = ['combat', 'marioworld', 'flappy', 'sonic', 'tetris', 'pong', 'mariokart',
+  'donkeykong', 'pacman', 'breakout', 'asteroids', 'riverraid', 'invaders', 'galaga'];
+
+// Food, drinks and desserts (1.9.6) come from consumables.js; medicine/power-ups were removed in 1.9.4.
 export const ITEMS = [
-  food('onigiri', 'comidas', 'Onigiri', { hunger: 18, health: 2 }),
-  food('onigiri_alga', 'comidas', 'Onigiri com alga', { hunger: 20, health: 3 }),
-  food('onigiri_feliz', 'comidas', 'Onigiri sorridente', { hunger: 18, mood: 5 }),
-  food('nigiri', 'comidas', 'Nigiri de salmão', { hunger: 14, health: 4 }),
-  food('sushi_roll', 'comidas', 'Sushi roll', { hunger: 22, health: 3 }),
-  food('uramaki', 'comidas', 'Uramaki', { hunger: 26, health: 3, mood: 3 }),
-  food('ramen', 'comidas', 'Ramen', { hunger: 35, health: 2, energy: 4 }),
-  food('ramen_picante', 'comidas', 'Ramen picante', { hunger: 35, mood: 5 }),
-  food('bento', 'comidas', 'Bentô', { hunger: 45, health: 6 }),
-  food('bento_especial', 'comidas', 'Bentô especial', { hunger: 50, health: 8, mood: 4 }),
-  food('tempura', 'comidas', 'Tempurá de camarão', { hunger: 24, mood: 4, health: -1 }),
-  food('tempura_tigela', 'comidas', 'Tigela de tempurá', { hunger: 30, mood: 5, health: -1 }),
-  food('takoyaki', 'comidas', 'Takoyaki', { hunger: 22, mood: 6 }),
-  food('takoyaki_porcao', 'comidas', 'Porção de takoyaki', { hunger: 30, mood: 7, health: -1 }),
-  food('taiyaki', 'comidas', 'Taiyaki', { hunger: 14, mood: 10 }),
-  food('taiyaki_creme', 'comidas', 'Taiyaki de creme', { hunger: 14, mood: 12, health: -1 }),
-  food('mochi', 'comidas', 'Mochi', { hunger: 8, mood: 10 }),
-  food('mochi_morango', 'comidas', 'Mochi de morango', { hunger: 10, mood: 14, health: -1 }),
-  food('daifuku', 'comidas', 'Daifuku', { hunger: 10, mood: 12 }),
-  food('dango', 'comidas', 'Dango', { hunger: 10, mood: 9 }),
-  food('mitarashi', 'comidas', 'Mitarashi dango', { hunger: 12, mood: 10 }),
-  food('matcha', 'bebidas', 'Chá matcha', { energy: 12, health: 2 }),
-  food('matcha_quente', 'bebidas', 'Matcha quente', { energy: 14, mood: 4 }),
-  food('matcha_gelado', 'bebidas', 'Matcha gelado', { energy: 8, health: 3, hunger: 2 }),
-  food('matcha_latte', 'bebidas', 'Matcha latte', { energy: 10, hunger: 6, mood: 4 }),
-  food('bubble_matcha', 'bebidas', 'Bubble tea de matcha', { hunger: 8, mood: 10, health: -1 }),
-  food('matcha_frappe', 'bebidas', 'Matcha frappé', { mood: 12, energy: 6, health: -1 }),
-  // Free: keeps the pet alive, but it hates them.
-  pix('sobras', 'comidas', 'Sobras', 0, 'leftovers', { effects: { hunger: 25, mood: -25 }, note: 'Grátis, mas ela odeia' }),
-  pix('agua_torneira', 'bebidas', 'Água de Torneira', 0, 'tapwater', { effects: { thirst: 30, mood: -20 }, note: 'Grátis, mas ela odeia' }),
-  snack('pipoca_p', 'comidas', 'Pipoca pequena', 'popcorn_p', 1, { hunger: 18, mood: 10 }),
-  snack('pipoca_m', 'comidas', 'Pipoca média', 'popcorn_m', 2, { hunger: 32, mood: 18 }),
-  snack('pipoca_g', 'comidas', 'Pipoca grande', 'popcorn_g', 3, { hunger: 50, mood: 28 }),
-  snack('soda_p', 'bebidas', 'Soda pequena', 'soda_p', 1, { thirst: 30, mood: 8 }),
-  snack('soda_m', 'bebidas', 'Soda média', 'soda_m', 2, { thirst: 50, mood: 14 }),
-  snack('soda_g', 'bebidas', 'Soda grande', 'soda_g', 3, { thirst: 75, mood: 22 }),
-  snack('chips_p', 'comidas', 'Batata chips pequena', 'chips_p', 1, { hunger: 16, mood: 10, thirst: -4 }),
-  snack('chips_m', 'comidas', 'Batata chips média', 'chips_m', 2, { hunger: 28, mood: 17, thirst: -6 }),
-  snack('chips_g', 'comidas', 'Batata chips grande', 'chips_g', 3, { hunger: 44, mood: 26, thirst: -9 }),
-pix('pu_saciedade', 'medicina', 'PowerUp: Saciedade', 280, 'med_star', { buff: ['noHunger', 300], rarity: 'comum' }),
-  pix('pu_alegria', 'medicina', 'PowerUp: Alegria', 280, 'med_heart', { buff: ['doubleMood', 300], rarity: 'comum' }),
-  pix('pu_energia', 'medicina', 'PowerUp: Energia', 280, 'med_bolt', { buff: ['noTired', 300], rarity: 'comum' }),
-  pix('pu_sorte', 'medicina', 'PowerUp: Sorte', 320, 'med_clover', { buff: ['luck', 600], rarity: 'incomum' }),
-  pix('pu_ima', 'medicina', 'PowerUp: Ímã', 360, 'med_magnet', { buff: ['coinMagnet', 900], rarity: 'incomum' }),
-  pix('pu_escudo', 'medicina', 'PowerUp: Escudo', 420, 'med_shield', { buff: ['shield', 600], rarity: 'raro' }),
-  pix('pu_supremo', 'medicina', 'PowerUp: Supremo', 900, 'med_crown', {
-    buffs: [['shield', 1200], ['noHunger', 600], ['noTired', 600], ['doubleMood', 600]], rarity: 'epico',
-  }),
-  // Test helper (promo powermeup): wipes every active buff. Not sold in the shop.
-  pix('pu_limpar', 'medicina', 'PowerUp: Reset', 0, 'med_reset', {
-    clearBuffs: true, legacy: true, note: 'Remove todos os buffs ativos',
-  }),
   // Fun stuffs: placed on the desktop, the pet plays with them on its own. gain = stats per second.
   // GameBuddy stays on the desktop (cartridge bag sits next to it); not baggable.
   { id: 'gameboy', cat: 'fun', toy: true, name: 'GameBuddy', price: 180, effects: {}, gain: { mood: 0.45 }, get img() { return icon('buddy'); } },
@@ -133,67 +76,23 @@ pix('pu_saciedade', 'medicina', 'PowerUp: Saciedade', 280, 'med_star', { buff: [
   pix('bolsa_p', 'fun', 'Bolsa pequena', 120, 'bag_s', { gear: true, bagSlots: 3, note: 'Inventário dela: 3 slots' }),
   pix('bolsa_m', 'fun', 'Bolsa média', 280, 'bag_m', { gear: true, bagSlots: 6, note: 'Inventário dela: 6 slots' }),
   pix('bolsa_g', 'fun', 'Bolsa grande', 520, 'bag_g', { gear: true, bagSlots: 9, note: 'Inventário dela: 9 slots' }),
-  // Specials: rare and expensive.
+  // Specials: rare and expensive (no consumables/food).
   pix('cristal', 'specials', 'Crystal Mágico', 2500, 'crystal', { gear: true, rare: true, note: 'Dá vida ao Doll: ele passeia, investiga objetos e mobília e brinca com a Persocon (precisa do Doll na área de trabalho)' }),
   pix('trevo', 'specials', 'Trevo da Sorte', 1500, 'clover', { gear: true, rare: true, note: '+50% em todas as moedas ganhas' }),
-  pix('elixir', 'specials', 'Elixir Dourado', 800, 'elixir', { consumable: true, rare: true, rarity: 'lendario', effects: { health: 100, hunger: 100, thirst: 100, energy: 100, mood: 100, hygiene: 100 }, buff: ['shield', 1800] }),
-  pix('ampulheta', 'specials', 'Ampulheta Encantada', 1200, 'hourglass', { consumable: true, rare: true, rarity: 'lendario', buffs: [['noHunger', 1800], ['noTired', 1800], ['doubleMood', 1800]] }),
   pix('corvo', 'specials', 'Caixa Misteriosa', 3000, 'crowbox', { gear: true, rare: true, note: 'Tem algo vivo aí dentro... dá para ouvir umas bicadas. Um novo amigo para a Persocon treinar?' }),
   pix('estrela', 'specials', 'Estrela dos Desejos', 1000, 'wishstar', { consumable: true, rare: true, effects: { affection: 40, mood: 40 } }),
-  ...Object.entries(GAMES).filter(([id]) => id !== 'tetris').map(([id, g]) => ({
-    id: `cart_${id}`, cat: 'cartuchos', cart: id, name: g.name, price: 20 + g.tier * 30, effects: {},
-    get img() {
-      return typeof document === 'undefined' ? '' : cartridge(g.color, id);
-    },
+  // Cartridges: art cut from cartuchos3.png into one image per game.
+  ...Object.entries(GAMES).filter(([id]) => CART_GAMES.includes(id)).map(([id, g]) => ({
+    id: `cart_${id}`, cat: 'cartuchos', cart: id, name: g.name, price: CART_PRICES[id], effects: {},
+    img: new URL(`./assets/carts/${id}.png`, import.meta.url).href,
   })),
+  ...FOOD_ITEMS,
+  ...MED_ITEMS,
   ...FURN_ITEMS,
   ...FUN_ITEMS,
   ...LOOT_ITEMS,
-  ...VEND_UP_ITEMS,
-  ...VEND_ITEMS,
-  ...legacyItems(),
 ];
-const __tierMeds = [];
-for (let t = 1; t <= 5; t++) {
-  __tierMeds.push(med(`pilula_t${t}`, `Pílula Tier ${t}`, 'med_pill', { health: 6 * t, mood: -1 }, ['gripe', 'prisao', 'nausea', 'lesao']));
-  __tierMeds.push(med(`pocao_t${t}`, `Poção Tier ${t}`, 'med_potion', { health: 12 * t, energy: 4 * t }, ['gripe', 'prisao', 'nausea', 'lesao']));
-  __tierMeds.push(med(`energetico_t${t}`, `Energético Tier ${t}`, 'med_bolt', { energy: 5 * t, mood: -2 }, ['exausta']));
-  if (t <= 3) __tierMeds.push(med(`curativo_t${t}`, `Curativo Tier ${t}`, 'med_bandage', { health: 8 * t }, ['lesao', 'nausea']));
-}
-ITEMS.push(...__tierMeds);
-// BETA: consome assets novos da Shared Library (16x16 Icon Pack) para testar as artes in-game.
-ITEMS.push(
-  pix('pocao_azul_test', 'medicina', 'Poção Azul (asset NEW)', 120, 'med_potion', { effects: { health: 10, energy: 4, mood: 3 }, cures: ['gripe', 'nausea'], imgAsset: './assets/NEWPICKS/Potion_Blue_1.png' }),
-  pix('pocao_rubi_test', 'medicina', 'Poção Rubi (asset NEW)', 180, 'med_potion', { effects: { health: 16, energy: 6, mood: 5 }, cures: ['gripe', 'nausea', 'prisao'], imgAsset: './assets/NEWPICKS/Potion_Red_4.png' }),
-  pix('energetico_ambar_test', 'medicina', 'Energético Âmbar (asset NEW)', 90, 'med_bolt', { effects: { energy: 9, mood: -1 }, cures: ['exausta'], imgAsset: './assets/NEWPICKS/Coffee_Cup_1.png' }),
-  pix('soda_capiroba_test', 'bebidas', 'Soda Capiroba (asset NEW)', 35, 'soda', { effects: { thirst: 40, mood: 15 }, watchOnly: false, imgAsset: './assets/NEWPICKS/Soda_Can_3.png' })
-);
 
-// Items from the first catalog: no longer sold, but still usable if they are in a saved inventory.
-function legacyItems() {
-  return [
-  { id: 'maca', cat: 'comidas', icon: '🍎', name: 'Maçã', effects: { hunger: 10, health: 3 } },
-  { id: 'banana', cat: 'comidas', icon: '🍌', name: 'Banana', effects: { hunger: 12, energy: 3 } },
-  { id: 'cenoura', cat: 'comidas', icon: '🥕', name: 'Cenoura', effects: { hunger: 8, health: 4 } },
-  { id: 'pao', cat: 'comidas', icon: '🍞', name: 'Pão', effects: { hunger: 15 } },
-  { id: 'biscoito', cat: 'comidas', icon: '🍪', name: 'Biscoito', effects: { hunger: 6, mood: 6 } },
-  { id: 'sanduiche', cat: 'comidas', icon: '🥪', name: 'Sanduíche', effects: { hunger: 25, health: 2 } },
-  { id: 'salada', cat: 'comidas', icon: '🥗', name: 'Salada', effects: { hunger: 15, health: 8 } },
-  { id: 'sopa', cat: 'comidas', icon: '🍲', name: 'Sopa', effects: { hunger: 25, health: 6 } },
-  { id: 'peixe', cat: 'comidas', icon: '🐟', name: 'Peixe assado', effects: { hunger: 30, health: 5 } },
-  { id: 'carne', cat: 'comidas', icon: '🍖', name: 'Carne assada', effects: { hunger: 40, energy: 5 } },
-  { id: 'pizza', cat: 'comidas', icon: '🍕', name: 'Pizza', effects: { hunger: 35, mood: 8, health: -1 } },
-  { id: 'hamburguer', cat: 'comidas', icon: '🍔', name: 'Hambúrguer', effects: { hunger: 38, mood: 6, health: -2 } },
-  { id: 'bolo', cat: 'comidas', icon: '🍰', name: 'Bolo', effects: { hunger: 18, mood: 12, health: -1 } },
-  { id: 'sorvete', cat: 'comidas', icon: '🍨', name: 'Sorvete', effects: { hunger: 8, mood: 14 } },
-  { id: 'agua', cat: 'bebidas', icon: '💧', name: 'Água', effects: { hunger: 3, health: 3 } },
-  { id: 'suco', cat: 'bebidas', icon: '🧃', name: 'Suco', effects: { hunger: 6, health: 2, mood: 3 } },
-  { id: 'leite', cat: 'bebidas', icon: '🥛', name: 'Leite', effects: { hunger: 8, health: 3 } },
-  { id: 'cha', cat: 'bebidas', icon: '🍵', name: 'Chá', effects: { mood: 6, health: 2 } },
-  { id: 'cafe', cat: 'bebidas', icon: '☕', name: 'Café', effects: { energy: 15, hunger: -2 } },
-  { id: 'refri', cat: 'bebidas', icon: '🥤', name: 'Refrigerante', effects: { hunger: 4, mood: 8, health: -2 } },
-  ].map((i) => ({ ...i, legacy: true }));
-}
 
 export const STAT_LABELS = { health: 'Saúde', hunger: 'Fome', mood: 'Humor', energy: 'Energia', thirst: 'Sede', hygiene: 'Higiene' };
 
@@ -203,7 +102,7 @@ export const ATTRS = [
 ];
 
 export const itemById = (id) => ITEMS.find((i) => i.id === id);
-export const isEdible = (item) => item && (item.cat === 'comidas' || item.cat === 'bebidas');
+export const isEdible = (item) => item && ['comidas', 'bebidas', 'sobremesas'].includes(item.cat);
 // Things she tastes the first time: from favorite to hated, neutral being the most common.
 export const hasTaste = (item) => isEdible(item) || item?.cat === 'medicina';
 export const TASTES = ['love', 'like', 'ok', 'dislike', 'hate'];
@@ -252,6 +151,7 @@ export function effectText(item) {
   const effects = item.effects || item;
   const parts = Object.entries(effects).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${STAT_LABELS[k] || (k === 'affection' ? 'Afeição' : k)}`);
   for (const b of item.buffs || (item.buff ? [item.buff] : [])) parts.push(`${BUFF_LABELS[b[0]]} por ${b[1] / 60} min`);
+  if (item.cures && item.cures.length) parts.push(`Cura: ${item.cures.map((c) => DEBUFFS[c]?.pt?.name || c).join(', ')}`);
   if (item.clearBuffs) parts.push('Remove todos os buffs ativos');
   if (item.rare) parts.push('💎 Raro');
   if (item.rarity && (item.loot || isPowerUp(item))) parts.push(`★ ${RARITIES[item.rarity]?.label || item.rarity}`);
@@ -360,6 +260,8 @@ export class Game {
     this.foodBagX = save?.foodBagX ?? null;
     this.perch = save?.perch || {};
     this.mangas = save?.mangas || [];
+    // Saved desktop layouts ("setups"): the position of every object on the desktop.
+    this.setups = Array.isArray(save?.setups) ? save.setups : [];
     // Collectible figures from the Gacha (kept on the shelves).
     this.figures = save?.figures || [];
     this.dollSkin = save?.dollSkin || null;
@@ -457,7 +359,7 @@ export class Game {
   available(item) {
     if (item.legacy || item.fixed || item.loot) return false;
     if ((item.cart || item.manga || item.gear || (item.toy && !item.decor)) && this.pending(item.id)) return false;
-    if (item.cart) return ['gameboy', 'gamegear', 'psp', 'videogame'].some((c) => this.toys[c]) && !this.cartridges.includes(item.cart);
+    if (item.cart) return ['gameboy', 'gamegear', 'psp', 'videogame'].some((c) => this.toys[c] || this.count(c) > 0) && !this.cartridges.includes(item.cart);
     if (item.manga) return this.hasShelf() && !this.mangas.includes(item.id);
     if (item.id === 'ioio') return !this.gear.syntoyo && (!this.toys.ioio || this.toys.ioio.broken) && !(this.profile.herBag || []).includes('ioio');
     if (item.id === 'syntoyo') {
@@ -558,7 +460,7 @@ export class Game {
     if (item.gear || id === 'syntoyo' || id === 'gancho' || id === 'microfone') this.gear[id] = true;
     this.pet.gear = this.gear;
     // "Dar a ela" counts as fulfilling the matching wish/request.
-    const kind = item.cat === 'comidas' ? 'food' : item.cat === 'bebidas' ? 'drink' : 'play';
+    const kind = item.cat === 'comidas' ? 'food' : item.cat === 'bebidas' ? 'drink' : item.cat === 'sobremesas' ? 'dessert' : 'play';
     this.pet?.fulfill?.(kind, id);
     this.changed();
     return true;
@@ -1000,7 +902,66 @@ export class Game {
       version: SAVE_VERSION, edition: EDITION, wishes: this.wishes, promos: this.promos, stats, inventory: this.inventory, coins: this.coins, profile: this.profile, toys: this.toys,
       cartridges: this.cartridges, cartridge: this.cartridge, bag: this.bag, bagX: this.bagX, buffs: this.pet.buffs, savedAt: Date.now(),
       affection: this.pet.affection, gear: this.gear, foodBagX: this.foodBagX, perch: this.perch, mangas: this.mangas, figures: this.figures, dollSkin: this.dollSkin, dollScale: this.dollScale, dollModel: this.dollModel, dollAwake: this.dollAwake,
-      deliveries: this.deliveries, queue: this.queue, disco: this.disco,
+      deliveries: this.deliveries, queue: this.queue, disco: this.disco, setups: this.setups,
     }).catch(() => {});
+  }
+
+  // ---------- setups (saved desktop layouts) ----------
+
+  // Snapshot of every object on the desktop: where it is and on which monitor.
+  captureSetup(name) {
+    const items = {};
+    for (const [key, t] of Object.entries(this.toys)) {
+      if (!t?.placed) continue;
+      items[key] = { x: t.x ?? null, y: t.y ?? null, on: t.on ?? null, dx: t.dx ?? null, display: t.display ?? 0, ballY: t.ballY ?? null };
+    }
+    const setup = {
+      name: (name || 'Setup').trim().slice(0, 40) || 'Setup',
+      at: Date.now(),
+      items,
+      bagX: this.bagX ?? null,
+      foodBagX: this.foodBagX ?? null,
+    };
+    this.setups.push(setup);
+    if (this.setups.length > 12) this.setups.shift();
+    this.changed();
+    return setup;
+  }
+
+  // Puts every object back where it was. Objects that are gone (sold/broken) are ignored;
+  // the ones that are still in the inventory are placed again, so the setup comes back whole.
+  applySetup(index) {
+    const setup = this.setups[index];
+    if (!setup) return false;
+    for (const [key, p] of Object.entries(setup.items || {})) {
+      const id = baseId(key);
+      let rec = this.toys[key];
+      if (rec?.broken) continue;
+      if (!rec || !rec.placed) {
+        // Still owned but not on the desktop: put it back where the setup says.
+        if (!this.count(id)) continue;
+        const placed = this.placeToy(id, p.x ?? 0, p.display ?? 0);
+        if (!placed) continue;
+        rec = this.toys[placed];
+      }
+      if (!rec) continue;
+      rec.x = p.x ?? null;
+      rec.y = p.y ?? null;
+      rec.on = p.on ?? null;
+      rec.dx = p.dx ?? null;
+      rec.display = p.display ?? 0;
+      if (p.ballY != null) rec.ballY = p.ballY;
+    }
+    if (setup.bagX != null) this.bagX = setup.bagX;
+    if (setup.foodBagX != null) this.foodBagX = setup.foodBagX;
+    this.changed();
+    return true;
+  }
+
+  deleteSetup(index) {
+    if (index < 0 || index >= this.setups.length) return false;
+    this.setups.splice(index, 1);
+    this.changed();
+    return true;
   }
 }
