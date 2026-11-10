@@ -1,31 +1,69 @@
-// Speech-bubble pixel emoticons shown above the pet's head.
-import { emoteSet } from './pixel.js';
+// Speech-bubble emoticons shown above the pet's head.
+// Art: Pipoya Popup Emotes Pack, used as ONE sprite sheet (960x576) with 18 rows of 10 emote
+// groups; each group is a 3-frame animation (3 x 32px) clipped by CSS background-position and
+// played with a steps(3) animation. No .gif files and no generated pixel emotes are used.
+
+const SHEET_COLS = 10;
+const SHEET_ROWS = 18;
+const FRAME = 32; // frame size in the sheet
+const GROUP = FRAME * 3; // width of one emote group in the sheet
+const SHEET_W = 960;
+const SHEET_H = 576;
+
+// Every emote is registered once, pointing at its group index in the sheet.
+// Group i sits at column (i % 10) and row (i / 10).
+const EMOTES = {
+  interrobang: 2, // "!?" bubble
+  question: 1, // "?" bubble
+  dizzy: 30, // spiral eyes
+  sparkle: 4, // sparkles
+  hearts: 7, // pink heart
+  blush: 10, // shy cheeks
+  sleep: 20, // Zz
+  dots: 17, // "..." (sleep dots)
+  scribble: 18, // tangled mind (thinking)
+  anger: 21, // anger spark
+  storm: 54, // storm cloud (sad)
+  brokenheart: 9, // broken heart
+  note: 3, // music note
+  medal: 77, // gold medal (gaming / victory)
+  star: 5, // big star (excited)
+  sweat: 22, // effort drops
+  arrow: 88, // red arrow (go)
+  hand: 87, // open hand (thanks)
+  bowl: 65, // bowl of food (hungry)
+  drink: 66, // mug (thirsty)
+  laugh: 33, // big laugh
+  shock: 35, // shocked face
+  rainbow: 57, // rainbow (sport)
+  peace: 86, // victory hand (rock-paper-scissors)
+};
 
 const CATEGORIES = {
-  surprise: ['g_interrobang', 'g_exclaim', 'g_scared'],
-  help: ['g_help', 'g_scared'],
-  dizzy: ['g_dizzy', 'g_sweat'],
-  happy: ['g_sparkle', 'g_sun', 'g_flower', 'g_lol', 'g_ok', 'g_thanks'],
-  love: ['g_hearts', 'g_stareyes', 'g_flower'],
-  shy: ['g_shy'],
-  sleepy: ['g_yawn'],
-  sleeping: ['g_zzz', 'g_dots'],
-  thinking: ['g_question', 'g_dots', 'g_idea'],
-  angry: ['g_vein', 'g_angrycloud', 'g_fire'],
-  sad: ['g_heartbreak', 'g_cry', 'g_rain'],
-  heartbreak: ['g_heartbreak'],
-  music: ['g_note', 'g_mic'],
-  gaming: ['g_game'],
-  excited: ['g_sparkle', 'g_hearts', 'g_stareyes', 'g_fire'],
-  effort: ['g_sweat', 'g_fire', 'g_go'],
-  go: ['g_go', 'g_ok'],
-  thanks: ['g_thanks'],
-  hungry: ['g_food'],
-  thirsty: ['g_drink'],
-  laugh: ['g_lol'],
-  scared: ['g_scared', 'g_skull'],
-  sport: ['g_ball', 'g_go'],
-  rps: ['g_rock', 'g_paper', 'g_scissors'],
+  surprise: ['interrobang'],
+  help: ['question'],
+  dizzy: ['dizzy'],
+  happy: ['sparkle'],
+  love: ['hearts'],
+  shy: ['blush'],
+  sleepy: ['sleep'],
+  sleeping: ['dots'],
+  thinking: ['scribble'],
+  angry: ['anger'],
+  sad: ['storm'],
+  heartbreak: ['brokenheart'],
+  music: ['note'],
+  gaming: ['medal'],
+  excited: ['star'],
+  effort: ['sweat'],
+  go: ['arrow'],
+  thanks: ['hand'],
+  hungry: ['bowl'],
+  thirsty: ['drink'],
+  laugh: ['laugh'],
+  scared: ['shock'],
+  sport: ['rainbow'],
+  rps: ['peace'],
 };
 
 // Pet event -> [category, probability]; probability 1 means always (ignores cooldown).
@@ -91,43 +129,44 @@ export class Emoticons {
   // stats: () => current pet stats, used to hold back negative emoticons while the pet is well.
   constructor(cfg, stats = () => null) {
     this.cfg = cfg;
-    this.reload();
-    this.frames = null;
-    this.frameT = 0;
+    this.images = new Map(Object.entries(EMOTES));
+    this.current = null;
     this.stats = stats;
     this.box = document.createElement('div');
     this.box.className = 'emoticon';
-    this.el = document.createElement('img');
-    this.el.draggable = false;
+    this.el = document.createElement('div');
+    this.el.className = 'pipo-emote';
     this.box.appendChild(this.el);
     document.body.appendChild(this.box);
     this.visible = 0;
     this.cooldown = 0;
     this.sleepTimer = 4;
     this.scale = 2;
-  }
-
-  // Rebuilds the image table for the emote theme ('auto' follows the UI theme).
-  reload() {
-    this.images = new Map();
-    this.sides = new Map();
-    const t = this.cfg.emoteTheme;
-    for (const e of emoteSet(!t ? 'padrao' : t === 'auto' ? this.cfg.theme || 'padrao' : t)) {
-      this.images.set(e.name, e.frames);
-      this.sides.set(e.name, { l: e.left, c: e.frames, r: e.right });
-    }
-    this.current = null;
+    this.size = 64;
   }
 
   setSize(P) {
     this.P = P;
     const s = (P / 110) * 2 * (this.cfg.emoticonScale ?? 0.5);
     this.scale = Math.max(0.5, Math.round(s * 4) / 4);
-    const img = this.el;
-    if (img.naturalWidth) {
-      img.style.width = (img.naturalWidth / 2) * this.scale + 'px';
-      img.style.height = (img.naturalHeight / 2) * this.scale + 'px';
-    }
+    this.size = Math.max(20, Math.round(FRAME * this.scale));
+    if (this.current) this.apply(this.current);
+  }
+
+  // Clips the 3-frame group from the sheet and lets CSS step through it.
+  apply(name) {
+    const group = this.images.get(name);
+    if (group == null) return;
+    const k = this.size / FRAME;
+    const x = -((group % SHEET_COLS) * GROUP) * k;
+    const y = -Math.floor(group / SHEET_COLS) * FRAME * k;
+    const el = this.el;
+    el.style.width = `${this.size}px`;
+    el.style.height = `${this.size}px`;
+    el.style.backgroundSize = `${SHEET_W * k}px ${SHEET_H * k}px`;
+    el.style.setProperty('--pipo-x', `${x}px`);
+    el.style.setProperty('--pipo-y', `${y}px`);
+    el.style.setProperty('--pipo-x-end', `${x - GROUP * k}px`);
   }
 
   // Shows a sample bubble (used while adjusting size/position in the options).
@@ -149,20 +188,11 @@ export class Emoticons {
     if (!force && (this.cooldown > 0 || this.visible > 0)) return;
     const names = (CATEGORIES[category] || []).filter((n) => this.images.has(n));
     if (!names.length) return;
-    const img = this.el;
-    img.onload = () => {
-      img.style.width = (img.naturalWidth / 2) * this.scale + 'px';
-      img.style.height = (img.naturalHeight / 2) * this.scale + 'px';
-    };
-    const name = pick(names);
-    const data = this.images.get(name);
-    this.current = this.sides.get(name) || null;
-    this.frames = Array.isArray(data) ? data : null;
-    this.frameT = 0;
-    img.src = this.frames ? this.frames[0] : data;
-    img.classList.remove('pop');
-    void img.offsetWidth;
-    img.classList.add('pop');
+    this.current = pick(names);
+    this.apply(this.current);
+    this.el.classList.remove('pop');
+    void this.el.offsetWidth;
+    this.el.classList.add('pop');
     this.visible = category === 'sleeping' ? 3 : 2.6;
     this.cooldown = this.visible + 3;
   }
@@ -263,11 +293,6 @@ export class Emoticons {
     }
     if (this.visible > 0) {
       this.visible -= dt;
-      if (this.frames) {
-        this.frameT += dt;
-        const src = this.frames[Math.floor(this.frameT / 0.22) % this.frames.length];
-        if (this.el.src !== src) this.el.src = src;
-      }
       if (this.visible <= 0) this.el.classList.remove('pop');
     }
     const box = this.box;
@@ -281,11 +306,6 @@ export class Emoticons {
       let y = head.y - (this.cfg.emoticonOffsetY ?? 12) - h;
       // Too close to the top of the screen: show it below the head instead.
       if (y < 2) y = head.y + this.P * 0.45;
-      if (this.current) {
-        const off = head.x - (x + w / 2);
-        const side = off < -w * 0.18 ? 'l' : off > w * 0.18 ? 'r' : 'c';
-        this.frames = this.current[side];
-      }
       box.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
       this.rect = { x, y, w, h };
     }

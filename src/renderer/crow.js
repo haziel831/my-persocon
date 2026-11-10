@@ -575,9 +575,8 @@ export class Crow {
       pet.emit('crowGift', { coins: n });
       return;
     }
-    const food = ITEMS.filter((i) => i.cat === (r < 0.6 ? 'comidas' : 'bebidas') && i.price > 0 && !i.watchOnly && !i.legacy);
     const loot = LOOT_ITEMS.filter((i) => !i.box && ['comum', 'incomum'].includes(i.rarity));
-    const item = r < 0.75 ? pick(food) : r < 0.9 ? pick(loot) : itemById(r < 0.97 ? 'caixa_comum' : 'caixa_rara');
+    const item = r < 0.9 ? pick(loot) : itemById(r < 0.97 ? 'caixa_comum' : 'caixa_rara');
     if (!item) return;
     game.deliveries.push({ id: item.id, n: 1, x: this.x + this.dir * this.H * 0.4, display: this.app.display?.() ?? 0 });
     game.changed();

@@ -1003,7 +1003,7 @@ export class DollBrain {
         }
         if (!win) return this.say(pick(['😤', '😒']), 1.4);
         const cat = baseId(key) === 'venda_comida' ? 'comidas' : 'bebidas';
-        const item = vend.choose(cat, Infinity).item;
+        const item = vend.choose(cat, Infinity)?.item;
         if (!item) return;
         game.inventory[item.id] = Math.min(99, game.count(item.id) + 1);
         game.changed();

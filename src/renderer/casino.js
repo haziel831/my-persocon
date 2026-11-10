@@ -1,7 +1,8 @@
 // Gacha-Machine and Slot-Machine. The Persocon has her own wallet (the player gives her coins in
 // Ações → Carteira) and spends it on her own at both machines; a click on the Gacha is paid by the
 // player. Coin prizes and Slot winnings go to the player's coins (asked by the user). Odds follow affection.
-import { ITEMS, itemById, isEdible } from './game.js';
+import { ITEMS, itemById } from './game.js';
+import { GAMES } from './games.js';
 import { icon } from './pixel.js';
 import { RARITIES } from './lootitems.js';
 import { dollReact } from './watch.js';
@@ -22,8 +23,12 @@ const GOLD = ['#ffd23f', '#ffc23a', '#fff1b0', '#c98200'];
 const PRIZE_COINS = { comum: [5, 15], incomum: [20, 40], raro: [60, 100], epico: [150, 300] };
 // A figure she already has turns into coins for the player.
 const DUPE_COINS = { comum: 10, incomum: 25, raro: 60, epico: 150 };
-const FOOD_PRICE = { comum: [1, 15], incomum: [15, 30], raro: [25, 60] };
-const EPIC_FOOD = ['elixir', 'estrela', 'ampulheta'];
+const CART_TIER = { comum: [1, 2], incomum: [2, 3], raro: [3, 4], epico: [4, 5] };
+const cartPrize = (rarity) => {
+  const [lo, hi] = CART_TIER[rarity] || [1, 2];
+  const list = ITEMS.filter((i) => i.cart && GAMES[i.cart]?.tier >= lo && GAMES[i.cart]?.tier <= hi);
+  return list.length ? { kind: 'item', id: pick(list).id, n: 1, rarity } : null;
+};
 
 // Upgraded Gacha: its own figures join the pool, more figures and food, bigger coin prizes and
 // lootbox prizes in the rare capsules.
@@ -44,10 +49,9 @@ function rollPrize(rarity, up = false) {
     return { kind: 'coins', n: Math.round((randInt(a, b) * 1.6) / 5) * 5, rarity };
   }
   if (r < 0.7) {
-    if (rarity === 'epico') return { kind: 'item', id: pick(EPIC_FOOD), n: 1, rarity };
-    const [lo, hi] = FOOD_PRICE[rarity];
-    const food = ITEMS.filter((i) => isEdible(i) && !i.legacy && !i.watchOnly && !i.loot && i.price >= lo && i.price <= hi);
-    if (food.length) return { kind: 'item', id: pick(food).id, n: rarity === 'raro' ? randInt(2, 3) : rarity === 'incomum' ? randInt(1, 2) : 1, rarity };
+    // Food is gone (1.9.4): cartridges take its place in the capsule.
+    const cart = cartPrize(rarity);
+    if (cart) return cart;
   }
   const [a, b] = PRIZE_COINS[rarity];
   return { kind: 'coins', n: Math.round(randInt(a, b) / 5) * 5, rarity };
@@ -87,11 +91,9 @@ export class Casino {
     return id === 'gacha' || id === 'slot' || this.vend.owns(id);
   }
 
-  // Coins she keeps for food and drinks at the vending machines; she only gambles what is left.
+  // Food and drinks were removed in 1.9.4: nothing to reserve for the vending machines.
   reserve() {
-    let r = 0;
-    for (const cat of ['comidas', 'bebidas']) if (this.vend.machine(cat)) r += this.vend.cheapest(cat) * 2;
-    return r;
+    return 0;
   }
 
   spare() {

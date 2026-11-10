@@ -73,7 +73,7 @@ export const TEXT = {
       ['Redes', 'Twitch: haziel831 · YouTube: @haz831 · Instagram: @haziel831 · X: @HaZ_Midnight · TikTok: @hazmidnight2'],
       ['Agradecimentos', 'A todos que testarem e mandarem feedback ♥'],
     ],
-    earlyAccess: 'First Release',
+    earlyAccess: 'BETA',
   },
   en: {
     menu: { continue: 'Continue…', newGame: 'New game', options: 'Options', tutorial: 'Tutorial', credits: 'Credits', quit: 'Quit' },
@@ -145,7 +145,7 @@ export const TEXT = {
       ['Socials', 'Twitch: haziel831 · YouTube: @haz831 · Instagram: @haziel831 · X: @HaZ_Midnight · TikTok: @hazmidnight2'],
       ['Thanks', 'To everyone who tests it and sends feedback ♥'],
     ],
-    earlyAccess: 'First Release',
+    earlyAccess: 'BETA',
   },
 };
 

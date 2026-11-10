@@ -755,6 +755,7 @@ export class Pet {
     const match = (r) => {
       if (!r) return false;
       if (r.id && id && r.id !== id) return false;
+      if (r.id && id && r.id === id) return true;
       if (r.kind === kind) return true;
       // Giving a toy/gear to her bag also clears a generic "play" / matching toy wish.
       if (kind === 'play' && (r.kind === 'toy' || r.kind === 'play' || r.kind === 'ball')) return true;
@@ -826,9 +827,15 @@ export class Pet {
     this.requestTimer -= dt;
     if (this.requestTimer > 0) return;
     this.requestTimer = rand(60, 120);
-    const kind = pickWeighted({ food: 3, drink: 2, pat: 2, play: 1, wish: 3 });
+    // Food and drinks no longer exist (1.9.4): only ask for them if some item still exists.
+    const hasFood = !!this.requestPool?.('comidas');
+    const hasDrink = !!this.requestPool?.('bebidas');
+    // Desserts are requested often, but only when the player already owns them.
+    const hasDessert = !!this.requestPool?.('sobremesas');
+    const kind = pickWeighted({ food: hasFood ? 3 : 0, drink: hasDrink ? 2 : 0, dessert: hasDessert ? 4 : 0, pat: 2, play: 1, wish: 3 });
     if (kind === 'wish' && this.wish()) return;
-    const item = kind === 'food' || kind === 'drink' ? this.requestPool?.(kind === 'food' ? 'comidas' : 'bebidas') : null;
+    const cat = kind === 'food' ? 'comidas' : kind === 'drink' ? 'bebidas' : kind === 'dessert' ? 'sobremesas' : null;
+    const item = cat ? this.requestPool?.(cat) : null;
     this.request = { kind, id: item?.id, name: item?.name, img: item?.img, t: 45 };
     this.rememberWish(this.request);
     this.emit('request', this.request);
@@ -1318,6 +1325,7 @@ export class Pet {
     if (this.activity === 'watch') this.anim('sit', { pose: 'sit', facing: this.watchFacing ?? Math.PI / 4 });
     else this.anim('idle', { facing: 'front' });
     this.fulfill(drink ? 'drink' : 'food', item.id);
+    if (item.cat === 'sobremesas') this.fulfill('dessert', item.id);
     if (wasSleeping) this.emit('wake', { startled: false });
     this.emit('eat', { item, drink });
   }

@@ -82,6 +82,11 @@ function jingle(sound) {
   sound.tone('sawtooth', 90, 1200, t0, REVEAL, 0.025);
 }
 
+// Reusable upgrade SFX (also fired by the Midnight easter egg).
+export function upgradeJingle(sound) {
+  if (sound?.enabled) jingle(sound);
+}
+
 export function upgradeFx(app, el, title, onReveal) {
   const { sound, pet } = app;
   const cv = document.createElement('canvas');
@@ -96,7 +101,7 @@ export function upgradeFx(app, el, title, onReveal) {
   g.scale(dpr, dpr);
   el?.classList.add('upgrading');
 
-  if (sound.enabled) jingle(sound);
+  upgradeJingle(sound);
 
   const parts = [];
   const arcs = [];

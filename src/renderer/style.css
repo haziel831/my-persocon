@@ -33,8 +33,22 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; }
 
 /* ---------- emoticon ---------- */
 .emoticon { position: absolute; left: 0; top: 0; display: none; pointer-events: none; will-change: transform; z-index: 8; }
-.emoticon img { display: block; image-rendering: pixelated; transform-origin: 50% 100%; }
-.emoticon img.pop { animation: pop 0.28s cubic-bezier(0.3, 1.6, 0.5, 1); }
+/* Pipoya popup emotes: one 960x576 sheet, each emote is a 3-frame group clipped by JS. */
+.emoticon .pipo-emote {
+  display: block;
+  background-image: url("./assets/emotes/pipo-popupemotes.png");
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  transform-origin: 50% 100%;
+  animation: pipo-frames 0.45s steps(3) infinite;
+}
+.emoticon .pipo-emote.pop {
+  animation: pop 0.28s cubic-bezier(0.3, 1.6, 0.5, 1), pipo-frames 0.45s steps(3) infinite;
+}
+@keyframes pipo-frames {
+  from { background-position: var(--pipo-x) var(--pipo-y); }
+  to { background-position: var(--pipo-x-end) var(--pipo-y); }
+}
 @keyframes pop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 .hud {
@@ -45,7 +59,7 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; }
 
 /* ---------- food in the pet's hands ---------- */
 .held-food { position: absolute; left: 0; top: 0; display: none; pointer-events: none; will-change: transform; transform-origin: 50% 80%; }
-.held-food img { display: block; width: 100%; height: 100%; }
+.held-food img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .held-food span { display: block; line-height: 1; text-align: center; font-family: PxEmoji, sans-serif; }
 .crumb {
   position: absolute; width: 4px; height: 4px; border-radius: 1px; background: #f3dfa6; pointer-events: none;
@@ -183,7 +197,10 @@ input.text:focus { border-color: var(--accent); }
 }
 button.item:hover { background: var(--panel-hover); }
 .item-icon { grid-row: span 2; font-size: 24px; text-align: center; font-family: PxEmoji, sans-serif; }
-.item-icon img { display: block; width: 34px; height: 34px; }
+.item-icon img { display: block; width: 34px; height: 34px; image-rendering: pixelated; object-fit: contain; }
+.cart-sheet { display: block; width: 34px; height: 34px; background-image: url("./assets/carts/carts_atlas.png"); background-size: 400% 400%; image-rendering: pixelated; }
+.item-icon img.consumable-img { display: block; width: 16px; height: 16px; transform: scale(2); transform-origin: center; image-rendering: pixelated; }
+.food-sheet { display: block; width: 24px; height: 24px; background-image: url("./assets/food/food_atlas.png"); background-repeat: no-repeat; image-rendering: pixelated; }
 .item-name { font-weight: 600; display: flex; gap: 6px; align-items: baseline; }
 .item .count { color: var(--muted); font-weight: 400; font-size: 11px; }
 .item-fx { grid-column: 2; color: var(--muted); font-size: 11px; }
@@ -374,7 +391,8 @@ body.love-glitch { animation: love-shake 0.7s steps(7); }
 .shelf-pop .title { font-weight: 600; padding: 0 2px 2px; }
 .shelf-pop .shelf-info { font-size: 11px; color: var(--muted); padding: 0 2px 2px; }
 .shelf-pop .shelf-rows { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding-right: 4px; }
-.shelf-pop .shelf-row { font-size: 12px; padding: 3px 6px; border-radius: 5px; line-height: 1.3; }
+.shelf-pop .shelf-row { font-size: 12px; padding: 3px 6px; border-radius: 5px; line-height: 1.3; display: flex; align-items: center; gap: 6px; }
+.shelf-pop .shelf-row .shelf-cart { width: 18px; height: 18px; flex: 0 0 auto; }
 .shelf-pop .shelf-row.owned { background: var(--panel); }
 .shelf-pop .shelf-row.unknown { color: var(--muted); opacity: 0.75; font-style: italic; }
 .shelf-pop .shelf-row[data-cart] { cursor: pointer; }
@@ -1244,4 +1262,36 @@ body.editing-furn .toy[data-id].broken { animation: none; }
 .dbg-info { color: #d8dee8; }
  
 
+  
+/* ---------- box open dialog ---------- */
+.box-open-dialog { display: grid; gap: 20px; padding: 12px; max-width: 420px; margin: 0 auto; }
+.box-open-dialog .box-preview { display: grid; justify-items: center; gap: 4px; }
+.box-open-dialog .box-icon { display: flex; align-items: center; justify-content: center; min-height: 72px; margin-bottom: 8px; }
+.box-open-dialog .box-icon img { display: block; width: 72px; height: 72px; image-rendering: pixelated; }
+.box-open-dialog .box-icon .glyph { font-size: 56px; line-height: 1; }
+.box-open-dialog .box-name { font-size: 16px; font-weight: 700; line-height: 1.25; text-align: center; }
+.box-open-dialog .box-count { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.slider-container { display: grid; gap: 10px; }
+.slider-wrapper { width: 100%; min-width: 260px; padding: 8px; }
+.slider-wrapper input[type="range"] { width: 100%; height: 8px; }
+.slider-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.slider-value.big { font-size: 18px; font-weight: 700; color: var(--accent); margin-top: 6px; line-height: 1.25; text-align: center; }
+.quick-buttons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.quick-btn { padding: 7px 14px; font-weight: 600; font-size: 13px; }
+
 body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1)*2px) rgba(0,0,0,0.9)) saturate(0.85); }
+
+/* ---------- Midnight easter egg ---------- */
+.midnight-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  border: 14px solid #7a3cff;
+  box-shadow: 0 0 22px 6px #7a3cff, inset 0 0 30px 8px rgba(122, 60, 255, 0.8);
+  animation: midnight-flash 0.6s ease-in-out 3;
+}
+@keyframes midnight-flash {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}

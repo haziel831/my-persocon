@@ -15,7 +15,15 @@ function sprite(w, h, paint, outline = '#1d1a26', hd = true, light = true) {
   const circle = (cx, cy, r, color) => {
     for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * 0.6) px(cx + x, cy + y, color);
   };
-  paint({ rect, px, circle });
+  // Draws an already loaded image (a sprite-sheet cell) inside the icon being painted.
+  const image = (img, sx, sy, sw, sh, dx, dy, dw, dh) => {
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const smooth = g.imageSmoothingEnabled;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    g.imageSmoothingEnabled = smooth;
+  };
+  paint({ rect, px, circle, image });
   if (hd) return (artStyle === 'classic' ? detail : detail16)(g, w, h, outline, light);
   if (outline) {
     const d = g.getImageData(0, 0, w, h);
@@ -263,7 +271,7 @@ const DEFS = {
     rect(9, 25, 14, 6, '#5b7bd5');
     rect(9, 25, 14, 1, '#8ea6ee');
   }),
-  // 32x32 cartoon glove (cafuné cursor) and the red open hand (tapa cursor), outlined.
+  // 32x32 cartoon glove (cafunÃ© cursor) and the red open hand (tapa cursor), outlined.
   glove: () => sprite(32, 32, ({ rect }) => {
     const O = '#2a2738';
     const shape = (c, g) => {
@@ -672,7 +680,55 @@ const DEFS = {
 
 // Cartridge with a colored label (per game).
 // Label art for each game, drawn in the 10x8 label area at (4, 4).
-const LABELS = {
+// Mapeamento dos jogos para as artes em cartuchos3.png (16 artes disponÃ­veis, 4x4 grid)
+// Cada cartucho na folha tem aprox. 64x80px. Jogos mapeados por similaridade temÃ¡tica:
+// Linha 1: Mario-style, Sonic-style, Space shooter 1, Space shooter 2
+// Linha 2: Mario jumping, Ninja/Action, Castle/Dungeon, Adventure
+// Linha 3: Mario running, Boxing/Fighting, Book/Puzzle, Sword/RPG
+// Linha 4: Racing, Strategy, Platformer, Character action
+const CARTRUCHO_ART_INDEX = {
+  tetris: 10,        // Book/Puzzle style (linha 3, col 3)
+  pong: 12,          // Boxing/Fighting (linha 3, col 1) - arcade classic
+  galaga: 2,         // Space shooter (linha 1, col 3)
+  asteroids: 3,      // Space shooter 2 (linha 1, col 4)
+  invaders: 1,       // Space/Action (linha 1, col 2)
+  flappy: 8,         // Adventure (linha 2, col 4)
+  breakout: 0,       // Mario-style (linha 1, col 1) - classic arcade
+  combat: 12,        // Boxing/Fighting (linha 3, col 1)
+  riverraid: 2,      // Space shooter (linha 1, col 3)
+  pacman: 4,         // Mario jumping (linha 2, col 1)
+  donkeykong: 6,     // Castle/Dungeon (linha 2, col 3)
+  sonic: 1,          // Sonic-style (linha 1, col 2)
+  marioworld: 0,     // Mario-style (linha 1, col 1)
+  mariokart: 16,     // Racing (linha 4, col 1)
+};
+// DimensÃµes do sprite sheet cartuchos3.png
+const CARTRIDGE_SPRITE = {
+  src: new URL('./assets/NEW/cartuchos3.png', import.meta.url).href,
+  cols: 4,
+  rows: 4,
+  cartW: 64,
+  cartH: 80,
+  img: null,
+  async load() {
+    if (this.img) return this.img;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => { this.img = img; resolve(img); };
+      img.onerror = () => { this.img = null; resolve(null); };
+      img.src = this.src;
+    });
+  },
+  getArt(index) {
+    if (index < 0 || index >= 16) return null;
+    const col = index % this.cols;
+    const row = Math.floor(index / this.cols);
+    return { x: col * this.cartW, y: row * this.cartH, w: this.cartW, h: this.cartH };
+  },
+};
+
+// Old labels kept for fallback when sprite fails to load
+const LABELS_FALLBACK = {
   tetris: ({ rect }) => { rect(5, 9, 3, 1, '#3cc'); rect(6, 8, 1, 1, '#3cc'); rect(9, 7, 2, 2, '#fd3'); rect(10, 9, 3, 1, '#c3c'); },
   pong: ({ rect }) => { rect(5, 6, 1, 4, '#fff'); rect(12, 7, 1, 4, '#fff'); rect(8, 8, 2, 2, '#fff'); },
   galaga: ({ rect }) => { rect(8, 6, 2, 4, '#fff'); rect(6, 9, 6, 1, '#f33'); rect(7, 5, 4, 1, '#3cf'); },
@@ -688,8 +744,20 @@ const LABELS = {
   marioworld: ({ rect }) => { rect(6, 5, 5, 3, '#f83'); rect(6, 8, 5, 4, '#3ac'); rect(7, 6, 1, 1, '#000'); rect(9, 6, 1, 1, '#000'); },
   mariokart: ({ rect }) => { rect(5, 8, 8, 3, '#38f'); rect(5, 11, 2, 1, '#222'); rect(11, 11, 2, 1, '#222'); rect(8, 6, 2, 2, '#ddd'); },
 };
+const LABELS = LABELS_FALLBACK;
+
+// Single cartridge sheet (4x4, 128px cells) cut from cartuchos3.png. The shop/inventory clip it
+// with CSS background-position; the hand-held sprites still use the per-game PNGs cut from it.
+export const CART_SHEET_CELLS = ['combat', 'marioworld', 'flappy', 'sonic', 'tetris', 'pong', 'mariokart',
+  'donkeykong', 'pacman', 'breakout', 'asteroids', 'riverraid', 'invaders', 'galaga'];
+export function cartSheetStyle(id) {
+  const i = CART_SHEET_CELLS.indexOf(id);
+  if (i < 0) return null;
+  return { backgroundPosition: `${(i % 4) * 100 / 3}% ${Math.floor(i / 4) * 100 / 3}%` };
+}
 
 // Cartridge with a per-game label; console: 'gb' grey, 'gg' black, 'psp' disc (UMD). fav: little heart.
+// Usa labels desenhados para cada jogo - as artes de cartuchos3.png sÃ£o referenciais.
 export function cartridge(color, game, consoleId = 'gb', fav = false) {
   const key = `cart:${color}:${game}:${consoleId}:${fav}`;
   if (cache.has(key)) return cache.get(key);
@@ -706,6 +774,7 @@ export function cartridge(color, game, consoleId = 'gb', fav = false) {
       rect(5, 4, 8, 9, 'rgba(0,0,0,0.35)');
       rect(4, 15, 10, 2, consoleId === 'gg' ? '#111' : '#6d6b78');
     }
+    // Desenha o label do jogo
     LABELS[game]?.(p);
     if (fav) {
       rect(13, 0, 2, 1, '#ff3b6b');
@@ -719,366 +788,7 @@ export function cartridge(color, game, consoleId = 'gb', fav = false) {
   return url;
 }
 
-// Animated speech-bubble emoticons (27x24 base, ~2x after the finish).
-// Emote themes: bubble color/outline/shape and how the inks are remapped so every icon stays readable.
-// pal: 4 shades, flat (no 16-bit finish); icons use the two dark shades over the light bubble.
-const EMOTE_THEMES = {
-  padrao: { glyphs: true },
-  balao: {},
-  pixel: { box: true },
-  retro: { bg: '#f6ecd0', line: '#5a3424' },
-  dark: { bg: '#2b2b36', line: '#e8e8f0', dark: '#e8e8f0' },
-  light: { line: '#78788c' },
-  synthwave: { bg: '#2a1640', line: '#ff4fd8', dark: '#9ff6ff', neon: true },
-  gameboy: { pal: ['#0f380f', '#306230', '#8bac0f', '#9bbc0f'], box: true },
-  'gameboy-light': { pal: ['#002828', '#14645a', '#50b496', '#aae6c8'], box: true },
-  'gameboy-color': { bg: '#faf0c8', line: '#462878' },
-  'gameboy-advance': { bg: '#dce1ff', line: '#3c3c8c' },
-  gamegear: { bg: '#1e1e24', line: '#5ac8ff', dark: '#5ac8ff', neon: true },
-  psp: { bg: '#ebeef5', line: '#14141e' },
-  resourcepack: { bg: '#c6c6c6', line: '#1d1d1d', box: true },
-};
 
-const LIGHT_FILL = '#ff00fe';
-const toHex = (r, g, b) => '#' + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
-const hexLum = (c) => {
-  const [r, g, b] = hexRgb(c);
-  return (r * 0.3 + g * 0.59 + b * 0.11) / 255;
-};
-function inkFor(t) {
-  if (t.pal) return (c) => {
-    if (c === '#fff') return t.pal[3];
-    const l = hexLum(c);
-    return l < 0.42 ? t.pal[0] : l < 0.6 ? t.pal[1] : LIGHT_FILL;
-  };
-  return (c) => {
-    if (c === '#fff') return t.bg || '#fff';
-    if (t.dark && hexLum(c) < 0.18) return t.dark;
-    if (!t.neon) return c;
-    const [r, g, b] = hexRgb(c);
-    return toHex(r * 1.2 + 40, g * 0.8 + 40, b * 1.3 + 60);
-  };
-}
-
-function emoteSprite(paint, t) {
-  const w = 27;
-  const h = 24;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const g = c.getContext('2d');
-  const ink = inkFor(t);
-  const raw = (x, y, rw, rh, color) => {
-    g.fillStyle = color;
-    g.fillRect(x, y, rw, rh);
-  };
-  const rect = (x, y, rw, rh, color) => raw(x, y, rw, rh, ink(color));
-  const px = (x, y, color) => rect(x, y, 1, 1, color);
-  const circle = (cx, cy, r, color) => {
-    for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * 0.6) px(cx + x, cy + y, color);
-  };
-  paint({ rect, px, circle, raw });
-  if (!t.pal) return (artStyle === 'classic' ? detail : detail16)(g, w, h, t.line || '#1d1a26', true);
-  // Light fills take the bubble color with a dark contour (the shades in between are too close to read).
-  const d = g.getImageData(0, 0, w, h);
-  const px32 = new Uint32Array(d.data.buffer);
-  const mark = new Uint32Array(new Uint8ClampedArray([...hexRgb(LIGHT_FILL), 255]).buffer)[0];
-  const paper = new Uint32Array(new Uint8ClampedArray([...hexRgb(t.pal[3]), 255]).buffer)[0];
-  const at = (x, y) => (x >= 0 && y >= 0 && x < w && y < h ? px32[y * w + x] : 0);
-  const near = (x, y, v) => at(x - 1, y) === v || at(x + 1, y) === v || at(x, y - 1) === v || at(x, y + 1) === v;
-  const out = px32.slice();
-  const dark = new Uint32Array(new Uint8ClampedArray([...hexRgb(t.pal[0]), 255]).buffer)[0];
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const v = px32[y * w + x];
-      if (v === mark) out[y * w + x] = paper;
-      else if (v === paper && near(x, y, mark)) out[y * w + x] = dark;
-      else if (!(v >>> 24) && (at(x - 1, y) >>> 24 || at(x + 1, y) >>> 24 || at(x, y - 1) >>> 24 || at(x, y + 1) >>> 24)) out[y * w + x] = dark;
-    }
-  }
-  px32.set(out);
-  g.putImageData(d, 0, 0);
-  const big = document.createElement('canvas');
-  big.width = w * 2;
-  big.height = h * 2;
-  const bg = big.getContext('2d');
-  bg.imageSmoothingEnabled = false;
-  bg.drawImage(c, 0, 0, w * 2, h * 2);
-  return big.toDataURL('image/png');
-}
-
-// tail: where the little pointer sits so it always points at the pet ('l' | 'c' | 'r').
-const bubble = (draw) => (f, tail, t) => emoteSprite((p) => {
-  const { raw } = p;
-  const bg = t.pal ? t.pal[3] : t.bg || '#fff';
-  if (t.box) raw(1, 1, 25, 17, bg);
-  else {
-    raw(3, 1, 21, 1, bg);
-    raw(2, 2, 23, 1, bg);
-    raw(1, 3, 25, 13, bg);
-    raw(2, 16, 23, 1, bg);
-    raw(3, 17, 21, 1, bg);
-  }
-  const tx = { l: 4, c: 11, r: 19 }[tail];
-  const tc = t.pal ? t.pal[2] : bg;
-  if (t.pal) raw(2, 16, 23, 2, tc);
-  raw(tx, 18, 4, 2, tc);
-  raw(tail === 'r' ? tx + 2 : tx, 20, 2, 2, tc);
-  draw(p, f);
-}, t);
-
-const SKIN_E = '#ffd27a';
-const INK = '#1d1a26';
-// Round yellow face with optional blush (most mood emotes share it).
-const face = ({ circle, px, rect }, y = 9, blush = false) => {
-  circle(13, y, 5, SKIN_E);
-  px(10, y - 3, '#fff');
-  px(11, y - 4, '#fff');
-  if (blush) {
-    rect(8, y + 1, 2, 1, '#ff8fb1');
-    rect(17, y + 1, 2, 1, '#ff8fb1');
-  }
-};
-const heart = ({ circle, rect, px }, x, y, c) => {
-  circle(x, y, 2, c);
-  circle(x + 4, y, 2, c);
-  for (let i = 0; i < 4; i++) rect(x - 2 + i, y + 1 + i, 9 - i * 2, 1, c);
-  px(x - 1, y - 1, '#fff');
-};
-
-const EMOTES = {
-  g_note: [3, bubble(({ rect, circle }, f) => {
-    const y = f === 1 ? 2 : 3;
-    rect(14, y, 2, 9, '#7a5cff');
-    rect(14, y, 6, 2, '#7a5cff');
-    rect(18, y + 2, 2, 2, '#7a5cff');
-    circle(12, y + 10, 2, '#7a5cff');
-    rect(11, y + 9, 1, 1, '#fff');
-    if (f === 2) rect(5, 6, 2, 2, '#ff6f91');
-    if (f !== 0) rect(21, 11, 2, 2, '#ffd23f');
-  })],
-  g_sparkle: [3, bubble(({ rect }, f) => {
-    const star = (x, y, s, c) => { rect(x - s, y, s * 2 + 1, 1, c); rect(x, y - s, 1, s * 2 + 1, c); rect(x - 1, y - 1, 3, 3, c); };
-    star(13, 9, f === 1 ? 5 : 4, '#ffcf3b');
-    star(6, 5, f === 2 ? 2 : 1, '#5fd0ff');
-    star(20, 13, f === 0 ? 2 : 1, '#ff6fb5');
-  })],
-  g_heartbreak: [2, bubble((p, f) => {
-    const dx = f ? 1 : 0;
-    const { circle, rect } = p;
-    circle(10 - dx, 7, 3, '#ef4b6a');
-    circle(16 + dx, 7, 3, '#ef4b6a');
-    for (let i = 0; i < 6; i++) {
-      rect(7 + i - dx, 8 + i, 6 - i, 1, '#ef4b6a');
-      rect(13 + dx, 8 + i, 6 - i, 1, '#ef4b6a');
-    }
-    rect(9 - dx, 5, 1, 1, '#fff');
-    rect(13, 4, 1, 3, '#fff');
-    rect(12, 7, 1, 3, '#fff');
-    rect(13, 10, 1, 3, '#fff');
-    if (f) rect(12, 15, 2, 1, '#5fd0ff');
-  })],
-  g_vein: [2, bubble(({ rect }, f) => {
-    const c = '#e8433f';
-    const s = f ? 1 : 0;
-    rect(8 - s, 4 - s, 3, 4, c);
-    rect(16 + s, 4 - s, 3, 4, c);
-    rect(8 - s, 11 + s, 3, 4, c);
-    rect(16 + s, 11 + s, 3, 4, c);
-    rect(11, 7, 5, 1, c);
-    rect(11, 11, 5, 1, c);
-  })],
-  g_zzz: [3, bubble(({ rect }, f) => {
-    const z = (x, y, s, c) => { rect(x, y, s, 1, c); for (let i = 1; i < s - 1; i++) rect(x + s - 1 - i, y + i, 1, 1, c); rect(x, y + s - 1, s, 1, c); };
-    z(5, 9, 6, '#5b7bd5');
-    if (f >= 1) z(13, 5, 5, '#7a96e8');
-    if (f >= 2) z(19, 2, 4, '#9ab0f0');
-  })],
-  g_interrobang: [2, bubble(({ rect }, f) => {
-    const c = f ? '#e8433f' : INK;
-    rect(8, 3, 2, 8, c);
-    rect(8, 13, 2, 2, c);
-    rect(14, 3, 5, 2, INK);
-    rect(18, 4, 2, 4, INK);
-    rect(15, 8, 3, 2, INK);
-    rect(15, 10, 2, 1, INK);
-    rect(15, 13, 2, 2, INK);
-  })],
-  g_game: [2, bubble(({ rect }, f) => {
-    rect(5, 6, 17, 8, '#5b5a6a');
-    rect(4, 8, 1, 5, '#5b5a6a');
-    rect(22, 8, 1, 5, '#5b5a6a');
-    rect(7, 9, 4, 2, '#fff');
-    rect(8, 8, 2, 4, '#fff');
-    rect(16, f ? 8 : 9, 2, 2, '#e8433f');
-    rect(19, f ? 10 : 9, 2, 2, '#5fd0ff');
-    rect(12, 12, 3, 1, '#9a98a4');
-  })],
-  g_hearts: [3, bubble((p, f) => {
-    heart(p, 5, 5 + (f === 0 ? 0 : 1), '#ef4b6a');
-    heart(p, 14, 8 - (f === 1 ? 1 : 0), '#ff8fb1');
-    if (f === 2) p.rect(21, 3, 2, 2, '#ffd23f');
-  })],
-  g_question: [2, bubble(({ rect }, f) => {
-    const c = f ? '#5b7bd5' : INK;
-    rect(10, 3, 7, 2, c); rect(16, 4, 2, 4, c); rect(9, 4, 2, 2, c); rect(12, 8, 4, 2, c); rect(12, 10, 2, 2, c); rect(12, 13, 2, 2, c);
-  })],
-  g_exclaim: [2, bubble(({ rect }, f) => {
-    const c = f ? '#e8433f' : '#ff9a3b';
-    rect(11, 2 + f, 4, 9, c); rect(12, 11 + f, 2, 1, c); rect(11, 13, 4, 3, c);
-  })],
-  g_sweat: [2, bubble((p, f) => {
-    const { rect } = p;
-    face(p);
-    rect(10, 8, 2, 1, INK); rect(15, 8, 2, 1, INK); rect(11, 11, 5, 1, INK);
-    rect(19, 3 + f * 2, 2, 3, '#5fd0ff'); rect(19, 6 + f * 2, 1, 1, '#5fd0ff');
-  })],
-  g_stareyes: [2, bubble((p, f) => {
-    const { rect } = p;
-    face(p, 9, true);
-    const star = (x, y) => { rect(x - 1, y, 3, 1, '#c87810'); rect(x, y - 1, 1, 3, '#c87810'); };
-    star(11, 8); star(16, 8);
-    rect(11, 12, 5, 1 + f, '#e8433f');
-  })],
-  g_food: [2, bubble(({ rect, circle, px }, f) => {
-    circle(13, 9, 5, '#fffdf4'); px(11, 7, '#e8e2d4'); px(15, 8, '#e8e2d4'); px(13, 6, '#e8e2d4');
-    rect(7, 10, 13, 4, '#c8553d'); rect(8, 14, 11, 1, '#9a3a2a'); rect(9, 11, 9, 1, '#e8a01f');
-    rect(18, 2 + f, 1, 7, '#8a5a12'); rect(20, 2 + f, 1, 7, '#8a5a12');
-  })],
-  g_drink: [2, bubble(({ rect }, f) => {
-    rect(10, 5, 7, 10, '#5fd0ff'); rect(10, 5, 1, 10, '#a8e8ff'); rect(10, 5 + f, 7, 2, '#fff');
-    rect(12, 9, 2, 2, '#e8f8ff'); rect(14, 11, 2, 2, '#e8f8ff');
-    rect(15, 2, 1, 5, '#e8433f'); rect(15, 2, 3, 1, '#e8433f');
-  })],
-  g_idea: [2, bubble(({ rect, circle, px }, f) => {
-    circle(13, 7, 4, f ? '#fff36a' : '#ffd23f'); px(11, 5, '#fff'); rect(11, 11, 5, 3, '#9a98a4'); rect(11, 12, 5, 1, '#6a6878');
-    if (f) { rect(5, 6, 2, 1, '#ffd23f'); rect(20, 6, 2, 1, '#ffd23f'); rect(13, 1, 1, 1, '#ffd23f'); }
-  })],
-  g_dots: [3, bubble(({ rect }, f) => {
-    for (let i = 0; i <= f; i++) rect(7 + i * 5, 9, 3, 3, INK);
-  })],
-  g_angrycloud: [2, bubble(({ rect, circle }, f) => {
-    circle(10, 9, 4, '#5b5a6a'); circle(16, 8, 5, '#5b5a6a'); rect(8, 10, 12, 4, '#5b5a6a');
-    rect(10, 8, 2, 1, '#e8433f'); rect(15, 8, 2, 1, '#e8433f');
-    rect(13, 13 + f, 2, 3, '#ffd23f'); rect(12, 15 + f, 2, 1, '#ffd23f');
-  })],
-  g_sun: [2, bubble(({ rect, circle, px }, f) => {
-    circle(13, 9, 3, '#ffcf3b'); px(12, 8, '#fff');
-    const r = f ? 6 : 5;
-    rect(13, 9 - r, 1, 2, '#ffcf3b'); rect(13, 8 + r, 1, 2, '#ffcf3b'); rect(13 - r, 9, 2, 1, '#ffcf3b'); rect(12 + r, 9, 2, 1, '#ffcf3b');
-    const q = r - 2;
-    for (const [dx, dy] of [[-q, -q], [q, -q], [-q, q], [q, q]]) px(13 + dx, 9 + dy, '#ff9a3b');
-  })],
-  g_rain: [3, bubble(({ rect, circle }, f) => {
-    circle(10, 6, 3, '#9a98a4'); circle(15, 5, 4, '#9a98a4'); rect(8, 6, 11, 3, '#9a98a4'); rect(8, 8, 11, 1, '#7a7888');
-    for (const x of [9, 13, 17]) rect(x, 10 + ((f + x) % 3), 1, 2, '#5fd0ff');
-  })],
-  g_flower: [2, bubble(({ rect, circle }, f) => {
-    for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) circle(13 + dx, 8 + dy, 2, f ? '#ff8fb1' : '#ff6fb5');
-    circle(13, 8, 1, '#ffd23f'); rect(13, 11, 1, 5, '#5fbf5a'); rect(14, 13, 2, 1, '#5fbf5a'); rect(11, 14, 2, 1, '#5fbf5a');
-  })],
-  g_skull: [2, bubble(({ rect, circle }, f) => {
-    circle(13, 8, 4, '#f4f1ea'); rect(11, 11, 5, 3, '#f4f1ea'); rect(11, 7, 2, 2, INK); rect(14, 7, 2, 2, INK);
-    rect(13, 10, 1, 1, INK); rect(12, 12 + f, 1, 2, INK); rect(14, 12 + f, 1, 2, INK);
-  })],
-  g_lol: [2, bubble((p, f) => {
-    const { rect } = p;
-    face(p, 9, true);
-    rect(10, 7, 2, 1, INK); rect(15, 7, 2, 1, INK);
-    rect(10, 10, 7, 3 + f, '#c0303a'); rect(10, 10, 7, 1, '#fff');
-    rect(6, 8 + f, 1, 2, '#5fd0ff'); rect(20, 8 + f, 1, 2, '#5fd0ff');
-  })],
-  g_scared: [2, bubble(({ rect, circle, px }, f) => {
-    circle(13, 9, 5, '#cfe3ff'); px(10, 6, '#fff');
-    rect(10 - f, 7, 2, 2, INK); rect(15 + f, 7, 2, 2, INK); circle(13, 12, 1 + f, INK);
-    rect(8, 3, 1, 3, '#5b7bd5'); rect(18, 3, 1, 3, '#5b7bd5');
-  })],
-  g_cry: [3, bubble((p, f) => {
-    const { rect } = p;
-    face(p);
-    rect(10, 8, 2, 1, INK); rect(15, 8, 2, 1, INK); rect(11, 12, 5, 1, INK); rect(12, 11, 3, 1, INK);
-    rect(10, 9 + f, 1, 3, '#5fd0ff'); rect(16, 9 + ((f + 1) % 3), 1, 3, '#5fd0ff');
-  })],
-  g_fire: [3, bubble(({ rect, circle }, f) => {
-    circle(13, 10, 4, '#ff6a2a'); circle(13, 11, 2, '#ffd23f'); rect(13, 12, 1, 1, '#fff');
-    rect(12, 3 + (f % 2), 2, 4, '#ff6a2a'); rect(16, 5 + ((f + 1) % 2), 1, 3, '#ff9a3b'); rect(9, 6 + (f % 2), 1, 2, '#ff9a3b');
-  })],
-  g_ball: [2, bubble(({ rect, circle, px }, f) => {
-    circle(13 + f, 9, 4, '#f4f1ea'); rect(12 + f, 8, 2, 2, '#2b2b36'); px(10 + f, 10, '#2b2b36'); px(16 + f, 7, '#2b2b36');
-    rect(5, 15, 17, 1, '#5fbf5a'); rect(5, 14, 1, 1, '#5fbf5a'); rect(21, 14, 1, 1, '#5fbf5a');
-  })],
-  g_mic: [2, bubble(({ rect, circle, px }, f) => {
-    circle(11, 6, 2, '#9aa3b5'); px(10, 5, '#fff'); rect(10, 8, 2, 7, '#2b2b36');
-    rect(16, 4 + f, 2, 5, '#7a5cff'); rect(16, 4 + f, 4, 1, '#7a5cff'); circle(15, 9 + f, 1, '#7a5cff');
-  })],
-  g_ok: [2, bubble(({ rect }, f) => {
-    const c = '#3f9f3a';
-    rect(7, 9 + f, 2, 2, c); rect(9, 11 + f, 2, 2, c); rect(11, 9 + f, 2, 2, c); rect(13, 7 + f, 2, 2, c); rect(15, 5 + f, 2, 2, c); rect(17, 3 + f, 2, 2, c);
-  })],
-  g_shy: [2, bubble((p, f) => {
-    const { rect, px } = p;
-    face(p, 9, true);
-    rect(10, 8, 2, 1, INK); rect(15, 8, 2, 1, INK); rect(12, 12, 3, 1, '#c0563f');
-    if (f) { px(19, 3, '#ef4b6a'); px(21, 3, '#ef4b6a'); rect(19, 4, 3, 1, '#ef4b6a'); px(20, 5, '#ef4b6a'); }
-  })],
-  g_yawn: [2, bubble((p, f) => {
-    const { rect, circle, px } = p;
-    face(p);
-    rect(10, 7, 2, 1, INK); rect(15, 7, 2, 1, INK);
-    circle(13, 11, 1 + f, '#7a2f3a');
-    px(9, 9, '#5fd0ff');
-    if (f) { rect(19, 3, 3, 1, '#5b7bd5'); px(20, 4, '#5b7bd5'); rect(19, 5, 3, 1, '#5b7bd5'); }
-  })],
-  g_thanks: [2, bubble((p, f) => {
-    const { rect, px } = p;
-    face(p, 10, true);
-    for (const x of [10, 15]) { px(x, 8, INK); px(x + 1, 7, INK); px(x + 2, 8, INK); }
-    rect(11, 12, 5, 1, INK); px(10, 11, INK); px(16, 11, INK);
-    heart(p, 19, 3 - f, '#ef4b6a');
-  })],
-  g_go: [2, bubble(({ rect }, f) => {
-    rect(6 + f, 8, 9, 4, '#3f9f3a');
-    for (let i = 0; i < 5; i++) rect(15 + f + i, 5 + i, 1, 10 - i * 2, '#3f9f3a');
-    rect(2 + f, 9, 2, 1, '#9a98a4'); rect(1 + f, 11, 3, 1, '#9a98a4');
-  })],
-  g_help: [2, bubble(({ rect, circle }, f) => {
-    circle(13, 8, 5, '#e8433f'); circle(13, 8, 2, '#fff');
-    rect(12, 3, 3, 2, '#fff'); rect(12, 12, 3, 2, '#fff'); rect(8, 7, 2, 3, '#fff'); rect(17, 7, 2, 3, '#fff');
-    for (let x = 3; x < 24; x += 4) rect(x + f * 2, 15, 2, 1, '#5fd0ff');
-  })],
-  g_dizzy: [3, bubble((p, f) => {
-    const { px } = p;
-    face(p, 10);
-    for (const x of [10, 15]) { px(x, 8, INK); px(x + 2, 8, INK); px(x + 1, 9, INK); px(x, 10, INK); px(x + 2, 10, INK); }
-    for (const [x, y] of [[11, 13], [12, 12], [13, 13], [14, 12], [15, 13]]) px(x, y, INK);
-    const at = [[6, 3], [13, 2], [20, 3]];
-    for (let i = 0; i < 3; i++) { const [x, y] = at[(i + f) % 3]; px(x, y, i ? '#ffcf3b' : '#5fd0ff'); }
-  })],
-  g_rock: [2, bubble(({ rect, circle }, f) => {
-    circle(13, 9 + f, 5, SKIN_E); rect(9, 7 + f, 8, 1, '#b07a4a'); rect(9, 10 + f, 8, 1, '#b07a4a'); rect(16, 8 + f, 2, 4, '#e8b860');
-  })],
-  g_paper: [2, bubble(({ rect }, f) => {
-    rect(9, 8, 9, 7, SKIN_E);
-    rect(9, 3 + f, 2, 5, SKIN_E); rect(12, 2 + f, 2, 6, SKIN_E); rect(15, 3 + f, 2, 5, SKIN_E); rect(6, 9, 3, 2, SKIN_E);
-    rect(10, 12, 7, 1, '#b07a4a');
-  })],
-  g_scissors: [2, bubble(({ rect, circle }, f) => {
-    for (let i = 0; i < 6; i++) {
-      rect(9 + f + Math.floor(i / 2), 3 + i, 2, 1, SKIN_E);
-      rect(16 - f - Math.floor(i / 2), 3 + i, 2, 1, SKIN_E);
-    }
-    circle(13, 12, 3, SKIN_E); rect(11, 12, 5, 1, '#b07a4a');
-  })],
-};
-
-// "Emojis" theme: each emoticon is a bare PxEmoji glyph (Pixel Art Emojis faces) that bobs, no bubble.
-const EMOTE_GLYPHS = {
-  g_note: '🎶', g_sparkle: '😄', g_heartbreak: '💔', g_vein: '😠', g_zzz: '😴', g_interrobang: '😲', g_game: '🎮', g_hearts: '😍',
-  g_question: '🤔', g_exclaim: '😮', g_sweat: '😅', g_stareyes: '🤩', g_food: '😋', g_drink: '🥤', g_idea: '💡', g_dots: '😶',
-  g_angrycloud: '😤', g_sun: '😊', g_rain: '😞', g_flower: '🥰', g_skull: '😱', g_lol: '😂', g_scared: '😨', g_cry: '😭',
-  g_fire: '🔥', g_ball: '⚽', g_mic: '🎤', g_ok: '😁', g_shy: '😳', g_yawn: '🥱', g_thanks: '🤗', g_go: '😎', g_help: '😰',
-  g_dizzy: '😵', g_rock: '✊', g_paper: '✋', g_scissors: '✌',
-};
 function glyphFrames(ch) {
   return [0, 2].map((lift) => {
     const c = document.createElement('canvas');
@@ -1091,22 +801,6 @@ function glyphFrames(ch) {
 }
 
 export const glyphIcon = (ch) => glyphFrames(ch)[0];
-
-// [{ name, frames, left, right }] for the emoticons in the given emote theme.
-export function emoteSet(theme = 'padrao') {
-  if (typeof document === 'undefined') return [];
-  const t = EMOTE_THEMES[theme] || {};
-  if (t.glyphs) return Object.keys(EMOTES).map((name) => {
-    const frames = glyphFrames(EMOTE_GLYPHS[name] || '🙂');
-    return { name, frames, left: frames, right: frames };
-  });
-  return Object.entries(EMOTES).map(([name, [n, draw]]) => {
-    const make = (tail) => Array.from({ length: n }, (_, f) => draw(f, tail, t));
-    return { name, frames: make('c'), left: make('l'), right: make('r') };
-  });
-}
-
-export const EMOTE_THEME_LIST = Object.keys(EMOTE_THEMES);
 
 const cache = new Map();
 export function icon(name) {
@@ -1141,5 +835,5 @@ export function defineIcons(defs) {
 export { sprite };
 
 // Text made only of emoji/symbols: shown as a bare PxEmoji icon instead of inside a speech bubble.
-const EMOJI_ONLY = /^[\s\p{Extended_Pictographic}\uFE0F\u200D♪♫♬✓✦✧]+$/u;
+const EMOJI_ONLY = /^[\s\p{Extended_Pictographic}\uFE0F\u200Dâ™ªâ™«â™¬âœ“âœ¦âœ§]+$/u;
 export const emojiOnly = (s) => !!s && EMOJI_ONLY.test(s);

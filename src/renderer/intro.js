@@ -3,6 +3,7 @@
 // and a click on it boots it for the first time.
 import { textFor } from './introtext.js';
 import { cleanName, NAME_MAX } from './names.js';
+import { upgradeJingle } from './upgradefx.js';
 
 const LOGO_URL = new URL('./assets/logo.png', import.meta.url).href;
 const BW = 36;
@@ -205,6 +206,14 @@ export class Intro {
     this.app.uiChanged?.();
   }
 
+  // Midnight easter egg: thick purple border pulsing 3 times around the whole screen.
+  flashMidnight() {
+    const flash = el('div', 'midnight-flash');
+    document.body.append(flash);
+    flash.addEventListener('animationend', () => flash.remove(), { once: true });
+    setTimeout(() => flash.remove(), 2600);
+  }
+
   showLetter() {
     const T = this.T;
     const card = this.modal('intro-letter');
@@ -229,10 +238,19 @@ export class Intro {
     input.oninput = () => { btn.disabled = !cleanName(input.value); };
     const sign = () => {
       const owner = cleanName(input.value);
-      if (!owner) return;
-      this.app.game.profile.owner = owner;
-      this.app.game.changed?.();
-      this.app.sound?.play('ok', { volume: 0.5 });
+      if (!owner || card.classList.contains('signed')) return;
+      const { app } = this;
+      app.game.profile.owner = owner;
+      if (owner === 'Midnight') {
+        // Easter egg: signing the letter as "Midnight" starts with exactly 25,000 coins.
+        app.game.coins = 25000;
+        app.game.changed?.();
+        app.game.persist?.();
+        upgradeJingle(app.sound);
+        this.flashMidnight();
+      } else {
+        app.sound?.play('ok', { volume: 0.5 });
+      }
       card.classList.add('signed');
       setTimeout(() => {
         this.closeModal();

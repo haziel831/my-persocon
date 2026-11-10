@@ -1,6 +1,6 @@
 // Rewards: loot boxes (the pet opens them, then a CS-style roulette picks the prize), achievements
 // and daily missions (both pay in boxes), and the effects of the single-use prizes.
-import { ITEMS, itemById, isEdible, BUFF_LABELS, BUFF_ICONS } from './game.js';
+import { ITEMS, itemById, BUFF_LABELS, BUFF_ICONS } from './game.js';
 import { translate } from './i18n.js';
 import { UPGRADES } from './upgrades.js';
 import { BOXES, RARITIES, RARITY_ORDER, LOOT_ITEMS } from './lootitems.js';
@@ -25,13 +25,7 @@ const el = (cls, parent, html = '') => {
 // ---------- prizes ----------
 
 const COINS = { comum: [20, 60], incomum: [80, 160], raro: [250, 450], lendario: [900, 1500] };
-const PRICE_BAND = { comum: [1, 30], incomum: [31, 80], raro: [81, 199], lendario: [200, 1e9] };
 
-function consumables(rarity) {
-  const [lo, hi] = PRICE_BAND[rarity];
-  return ITEMS.filter((i) => !i.legacy && !i.watchOnly && !i.loot && i.price >= lo && i.price <= hi
-    && (isEdible(i) || i.cat === 'medicina' || (i.cat === 'specials' && i.consumable)));
-}
 
 // luck: affection-based (luckOf), shifts the odds a bit towards the rarer prizes.
 export function rollRarity(odds, lucky, luck = 0) {
@@ -50,13 +44,13 @@ const TOYS = {
   lendario: ['skate', 'camera', 'pula_pula', 'aquario', 'teclado'],
 };
 const DECOR = { incomum: ['confete', 'holofote'], raro: ['globo', 'laser', 'fumaca'] };
-const BUFFS = { incomum: ['pu_saciedade', 'pu_alegria', 'pu_energia'], raro: ['pu_escudo', 'pu_saciedade', 'pu_alegria', 'pu_energia'], lendario: ['ampulheta', 'elixir', 'estrela'] };
 // Chance weight of each kind of prize per rarity (what can't be given right now is skipped).
+// Food and power-ups were removed in 1.9.4.
 const TABLE = {
-  comum: { loot: 30, food: 36, coins: 20, figure: 8, manga: 6 },
-  incomum: { loot: 26, food: 22, coins: 16, figure: 10, cart: 7, manga: 8, decor: 5, buff: 6 },
-  raro: { loot: 26, food: 8, coins: 14, figure: 12, cart: 10, manga: 6, decor: 6, buff: 6, toy: 12 },
-  lendario: { loot: 34, coins: 14, jackpot: 4, figure: 16, cart: 6, buff: 8, toy: 18 },
+  comum: { loot: 30, coins: 20, figure: 8, manga: 6 },
+  incomum: { loot: 26, coins: 16, figure: 10, cart: 7, manga: 8, decor: 5 },
+  raro: { loot: 26, coins: 14, figure: 12, cart: 10, manga: 6, decor: 6, toy: 12 },
+  lendario: { loot: 34, coins: 14, jackpot: 4, figure: 16, cart: 6, toy: 18 },
 };
 // A collectible she already has (rolled for a box she can't get, or got meanwhile) turns into coins.
 const DUPE = { comum: 20, incomum: 60, raro: 150, lendario: 400 };
@@ -76,11 +70,6 @@ function prizeOf(kind, rarity, game) {
     case 'loot': {
       const loot = LOOT_ITEMS.filter((i) => !i.box && i.rarity === rarity);
       return loot.length && { kind: 'item', id: pick(loot).id, n: 1, rarity };
-    }
-    case 'food': {
-      const food = consumables(rarity);
-      const n = { comum: randInt(1, 3), incomum: randInt(1, 2) }[rarity] || 1;
-      return food.length && { kind: 'item', id: pick(food).id, n, rarity };
     }
     case 'figure': {
       const list = FIGURES.filter((f) => !f.up && f.rarity === FIG_RARITY[rarity] && !game?.figures?.includes(f.id));
@@ -103,10 +92,6 @@ function prizeOf(kind, rarity, game) {
     case 'decor': {
       const list = ids(DECOR[rarity] || []);
       return list.length && { kind: 'item', id: pick(list), n: 1, rarity };
-    }
-    case 'buff': {
-      const list = ids(BUFFS[rarity] || []);
-      return list.length && { kind: 'item', id: pick(list), n: rarity === 'incomum' ? randInt(1, 2) : 1, rarity };
     }
     case 'jackpot':
       return { kind: 'coins', n: Math.round(randInt(2500, 4000) / 50) * 50, rarity, jackpot: true };

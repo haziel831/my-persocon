@@ -2,7 +2,7 @@
 // break, and clicking a broken one repairs it for half the price.
 import { itemById, TASTE_RANK, HER_BAG } from './game.js';
 import { DIFFICULTIES } from './behavior.js';
-import { icon, cartridge } from './pixel.js';
+import { icon, cartridge, cartSheetStyle } from './pixel.js';
 import { GAMES } from './games.js';
 import { FURN, BALLS, CONSOLES, Furniture, baseId, PRINT_AREA, MANGAS, MANGA_GENRES } from './furniture.js';
 import { Casino } from './casino.js';
@@ -1762,7 +1762,15 @@ export class Toys {
   storeSpot(item) {
     const { game } = this.app;
     if (SUPPLY_STAT[item.cat]) return this.foodBagX();
-    if (item.cart && game.bag) return game.bagX ?? this.bagX();
+    // Cartridges: the Gaming Shelf wins when it is placed; otherwise the cartridge bag.
+    // (Old saves could keep game.bag = true next to a shelf and she walked to the dead bag.)
+    if (item.cart) {
+      const shelf = Object.entries(game.toys)
+        .find(([k, t]) => baseId(k) === 'estante_cartuchos' && t.placed && this.reach(t));
+      if (shelf) return shelf[1].x;
+      if (!game.hasGamingShelf?.() && game.bag) return game.bagX ?? this.bagX();
+      return null;
+    }
     const shelf = item.manga && Object.entries(game.toys).find(([k, t]) => baseId(k) === 'estante' && t.placed && this.reach(t));
     return shelf ? shelf[1].x : null;
   }
@@ -2353,7 +2361,16 @@ export class Toys {
     const mkRow = (owned, text, cart) => {
       const r = document.createElement('div');
       r.className = `shelf-row ${owned ? 'owned' : 'unknown'}`;
-      r.textContent = `${owned ? '•' : '?'} ${text}`;
+      if (cart) {
+        // Front view of the cartridge, clipped from the same sheet used in the shop.
+        const art = document.createElement('span');
+        art.className = 'cart-sheet shelf-cart';
+        Object.assign(art.style, cartSheetStyle(cart) || {});
+        r.append(art);
+      }
+      const label = document.createElement('span');
+      label.textContent = `${owned ? '•' : '?'} ${text}`;
+      r.append(label);
       if (cart) {
         r.dataset.cart = cart;
         r.title = en ? 'Use this cartridge' : 'Usar este cartucho';
