@@ -7,6 +7,11 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.9 — 10/11/2026
+35 novos itens de comida e sobremesa com arte pixel-art 32×32 (copiada de `Assets\NEW\Ghostpixxells_pixelfood` para `src\renderer\assets\food32\` pelo script `scripts\copy-food32.ps1`): 24 comidas (hambúrguer, pizza, sushi, ramen, espaguete, macarrão com queijo, curry, burrito, taco, sanduíche, hot dog, panquecas, waffle, frango assado, bife, salmão, momo, omelete, batata frita, nachos, cheese puff, pão de alho, pipoca, chips) e 11 sobremesas (torta de maçã, torta de limão, bolo de frutas, donut, homem de gengibre, pudim, sorvete, biscoitos, chocolate, gelatina, ursinho de gummy).
+Preços e efeitos conforme o tipo: prato principal enche a fome (¥14–32), lanche é barato (¥10–13) e sobremesa é cara, dá muita alegria e quase nenhuma fome (¥22–40).
+Detalhes em `ChangeLogs\v1.9.9.md`.
+
 ## v1.9.8 — 10/11/2026
 Correção do mouse que sumia no jogo em tela cheia: com outro app em tela cheia, o app não rouba mais o cursor nem o foco (e a janela do Streamer Mode já abre sem roubar o foco).
 Novos "Setups da mesa" em Opções: salva a posição de todas as mobílias e objetos da área de trabalho e carrega depois — dá para ter vários setups diferentes.

@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.9', [
+    ['24 comidas novas com arte pixel-art 32×32 (hambúrguer, pizza, sushi, ramen, espaguete, curry, taco, panquecas, waffle, batata frita, pipoca e mais)', '24 new foods with 32×32 pixel-art (burger, pizza, sushi, ramen, spaghetti, curry, taco, pancakes, waffle, french fries, popcorn and more)'],
+    ['11 sobremesas novas com arte pixel-art 32×32 (torta de maçã, torta de limão, bolo de frutas, donut, pudim, sorvete, biscoitos, chocolate, gelatina, ursinho de gummy e homem de gengibre)', '11 new desserts with 32×32 pixel-art (apple pie, lemon pie, fruit cake, donut, pudding, ice cream, cookies, chocolate, jelly, gummy bear and gingerbread man)'],
+    ['Preços e efeitos conforme o tipo de comida: prato principal enche a fome (¥14–32), lanche é barato (¥10–13) e sobremesa é cara, com muita alegria e quase nenhuma fome (¥22–40)', 'Prices and effects follow the food type: a main dish fills her up (¥14–32), a snack is cheap (¥10–13) and a dessert is pricey, with lots of joy and almost no hunger (¥22–40)'],
+  ]],
   ['1.9.8', [
     ['Mouse não some mais no jogo em tela cheia: com outro app em tela cheia o app não rouba o cursor nem o foco', 'The mouse no longer disappears in a fullscreen game: when another app is fullscreen, the app no longer steals the cursor or the focus'],
     ['Setups da mesa em Opções: salva a posição de todas as mobílias e objetos e carrega depois (vários setups)', 'Desk setups in Options: save the position of every piece of furniture and object and load them later (several setups)'],
