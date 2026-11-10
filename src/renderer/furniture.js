@@ -1,6 +1,6 @@
 // Furniture, extra consoles, ball types, mangás and the party (disco) kit: catalog, pixel art
 // and what the pet does with each one. Toys delegates placement/drag to this through play().
-import { icon, defineIcons, cartridge } from './pixel.js';
+import { icon, defineIcons, cartridge, CART_SHEET_CELLS } from './pixel.js';
 import { GACHA_PRICE, figureById, paintFigure } from './casinoitems.js';
 import { upIcon, upSize, ARCADE_SCREEN } from './upgrades.js';
 import { ArcadeShooter } from './arcadeshooter.js';
@@ -9,6 +9,14 @@ import { crtFilter, GAMES } from './games.js';
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+// Front-facing cartridge art (same cells as the shop sheet) drawn on the Gaming Shelf.
+const CART_ART = typeof Image === 'undefined' ? null : new Image();
+let cartArtReady = false;
+if (CART_ART) {
+  CART_ART.onload = () => { cartArtReady = true; };
+  CART_ART.src = new URL('./assets/carts/carts_atlas.png', import.meta.url).href;
+}
 
 // ---------- pixel art ----------
 defineIcons({
@@ -134,42 +142,16 @@ const TITLES = {
 };
 const hsl = (h, s, l) => `hsl(${h}, ${s}%, ${l}%)`;
 export const MANGAS = Object.entries(TITLES).flatMap(([genre, list]) => list.map((title, i) => ({ id: `manga_${genre}_${i}`, genre, title, vol: 1 + (i % 3), hue: (i * 37 + genre.length * 50) % 360 })));
-const mangaArt = new Map();
+// Capas reais recortadas de Assets/mangas.jfif (40 capas, 10 por gênero, ordem de MANGAS).
+const mangaCover = (idx) => new URL(`./assets/mangas/manga_${String(idx).padStart(2, '0')}.png`, import.meta.url).href;
 export function mangaIcon(m) {
   if (typeof document === 'undefined') return '';
-  if (!mangaArt.has(m.id)) {
-    const g = MANGA_GENRES[m.genre];
-    defineIcons({ [m.id]: (sprite) => sprite(11, 15, ({ rect, circle }) => {
-      rect(0, 0, 11, 15, g.color); rect(0, 0, 2, 15, hsl(m.hue, 50, 30));
-      rect(3, 2, 7, 2, '#ffffff'); circle(6, 9, 2, g.symbol); rect(3, 12, 6, 1, hsl(m.hue, 70, 70));
-    }) });
-    mangaArt.set(m.id, icon(m.id));
-  }
-  return mangaArt.get(m.id);
+  return mangaCover(MANGAS.indexOf(m));
 }
-
-// Open manga held facing the player: front cover (left page, RTL), spine, back/inner pages (right).
+// A mesma capa é usada nas mãos da Persocon e do Doll ao ler.
 export function mangaCoverIcon(m) {
   if (typeof document === 'undefined') return '';
-  const id = `${m.id}_open`;
-  if (!mangaArt.has(id)) {
-    const g = MANGA_GENRES[m.genre];
-    defineIcons({ [id]: (sprite) => sprite(26, 16, ({ rect, circle, px }) => {
-      // Covers open toward the camera (slight perspective: outer edges drop 1px).
-      rect(1, 1, 11, 14, g.color); rect(14, 1, 11, 14, hsl(m.hue, 35, 22));
-      rect(0, 2, 1, 12, hsl(m.hue, 45, 18)); rect(25, 2, 1, 12, hsl(m.hue, 30, 14));
-      rect(12, 0, 2, 16, hsl(m.hue, 50, 28)); px(12, 0, hsl(m.hue, 50, 38)); px(13, 0, hsl(m.hue, 50, 38));
-      // Front cover art facing the player (left leaf).
-      rect(2, 3, 9, 2, '#ffffff'); rect(3, 3, 2, 1, hsl(m.hue, 60, 45));
-      circle(6, 9, 2, g.symbol); rect(3, 13, 7, 1, hsl(m.hue, 70, 70)); px(10, 13, '#ffffff');
-      // Inner pages / back leaf facing out.
-      rect(15, 3, 9, 1, hsl(m.hue, 25, 78)); rect(15, 5, 8, 1, hsl(m.hue, 25, 78));
-      rect(15, 7, 9, 1, hsl(m.hue, 25, 78)); rect(15, 9, 7, 1, hsl(m.hue, 25, 78));
-      rect(17, 11, 6, 3, '#f4f1ea'); [17, 19, 20, 22].forEach((x) => rect(x, 11, 1, 3, '#2b2b36'));
-    }) });
-    mangaArt.set(id, icon(id));
-  }
-  return mangaArt.get(id);
+  return mangaCover(MANGAS.indexOf(m));
 }
 
 // ---------- catalog ----------
@@ -226,8 +208,6 @@ export const FURN_ITEMS = [
   item('estante_cartuchos', 'mobilia', 'Gaming Shelf', 250, 'estante_cart_icon', { furn: true, decor: true, noWear: true, note: 'Guarda cartuchos e os portáteis no topo · aceita só cartuchos · com ela a bolsa de cartuchos some · clique para ver a lista' }),
   item('gacha', 'mobilia', 'Gacha-Machine', 600, 'gacha_icon', { furn: true, noWear: true, note: `Clique para girar (¥ ${GACHA_PRICE}, você paga) · ela também gira sozinha com a carteira dela · cápsulas Comum, Incomum, Rara e Épica: moedas (para você), comidas, bebidas e bonecos colecionáveis` }),
   item('slot', 'mobilia', 'Slot-Machine', 800, 'slot_icon', { furn: true, noWear: true, note: 'Ela aposta as moedas da carteira dela · os ganhos vão para você · clique para pedir uma rodada · a sorte vem da Afeição' }),
-  item('venda_comida', 'mobilia', 'Vending Machine de Comida', 2200, 'vend_comida_icon', { furn: true, noWear: true, note: 'Máquina japonesa · com fome, a Persocon compra sozinha, com a carteira dela, uma comida favorita, de que gosta ou neutra (preço da loja +20%) e come na hora · clique para pedir que ela compre' }),
-  item('venda_bebida', 'mobilia', 'Vending Machine de Bebida', 1600, 'vend_bebida_icon', { furn: true, noWear: true, note: 'Máquina japonesa · com sede, a Persocon compra sozinha, com a carteira dela, uma bebida favorita, de que gosta ou neutra (preço da loja +20%) e bebe na hora · clique para pedir que ela compre' }),
   item('alvo', 'mobilia', 'Alvo', 160, 'alvo', { furn: true, gain: { mood: 0.35 }, note: 'Clique para um minigame de 3 minutos com recorde · a Persocon também joga dardos' }),
   item('boneco_treino', 'mobilia', 'Boneco de treino', 200, 'dummy', {
     furn: true, noWear: true, gain: { mood: 0.25, energy: -0.08, thirst: -0.06 },
@@ -419,7 +399,7 @@ export class Furniture {
     const kind = this.shelfKind(key);
     const list = this.shelfList(key);
     const up = !!this.app.game.toys[key]?.up;
-    const sig = `${kind}${up ? '+' : ''}${list.map((e) => `${e.manga || e.figure || e.cart}@${e.row}.${e.col}`).join(',')}`;
+    const sig = `${kind}${up ? '+' : ''}${kind === 'cart' && cartArtReady ? 'a' : 'n'}${list.map((e) => `${e.manga || e.figure || e.cart}@${e.row}.${e.col}`).join(',')}`;
     this.shelfArt ||= new Map();
     const cached = this.shelfArt.get(key);
     if (cached?.sig === sig) return cached.url;
@@ -472,15 +452,24 @@ export class Furniture {
         } else if (e.figure && figureById(e.figure)) {
           paintFigure(e.figure, p, x, y + 1);
         } else if (e.cart && GAMES[e.cart]) {
-          // Cartridge standing on the board: body + the game's colored label.
           const col = GAMES[e.cart].color || '#888';
-          const body = up ? '#22222c' : '#9a98a4';
-          const top = y + 6;
-          rect(x + 1, top, 5, 14, body);
-          rect(x + 1, top, 5, 1, up ? '#5a5a70' : '#bdbbc6');
-          rect(x + 2, top + 2, 3, 8, col);
-          rect(x + 2, top + 10, 3, 2, up ? '#3a3a48' : '#6d6b78');
-          rect(x + 2, top + 13, 3, 1, up ? '#111' : '#4a4852');
+          const idx = CART_SHEET_CELLS.indexOf(e.cart);
+          if (cartArtReady && idx >= 0) {
+            // Front view: the very same art that sits on the 3D printer bed.
+            const sx = (idx % 4) * 128;
+            const sy = Math.floor(idx / 4) * 128;
+            rect(x - 1, y + 20, 7, 1, 'rgba(0,0,0,0.28)');
+            p.image(CART_ART, sx, sy, 128, 128, x, y + 21 - 8, 6, 8);
+          } else {
+            // Fallback while the sheet is still loading: body + the game's colored label.
+            const body = up ? '#22222c' : '#9a98a4';
+            const top = y + 6;
+            rect(x + 1, top, 5, 14, body);
+            rect(x + 1, top, 5, 1, up ? '#5a5a70' : '#bdbbc6');
+            rect(x + 2, top + 2, 3, 8, col);
+            rect(x + 2, top + 10, 3, 2, up ? '#3a3a48' : '#6d6b78');
+            rect(x + 2, top + 13, 3, 1, up ? '#111' : '#4a4852');
+          }
         }
       }
     }) });
@@ -615,7 +604,7 @@ export class Furniture {
     if (!m) return false;
     const g = MANGA_GENRES[m.genre];
     pet.playToy({
-      id, dur: rand(20, 60), gain: g.gain, scale, hold: mangaCoverIcon(m), holdFrom: 0.9, holdSize: 0.28, pickAnim,
+      id, dur: rand(20, 60), gain: g.gain, scale, hold: mangaCoverIcon(m), holdFrom: 0.9, holdSize: 0.25, pickAnim,
       anim: 'sit', pose: 'sit', facing: 'front', manga: m, onEnd: end,
       tick: (dt, tp) => {
         pet.dir = 1;
