@@ -1,7 +1,40 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.8', [
+    ['Mouse não some mais no jogo em tela cheia: com outro app em tela cheia o app não rouba o cursor nem o foco', 'The mouse no longer disappears in a fullscreen game: when another app is fullscreen, the app no longer steals the cursor or the focus'],
+    ['Setups da mesa em Opções: salva a posição de todas as mobílias e objetos e carrega depois (vários setups)', 'Desk setups in Options: save the position of every piece of furniture and object and load them later (several setups)'],
+    ['Capas dos mangás sem a borda branca da foto e o livro nas mãos um pouco menor e mais alto', 'Manga covers without the photo white border and the book in her hands a little smaller and taller'],
+    ['Bebidas novas: Energéticos dão energia e matam menos a sede; chás e leites de soja só hidratam; refrigerantes têm nomes fictícios', 'New drinks: energy drinks give energy and quench less; teas and soy milks only hydrate; sodas got fictional names'],
+  ]],
+  ['1.9.7', [
+    ['Consumáveis da loja agora usam ícones pixel-art 16×16 curados (72 arquivos copiados para assets/consumables) com image-rendering: pixelated e scale(2)', 'Shop consumables now use curated 16×16 pixel-art icons (72 files copied to assets/consumables) with image-rendering: pixelated and scale(2)'],
+    ['Persocon pede Sobremesas com frequência, mas só quando o jogador já possui o item no inventário', 'Persocon frequently requests Desserts, but only when the player already owns the item in inventory'],
+    ['Build sem tag BETA: pasta de saída My Persocon 1.9.7', 'Build without BETA tag: output folder My Persocon 1.9.7'],
+    ['Nova categoria Medicamentos: 19 itens (bandagens, kits, frascos, cápsulas e seringas) recortados de Consumables & Survival.png; curam efeitos negativos ou dão bônus e todos custam Humor', 'New Medicines category: 19 items (bandages, kits, bottles, capsules and syringes) cut from Consumables & Survival.png; they cure negative effects or give boosts and all cost Mood'],
+  ]],
+  ['1.9.6', [
+    ['Build BETA: abas Condicionais — Cartuchos só aparece com um Console/TV+console no inventário; Mangás só com a Estante comprada', 'BETA build: Conditional tabs — Cartridges only with a Console/TV+console in inventory; Manga only with the Bookshelf'],
+    ['Consumáveis da loja: 37 itens (comidas, bebidas, sobremesas) da folha Food1_0.png, com sprite CSS background-position e ícones próprios', 'Shop consumables: 37 items (food, drinks, desserts) from Food1_0.png sheet, with CSS background-position sprite and own icons'],
+    ['Easter egg "Midnight": assinar a carta com o nome exato concede 25.000 moedas iniciais, borda roxa piscando 3× e SFX de upgrade de mobília', '"Midnight" easter egg: signing the letter with the exact name grants 25,000 starting coins, purple border flashing 3× and the furniture-upgrade SFX'],
+  ]],
+  ['1.9.5', [
+    ['Build BETA: easter egg do nome "Midnight" começa com 25.000 moedas', 'BETA build: "Midnight" name easter egg starts with 25,000 coins'],
+    ['Modal de abrir caixas: base64 agora aparece como imagem e a tipografia foi ajustada', 'Box-opening dialog: base64 now renders as an image and the typography was adjusted'],
+    ['Gaming Shelf: cartuchos em vista frontal, com a mesma arte da impressora 3D', 'Gaming Shelf: cartridges in front view, using the same art as the 3D printer'],
+    ['Emotes novos do pacote Pipoya em uma folha única (24 emotes, sem GIF)', 'New emotes from the Pipoya pack in a single sheet (24 emotes, no GIFs)'],
+    ['Loja com abas Comidas, Bebidas e Sobremesas (ainda vazias)', 'Shop with Food, Drinks and Desserts tabs (still empty)'],
+  ]],
+  ['1.9.4', [
+    ['Build BETA: artes de cartuchos tiradas de cartuchos3.png (14 jogos, uma arte por jogo)', 'BETA build: cartridge art cut from cartuchos3.png (14 games, one art per game)'],
+    ['Comida, bebida, medicina e power-ups removidos do jogo (catálogo, arte e efeitos)', 'Food, drinks, medicine and power-ups removed (catalog, art and effects)'],
+    ['Preços dos cartuchos fixados por jogo (¥50 a ¥170) e folha única de sprites na loja/inventário', 'Cartridge prices fixed per game (¥50 to ¥170) and a single sprite sheet in the shop/inventory'],
+    ['Cartucho comprado/impresso vai para a Gaming Shelf quando ela existe; senão para a bolsa — e ela anda até o lugar certo', 'Bought/printed cartridges go to the Gaming Shelf when present, else to the bag — and she walks to the right spot'],
+    ['Catálogo visual em Assets/cartuchos_jogos.png (arte, preço e jogo)', 'Visual catalog in Assets/cartuchos_jogos.png (art, price and game)'],
+  ]],
   ['1.9.3', [
+    ['Build BETA: comidas, bebidas e doces agora usam pixel art da biblioteca de assets (27 ícones 16/32 px)', 'BETA build: food, drinks and sweets now use pixel art from the asset library (27 16/32 px icons)'],
+    ['Ícones de comida com escala inteira e image-rendering: pixelated', 'Food icons use integer scaling and image-rendering: pixelated'],
     ['Log mescla repetições consecutivas com contador (ex.: (3x))', 'Log merges consecutive identical lines with a counter (e.g. (3x))'],
     ['Status fixo: menu direito com "Mostrar app de novo"', 'Dock: right-click now includes "Show app again"'],
     ['Status negativos duram mais (30 min / 1 h por gravidade)', 'Negative statuses last longer (30 min / 1 h by severity)'],

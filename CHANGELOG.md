@@ -7,7 +7,29 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.8 — 10/11/2026
+Correção do mouse que sumia no jogo em tela cheia: com outro app em tela cheia, o app não rouba mais o cursor nem o foco (e a janela do Streamer Mode já abre sem roubar o foco).
+Novos "Setups da mesa" em Opções: salva a posição de todas as mobílias e objetos da área de trabalho e carrega depois — dá para ter vários setups diferentes.
+Capas dos mangás regeradas sem a borda branca da foto (`scripts\make-manga-covers.ps1`); o livro nas mãos da Persocon e do Doll ficou um pouco menor e mais alto.
+Bebidas rebalanceadas: Energéticos dão muita energia e matam menos a sede; chás e leites de soja só hidratam; refrigerantes ganharam nomes fictícios (Zap Cola, Solar Fizz, Ice Blue, Lime Rush).
+Detalhes em `ChangeLogs\v1.9.8.md`.
+
+## v1.9.7 — 09/11/2026
+Consumíveis da loja com ícones pixel-art 16×16 curados (72 arquivos em assets/consumables), image-rendering: pixelated e scale(2). Persocon pede Sobremesas com frequência, somente se o jogador já as possui no inventário. Nova categoria Medicamentos com 19 itens (curam efeitos negativos ou dão bônus; todos custam Humor). Build sem tag BETA.
+Detalhes em `ChangeLogs\v1.9.7.md`.
+
+## v1.9.6 — 07/11/2026
+BETA build: abas de loja condicionais (Cartuchos exige Console/TV+console; Mangás exige Estante). Consumáveis da loja: 37 itens (comidas, bebidas, sobremesas) da folha Food1_0.png com sprite CSS. Easter egg "Midnight": nome exato na carta concede 25.000 moedas, borda roxa piscando 3× e SFX de upgrade de mobília.
+Detalhes em `ChangeLogs\v1.9.6.md`.
+
+## v1.9.5 — 07/11/2026
+BETA build: comida, bebida, medicina e power-ups removidos do jogo (catálogo, arte e efeitos).
+Artes dos 14 cartuchos tiradas de `cartuchos3.png`; preços fixos por jogo (¥50 a ¥170); folha única de sprites na loja/inventário.
+Cartucho comprado ou impresso vai para a Gaming Shelf quando ela existe; sem ela, para a bolsa — e a Persocon anda até o lugar certo (bug da bolsa antiga corrigido).
+Catálogo visual em `Assets\cartuchos_jogos.png`. Detalhes em `ChangeLogs\v1.9.4.md`.
+
 ## v1.9.3 — 04/11/2026
+BETA build: arte da comida trocada por pixel art da biblioteca de assets (27 ícones).
 Log com merge de linhas iguais; menu da bandeja com "mostrar app"; status negativos mais longos; tabelas de assets/status em Assets.
 Estante renomeada e nova Gaming Shelf para cartuchos (substitui a bolsa, guarda portáteis no topo, upgrade Pro e lista de conteúdo ao clicar).
 Detalhes em `ChangeLogs\v1.9.3.md`.
