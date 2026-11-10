@@ -113,7 +113,7 @@ const itemIcon = (item) => {
   const sheet = item.cart ? cartSheetStyle(item.cart) : null;
   if (sheet) return h('span.item-icon', {}, h('span.cart-sheet', { style: sheet }));
   if (['comidas', 'bebidas', 'sobremesas', 'medicina'].includes(item.cat)) {
-    return h('span.item-icon', {}, h('img.consumable-img', { src: item.img, draggable: false }));
+    return h('span.item-icon', {}, h(item.art32 ? 'img.consumable-img big' : 'img.consumable-img', { src: item.img, draggable: false }));
   }
   const src = globalThis.petSkins?.art(item.id, item.img) || item.img;
   return h('span.item-icon', {}, src ? h('img', { src, draggable: false }) : item.icon);

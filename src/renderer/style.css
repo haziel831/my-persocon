@@ -200,6 +200,8 @@ button.item:hover { background: var(--panel-hover); }
 .item-icon img { display: block; width: 34px; height: 34px; image-rendering: pixelated; object-fit: contain; }
 .cart-sheet { display: block; width: 34px; height: 34px; background-image: url("./assets/carts/carts_atlas.png"); background-size: 400% 400%; image-rendering: pixelated; }
 .item-icon img.consumable-img { display: block; width: 16px; height: 16px; transform: scale(2); transform-origin: center; image-rendering: pixelated; }
+/* Arte 32×32 (1.9.8): entra no tamanho natural, sem o scale(2) dos ícones de 16×16. */
+.item-icon img.consumable-img.big { display: block; width: 34px; height: 34px; transform: none; image-rendering: pixelated; object-fit: contain; }
 .food-sheet { display: block; width: 24px; height: 24px; background-image: url("./assets/food/food_atlas.png"); background-repeat: no-repeat; image-rendering: pixelated; }
 .item-name { font-weight: 600; display: flex; gap: 6px; align-items: baseline; }
 .item .count { color: var(--muted); font-weight: 400; font-size: 11px; }
