@@ -26,6 +26,26 @@ const sfxImage = () => {
   return sfxSheet;
 };
 
+// The big explosions (BearFX): the sheet has 7 frames down each column and a few variants
+// side by side. 'fire' is the yellow blast, 'blood' the crimson one (Explosão Carmesim).
+const BOOM = {
+  fire: { file: 'bearfx_fire.png', cols: 5 },
+  blood: { file: 'bearfx_blood.png', cols: 4 },
+};
+const BOOM_ROWS = 7;
+const BOOM_CELL = 64;
+const boomImages = {};
+const boomImage = (kind) => {
+  const def = BOOM[kind];
+  if (!def) return null;
+  if (!boomImages[kind]) {
+    const img = new Image();
+    img.src = new URL(`./assets/vfx/${def.file}`, import.meta.url).href;
+    boomImages[kind] = img;
+  }
+  return boomImages[kind];
+};
+
 export class Fx {
   constructor(app) {
     this.app = app;
@@ -116,6 +136,39 @@ export class Fx {
       }
       if (i < def.frames.length - 1) requestAnimationFrame(tick);
       else setTimeout(() => cv.remove(), 60);
+    };
+    if (img.complete && img.naturalWidth) tick();
+    else img.onload = tick;
+    img.onerror = () => cv.remove();
+  }
+
+  // A big explosion (BearFX): the frames of a column play one after the other.
+  explosion(kind = 'fire', x = 0, y = 0, scale = 1, variant = -1) {
+    const def = BOOM[kind];
+    if (!def || typeof document === 'undefined') return;
+    const col = variant >= 0 ? variant % def.cols : Math.floor(Math.random() * def.cols);
+    const cv = document.createElement('canvas');
+    cv.className = 'vfx-boom';
+    cv.width = BOOM_CELL;
+    cv.height = BOOM_CELL;
+    const size = Math.round(BOOM_CELL * 1.5 * scale);
+    cv.style.width = `${size}px`;
+    cv.style.height = `${size}px`;
+    cv.style.left = `${Math.round(x - size / 2)}px`;
+    cv.style.top = `${Math.round(y - size / 2)}px`;
+    document.body.append(cv);
+    const img = boomImage(kind);
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const t0 = performance.now();
+    const tick = () => {
+      const i = Math.min(BOOM_ROWS - 1, Math.floor((performance.now() - t0) / 70));
+      g.clearRect(0, 0, BOOM_CELL, BOOM_CELL);
+      if (img.complete && img.naturalWidth) {
+        g.drawImage(img, col * BOOM_CELL, i * BOOM_CELL, BOOM_CELL, BOOM_CELL, 0, 0, BOOM_CELL, BOOM_CELL);
+      }
+      if (i < BOOM_ROWS - 1) requestAnimationFrame(tick);
+      else setTimeout(() => cv.remove(), 80);
     };
     if (img.complete && img.naturalWidth) tick();
     else img.onload = tick;

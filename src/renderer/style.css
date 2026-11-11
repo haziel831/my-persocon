@@ -568,6 +568,22 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
 /* ---------- COMBAT_MODE: a red frame burns around the screen ---------- */
 .vfx-impact { position: fixed; pointer-events: none; z-index: 9996; image-rendering: pixelated; }
 .vfx-proj { position: fixed; pointer-events: none; z-index: 9996; image-rendering: pixelated; }
+.vfx-boom { position: fixed; pointer-events: none; z-index: 9996; image-rendering: pixelated; }
+/* The auras above her head: the dizzy stars and the Fúria fire. */
+.combat-aura {
+  position: fixed; z-index: 9996; pointer-events: none; transform: translate(-50%, -50%);
+  image-rendering: pixelated; user-select: none;
+}
+.combat-aura.dizzy { width: 26px; height: 26px; animation: aura-spin 1.6s linear infinite; }
+.combat-aura.fury {
+  width: 30px; height: 30px; image-rendering: auto; filter: drop-shadow(0 0 6px rgba(255, 140, 40, 0.85));
+  animation: aura-fury 0.55s ease-in-out infinite alternate;
+}
+@keyframes aura-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes aura-fury {
+  from { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+  to { transform: translate(-50%, -50%) scale(1.18); opacity: 1; }
+}
 /* The combat text above the heads: green for her, red for the enemy. */
 .combat-text {
   position: fixed; z-index: 9996; pointer-events: none; transform: translate(-50%, -50%);
@@ -1277,6 +1293,18 @@ body.editing-furn .toy[data-id].broken { animation: none; }
 .skill-head .muted { grid-column: 1 / -1; font-size: 11px; opacity: 0.7; }
 .skill-moves { margin: 0; padding: 0 10px 8px 28px; display: grid; gap: 3px; font-size: 12px; }
 .skill-moves .muted { opacity: 0.65; list-style: none; margin-left: -18px; }
+
+/* The special combat maneuvers in the profile */
+.maneuvers { display: grid; gap: 6px; }
+.maneuver {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+.maneuver b { color: #ffb457; }
+.maneuver small { grid-column: 1 / -1; font-size: 11px; opacity: 0.75; }
+.maneuver.locked { opacity: 0.5; }
+.maneuver.locked b { color: inherit; }
 
 /* Debug console (stays open after debug is turned off until closed) */
 .debug-console {
