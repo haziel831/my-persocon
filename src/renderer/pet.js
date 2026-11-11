@@ -1626,13 +1626,16 @@ api.onTrayClick?.(() => {
   let lastClick = null;
   const click = () => {
     if (app.intro?.onPetClick()) return;
-    // COMBAT_MODE: nothing interrupts the fight.
-    if (pet.combatMode) return;
     const now = performance.now();
-    if (lastClick && now - lastClick.t < 350 && Math.hypot(press.x - lastClick.x, press.y - lastClick.y) < 12) {
-      lastClick = null;
-      return quick.show(press.x, press.y);
+    const dbl = !!lastClick && now - lastClick.t < 350 && Math.hypot(press.x - lastClick.x, press.y - lastClick.y) < 12;
+    if (dbl) lastClick = null;
+    // COMBAT_MODE: two clicks cancel the fight (the way out if it gets stuck).
+    if (pet.combatMode) {
+      if (dbl) app.melee?.stop?.('cancelled');
+      else lastClick = { t: now, x: press.x, y: press.y };
+      return;
     }
+    if (dbl) return quick.show(press.x, press.y);
     lastClick = { t: now, x: press.x, y: press.y };
     if (pet.toyPlay?.versus) return;
     pet.pat();
@@ -1682,7 +1685,11 @@ api.onTrayClick?.(() => {
     if (e.target.closest?.('.hitzone')) return;
     if (pet.closeup || !hitPet(e.clientX, e.clientY)) return;
     // COMBAT_MODE: the fight is not interrupted by petting, slapping or dragging.
-    if (pet.combatMode) return;
+    // Only the press is registered, so two clicks can cancel the fight.
+    if (pet.combatMode) {
+      press = { button: e.button, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, grabbing: false };
+      return;
+    }
     suppressContext = false;
     if (app.hand === 'slap' && e.button === 0) {
       slapHand(e.clientX, e.clientY);

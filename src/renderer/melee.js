@@ -137,10 +137,12 @@ export class Melee {
     this.hits = 0;
     this.petHp = 100;
     this.pet.combatMode = true;
-    document.body.classList.add('combat-mode');
-    // The regular music goes down, the combat track starts.
-    this.app.sound?.pauseMusic?.();
-    if (this.app.sound?.enabled) this.music = new CombatMusic(this.app.sound);
+    // The frame and the combat track belong to the real fights; the training stays clean.
+    if (kind !== 'dummy') {
+      document.body.classList.add('combat-mode');
+      this.app.sound?.pauseMusic?.();
+      if (this.app.sound?.enabled) this.music = new CombatMusic(this.app.sound);
+    }
     this.pet.emit?.('combatStart', { kind });
     return true;
   }
@@ -174,13 +176,7 @@ export class Melee {
     if (!this.enter('dummy')) return false;
     this.phase = 'intro';
     this.t = 0;
-    this.introDone = false;
-    // She walks to the dummy once and stays there for the whole training.
-    const side = Math.sign((dummy.x ?? pet.x) - pet.x) || pet.dir || 1;
-    const target = (dummy.x ?? pet.x) - side * pet.P * 0.8;
-    pet.dir = side;
-    if (Math.abs(pet.x - target) > pet.P * 0.25) pet.goTo(target, () => { this.introDone = true; });
-    else this.introDone = true;
+    this.introT = 0;
     return true;
   }
 
@@ -191,12 +187,21 @@ export class Melee {
     const pet = this.pet;
     this.t += dt;
     switch (this.phase) {
-      case 'intro':
-        if (this.introDone) this.beginTurn(TURN.PERSOCON);
+      case 'intro': {
+        // She steps into the strike range (the toy play owns her position) and squares up.
+        this.introT += dt;
+        const side = Math.sign((this.oppX() ?? pet.x) - pet.x) || pet.dir || 1;
+        const want = (this.oppX() ?? pet.x) - side * pet.P * 0.8;
+        const d = want - pet.x;
+        pet.dir = side;
+        if (Math.abs(d) > 2) pet.x += Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 1.1 * dt);
+        if (Math.abs(want - pet.x) <= 3 || this.introT > 1.4) this.beginTurn(TURN.PERSOCON);
         break;
+      }
       case 'acting':
-        // The clip is playing: the hit is resolved by the combatHit event.
-        if (this.t > (this.moveDur || 1) + 0.6) this.beginTurn(this.next);
+        // The clip is playing: the hit is resolved by the combatHit event. If the clip never
+        // fires it (missing clip, interrupted), the turn still resolves.
+        if (!this.hitResolved && this.t > (this.moveDur || 1) + 0.7) this.resolveHit();
         break;
       case 'resolve':
         if (this.t >= this.wait) this.beginTurn(this.next);
@@ -216,6 +221,7 @@ export class Melee {
     this.turn = who;
     this.phase = 'acting';
     this.t = 0;
+    this.hitResolved = false;
     if (who === TURN.PERSOCON) this.persoconTurn();
     else this.opponentTurn();
   }
@@ -249,7 +255,8 @@ export class Melee {
       const x = this.oppX();
       this.float(x, this.oppY() - 20, '🛡 O boneco se defende!');
       this.app.sound?.tone8?.(220, 160, 0.12, 'triangle', 0.05);
-      pet.playAnimation('combat_idle', { facing: this.facing() > 0 ? 'right' : 'left' });
+      // She waits in the fighting stance while the dummy braces.
+      pet.anim('idle', { facing: this.facing() > 0 ? 'right' : 'left', restart: false });
     } else {
       // A real opponent would attack here (not implemented yet).
       this.move = { id: 'attack', name: 'Ataca', kind: 'attack', clip: 'attack_jab', dmg: 5 };
@@ -267,6 +274,8 @@ export class Melee {
   }
 
   resolveHit() {
+    if (this.hitResolved) return;
+    this.hitResolved = true;
     const move = this.move;
     const pet = this.pet;
     const lvl = this.level;
@@ -306,10 +315,16 @@ export class Melee {
   }
 
   finishTraining(reason = 'done') {
-    if (!this.active) return;
+    this.stop(reason);
+  }
+
+  // Stops the fight (the escape hatch: two clicks on her cancel it).
+  stop(reason = 'cancelled') {
+    if (!this.active) return false;
     this.leave(reason);
-    this.pet.endToy?.(false);
+    this.pet.endToy?.(true);
     this.pet.chooseNext?.();
+    return true;
   }
 
   // ---------------- helpers ----------------

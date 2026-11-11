@@ -8,12 +8,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
 ## v1.9.12 — 11/11/2026
-**Combate por turnos.** Treinar no Boneco de Treino virou uma luta de verdade: enquanto ela luta, o jogo entra em `COMBAT_MODE` — nada interrompe (sem carinho, sem arrastar, sem comandos manuais, sem pedidos de comida, sem anticinhas e sem o corvo atrapalhando), uma **borda vermelha pulsante** queima na tela e uma **trilha de combate** toca em loop (a música normal abaixa e volta no fim).
+**Combate por turnos.** Treinar no Boneco de Treino virou uma luta de verdade: enquanto ela luta, o jogo entra em `COMBAT_MODE` — nada interrompe (sem carinho, sem arrastar, sem comandos manuais, sem pedidos de comida, sem anticinhas e sem o corvo atrapalhando).
 Os turnos alternam (ela → adversário) e cada um rola a chance de acerto, de crítico e de bloqueio a partir do **Nível de Combate**: nível alto = mais acerto, mais crítico e defesa melhor. As animações de combate (antecipação, frame do golpe e recuperação) tocam em cada turno, com o feedback flutuante do resultado (💥 acertou, 🛡 bloqueou, 💨 errou).
 **Golpes por nível** (só os desbloqueados podem ser usados): Nv 1 jab e guarda · Nv 3 cross · Nv 5 passo evasivo · Nv 7 uppercut · Nv 10 chute circular.
 **Progressão mais lenta:** o nível 10 agora pede ~1950 XP (dezenas de sessões), contra ~666 antes.
 **Armas fora do combate:** por enquanto espada, Syntoyo e bola de queimada não têm utilidade na luta — o treino é estritamente desarmado.
-**Exaustão:** cada turno gasta energia e dá um pouco de XP; o treino continua sem interrupção até ela cansar (energia ≤ 15%), quando a borda vermelha some, a música de combate para e ela sai do treino.
+**Exaustão:** cada turno gasta energia e dá um pouco de XP; o treino continua sem interrupção até ela cansar (energia ≤ 15%), quando ela sai do treino.
+**Borda vermelha e trilha de combate** ficam reservadas para as lutas de verdade — o treino no boneco é limpo (sem moldura na tela e sem trocar a música). **Dois cliques nela cancelam o combate**, caso ele trave.
 Detalhes em `ChangeLogs\v1.9.12.md`.
 
 ## v1.9.11 — 11/11/2026

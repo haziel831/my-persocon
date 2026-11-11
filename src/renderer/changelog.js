@@ -7,7 +7,8 @@ export const CHANGES = [
     ['A progressão do combate ficou bem mais lenta: o nível 10 agora pede ~1950 XP (dezenas de sessões de treino)', 'Combat progression is much slower now: level 10 needs ~1950 XP (dozens of training sessions)'],
     ['As armas perderam a utilidade no combate por enquanto: espada, Syntoyo e bola de queimada não entram na luta', 'The weapons lost their combat use for now: sword, Syntoyo and dodgeball do not enter the fight'],
     ['Durante o combate o jogo entra em COMBAT_MODE: sem carinho, sem arrastar, sem comandos, sem pedidos e sem o corvo atrapalhando', 'During a fight the game enters COMBAT_MODE: no petting, no dragging, no commands, no requests and no crow interfering'],
-    ['Borda vermelha pulsando na tela e trilha de combate em loop durante a luta (a música normal abaixa e volta depois)', 'A pulsing red frame around the screen and a looping combat track during the fight (the regular music drops and comes back after)'],
+    ['A borda vermelha e a trilha de combate ficam só para as lutas de verdade (o treino no boneco é limpo)', 'The red frame and the combat track are only for the real fights (the dummy training stays clean)'],
+    ['Dois cliques nela cancelam o combate, se travar', 'Two clicks on her cancel the fight, if it gets stuck'],
   ]],
   ['1.9.11', [
     ['8 animações de corpo a corpo para o sistema de combate: postura de luta, jab, cross, uppercut, roundhouse, bloqueio, esquiva e reação a golpe', '8 close-combat animations for the melee system: fighting stance, jab, cross, uppercut, roundhouse, block, dodge and hit reaction'],
