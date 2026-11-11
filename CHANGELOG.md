@@ -7,6 +7,14 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.16 — 11/11/2026
+**Perfil reorganizado.** As Informações Gerais ficaram enxutas: agora mostram **só** Nome, Idade, Afeição, Moedas e Carteira (o nível de combate, a Força, a Constituição, a Saúde máxima e o Pega-pega saíram de lá — o Pega-pega foi para Recordes e a Saúde máxima para Atributos).
+**Atributos clicáveis.** Cada atributo abre uma caixinha com o que ele faz (Força, Constituição e os outros seis), com destaque na borda e fundo âmbar; **clicar no mesmo atributo de novo ou clicar fora** fecha a caixinha na hora. O texto fixo que ficava embaixo do quadro de atributos foi removido.
+**Nova categoria "Combate"**, recolhível, logo **abaixo** de Atributos, dividida por arte marcial: **Combate Corpo a Corpo**, **Espadas**, **Arremesso** e **Syntoyo** — cada uma com os golpes que ela já sabe e o nível dela. As **Manobras Especiais** também foram para dentro do Combate.
+**Regra da visibilidade.** No painel de Combate só aparece o que ela **já aprendeu**: uma arte que ela nunca treinou, um golpe de nível superior e uma manobra ainda bloqueada simplesmente **não existem** na tela (saiu o cadeado e o "bloqueado").
+**Fúria mais forte.** O status Fúria agora acende uma **aura vermelha pulsante em volta do modelo** (gradiente radial + tremor de luz), que some quando ela solta a manobra ou a luta acaba, e toca o som **Hyper Flash** (do pack Ultimate 8bit SFX, MIT) no instante em que acende.
+Detalhes em `ChangeLogs\v1.9.16.md`.
+
 ## v1.9.15 — 11/11/2026
 **Contato obrigatório.** O arremesso saiu do jogo: ela **só golpeia de perto**. Se o golpe do Sucataoxidado a empurrar para longe, o turno dela começa com um **avanço** e o golpe só acontece quando ela chega no contato (distância de 0,85 × a largura dela). Nada de ficar socando o ar de longe.
 **Remédios inteligentes.** Ela só gasta a vez com um remédio que **ajuda agora**: ou cura um status que ela tem de verdade (não gasta o remédio de cura só porque ele existe no inventário), ou cura a vida machucada. O **Kit de Primeiros Socorros** virou o cura grande do combate (45 de Saúde; o vermelho, 65).

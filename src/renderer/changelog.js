@@ -1,6 +1,15 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.16', [
+    ['O Perfil foi arrumado: Informações Gerais agora mostra só Nome, Idade, Afeição, Moedas e Carteira (o combate, a Força e a Constituição saíram de lá)', 'The Profile was tidied up: General Info now shows only Name, Age, Affection, Coins and Wallet (combat, Strength and Constitution moved out)'],
+    ['Cada atributo virou clicável: abre uma caixinha explicando o que ele faz (e clicar fora dela fecha)', 'Every attribute is now clickable: it opens a box explaining what it does (and clicking outside closes it)'],
+    ['Saiu o texto fixo que ficava embaixo dos atributos (agora cada um se explica sozinho)', 'The permanent text under the attributes is gone (now each one explains itself)'],
+    ['Nova categoria Combate no Perfil, logo abaixo de Atributos, dividida por arte marcial (Corpo a Corpo, Espadas, Arremesso, Syntoyo)', 'New Combat category in the Profile, right below Attributes, split by martial art (Unarmed Melee, Swordplay, Throwing, Syntoyo)'],
+    ['No painel de Combate só aparece o que ela já sabe: nada de arte, golpe ou manobra bloqueada com cadeado', 'The Combat panel only shows what she already knows: no locked art, move or maneuver with a padlock'],
+    ['Fúria com aura vermelha pulsante em volta dela (some quando ela usa a manobra ou a luta acaba)', 'Fury with a pulsing red aura around her (it goes away when she uses the maneuver or the fight ends)'],
+    ['A Fúria agora toca um som de ativação poderoso (Hyper Flash) no instante em que acende', 'Fury now plays a powerful activation sound (Hyper Flash) the moment it lights up'],
+  ]],
   ['1.9.15', [
     ['Sem arremessos: ela só bate de perto — se o golpe do inimigo a empurrar para longe, ela avança e só golpeia no contato', 'No more throws: she only strikes at close range — if the enemy hit pushes her away, she closes in and only strikes in contact'],
     ['Remédios inteligentes: ela só gasta a vez com um remédio que cura um status que ela tem de verdade ou que cura a vida machucada', 'Smart medicines: she only spends a turn on a medicine that cures a status she actually has or that heals her wounds'],
