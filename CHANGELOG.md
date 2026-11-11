@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.11 — 11/11/2026
+Oito animações de corpo a corpo geradas para o rig YSM/Bedrock da Persocon, prontas para o sistema de combate: `combat_idle` (postura de luta com respiração), `attack_jab` (jab com a esquerda, passo à frente), `attack_cross` (cross com a direita, giro de quadril e ombro), `attack_uppercut` (agachamento profundo e uppercut com salto), `attack_roundhouse_kick` (perna direita varrendo num arco horizontal), `combat_block` (braços cruzados na frente do rosto, cabeça abaixada), `combat_dodge_step` (salto lateral rápido, centro de gravidade baixo) e `combat_hit_stagger` (reação de empurrão, cabeça e tronco para trás).
+Cada golpe tem antecipação, frame de impacto e recuperação, com interpolação Catmull-Rom. O mapa de metadados (`COMBAT_META`) traz duração, frame exato do golpe e a janela de combo (jab → cross → uppercut).
+A Persocon toca as animações por nome (`playAnimation('attack_jab')`), encadeia a corrente (`chainAttack()`), dispara o evento `combatHit` no frame do golpe (dano, efeito e som) e volta sozinha para a postura de luta quando o golpe termina. Prévia em Opções → Debug → Combate.
+Correção: as animações geradas pelo app agora mexem no tronco dos modelos YSM (osso `UpBody`), que antes era ignorado.
+Detalhes em `ChangeLogs\v1.9.11.md`.
+
 ## v1.9.10 — 10/11/2026
 As estantes mantêm o tamanho original (as mesmas dimensões de antes, ao lado da Persocon), mas o que está dentro delas mudou: os mangás aparecem de frente com a capa real, as miniaturas colecionáveis ocupam a altura da prateleira e os cartuchos mostram a arte do rótulo — tudo preencheando uns 85%–90% da linha, sem sobrepor.
 Os três portáteis (GameBuddy, GameGlow e PlayPocket 3000) agora ficam **em cima do teto** da Gaming Shelf / Gaming Shelf Pro, um em cada lugar reservado (esquerda, centro, direita), encolhidos para caber os três lado a lado — as fileiras internas ficam só para cartuchos.

@@ -1,6 +1,14 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.11', [
+    ['8 animações de corpo a corpo para o sistema de combate: postura de luta, jab, cross, uppercut, roundhouse, bloqueio, esquiva e reação a golpe', '8 close-combat animations for the melee system: fighting stance, jab, cross, uppercut, roundhouse, block, dodge and hit reaction'],
+    ['Golpes com antecipação, frame de impacto e recuperação, com os tempos no mapa de metadados (duração, frame do golpe e janela de combo)', 'Strikes with anticipation, hit frame and recovery, with the timings in the metadata map (duration, hit frame and combo window)'],
+    ['A Persocon agora toca as animações de combate por nome: playAnimation("attack_jab") e chainAttack() para emendar a corrente', 'The Persocon now plays the combat animations by name: playAnimation("attack_jab") and chainAttack() to chain the combo'],
+    ['Evento "combatHit" no frame do golpe, para o dano, o efeito e o som', '"combatHit" event on the hit frame, for the damage, the effect and the sound'],
+    ['Prévia das animações de combate em Opções → Debug → Combate', 'Preview of the combat animations in Options → Debug → Combat'],
+    ['As animações geradas agora mexem no tronco dos modelos YSM (osso UpBody), que antes era ignorado', 'The generated animations now move the torso of the YSM models (the UpBody bone), which was ignored before'],
+  ]],
   ['1.9.10', [
     ['Mangás, miniaturas e cartuchos da Estante e da Gaming Shelf agora aparecem de frente, com a arte real (capa do mangá, rótulo do cartucho) e ocupando a altura da prateleira', 'Mangas, figures and cartridges on the Bookshelf and the Gaming Shelf now show from the front, with the real art (manga cover, cartridge label) and filling the height of the shelf row'],
     ['Os portáteis (GameBuddy, GameGlow e PlayPocket 3000) ficam em cima do teto da Gaming Shelf, um em cada lugar reservado, e cabem os três lado a lado', 'The handhelds (GameBuddy, GameGlow and PlayPocket 3000) stand on the roof of the Gaming Shelf, one in each reserved slot, all three fitting side by side'],

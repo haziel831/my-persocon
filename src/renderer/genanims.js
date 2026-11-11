@@ -30,7 +30,8 @@ function rig(boneNames) {
   const find = (...names) => names.map((n) => lower.get(n.toLowerCase())).find(Boolean) || null;
   return {
     head: find('Head', 'AllHead'),
-    body: find('UpperBody', 'Body'),
+    // UpBody is the torso of the YSM/Bedrock models (UpperBody/Body are the other names).
+    body: find('UpBody', 'UpperBody', 'Body', 'Torso'),
     rArm: find('RightArm'),
     lArm: find('LeftArm'),
     rFore: find('RightForeArm', 'RightLowerArm', 'RightArm2'),

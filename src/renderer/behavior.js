@@ -1,3 +1,5 @@
+import { Combat } from './combat.js';
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const chance = (p) => Math.random() < p;
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -115,6 +117,8 @@ export class Pet {
     this.actionQueue = [];
     this.combat = false;
     this.combatKind = null;
+    // Close-combat clips (melee system): the controller plays them by name and fires the hit.
+    this.combatAnim = new Combat(this);
     this.chase = null;
     this.dead = false;
     this.cursor = null;
@@ -470,8 +474,22 @@ export class Pet {
     this.view.play(name, { restart, fade: snapped ? 0 : 0.18, speed });
   }
 
-  setCombat(on, kind = null) {
-    const nextKind = on ? (kind || this.combatKind || 'espada') : null;
+  // Plays an animation by name (melee system): playAnimation('attack_jab').
+  // Combat clips go through the controller (hit frame, combo window, back to the stance).
+  playAnimation(name, { facing = 'front', restart = true, speed = 1 } = {}) {
+    if (!name) return false;
+    if (this.combatAnim?.isCombatClip(name)) return this.combatAnim.play(name, { facing, restart, speed });
+    if (!this.view.animator.has(name)) return false;
+    this.anim(name, { facing, restart, speed });
+    return true;
+  }
+
+  // The next attack of the combo chain (when the window of the current one is open).
+  chainAttack() {
+    return this.combatAnim?.chain() || false;
+  }
+
+  setCombat(on, kind = null) {    const nextKind = on ? (kind || this.combatKind || 'espada') : null;
     const same = !!on === !!this.combat && nextKind === this.combatKind;
     this.combat = !!on;
     this.combatKind = nextKind;
@@ -2524,6 +2542,8 @@ export class Pet {
     if (this.offstage || this.x === null || !this.world.ready) return;
     this.awake += dt;
     this.clock += dt;
+    // Combat clips: the hit frame and the return to the fighting stance.
+    this.combatAnim?.update(dt);
     if (this.dosing > 0) {
       this.dosing -= dt;
       if (this.dosing <= 0) {

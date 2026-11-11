@@ -456,6 +456,9 @@ const EN = {
   // ---- v1.21.2: options, debug, header ----
   'Bebendo': 'Drinking', 'ligado': 'on', 'desligado': 'off', 'principal': 'primary', 'aqui agora': 'here now', 'Álbum': 'Album',
   'Debug': 'Debug', '🎮 Modo debug ligado': '🎮 Debug mode on', '🎮 Modo debug desligado': '🎮 Debug mode off',
+  'Combate': 'Combat', 'Ligar combate': 'Enter combat mode', 'Desligar combate': 'Leave combat mode',
+  'Animações de corpo a corpo. ▶ toca a animação; o frame do golpe (hit) aparece em destaque. "Ligar combate" deixa ela na postura de luta.':
+    'Close-combat animations. ▶ plays the animation; the hit frame stands out. "Enter combat mode" keeps her in the fighting stance.',
   'Abrir console': 'Open console',
   'Modo debug ligado: os logs vão para a pasta "log" em %APPDATA%\\My Persocon. O console fica aberto até você fechar (mesmo com o debug desligado).': 'Debug mode on: logs go to the "log" folder in %APPDATA%\\My Persocon. The console stays open until you close it (even with debug off).',
   'Modo debug ligado: os logs vão para a pasta "log" em %APPDATA%\\My Persocon. Digite o código de novo para desligar.': 'Debug mode on: logs go to the "log" folder in %APPDATA%\\My Persocon. Enter the code again to turn it off.',
@@ -725,6 +728,8 @@ const PATTERNS = [
   [/^Força da Persocon: (alta|média|baixa) \(Saúde (\d+)%\)$/, (_, f, h) => `Persocon's strength: ${{ alta: 'high', 'média': 'medium', baixa: 'low' }[f]} (Health ${h}%)`],
   [/^🎾 Pega o mouse! (\d+)s$/, '🎾 Catch the mouse! $1s'],
   [/^Animações do modelo/, 'Model animations'],
+  [/^Combate \(\d+\)$/, 'Combat'],
+  [/^Duração (\d+)ms · golpe em (\d+)ms$/, 'Duration $1ms · hit at $2ms'],
   [/^Monitor (\d+)/, 'Monitor $1'],
   [/ · VS Doll$/, ' · VS Doll'],
   [/ pts/g, ' pts'],

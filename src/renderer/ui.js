@@ -16,6 +16,7 @@ import { resetTips } from './tips.js';
 import { DUOS } from './dollai.js';
 import { ANTIC_NAMES } from './antics.js';
 import { IX_NAMES } from './interact.js';
+import { COMBAT_ANIM_NAMES, COMBAT_META } from './combat.js';
 import { CHANGES } from './changelog.js';
 import { REMINDER_SOUNDS } from './closeup.js';
 import { ALBUM_MAX } from './funtoys.js';
@@ -1422,6 +1423,7 @@ export class Menu {
         alive ? btn('Truque', () => { if (doll.brain.duo) return false; doll.brain.trick(); }) : null,
         ...DUOS.filter((d) => !d.alive || alive).map((d) => btn(d.name, () => doll.brain.startDuo(d.id, true)))) : null,
       this.animRows(),
+      this.combatRows(),
       h('div.group', {}, 'Changelog'),
       ...CHANGES.map(([v, items]) => h('div.note', {}, h('b', {}, `v${v}: `),
         items.map((x) => (app.config.lang === 'en' ? x[1] : x[0])).join(' · '))),
@@ -1451,6 +1453,36 @@ export class Menu {
         h('span.label', { style: { opacity: on ? '' : '0.5' } }, `${generated ? '✨ ' : ''}${name}`),
         h('button.mini', { onclick: () => { app.previewAnim(name); this.render(); } }, '▶'),
         h(`button.mini${on ? '' : '.danger'}`, { onclick: () => { app.setAnimOn(name, !on); this.render(); } }, on ? 'Ligada' : 'Desligada'))),
+    ];
+  }
+
+  // Debug: the close-combat clips of the melee system, with the hit frame of each one.
+  combatRows() {
+    const { app } = this;
+    const { pet } = app;
+    const list = COMBAT_ANIM_NAMES.filter((n) => pet?.view?.animator?.has(n));
+    if (!list.length) return null;
+    const btn = (label, fn) => h('button.chip', {
+      onclick: () => { this.done(); setTimeout(fn, 80); },
+    }, label);
+    return [
+      h('div.group', {}, `Combate (${list.length})`),
+      h('div.note', {}, 'Animações de corpo a corpo. ▶ toca a animação; o frame do golpe (hit) aparece em destaque. "Ligar combate" deixa ela na postura de luta.'),
+      h('div.filters', {}, list.map((n) => {
+        const meta = COMBAT_META[n];
+        const hit = meta?.hitFrameMs != null ? ` · hit ${meta.hitFrameMs}ms` : '';
+        return h('button.chip', {
+          title: meta?.hitFrameMs != null ? `Duração ${meta.durationMs}ms · golpe em ${meta.hitFrameMs}ms` : `Duração ${meta?.durationMs ?? 0}ms`,
+          onclick: () => { this.done(); setTimeout(() => app.previewCombat?.(n), 80); },
+        }, `▶ ${n}${hit}`);
+      })),
+      h('div.filters', {},
+        btn(pet.combat ? 'Desligar combate' : 'Ligar combate', () => {
+          pet.setCombat(!pet.combat, pet.combatKind || 'melee');
+          this.render();
+        }),
+        btn('▶ Soco (jab → cross → uppercut)', () => app.previewCombat?.('attack_jab')),
+      ),
     ];
   }
 

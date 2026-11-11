@@ -27,6 +27,7 @@ import { DesktopGames } from './desktop.js';
 import { DesktopWatch } from './watch.js';
 import { TvWatch } from './tvwatch.js';
 import { Interactions } from './interact.js';
+import { COMBAT_META } from './combat.js';
 import { Closeup } from './closeup.js';
 import { Rewards } from './rewards.js';
 import { Care } from './care.js';
@@ -276,6 +277,19 @@ export async function startPet(files, config) {
       }
       view.setFacing('front');
       view.play(name, { restart: true, force: true });
+    },
+    // Debug: preview a close-combat clip and fire its hit frame (VFX/SFX hook).
+    previewCombat(name) {
+      if (!view.animator.has(name)) return false;
+      app.previewAnim(name);
+      const meta = COMBAT_META[name];
+      if (meta?.hitFrameMs != null) {
+        setTimeout(() => {
+          pet.emit('combatHit', { name, at: meta.hitFrameMs });
+          logInfo('combat', `hit ${name} @ ${meta.hitFrameMs}ms`);
+        }, meta.hitFrameMs);
+      }
+      return true;
     },
     stopPreview() {
       const p = app.previewing;
