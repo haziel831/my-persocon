@@ -117,6 +117,8 @@ export class Pet {
     this.actionQueue = [];
     this.combat = false;
     this.combatKind = null;
+    // COMBAT_MODE: the strict lock of the melee system (no pettings, no events, no timers).
+    this.combatMode = false;
     // Close-combat clips (melee system): the controller plays them by name and fires the hit.
     this.combatAnim = new Combat(this);
     this.chase = null;
@@ -714,6 +716,8 @@ export class Pet {
   // bite once the pet stands somewhere and isn't playing; the effects are applied per bite.
   feed(item) {
     if (this.dead || this.meals.length >= 5) return false;
+    // COMBAT_MODE: no feeding during the fight.
+    if (this.combatMode) return false;
     this.meals.push(item);
     if (this.canStartEating()) this.startEating();
     else if (this.mode === 'wall') this.fall(0, 0);
@@ -833,6 +837,8 @@ export class Pet {
   updateRequest(dt) {
     // Asleep she neither asks nor counts down what she asked.
     if (this.action === 'sleep') return;
+    // COMBAT_MODE: no requests during the fight.
+    if (this.combatMode) return;
     if (this.request) {
       this.request.t -= dt;
       if (this.request.t <= 0) {
@@ -932,12 +938,14 @@ export class Pet {
     const k = tp.scale ?? 1;
     const delta = {};
     for (const [stat, v] of Object.entries(tp.gain || {})) delta[stat] = v * k * dt;
-    // Dummy training: never drain energy below 50%.
-    if (tp.train && delta.energy < 0 && this.stats.energy + delta.energy < 50) {
-      delta.energy = Math.min(0, 50 - this.stats.energy);
+    // Dummy training: never drain energy below the floor (the melee training goes lower:
+    // she trains until she is exhausted).
+    const floor = tp.trainFloor ?? 50;
+    if (tp.train && delta.energy < 0 && this.stats.energy + delta.energy < floor) {
+      delta.energy = Math.min(0, floor - this.stats.energy);
     }
     this.adjust(delta);
-    if (tp.train && this.stats.energy <= 50 && tp.picked) {
+    if (tp.train && this.stats.energy <= floor && tp.picked) {
       this.endToy(false);
       this.chooseNext();
       return;
@@ -1981,6 +1989,8 @@ export class Pet {
     if (this.leaving) return this.startLeave();
     if (this.dead) return this.lieDead();
     if (this.powerOff) return this.lieOff();
+    // COMBAT_MODE: the fight owns her; nothing else starts.
+    if (this.combatMode) { this.action = 'idle'; this.timer = Infinity; return; }
     if (this.runQueued()) return;
     if (this.app?.game?.flushAfterPlay?.()) return;
     if (this.pending) {

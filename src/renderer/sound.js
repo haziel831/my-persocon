@@ -57,6 +57,11 @@ export class Sound {
       this.ctx = new AudioContext();
       this.master = this.ctx.createGain();
       this.master.connect(this.ctx.destination);
+      // The regular background music has its own bus: the combat mode pauses it without
+      // touching the sound effects (and the combat track plays on its own node).
+      this.musicBus = this.ctx.createGain();
+      this.musicBus.connect(this.master);
+      this.musicPaused = false;
       // Crow (and wing flaps) on their own buses so their sliders never scale other SFX.
       this.crowBus = this.ctx.createGain();
       this.crowFlapBus = this.ctx.createGain();
@@ -104,6 +109,19 @@ export class Sound {
   applyCrowVolume() {
     if (this.crowBus) this.crowBus.gain.value = Math.max(0, Math.min(2, this.crowVol ?? 1));
     if (this.crowFlapBus) this.crowFlapBus.gain.value = Math.max(0, Math.min(2, this.crowFlapVol ?? 1));
+  }
+
+  // The regular music goes down (combat mode) and comes back afterwards.
+  pauseMusic() {
+    if (!this.musicBus || this.musicPaused) return;
+    this.musicPaused = true;
+    this.musicBus.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.12);
+  }
+
+  resumeMusic() {
+    if (!this.musicBus || !this.musicPaused) return;
+    this.musicPaused = false;
+    this.musicBus.gain.setTargetAtTime(1, this.ctx.currentTime, 0.2);
   }
 
   // cfg.soundSeed set: every sample set is replaced by a generated 8-bit sound (new seed = new set).

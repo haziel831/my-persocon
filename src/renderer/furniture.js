@@ -279,7 +279,7 @@ export const FURN_ITEMS = [
   item('alvo', 'mobilia', 'Alvo', 160, 'alvo', { furn: true, gain: { mood: 0.35 }, note: 'Clique para um minigame de 3 minutos com recorde · a Persocon também joga dardos' }),
   item('boneco_treino', 'mobilia', 'Boneco de treino', 200, 'dummy', {
     furn: true, noWear: true, gain: { mood: 0.25, energy: -0.08, thirst: -0.06 },
-    note: 'Tamanho dela · balança como pino de boliche · treina socos, espada, Syntoyo e queimada · só com energia ≥50%',
+    note: 'Tamanho dela · balança como pino de boliche · combate por turnos desarmada (só socos) · o treino acaba quando ela fica sem energia',
   }),
   item('globo', 'mobilia', 'Globo de luz', 140, 'globo', { furn: true, decor: true, note: 'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
   item('holofote', 'mobilia', 'Holofotes', 120, 'holofote', { furn: true, decor: true, note: 'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),

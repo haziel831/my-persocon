@@ -443,6 +443,8 @@ export class Crow {
     const P = this.P;
     const W = world.width;
     const d = this.data;
+    // COMBAT_MODE: the crow does not start anything while she fights.
+    if (pet.combatMode) return this.idle(rand(1.5, 3), 'caw');
     if (this.wantsPrinter()) return this.fetch();
     // carry is also used while tidy() holds a floor toy — don't treat that as a printer grab.
     if ((this.carry.length || this.fetching) && !this.holdToyId) return this.grab();
@@ -1623,6 +1625,9 @@ export class Crow {
     }
     if (d.away) {
       if (Date.now() >= d.away.back) this.comeBack();
+    } else if (pet.combatMode) {
+      // COMBAT_MODE: the crow keeps quiet and does not interrupt the fight.
+      if (this.act?.kind !== 'idle') this.idle();
     } else {
       if (this.duo) this.duoTick(dt);
       if (this.duo?.flutter > 0) {

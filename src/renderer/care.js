@@ -76,6 +76,8 @@ export class Care {
   bath(fromQueue = false) {
     const { pet } = this.app;
     if (pet.dead || pet.mode !== 'ground' || pet.chase || this.app.minigames?.active) return false;
+    // COMBAT_MODE: the fight is not interrupted by a bath.
+    if (pet.combatMode) return false;
     if (pet.toyPlay?.id === 'banho') return false;
     if (!fromQueue && (pet.busyForQueue?.() || pet.action === 'sleep')) {
       pet.enqueue({ kind: 'bath', label: 'Banho' });

@@ -42,7 +42,7 @@ class BattleMusic {
     const c = sound.ctx;
     this.out = c.createGain();
     this.out.gain.value = 0.9;
-    this.out.connect(sound.master);
+    this.out.connect(sound.musicBus || sound.master);
     this.k = 0;
     this.t = c.currentTime + 0.15;
     this.iv = setInterval(() => this.pump(), 50);

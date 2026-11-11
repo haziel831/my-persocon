@@ -62,7 +62,7 @@ export class Music {
     this.out.gain.setValueAtTime(0.0001, c.currentTime);
     this.out.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), c.currentTime + 1.6);
     this.masterLp.connect(this.out);
-    this.out.connect(this.sound.master);
+    this.out.connect(this.sound.musicBus || this.sound.master);
 
     this.bus = c.createGain();
     this.bus.connect(this.masterLp);

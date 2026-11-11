@@ -28,6 +28,7 @@ import { DesktopWatch } from './watch.js';
 import { TvWatch } from './tvwatch.js';
 import { Interactions } from './interact.js';
 import { COMBAT_META } from './combat.js';
+import { Melee } from './melee.js';
 import { Closeup } from './closeup.js';
 import { Rewards } from './rewards.js';
 import { Care } from './care.js';
@@ -393,6 +394,11 @@ export async function startPet(files, config) {
   const toys = new Toys(app, screen);
   const dummy = new TrainingDummy(app);
   app.dummy = dummy;
+  // COMBAT_MODE: the red frame that burns around the screen while she fights.
+  const combatFrame = document.createElement('div');
+  combatFrame.className = 'combat-frame';
+  document.body.append(combatFrame);
+  app.combatFrame = combatFrame;
   pet.bouncer = (x, y0, y1) => toys.bounceAt(x, y0, y1);
   const modes = new Modes(app);
   const ball = new Ball(app);
@@ -444,6 +450,9 @@ export async function startPet(files, config) {
   app.tvWatch = tvWatch;
   const interact = new Interactions(app);
   app.interact = interact;
+  // The melee engine (turns, COMBAT_MODE, combat track).
+  const melee = new Melee(app);
+  app.melee = melee;
   const closeup = new Closeup(app);
   app.closeup = closeup;
   const rewards = new Rewards(app);
@@ -1617,6 +1626,8 @@ api.onTrayClick?.(() => {
   let lastClick = null;
   const click = () => {
     if (app.intro?.onPetClick()) return;
+    // COMBAT_MODE: nothing interrupts the fight.
+    if (pet.combatMode) return;
     const now = performance.now();
     if (lastClick && now - lastClick.t < 350 && Math.hypot(press.x - lastClick.x, press.y - lastClick.y) < 12) {
       lastClick = null;
@@ -1643,6 +1654,8 @@ api.onTrayClick?.(() => {
       return;
     }
     if (!uiOpen() && !press && !app.intro?.busy && !pet.closeup && hitPet(e.clientX, e.clientY)) {
+      // COMBAT_MODE: the menu (manual commands) is locked during the fight.
+      if (pet.combatMode) return;
       sound.play('blip', { volume: 0.5 });
       menu.show(e.clientX, e.clientY);
     }
@@ -1668,6 +1681,8 @@ api.onTrayClick?.(() => {
     if (startScreenDrag(e)) return;
     if (e.target.closest?.('.hitzone')) return;
     if (pet.closeup || !hitPet(e.clientX, e.clientY)) return;
+    // COMBAT_MODE: the fight is not interrupted by petting, slapping or dragging.
+    if (pet.combatMode) return;
     suppressContext = false;
     if (app.hand === 'slap' && e.button === 0) {
       slapHand(e.clientX, e.clientY);

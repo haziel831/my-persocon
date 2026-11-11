@@ -1,22 +1,12 @@
 // Weapon / toy skills she trains (profile.skills) and the moves unlocked by level.
-// Level 1..10; XP curves are steep so she does not rank up in one session.
-// Clip names use a combat prefix: melee_ / espada_ / yoyo_ / queimada_
+// Level 1..10; the XP curve is deliberately slow, so the moves are earned over many sessions.
+// The unarmed skill is the melee system: its moves use the YSM combat clips (combatanims.js).
+// The weapon skills stay in the catalog but have no combat use for now.
 
 export const SKILL_DEFS = {
   unarmed: {
     name: 'Desarmado', icon: '👊',
-    moves: [
-      { id: 'guard', name: 'Guarda amadora', lvl: 1, dmg: 2, clip: 'melee_guarda' },
-      { id: 'jab', name: 'Soco direto', lvl: 2, dmg: 4, clip: 'melee_soco' },
-      { id: 'step', name: 'Passo + jab', lvl: 3, dmg: 5, clip: 'melee_passo' },
-      { id: 'hook', name: 'Gancho', lvl: 4, dmg: 7, clip: 'melee_gancho' },
-      { id: 'kick', name: 'Chute baixo', lvl: 5, dmg: 9, clip: 'melee_chute' },
-      { id: 'combo', name: 'Combo de 2', lvl: 6, dmg: 12, clip: 'melee_combo' },
-      { id: 'elbow', name: 'Cotovelada', lvl: 7, dmg: 14, clip: 'melee_soco' },
-      { id: 'round', name: 'Chute circular', lvl: 8, dmg: 16, clip: 'melee_chute' },
-      { id: 'upper', name: 'Uppercut', lvl: 9, dmg: 18, clip: 'melee_upper' },
-      { id: 'flurry', name: 'Rajada amadora', lvl: 10, dmg: 22, clip: 'melee_combo' },
-    ],
+    moves: [],
   },
   espada: {
     name: 'Espada de bamboo', icon: '🗡️',
@@ -55,17 +45,22 @@ export const SKILL_DEFS = {
   },
 };
 
+// The unarmed moves of the melee system. Each one unlocks with the Combat Skill Level:
+//   1 → jab + guarda · 3 → cross · 5 → passo evasivo · 7 → uppercut · 10 → chute circular
+export const COMBAT_MOVES = [
+  { id: 'jab', name: 'Jab direto', lvl: 1, dmg: 4, clip: 'attack_jab', kind: 'attack' },
+  { id: 'guard', name: 'Guarda básica', lvl: 1, dmg: 0, clip: 'combat_block', kind: 'defend' },
+  { id: 'cross', name: 'Cross da direita', lvl: 3, dmg: 8, clip: 'attack_cross', kind: 'attack' },
+  { id: 'step', name: 'Passo evasivo', lvl: 5, dmg: 0, clip: 'combat_dodge_step', kind: 'dodge' },
+  { id: 'upper', name: 'Uppercut pesado', lvl: 7, dmg: 13, clip: 'attack_uppercut', kind: 'attack' },
+  { id: 'round', name: 'Chute circular', lvl: 10, dmg: 18, clip: 'attack_roundhouse_kick', kind: 'attack' },
+];
+SKILL_DEFS.unarmed.moves = COMBAT_MOVES;
+
 // Cumulative XP to reach each level (index = level). Level 1 = 0.
-const XP_AT = (() => {
-  const a = [0, 0];
-  let sum = 0;
-  for (let lvl = 2; lvl <= 10; lvl++) {
-    sum += 18 + (lvl - 2) * 22; // 18, 40, 62, 84… between levels
-    a[lvl] = sum;
-  }
-  return a;
-})();
-// Level 10 needs ~XP_AT[10] ≈ 666 XP (~150+ dummy hits).
+// The curve is slow on purpose: the moves have to be earned over many training sessions.
+const XP_AT = [0, 0, 60, 150, 270, 430, 630, 880, 1180, 1530, 1950];
+// Level 10 needs ~1950 XP (a dummy session gives ~13 XP: ~150 sessions).
 
 export const skillLevel = (xp) => {
   const v = Math.max(0, xp || 0);
@@ -86,6 +81,11 @@ export function skillMoves(id, xp) {
   return def.moves.filter((m) => m.lvl <= lvl);
 }
 
+// The melee moves unlocked at this Combat Skill Level (the combat system only uses these).
+export function combatMoves(xp) {
+  return skillMoves('unarmed', xp);
+}
+
 export function skillPick(id, xp) {
   const list = skillMoves(id, xp);
   return list[Math.floor(Math.random() * list.length)] || null;
@@ -93,7 +93,7 @@ export function skillPick(id, xp) {
 
 // Solo practice is slow; the training dummy gives more XP (still paced).
 export function skillGain(kind = 'solo') {
-  return kind === 'dummy' ? 0.45 + Math.random() * 0.35 : 0.12 + Math.random() * 0.12;
+  return kind === 'dummy' ? 0.8 + Math.random() * 0.6 : 0.12 + Math.random() * 0.12;
 }
 
 // Portable toys/gear she can carry (furniture and the Doll stay on the desktop).

@@ -1131,239 +1131,31 @@ export class Toys {
     return pet.chooseNext();
   }
 
-  // Training dummy: unarmed / sword / Syntoyo / dodgeball practice with skill XP.
+  // Training dummy: unarmed melee practice. The weapons have no combat use for now, so she
+  // always fights with her fists (the melee engine runs the turns).
   playDummy(pet, forcedMode = null, onEnd = null) {
     const { game } = this.app;
     const t = game.toys.boneco_treino;
     if (!t?.placed || t.broken) return pet.chooseNext();
-    if (pet.stats.energy < 50) {
-      this.furn.floatText(pet.x, pet.y - this.P, '😵 Precisa de ≥50% de energia');
-      return pet.chooseNext();
-    }
+    const melee = this.app.melee;
+    if (!melee?.startTraining()) return pet.chooseNext();
     this.lastPlay.boneco_treino = performance.now();
-    const scale = game.difficultyScale();
-    const hasSyn = !!game.gear.syntoyo || game.bagHas?.('syntoyo') || !!game.toys.syntoyo?.placed;
-    const hasSword = !!(game.toys.espada?.placed || game.bagHas?.('espada'));
-    const hasDodge = !!(game.toys.bola_queimada?.placed || game.bagHas?.('bola_queimada'));
-    const mode = forcedMode || (hasSyn && Math.random() < 0.35 ? 'syntoyo'
-      : hasSword && Math.random() < 0.4 ? 'espada'
-      : hasDodge && Math.random() < 0.35 ? 'queimada'
-      : 'unarmed');
-    const dummy = this.app.dummy;
     const item = itemById('boneco_treino');
     const pickAnim = pet.pickClip(['pegar'], ['use_mainhand', 'swing_hand', 'idle']);
     const end = (interrupted) => {
       pet.lift = 0;
       pet.squash = null;
       if (t) delete t.homeX;
-      if (dummy) dummy.idle();
+      if (this.app.dummy) this.app.dummy.idle();
+      melee.leave(interrupted ? 'interrupted' : 'done');
       onEnd?.(interrupted);
     };
-    if (mode === 'syntoyo') {
-      pet.playToy({
-        id: 'syntoyo', syntoyo: true, train: true, dummy: true, combatKind: 'yoyo', dur: rand(16, 24), gain: item.gain, scale, effort: 1.65,
-        hold: icon('fun_blank'), holdSize: 0.02, holdFrom: 0.5, pickAnim, anim: 'idle', facing: 'front', onEnd: end,
-        tick: (dt, tp) => this.dummyWeaponTick(dt, tp, pet, 'syntoyo'),
-      });
-      return;
-    }
-    if (mode === 'espada') {
-      const art = this.app.skins?.art('espada', itemById('espada')?.img) || itemById('espada')?.img;
-      pet.playToy({
-        id: 'espada', train: true, dummy: true, combatKind: 'espada', dur: rand(16, 26), gain: item.gain, scale, hold: art, holdFrom: 0.9, pickAnim, one: true, effort: 1.75,
-        onEnd: end,
-        tick: (dt, tp) => this.dummyWeaponTick(dt, tp, pet, 'espada'),
-      });
-      return;
-    }
-    if (mode === 'queimada') {
-      const dodge = game.toys.bola_queimada;
-      if (!dodge?.placed || dodge.broken) {
-        this.materializeBagToy('bola_queimada', pet, (dummy?.x ?? pet.x) - (pet.dir || 1) * this.P * 0.5);
-      }
-      this.app.ball?.focusOn?.('bola_queimada');
-      pet.playToy({
-        id: 'bola_queimada', train: true, dummy: true, combatKind: 'queimada', dur: rand(14, 22), gain: item.gain, scale, pickAnim, anim: 'idle', facing: 'front',
-        onEnd: (i) => { this.stowBagToy('bola_queimada'); end(i); },
-        effort: 1.65,
-        tick: (dt, tp) => this.dummyWeaponTick(dt, tp, pet, 'queimada'),
-      });
-      return;
-    }
     pet.playToy({
-      id: 'boneco_treino', train: true, dummy: true, combatKind: 'melee', dur: rand(14, 22), gain: item.gain, scale, pickAnim,
-      anim: pet.pickClip(['melee_guarda', 'guard_pose'], ['melee_idle', 'idle']), facing: 'front', onEnd: end, effort: 1.7,
-      tick: (dt, tp) => this.dummyWeaponTick(dt, tp, pet, 'unarmed'),
+      id: 'boneco_treino', train: true, dummy: true, combatKind: 'combat', dur: 3600, gain: item.gain,
+      anim: pet.pickClip(['combat_idle'], ['melee_idle', 'idle']), facing: 'front', onEnd: end, effort: 0.5,
+      pickAnim, trainFloor: 15,
+      tick: (dt, tp) => melee.update(dt),
     });
-  }
-
-  // Preferred fight distance (hold) and strike distance (hit), in pet heights.
-  dummyRange(skill) {
-    if (skill === 'espada') return { hold: 1.5, hit: 1.0, tol: 0.16 };
-    if (skill === 'syntoyo') return { hold: 1.75, hit: 1.35, tol: 0.2 };
-    if (skill === 'queimada') return { hold: 2.1, hit: 1.8, tol: 0.22 };
-    return { hold: 1.1, hit: 0.72, tol: 0.14 }; // unarmed / melee
-  }
-
-  dummyWeaponTick(dt, tp, pet, skill) {
-    const { game } = this.app;
-    const dummy = this.app.dummy;
-    const P = this.P;
-    const clampX = (x) => clamp(x, P * 0.25, this.app.world.width - P * 0.25);
-    // Training stops at 50% energy — she will not drain below that while on the dummy.
-    if (pet.stats.energy <= 50) {
-      tp.lift = 0;
-      pet.endToy?.(false);
-      return;
-    }
-    const targetX = dummy?.x ?? this.app.game.toys.boneco_treino?.x ?? pet.x;
-    const dx = targetX - pet.x;
-    const side = Math.sign(dx) || pet.dir || 1;
-    const R = this.dummyRange(skill);
-    const hold = R.hold * P;
-    const hit = R.hit * P;
-    const tol = R.tol * P;
-    const dist = Math.abs(dx);
-
-    // Dodgeball: hold and throw the real ball at the dummy (no empty lunge).
-    if (skill === 'queimada') {
-      this.app.ball?.focusOn?.('bola_queimada');
-      const ball = pet.ball;
-      if (tp.windup > 0 && ball) {
-        tp.windup -= dt;
-        pet.dir = side;
-        ball.set(pet.x + side * P * 0.28, pet.y - P * 0.58);
-        if (tp.windup > 0) {
-          pet.anim(pet.pickClip(['pegar', 'queimada_reto'], ['use_mainhand', 'idle']), { facing: side > 0 ? 'right' : 'left', restart: false });
-          return;
-        }
-        const move = skillPick(skill, game.skillXp(skill));
-        tp._pendingMove = move;
-        const power = 11 + (move?.dmg || 7) * 0.35;
-        ball.kick(side * rand(power, power + 4) * P, -rand(2.5, 5.5) * P);
-        pet.anim(pet.pickClip([move?.clip || 'queimada_reto', 'arremessar'], ['swing_hand', 'use_mainhand']), { facing: side > 0 ? 'right' : 'left', restart: true });
-        this.dummyStrike(tp, pet, skill, side);
-        tp.next = rand(1.1, 1.8);
-        return;
-      }
-      const err = dist - hold;
-      if (Math.abs(err) > tol) {
-        pet.dir = err > 0 ? side : -side;
-        pet.x = clampX(pet.x + pet.dir * Math.min(Math.abs(err), pet.walkSpeed * 1.15 * dt));
-        pet.anim('walk', { facing: pet.side(), restart: false });
-        return;
-      }
-      pet.dir = side;
-      tp.next = (tp.next ?? 0.2) - dt;
-      if (tp.next > 0) {
-        pet.anim(pet.pickClip(['queimada_idle'], ['idle']), { facing: side > 0 ? 'right' : 'left', restart: false });
-        return;
-      }
-      tp.windup = 0.42;
-      tp.next = rand(0.9, 1.4);
-      if (ball && !ball.held) ball.set(pet.x + side * P * 0.25, pet.y - P * 0.55);
-      pet.anim(pet.pickClip(['pegar'], ['use_mainhand', 'idle']), { facing: side > 0 ? 'right' : 'left', restart: true });
-      return;
-    }
-
-    // Hop arc (lunge in / hop out): tp.lift (furniture.liftFor) + horizontal move.
-    if (tp.hop) {
-      const h = tp.hop;
-      h.t += dt;
-      const u = Math.min(1, h.t / h.dur);
-      tp.lift = Math.sin(u * Math.PI) * h.h;
-      pet.x = clampX(pet.x + h.vx * dt);
-      pet.dir = h.face || side;
-      if (u >= 1) {
-        tp.lift = 0;
-        const done = h.phase;
-        tp.hop = null;
-        if (done === 'in') {
-          this.dummyStrike(tp, pet, skill, h.side || side);
-          // Hop back to hold distance after the hit.
-          const back = hold - Math.abs(targetX - pet.x);
-          const outDir = -Math.sign(targetX - pet.x) || -side;
-          const need = Math.max(P * 0.35, Math.abs(back) * 0.85 + P * 0.15);
-          tp.hop = {
-            t: 0, dur: 0.28 + Math.random() * 0.08, h: P * (0.14 + Math.random() * 0.08),
-            vx: outDir * (need / 0.3), face: h.side || side, phase: 'out', side: h.side || side,
-          };
-          pet.anim(pet.pickClip(['jump', 'combat_jump'], ['jump', 'idle']), { facing: pet.side(), restart: true });
-        }
-      }
-      return;
-    }
-
-    // Keep a realistic standoff: walk (or short hop) in/out until within hold ± tol.
-    const err = dist - hold;
-    if (Math.abs(err) > tol) {
-      pet.dir = err > 0 ? side : -side; // too far → toward; too close → away
-      if (Math.abs(err) > P * 0.55) {
-        const step = Math.min(Math.abs(err), pet.walkSpeed * 1.15 * dt);
-        pet.x = clampX(pet.x + pet.dir * step);
-        pet.anim('walk', { facing: pet.side(), restart: false });
-      } else {
-        // Small reposition hop instead of sliding into the dummy.
-        tp.hop = {
-          t: 0, dur: 0.26, h: P * 0.12,
-          vx: pet.dir * (Math.abs(err) / 0.26), face: side, phase: 'fix',
-        };
-        pet.anim(pet.pickClip(['jump', 'combat_jump'], ['jump', 'idle']), { facing: pet.side(), restart: true });
-      }
-      return;
-    }
-
-    // At range: face the dummy and wait for the next strike (combat idle while holding).
-    pet.dir = side;
-    tp.next = (tp.next ?? 0.25) - dt;
-    if (tp.next > 0) {
-      const idleRole = skill === 'espada' ? 'espada_idle' : skill === 'syntoyo' ? 'yoyo_idle' : skill === 'queimada' ? 'queimada_idle' : 'melee_idle';
-      pet.anim(pet.pickClip([idleRole], ['idle']), { facing: side > 0 ? 'right' : 'left', restart: false });
-      return;
-    }
-    tp.next = rand(0.75, 1.4);
-
-    // Lunge hop toward strike range, hit at landing, then hop back (handled above).
-    const gap = Math.max(P * 0.2, dist - hit);
-    tp.hop = {
-      t: 0, dur: 0.3 + Math.random() * 0.06, h: P * (0.18 + Math.random() * 0.1),
-      vx: side * (gap / 0.3), face: side, phase: 'in', side,
-    };
-    const move = skillPick(skill, game.skillXp(skill));
-    tp._pendingMove = move;
-    const role = move?.clip || (skill === 'espada' ? 'espada_men' : skill === 'queimada' ? 'queimada_reto' : skill === 'syntoyo' ? 'yoyo_chicote' : 'melee_soco');
-    const clip = pet.pickClip([role, 'golpe', 'chutar', 'jump'], [role, 'gen_' + role, 'golpe', 'swing_hand', 'use_mainhand', 'jump'].filter(Boolean));
-    pet.anim(clip, { facing: side > 0 ? 'right' : 'left', restart: true });
-  }
-
-  // Resolve a dummy hit (called at the end of the lunge hop).
-  dummyStrike(tp, pet, skill, side) {
-    const { game } = this.app;
-    const dummy = this.app.dummy;
-    const P = this.P;
-    const move = tp._pendingMove || skillPick(skill, game.skillXp(skill));
-    tp._pendingMove = null;
-    const dmg = move?.dmg || 5;
-    pet.dir = side;
-    tp.swing = 1;
-    tp.reach = skill === 'espada' ? 0.85 : skill === 'syntoyo' ? 0.75 : 0.55;
-    tp.angle = side * (skill === 'espada' ? 90 : skill === 'syntoyo' ? 140 : 40);
-    dummy?.hit?.(dmg, side);
-    if (skill === 'syntoyo') {
-      this.app.sound.tone8?.(400 + dmg * 40, 900 + dmg * 20, 0.1, 'sawtooth', 0.08);
-      this.furn.floatText?.(pet.x + side * P * 0.4, pet.y - P * 0.8, `💫 ${move?.name || 'golpe'} · ${dmg}`);
-    } else if (skill === 'queimada') {
-      this.app.sound.tone8?.(220, 80, 0.1, 'square', 0.12);
-      this.furn.floatText?.(dummy?.x ?? pet.x, (dummy?.y ?? pet.y) - P, `🏀 ${move?.name || 'arremesso'} · ${dmg}`);
-    } else {
-      this.app.sound.swish?.();
-      this.furn.floatText?.(dummy?.x ?? pet.x, (dummy?.y ?? pet.y) - P, `${move?.name || 'golpe'} · ${dmg}`);
-    }
-    const before = skillLevel(game.skillXp(skill));
-    game.skillAdd(skill, skillGain('dummy'));
-    const after = skillLevel(game.skillXp(skill));
-    if (after > before) this.furn.floatText?.(pet.x, pet.y - P * 1.2, `⬆️ Nv ${after}`);
-    pet.adjust({ mood: 0.5, energy: -1.6, thirst: -0.7 });
   }
 
   play(id, pet, opts = {}) {
@@ -2140,6 +1932,8 @@ export class Toys {
   pointer(e, id) {
     if (e.button !== 0) return;
     const { game } = this.app;
+    // COMBAT_MODE: nothing on the desk can be moved during the fight.
+    if (this.app.pet?.combatMode) return;
     if (!this.editing) {
       // The pet in front of (or behind) an object gets the click.
       if (this.app.hitPet?.(e.clientX, e.clientY)) return;

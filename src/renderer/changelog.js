@@ -1,6 +1,14 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.12', [
+    ['Combate por turnos no Boneco de Treino: ela luta desarmada, com antecipação, golpe e recuperação, e o treino só acaba quando ela fica sem energia', 'Turn-based combat on the Training Dummy: she fights unarmed, with anticipation, strike and recovery, and the training only ends when she runs out of energy'],
+    ['Golpes novos conforme o nível de combate: jab (Nv 1), guarda (Nv 1), cross (Nv 3), passo evasivo (Nv 5), uppercut (Nv 7) e chute circular (Nv 10)', 'New moves as the combat level grows: jab (Lv 1), guard (Lv 1), cross (Lv 3), evasive step (Lv 5), uppercut (Lv 7) and roundhouse kick (Lv 10)'],
+    ['A progressão do combate ficou bem mais lenta: o nível 10 agora pede ~1950 XP (dezenas de sessões de treino)', 'Combat progression is much slower now: level 10 needs ~1950 XP (dozens of training sessions)'],
+    ['As armas perderam a utilidade no combate por enquanto: espada, Syntoyo e bola de queimada não entram na luta', 'The weapons lost their combat use for now: sword, Syntoyo and dodgeball do not enter the fight'],
+    ['Durante o combate o jogo entra em COMBAT_MODE: sem carinho, sem arrastar, sem comandos, sem pedidos e sem o corvo atrapalhando', 'During a fight the game enters COMBAT_MODE: no petting, no dragging, no commands, no requests and no crow interfering'],
+    ['Borda vermelha pulsando na tela e trilha de combate em loop durante a luta (a música normal abaixa e volta depois)', 'A pulsing red frame around the screen and a looping combat track during the fight (the regular music drops and comes back after)'],
+  ]],
   ['1.9.11', [
     ['8 animações de corpo a corpo para o sistema de combate: postura de luta, jab, cross, uppercut, roundhouse, bloqueio, esquiva e reação a golpe', '8 close-combat animations for the melee system: fighting stance, jab, cross, uppercut, roundhouse, block, dodge and hit reaction'],
     ['Golpes com antecipação, frame de impacto e recuperação, com os tempos no mapa de metadados (duração, frame do golpe e janela de combo)', 'Strikes with anticipation, hit frame and recovery, with the timings in the metadata map (duration, hit frame and combo window)'],

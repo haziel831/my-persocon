@@ -756,7 +756,7 @@ export class Menu {
         }, `${def.icon} ${def.name}`, h('b', {}, `Nv ${lvl}`), h('span.muted', {}, `${Math.floor(xp)}/${next} XP · ${moves.length} golpes`)),
         open ? h('ul.skill-moves', {},
           moves.length
-            ? moves.map((m) => h('li', {}, `${m.name} · dano ${m.dmg}`))
+            ? moves.map((m) => h('li', {}, `${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : m.kind === 'defend' ? 'defesa' : 'esquiva'}`))
             : [h('li.muted', {}, 'Nenhum golpe ainda — treine no boneco ou com a arma.')])
           : null);
     }));

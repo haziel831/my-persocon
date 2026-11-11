@@ -7,6 +7,15 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.12 — 11/11/2026
+**Combate por turnos.** Treinar no Boneco de Treino virou uma luta de verdade: enquanto ela luta, o jogo entra em `COMBAT_MODE` — nada interrompe (sem carinho, sem arrastar, sem comandos manuais, sem pedidos de comida, sem anticinhas e sem o corvo atrapalhando), uma **borda vermelha pulsante** queima na tela e uma **trilha de combate** toca em loop (a música normal abaixa e volta no fim).
+Os turnos alternam (ela → adversário) e cada um rola a chance de acerto, de crítico e de bloqueio a partir do **Nível de Combate**: nível alto = mais acerto, mais crítico e defesa melhor. As animações de combate (antecipação, frame do golpe e recuperação) tocam em cada turno, com o feedback flutuante do resultado (💥 acertou, 🛡 bloqueou, 💨 errou).
+**Golpes por nível** (só os desbloqueados podem ser usados): Nv 1 jab e guarda · Nv 3 cross · Nv 5 passo evasivo · Nv 7 uppercut · Nv 10 chute circular.
+**Progressão mais lenta:** o nível 10 agora pede ~1950 XP (dezenas de sessões), contra ~666 antes.
+**Armas fora do combate:** por enquanto espada, Syntoyo e bola de queimada não têm utilidade na luta — o treino é estritamente desarmado.
+**Exaustão:** cada turno gasta energia e dá um pouco de XP; o treino continua sem interrupção até ela cansar (energia ≤ 15%), quando a borda vermelha some, a música de combate para e ela sai do treino.
+Detalhes em `ChangeLogs\v1.9.12.md`.
+
 ## v1.9.11 — 11/11/2026
 Oito animações de corpo a corpo geradas para o rig YSM/Bedrock da Persocon, prontas para o sistema de combate: `combat_idle` (postura de luta com respiração), `attack_jab` (jab com a esquerda, passo à frente), `attack_cross` (cross com a direita, giro de quadril e ombro), `attack_uppercut` (agachamento profundo e uppercut com salto), `attack_roundhouse_kick` (perna direita varrendo num arco horizontal), `combat_block` (braços cruzados na frente do rosto, cabeça abaixada), `combat_dodge_step` (salto lateral rápido, centro de gravidade baixo) e `combat_hit_stagger` (reação de empurrão, cabeça e tronco para trás).
 Cada golpe tem antecipação, frame de impacto e recuperação, com interpolação Catmull-Rom. O mapa de metadados (`COMBAT_META`) traz duração, frame exato do golpe e a janela de combo (jab → cross → uppercut).

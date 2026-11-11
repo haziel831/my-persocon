@@ -65,6 +65,8 @@ export class Interactions {
     const c = this.cfg;
     const api = window.petAPI || {};
     const desk = !c.streamer && !c.focus;
+    // COMBAT_MODE: nothing gets in the way of the fight.
+    if (this.app.pet?.combatMode) return false;
     // Estátua bonus: behaved for a while, no playing with the cursor or the icons.
     if (['steal', 'kick', 'bin', 'nudge'].includes(kind) && this.app.pet.buff?.('behaved')) return false;
     switch (kind) {
@@ -83,6 +85,7 @@ export class Interactions {
     return !pet.dead && !pet.paused && !pet.leaving && !pet.chase && !pet.activity && !pet.toyPlay && !pet.hook && !pet.eating && !pet.meals.length
       && !pet.ballPlay && !pet.mini && !minigames?.active && !antics?.cur && !desktopGames?.task && !desktopGames?.bubble
       && !this.cur && !this.task && !this.pending && pet.mode === 'ground' && ['walk', 'idle', 'sit', 'emote'].includes(pet.action)
+      && !pet.combatMode
       && (debug || (!this.app.uiOpen?.() && pet.stats.energy > 15));
   }
 
