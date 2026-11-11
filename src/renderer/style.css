@@ -576,7 +576,7 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
 }
 .combat-aura.dizzy { width: 26px; height: 26px; animation: aura-spin 1.6s linear infinite; }
 .combat-aura.fury {
-  width: 30px; height: 30px; image-rendering: auto; filter: drop-shadow(0 0 6px rgba(255, 140, 40, 0.85));
+  width: 30px; height: 30px; filter: drop-shadow(0 0 6px rgba(255, 140, 40, 0.85));
   animation: aura-fury 0.55s ease-in-out infinite alternate;
 }
 @keyframes aura-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }

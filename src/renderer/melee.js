@@ -157,7 +157,7 @@ export class Melee {
     this.dizzyEl = null;     // the stars above her head
     this.furyAura = null;    // the fire above her head
     this.oppDizzyEl = null;  // the stars above the stunned enemy
-    this.opp = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, name: 'Boneco' };
+    this.opp = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     this.music = null;
     this.hpBar = null;
     this.onPetEvent = (type, data) => this.onEvent(type, data);
@@ -220,6 +220,9 @@ export class Melee {
     this.removeDizzy();
     this.removeFuryAura();
     this.removeOppDizzy();
+    // The Atordoado is a combat status: it goes away with the fight.
+    this.stunTurns = 0;
+    this.pet.cureDebuff?.('atordoado');
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
   }
 
@@ -234,7 +237,7 @@ export class Melee {
       toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '😵 Precisa de ≥50% de energia');
       return false;
     }
-    this.opp = { hp: 100, max: 100, level: 1, defense: 0.22, dummy: true, scrap: false, name: 'Boneco' };
+    this.opp = { hp: 100, max: 100, level: 1, defense: 0.22, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     if (!this.enter('dummy')) return false;
     this.phase = 'intro';
     this.t = 0;
@@ -262,7 +265,7 @@ export class Melee {
     const oppLvl = lvl <= 2 ? lvl : lvl - 1;
     this.opp = {
       hp: 100, max: 100, level: oppLvl, defense: 0.16 + oppLvl * 0.03,
-      dummy: false, scrap: true, name: 'Sucataoxidado',
+      dummy: false, scrap: true, stunned: 0, name: 'Sucataoxidado',
     };
     this.petHp = pet.stats.health;
     this.petHpMax = pet.maxHealth?.() ?? 100;   // her health never goes over the maximum
