@@ -290,6 +290,16 @@ function buildClip(def, r) {
   }
   for (const [key, bone] of Object.entries(r)) {
     if (!bone) continue;
+    // The Root carries both a rotation and a position channel.
+    if (key === 'root') {
+      const rot = def.keys.rootRot;
+      const pos = def.keys.rootPos;
+      if (!rot && !pos) continue;
+      bones[bone] = {};
+      if (rot) bones[bone].rotation = cr(rot);
+      if (pos) bones[bone].position = cr(pos);
+      continue;
+    }
     const spec = def.keys[key];
     if (!spec) continue;
     if (Array.isArray(spec)) bones[bone] = { rotation: cr(spec) };
