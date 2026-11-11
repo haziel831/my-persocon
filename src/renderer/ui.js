@@ -1,6 +1,7 @@
 import { PetView } from './view.js';
 import { SHOP_CATEGORIES, ITEMS, STAT_LABELS, BUFF_LABELS, BUFF_ICONS, ATTRS, INFINITE_MONEY, effectText, isEdible, isConsumable, isSellable, sellPrice, isPowerUp, hasTaste, itemById, HER_BAG } from './game.js';
 import { SKILL_DEFS, skillLevel, skillMoves, skillXpFor } from './skills.js';
+import { MANEUVERS } from './melee.js';
 import { GAMES } from './games.js';
 import { FILTERS } from './filters.js';
 import { AFFECTION_MAX, FULL_STATS } from './behavior.js';
@@ -778,6 +779,14 @@ export class Menu {
             : [h('li.muted', {}, 'Nenhum golpe ainda — treine no boneco ou com a arma.')])
           : null);
     }));
+    // The special maneuvers: one unlocked per Melee Combat Level (only with the Fúria).
+    const manBox = h('div.maneuvers', {}, MANEUVERS.map((m) => {
+      const unlocked = combatLvl >= m.lvl;
+      return h(`div.maneuver${unlocked ? '' : '.locked'}`, {},
+        h('b', {}, `${unlocked ? '✦' : '🔒'} ${m.name}`),
+        h('span.muted', {}, `Nv ${m.lvl}`),
+        h('small', {}, m.pt));
+    }));
     return [
       h('div.group', {}, 'Perfil'),
       ...section('geral', 'Informações Gerais', geral),
@@ -790,6 +799,7 @@ export class Menu {
       ...(recordes.length ? section('records', 'Recordes e troféus', recordes) : []),
       h('div.group', {}, 'Atributos'), attrBox, h('div.note', {}, 'A Força aumenta o dano dos golpes e os arremessos; a Constituição aumenta a Saúde máxima e faz toda ação gastar menos energia (ela ganha XP de Constituição a cada energia gasta).'),
       h('div.group', {}, 'Skills (armas e treino)'), skillBox, h('div.note', {}, 'Clique numa skill para ver os golpes/truques aprendidos.'),
+      h('div.group', {}, 'Manobras Especiais'), manBox, h('div.note', {}, 'Uma manobra especial por nível de combate: ela só pode soltar uma quando está com o status Fúria (que vem depois de 3 golpes seguidos levados).'),
       h('div.group', {}, 'Incentivos (cafuné) e desincentivos (tapa)'),
       Object.keys(app.pet.prefs || {}).length
         ? h('div.prefs', {}, Object.entries(app.pet.prefs).map(([k, v]) => h('div.pref', {},
