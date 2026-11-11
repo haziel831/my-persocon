@@ -7,6 +7,21 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.17 — 11/11/2026
+**O cartucho preto misterioso.** Na aba *Cartuchos* da Shop apareceu um cartucho **todo preto, sem nome e de graça**. Ele só faz alguma coisa na **TV com console** (nos portáteis — GameBuddy, GameGlow e Playpocket 3000 — a tela fica preta e nada acontece).
+**A erupção da TV.** Ao ser inserido na TV, o cartucho não abre jogo nenhum: a tela **chispa estática** (ruído branco), **fumaça escura** sobe da TV e **gosma preta pinga** no chão da frente dela. Do meio da tela sai o **Unknown**.
+**O Unknown.** Um slime de glitch: as animações do *Angry slime* (Itch.io G.Lerf 2.0 Slime Pack) convertidas em **silhueta preta** com os **olhos vermelhos brilhando** e um **glitch periódico** (separação RGB + fatias horizontais tremidas). Ele **persegue a Persocon** pela área de trabalho até encostar — e aí o jogo trava em `COMBAT_MODE`.
+**A luta (nível fácil).** O Unknown tem **20 de HP** e só dois golpes:
+
+| golpe | dano | efeito |
+|---|---|---|
+| **Investida Viscosa** | 2–4 | investida de perto |
+| **Pulso de Glitch** | 3–5 | 15% de chance de **Atordoado** (1 turno) |
+
+**A vitória.** Com 0 de HP o Unknown toca a animação de morte e deixa **1× Cristal Negro** (ícone próprio, fundo branco removido) no Inventário, na categoria **Especiais**. O cartucho preto é **removido para sempre**: da lista de cartuchos, da Gaming Shelf e da Shop (`unknownDone` no save).
+**As falas confusas.** Logo depois, a Persocon mostra o emoticon de "?"/gota de suor e comenta as quatro falas: *"O-o que foi aquilo?!..."*, *"Meus sensores não conseguiram identificar esse código..."*, *"Espera... cadê aquele cartucho preto?..."* e *"De onde será que veio essa criatura?..."*.
+Detalhes em `ChangeLogs\v1.9.17.md`.
+
 ## v1.9.16 — 11/11/2026
 **Perfil reorganizado.** As Informações Gerais ficaram enxutas: agora mostram **só** Nome, Idade, Afeição, Moedas e Carteira (o nível de combate, a Força, a Constituição, a Saúde máxima e o Pega-pega saíram de lá — o Pega-pega foi para Recordes e a Saúde máxima para Atributos).
 **Atributos clicáveis.** Cada atributo abre uma caixinha com o que ele faz (Força, Constituição e os outros seis), com destaque na borda e fundo âmbar; **clicar no mesmo atributo de novo ou clicar fora** fecha a caixinha na hora. O texto fixo que ficava embaixo do quadro de atributos foi removido.

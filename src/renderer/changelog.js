@@ -1,6 +1,15 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.17', [
+    ['Na loja de Cartuchos apareceu um cartucho preto sem nome, de graça. Ninguém sabe o que ele é', 'A nameless black cartridge showed up in the Shop, free. Nobody knows what it is'],
+    ['Esse cartucho só funciona na TV com console: nos portáteis a tela fica preta e nada acontece', 'That cartridge only works on the TV with console: on the handhelds the screen stays black and nothing happens'],
+    ['A TV então cospe estática, fumaça escura e gosma preta no chão... e do meio dela sai o Unknown', 'The TV then spits out static, dark smoke and black ooze on the floor... and the Unknown comes out of it'],
+    ['O Unknown é uma gosma de glitch: silhueta toda preta com os olhos vermelhos e piscando, e ele vem atrás da Persocon pela área de trabalho', 'The Unknown is a glitch ooze: a pitch-black silhouette with glowing red eyes, and it comes after the Persocon across the desktop'],
+    ['Quando ele encosta, o combate por turnos começa: Unknown tem 20 de HP e só dois golpes (Investida Viscosa e Pulso de Glitch, que pode atordoar)', 'When it touches her, the turn-based fight starts: the Unknown has 20 HP and only two moves (Slime Tackle and Glitch Pulse, which can stun)'],
+    ['Se ela vencer, o Unknown morre e deixa 1 Cristal Negro no inventário (categoria Especiais), e o cartucho preto some para sempre da estante e da loja', 'If she wins, the Unknown dies and leaves 1 Black Crystal in the inventory (Specials category), and the black cartridge disappears forever from the shelf and the shop'],
+    ['E ela fica confusa: quatro falas perguntando de onde veio a criatura e o que foi o cartucho que sumiu', 'And she gets confused: four lines wondering where the creature came from and what that vanished cartridge was'],
+  ]],
   ['1.9.16', [
     ['O Perfil foi arrumado: Informações Gerais agora mostra só Nome, Idade, Afeição, Moedas e Carteira (o combate, a Força e a Constituição saíram de lá)', 'The Profile was tidied up: General Info now shows only Name, Age, Affection, Coins and Wallet (combat, Strength and Constitution moved out)'],
     ['Cada atributo virou clicável: abre uma caixinha explicando o que ele faz (e clicar fora dela fecha)', 'Every attribute is now clickable: it opens a box explaining what it does (and clicking outside closes it)'],
