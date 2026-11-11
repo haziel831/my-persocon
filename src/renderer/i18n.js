@@ -50,6 +50,26 @@ const EN = {
   '⤒ Exportar save': '⤒ Export save', '⤓ Importar save': '⤓ Import save',
   'O save atual vira backup antes de importar (3 backups automáticos).': 'The current save becomes a backup before importing (3 automatic backups).',
   'Atributos': 'Attributes', 'Os atributos ainda não têm efeito no jogo.': "Attributes don't affect the game yet.",
+  // ---- a caixinha de cada atributo (abre ao clicar nele) ----
+  'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos.':
+    'Raises the physical damage of melee strikes, special maneuvers and throws. It also adds to the maximum Health Points (HP).',
+  'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos.':
+    'Lowers the Energy cost of every action and strike. It greatly raises the maximum Health Points (HP).',
+  'Aumenta a esquiva dos golpes e a precisão dos ataques rápidos. Por enquanto ela ainda não muda o jogo.':
+    'Raises her dodge and the accuracy of the fast attacks. It does not change the game yet.',
+  'Deixa os movimentos mais rápidos: ela se mexe e ataca antes do adversário. Por enquanto ela ainda não muda o jogo.':
+    'Makes her movements faster: she moves and strikes before her opponent. It does not change the game yet.',
+  'Resiste aos status negativos e segura o Humor mais alto. Por enquanto ela ainda não muda o jogo.':
+    'She resists the negative statuses and keeps her Mood higher. It does not change the game yet.',
+  'Melhora a atenção no que acontece ao redor. Por enquanto ela ainda não muda o jogo.':
+    'Improves her attention to what happens around her. It does not change the game yet.',
+  'Ajuda a ganhar Afeição e a negociar as trocas. Por enquanto ela ainda não muda o jogo.':
+    'Helps her gain Affection and haggle in the trades. It does not change the game yet.',
+  'Ajuda a aprender mais rápido (golpes, truques e minijogos). Por enquanto ela ainda não muda o jogo.':
+    'Helps her learn faster (moves, tricks and minigames). It does not change the game yet.',
+  // ---- as artes do combate ----
+  'Combate Corpo a Corpo': 'Unarmed Melee', 'Espadas': 'Swordplay', 'Arremesso': 'Throwing',
+  'Saúde máxima': 'Maximum Health', 'Recordes e troféus': 'Records and trophies',
   'Incentivos (cafuné) e desincentivos (tapa)': 'Encouraged (head pat) and discouraged (slap)',
   'Nada ainda. Faça cafuné enquanto ele faz algo para incentivar; um tapa desincentiva.': 'Nothing yet. Pat her while she does something to encourage it; a slap discourages it.',
   'Retirar': 'Remove',
@@ -657,12 +677,11 @@ const EN = {
   'Chute Meteoro': 'Meteor Dropkick', 'Contra-Impacto Sísmico': 'Seismic Uppercut',
   'Explosão Carmesim': 'Crimson Overdrive',
   'Manobras Especiais': 'Special Maneuvers',
-  'Golpe Quebra-Guarda': 'Guard Breaker', 'Ignora a defesa do alvo (1,5× a Força)': 'Ignores the target defense (1.5× Strength)',
+  'Ignora a defesa do alvo (1,5× a Força)': 'Ignores the target defense (1.5× Strength)',
   'Combo de 3 socos rápidos num turno só': 'A 3-hit flurry of fast punches in one turn',
   'Chute aéreo que pode atordoar o alvo (1,8×)': 'A leaping kick that can stun the target (1.8×)',
   'Uppercut devastador com onda de choque (2,2×) e devolve energia': 'A devastating uppercut with a shockwave (2.2×) that gives energy back',
   'Explosão carmesim devastadora (3×)': 'A devastating crimson explosion (3×)',
-  'Golpe Quebra-Guarda': 'Guard Breaker', 'Punho Relâmpago': 'Flurry Rush',
   '💢 −{n} Saúde': '💢 −{n} Health',
   '🏆 Sucataoxidado derrubado!': '🏆 Scrap Dummy knocked down!',
   '🛑 Treino interrompido (segurança)': '🛑 Training stopped (safety)',

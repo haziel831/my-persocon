@@ -22,6 +22,7 @@ Native host (Rust crates compiled into the executable)
 Assets
 ------
 - 8bit-SFX-Library (sound effects) — MIT — iamdevmarcos (GitHub)
+- Ultimate 8bit SFX Library (the Fury power-up sound, assets/sfx/powerup) — MIT — iamdevmarcos (GitHub)
 - Gamepad Spritesheets (joystick sprite) — Retrocade Media — commercial use allowed, credit requested
 - Ruler Gold, from Humble Fonts Gold (pixel font) — somepx — commercial use allowed
 - Pixel Art Emojis (face emoji, assets/fonts/PxEmoji.otf) — Copyright (c) 2026 jfranci_px — commercial use allowed; no redistribution as standalone assets
