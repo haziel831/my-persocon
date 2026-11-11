@@ -7,6 +7,25 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.15 — 11/11/2026
+**Contato obrigatório.** O arremesso saiu do jogo: ela **só golpeia de perto**. Se o golpe do Sucataoxidado a empurrar para longe, o turno dela começa com um **avanço** e o golpe só acontece quando ela chega no contato (distância de 0,85 × a largura dela). Nada de ficar socando o ar de longe.
+**Remédios inteligentes.** Ela só gasta a vez com um remédio que **ajuda agora**: ou cura um status que ela tem de verdade (não gasta o remédio de cura só porque ele existe no inventário), ou cura a vida machucada. O **Kit de Primeiros Socorros** virou o cura grande do combate (45 de Saúde; o vermelho, 65).
+**Status novo: Atordoado.** Golpe pesado ou crítico do inimigo deixa ela tonto por **1 a 3 turnos** (sorteado na hora): −45 pontos de precisão, aviso "Atordoada!" no cabeçalho e as estrelas girando em cima dela. Qualquer remédio que cure o atordoamento tira o efeito na hora.
+**Status novo: Fúria.** Levar **3 golpes seguidos** (sem bloquear nem desviar) acende a Fúria: aura de fogo em cima dela e o aviso verde `[FÚRIA ATIVADA!]`. A Fúria é consumida na manobra.
+**Manobras especiais (uma por nível de combate, só com a Fúria).**
+
+| nível | manobra | o que faz |
+|---|---|---|
+| 1 | **Golpe Quebra-Guarda** | smash que ignora a defesa do alvo (1,5× a Força) |
+| 2 | **Punho Relâmpago** | combo de 3 socos rápidos num turno só |
+| 3 | **Chute Meteoro** | chute aéreo de 1,8× que pode atordoar o inimigo |
+| 4 | **Contra-Impacto Sísmico** | uppercut de 2,2× com onda de choque que devolve energia |
+| 5 | **Explosão Carmesim** | explosão carmesim de 3× (fogo + sangue, pixel art) |
+
+**VFX BearFX.** As folhas de explosão do BearFX foram copiadas para `src/renderer/assets/vfx/` (`bearfx_fire.png` e `bearfx_blood.png`, 7 quadros por variante) e animadas no ponto do golpe (`fx.explosion()`).
+**Perfil.** Novo painel **Manobras Especiais**, com o que cada nível de combate libera.
+Detalhes em `ChangeLogs\v1.9.15.md`.
+
 ## v1.9.14 — 11/11/2026
 **Ritmo de JRPG.** O combate por turnos ganhou pausas deliberadas entre as fases: anúncio do turno (0,55 s) → antecipação (a animação do golpe) → impacto (0,45 s) → resultado → recuperação (0,75 s) → próximo turno. Um turno inteiro leva uns 2,5 s, e o round completo (ela + o inimigo) uns 4 s.
 **Texto de combate acima da cabeça.** Cada ação escreve um texto flutuante sobre a cabeça de quem age: **verde (#22c55e)** nas ações da Persocon (o nome do golpe, o item usado, o acerto, o nível novo) e **vermelho (#ef4444)** nas do inimigo (o golpe do Sucataoxidado, o dano nela, o bloqueio e o desvio).

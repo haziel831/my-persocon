@@ -1,6 +1,17 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.15', [
+    ['Sem arremessos: ela só bate de perto — se o golpe do inimigo a empurrar para longe, ela avança e só golpeia no contato', 'No more throws: she only strikes at close range — if the enemy hit pushes her away, she closes in and only strikes in contact'],
+    ['Remédios inteligentes: ela só gasta a vez com um remédio que cura um status que ela tem de verdade ou que cura a vida machucada', 'Smart medicines: she only spends a turn on a medicine that cures a status she actually has or that heals her wounds'],
+    ['O Kit de Primeiros Socorros virou o cura grande do combate (45 de Saúde; o vermelho, 65)', 'The First Aid Kit is now the big combat heal (45 Health; the red one, 65)'],
+    ['Status novo: Atordoado (1 a 3 turnos) deixa ela errar muitos golpes, com as estrelas girando na cabeça', 'New status: Stunned (1 to 3 turns) makes her miss many strikes, with the stars spinning over her head'],
+    ['Status novo: Fúria (depois de 3 golpes seguidos levados) acende uma aura de fogo sobre ela e libera a manobra especial', 'New status: Fury (after 3 hits taken in a row) lights a fire aura over her and unlocks the special maneuver'],
+    ['Manobras especiais, uma por nível de combate, só com a Fúria: Golpe Quebra-Guarda, Punho Relâmpago, Chute Meteoro, Contra-Impacto Sísmico e Explosão Carmesim', 'Special maneuvers, one per combat level, only with Fury: Guard Breaker, Flurry Rush, Meteor Dropkick, Seismic Uppercut and Crimson Overdrive'],
+    ['O Chute Meteoro pode atordoar o inimigo (o Sucataoxidado erra muito mais enquanto está tonto)', 'The Meteor Dropkick can stun the enemy (the Scrap Dummy misses much more while dazed)'],
+    ['Explosões grandes com as folhas BearFX (fogo e sangue), em pixel art', 'Big explosions with the BearFX sheets (fire and blood), in pixel art'],
+    ['O Perfil ganhou o painel Manobras Especiais, com o que cada nível de combate libera', 'The Profile got the Special Maneuvers panel, with what each combat level unlocks'],
+  ]],
   ['1.9.14', [
     ['O combate agora tem ritmo de JRPG: anúncio do turno, antecipação, impacto, resultado e recuperação, com pausas entre cada fase', 'The combat now has a JRPG rhythm: the turn is announced, the wind-up, the impact, the result and the recovery, with a pause between each phase'],
     ['Texto de combate flutuando acima da cabeça: verde nas ações da Persocon, vermelho nas ações do inimigo', 'Combat text floating above the head: green for the Persocon actions, red for the enemy actions'],
