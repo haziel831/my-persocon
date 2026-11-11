@@ -204,7 +204,8 @@ export class Unknown {
     const { app } = this;
     const toys = app.toys;
     const tv = app.game.toys.videogame;
-    this.x = tv?.x ?? app.world.width / 2;
+    const w = app.world?.width || innerWidth || 1280;
+    this.x = tv?.x ?? w / 2;
     this.y = toys.floorY();
     this.makeSprite();
     this.place();
@@ -213,7 +214,6 @@ export class Unknown {
     const pet = app.pet;
     if (pet && tv) {
       const away = pet.x >= tv.x ? 1 : -1;
-      const w = app.world?.width || innerWidth;
       pet.x = Math.max(this.P * 0.3, Math.min(w - this.P * 0.3, pet.x + away * this.P * 1.1));
     }
     const rect = toys.tvRect?.() || null;
@@ -368,6 +368,11 @@ export class Unknown {
       this.place();
       if (Math.abs(pet.x - this.x) < this.P * 0.8) this.startFight();
     } else if (this.state === 'fight') {
+      // A luta acabou sem a derrota dele (interrompida): ele foge.
+      if (!this.app.melee?.active) {
+        this.remove();
+        this.state = 'gone';
+      }
       this.place();
     }
     // O desenho.

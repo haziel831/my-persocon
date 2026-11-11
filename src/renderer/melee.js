@@ -971,7 +971,8 @@ export class Melee {
   }
 
   oppX() {
-    // O Unknown tem a posição dele; o boneco de treino usa a dele.
+    // O Unknown tem a posição dele (e anda durante a luta); o boneco usa a dele.
+    if (this.opp?.enemy) return this.opp.enemy.x;
     if (this.opp?.x != null) return this.opp.x;
     const d = this.app.game?.toys?.boneco_treino;
     return d?.x ?? this.pet.x + this.pet.P;
