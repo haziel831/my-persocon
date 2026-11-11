@@ -1,6 +1,6 @@
 import { PetView } from './view.js';
 import { SHOP_CATEGORIES, ITEMS, STAT_LABELS, BUFF_LABELS, BUFF_ICONS, ATTRS, INFINITE_MONEY, effectText, isEdible, isConsumable, isSellable, sellPrice, isPowerUp, hasTaste, itemById, HER_BAG } from './game.js';
-import { SKILL_DEFS, skillLevel, skillMoves, skillXpFor } from './skills.js';
+import { SKILL_DEFS, COMBAT_ARTS, skillLevel, skillMoves, skillStarted, skillXpFor } from './skills.js';
 import { MANEUVERS } from './melee.js';
 import { GAMES } from './games.js';
 import { FILTERS } from './filters.js';
@@ -25,6 +25,17 @@ import { logInfo, recentLog } from './logger.js';
 
 const DEFAULT_MODEL_DIR = 'models/MyPersocon';
 const AGHATA_MODEL_DIR = 'models/Aghata';
+// O que cada atributo faz (a caixinha que abre quando ela clica no atributo).
+const ATTR_DESC = {
+  str: 'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos.',
+  con: 'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos.',
+  dex: 'Aumenta a esquiva dos golpes e a precisão dos ataques rápidos. Por enquanto ela ainda não muda o jogo.',
+  agi: 'Deixa os movimentos mais rápidos: ela se mexe e ataca antes do adversário. Por enquanto ela ainda não muda o jogo.',
+  will: 'Resiste aos status negativos e segura o Humor mais alto. Por enquanto ela ainda não muda o jogo.',
+  per: 'Melhora a atenção no que acontece ao redor. Por enquanto ela ainda não muda o jogo.',
+  cha: 'Ajuda a ganhar Afeição e a negociar as trocas. Por enquanto ela ainda não muda o jogo.',
+  int: 'Ajuda a aprender mais rápido (golpes, truques e minijogos). Por enquanto ela ainda não muda o jogo.',
+};
 // Promo codes (Opções › Outros), case-insensitive. once: redeemed a single time per save.
 const PROMOS = {
   hazmidnight: { debug: true },
@@ -323,6 +334,9 @@ export class Menu {
     if (!this.el) return;
     this.app.stopPreview?.();
     clearInterval(this.ticker);
+    // A caixinha de atributo que ficou aberta: some com o menu.
+    if (this._attrOutside) { document.removeEventListener('click', this._attrOutside); this._attrOutside = null; }
+    this._attrOpen = null;
     this.backdrop.remove();
     this.el = null;
     this.expanded = null;
@@ -345,6 +359,8 @@ export class Menu {
     this.feeding = false;
     this.giving = false;
     this.reminding = false;
+    // Trocar de aba fecha a caixinha de atributo.
+    this._attrOpen = null;
     this.render();
   }
 
@@ -688,20 +704,18 @@ export class Menu {
     const g = app.game;
     const p = g.profile;
     const open = { ...(this._perfilOpen || {}) };
-    // A collapsible section: the title toggles the content.
-    const section = (key, title, list) => {
+    // A collapsible section: the title toggles the content. `body` replaces the fact list.
+    const section = (key, title, list, body) => {
       const isOpen = !!open[key];
       return [
         h('button.skill-head.perfil-head', {
           onclick: () => { this._perfilOpen = { ...open, [key]: !isOpen }; this.render(); },
         }, `${isOpen ? '▼' : '▶'} ${title}`),
-        isOpen ? h('dl.facts.profile', {}, list.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, String(v))])) : null,
+        isOpen ? (body || h('dl.facts.profile', {}, list.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, String(v))]))) : null,
       ];
     };
     const combatLvl = skillLevel(g.skillXp('unarmed'));
     const combatNext = skillXpFor(Math.min(10, combatLvl + 1));
-    const str = g.attrLevel?.('str') ?? 1;
-    const con = g.attrLevel?.('con') ?? 1;
     const geral = [
       ['Nome', app.config.name || 'Ninna'],
       ['Idade', age(p.born)],
@@ -723,11 +737,6 @@ export class Menu {
         return `${bits.join(' · ')} · ativos: ${active.join(' · ')}`;
       })()],
       ['Carteira dela', `¥ ${p.wallet || 0} · sorte nos jogos ${Math.round(Math.max(0, luckOf(app.pet.affection)) * 100)}%`],
-      ['Combate', `Nv ${combatLvl} · ${Math.floor(g.skillXp('unarmed'))}/${combatNext} XP`],
-      ['Força', `Nv ${str} · ${Math.floor(g.attrXp?.('str') || 0)} XP`],
-      ['Constituição', `Nv ${con} · ${Math.floor(g.attrXp?.('con') || 0)} XP`],
-      ['Saúde máxima', `${g.maxHealth?.() ?? 100}`],
-      ['Pega-pega', `${p.chases} partidas · ${p.chaseWins} vitórias da Persocon · ${p.escapes} fugas`],
     ];
     const favoritos = [
       ...[['love', '♥ Favoritos'], ['like', '👍 Gosta'], ['dislike', '👎 Não gosta'], ['hate', '💢 Odeia']].map(([t, label]) => [label,
@@ -738,6 +747,7 @@ export class Menu {
       ...(p.fun?.hoopBest ? [['Recorde no bambolê', `${p.fun.hoopBest}s`]] : []),
       ...(p.fun?.cubeBest ? [['Recorde do cubo mágico', `${p.fun.cubeBest}s`]] : []),
       ...(p.fun?.tama ? [['Tamapet', `fome ${Math.round(p.fun.tama.hunger)}% · humor ${Math.round(p.fun.tama.mood)}%`]] : []),
+      ['Pega-pega', `${p.chases} partidas · ${p.chaseWins} vitórias da Persocon · ${p.escapes} fugas`],
     ];
     const del = h('button.danger', {
       onclick: () => {
@@ -750,43 +760,52 @@ export class Menu {
         this.render();
       },
     }, '🗑 Apagar save e começar uma nova Persocon');
+    // ---------- Atributos ----------
+    // Cada atributo é clicável: abre a explicação dele (e clicar fora fecha).
     const attrs = p.attrs || {};
     const attrBox = h('div.attrs', {}, ATTRS.map(([k, label]) => {
       const lvl = g.attrLevel?.(k) ?? (attrs[k] ?? 0);
       const xp = Math.floor(g.attrXp?.(k) || 0);
-      return h('div.attr', {},
+      const shown = this._attrOpen === k;
+      return h(`div.attr${shown ? '.open' : ''}`, {
+        onclick: () => this.toggleAttr(k),
+      },
         h('span', {}, label), h('b', {}, `Nv ${lvl}`),
         h('div.track', {}, h('div.fill.attr', { style: { width: `${(lvl / 10) * 100}%` } })),
-        h('small.muted', {}, `${xp} XP`));
+        h('small.muted', {}, `${xp} XP`),
+        shown ? h('p.attr-desc', {}, ATTR_DESC[k] || '') : null);
     }));
-    const skills = p.skills || {};
-    const skillBox = h('div.skills', {}, Object.entries(SKILL_DEFS).map(([id, def]) => {
-      const xp = skills[id] || 0;
-      const lvl = skillLevel(xp);
+    const attrsBody = h('div', {},
+      attrBox,
+      h('dl.facts.profile', {}, [
+        h('dt', {}, 'Saúde máxima'), h('dd', {}, String(g.maxHealth?.() ?? 100)),
+      ]));
+    // ---------- Combate ----------
+    // Só aparece o que ela já sabe: as artes que ela treinou e as manobras que desbloqueou.
+    const arts = COMBAT_ARTS.map((id) => {
+      const def = SKILL_DEFS[id];
+      if (!def) return null;
+      const xp = g.skillXp(id);
       const moves = skillMoves(id, xp);
-      const next = skillXpFor(Math.min(10, lvl + 1));
-      const open = !!this._skillOpen?.[id];
-      return h(`div.skill${open ? '.open' : ''}`, {},
-        h('button.skill-head', {
-          onclick: () => {
-            this._skillOpen = { ...(this._skillOpen || {}), [id]: !open };
-            this.render();
-          },
-        }, `${def.icon} ${def.name}`, h('b', {}, `Nv ${lvl}`), h('span.muted', {}, `${Math.floor(xp)}/${next} XP · ${moves.length} golpes`)),
-        open ? h('ul.skill-moves', {},
-          moves.length
-            ? moves.map((m) => h('li', {}, `${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : m.kind === 'defend' ? 'defesa' : 'esquiva'}`))
-            : [h('li.muted', {}, 'Nenhum golpe ainda — treine no boneco ou com a arma.')])
-          : null);
-    }));
-    // The special maneuvers: one unlocked per Melee Combat Level (only with the Fúria).
-    const manBox = h('div.maneuvers', {}, MANEUVERS.map((m) => {
-      const unlocked = combatLvl >= m.lvl;
-      return h(`div.maneuver${unlocked ? '' : '.locked'}`, {},
-        h('b', {}, `${unlocked ? '✦' : '🔒'} ${m.name}`),
+      if (!skillStarted(id, xp) || !moves.length) return null;   // arte ainda não aprendida: nem aparece
+      const lvl = skillLevel(xp);
+      return h('div.combat-art', {},
+        h('div.combat-art-head', {}, `${def.icon} ${def.art}`, h('span.muted', {}, `Nv ${lvl}`)),
+        h('ul.skill-moves', {}, moves.map((m) => h('li', {}, `${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : m.kind === 'defend' ? 'defesa' : 'esquiva'}`))));
+    }).filter(Boolean);
+    const manList = MANEUVERS.filter((m) => combatLvl >= m.lvl);
+    const manBox = manList.length
+      ? h('div.maneuvers', {}, manList.map((m) => h('div.maneuver', {},
+        h('b', {}, `✦ ${m.name}`),
         h('span.muted', {}, `Nv ${m.lvl}`),
-        h('small', {}, m.pt));
-    }));
+        h('small', {}, m.pt))))
+      : null;
+    const combatBody = h('div.combat', {},
+      h('dl.facts.profile', {}, [
+        h('dt', {}, 'Combate'), h('dd', {}, `Nv ${combatLvl} · ${Math.floor(g.skillXp('unarmed'))}/${combatNext} XP`),
+      ]),
+      ...arts,
+      manBox);
     return [
       h('div.group', {}, 'Perfil'),
       ...section('geral', 'Informações Gerais', geral),
@@ -796,10 +815,9 @@ export class Menu {
       ...section('carts', 'Cartuchos', [['Cartuchos', g.cartridges.map((c) => `${GAMES[c]?.name || c}${g.isFavorite(c) ? ' ♥' : ''} (nv ${Math.round(g.cartSkill(c) * 10)})`).join(', ') || '—']]),
       ...section('toys', 'Brinquedos comprados', [['Brinquedos comprados', p.toysBought]]),
       ...section('requests', 'Pedidos atendidos', [['Pedidos atendidos', p.requestsDone]]),
-      ...(recordes.length ? section('records', 'Recordes e troféus', recordes) : []),
-      h('div.group', {}, 'Atributos'), attrBox, h('div.note', {}, 'A Força aumenta o dano dos golpes e os arremessos; a Constituição aumenta a Saúde máxima e faz toda ação gastar menos energia (ela ganha XP de Constituição a cada energia gasta).'),
-      h('div.group', {}, 'Skills (armas e treino)'), skillBox, h('div.note', {}, 'Clique numa skill para ver os golpes/truques aprendidos.'),
-      h('div.group', {}, 'Manobras Especiais'), manBox, h('div.note', {}, 'Uma manobra especial por nível de combate: ela só pode soltar uma quando está com o status Fúria (que vem depois de 3 golpes seguidos levados).'),
+      ...section('records', 'Recordes e troféus', recordes),
+      ...section('attrs', 'Atributos', null, attrsBody),
+      ...section('combat', 'Combate', null, combatBody),
       h('div.group', {}, 'Incentivos (cafuné) e desincentivos (tapa)'),
       Object.keys(app.pet.prefs || {}).length
         ? h('div.prefs', {}, Object.entries(app.pet.prefs).map(([k, v]) => h('div.pref', {},
@@ -817,6 +835,28 @@ export class Menu {
       h('div.note', {}, 'O save atual vira backup antes de importar (3 backups automáticos).'),
       h('div.row.center', {}, del),
     ];
+  }
+
+  // Abre (ou fecha) a explicação de um atributo. Clicar fora dela também fecha.
+  toggleAttr(key) {
+    this._attrOpen = this._attrOpen === key ? null : key;
+    // Fechou: o listener de "clicar fora" não precisa mais existir.
+    if (!this._attrOpen && this._attrOutside) {
+      document.removeEventListener('click', this._attrOutside);
+      this._attrOutside = null;
+    }
+    this.render();
+    if (!this._attrOpen || this._attrOutside) return;
+    const close = (ev) => {
+      // Um clique dentro de um atributo é tratado pelo próprio atributo.
+      if (ev.target?.closest?.('.attr')) return;
+      this._attrOutside = null;
+      document.removeEventListener('click', close);
+      this._attrOpen = null;
+      this.render();
+    };
+    this._attrOutside = close;
+    document.addEventListener('click', close);
   }
 
   temas() {

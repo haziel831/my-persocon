@@ -5,11 +5,11 @@
 
 export const SKILL_DEFS = {
   unarmed: {
-    name: 'Desarmado', icon: '👊',
+    name: 'Desarmado', icon: '👊', art: 'Combate Corpo a Corpo',
     moves: [],
   },
   espada: {
-    name: 'Espada de bamboo', icon: '🗡️',
+    name: 'Espada de bamboo', icon: '🗡️', art: 'Espadas',
     moves: [
       { id: 'kamae', name: 'Kamae (guarda)', lvl: 1, dmg: 3, clip: 'espada_guarda' },
       { id: 'men', name: 'Men (cabeça)', lvl: 2, dmg: 7, clip: 'espada_men' },
@@ -24,7 +24,7 @@ export const SKILL_DEFS = {
     ],
   },
   syntoyo: {
-    name: 'Syntoyo', icon: '🪀',
+    name: 'Syntoyo', icon: '🪀', art: 'Syntoyo',
     moves: [
       { id: 'chicote', name: 'Chicote neon', lvl: 1, dmg: 8, clip: 'yoyo_chicote' },
       { id: 'orbita', name: 'Órbita laser', lvl: 3, dmg: 11, clip: 'yoyo_orbita' },
@@ -34,7 +34,7 @@ export const SKILL_DEFS = {
     ],
   },
   queimada: {
-    name: 'Bola de queimada', icon: '🏀',
+    name: 'Bola de queimada', icon: '🏀', art: 'Arremesso',
     moves: [
       { id: 'reto', name: 'Arremesso reto', lvl: 1, dmg: 7, clip: 'queimada_reto' },
       { id: 'curva', name: 'Curva', lvl: 3, dmg: 10, clip: 'queimada_curva' },
@@ -44,6 +44,9 @@ export const SKILL_DEFS = {
     ],
   },
 };
+
+// The order the martial arts show up in the Combat panel (only the ones she knows).
+export const COMBAT_ARTS = ['unarmed', 'espada', 'queimada', 'syntoyo'];
 
 // The unarmed moves of the melee system. Each one unlocks with the Combat Skill Level:
 //   1 → jab + guarda · 3 → cross · 5 → passo evasivo · 7 → uppercut · 10 → chute circular
@@ -79,6 +82,13 @@ export function skillMoves(id, xp) {
   if (!def) return [];
   const lvl = skillLevel(xp);
   return def.moves.filter((m) => m.lvl <= lvl);
+}
+
+// Did she already train this art? The unarmed basics are with her from the start; the weapon
+// arts only show up once she has actually trained them.
+export function skillStarted(id, xp) {
+  if (id === 'unarmed') return true;
+  return (xp || 0) > 0;
 }
 
 // The melee moves unlocked at this Combat Skill Level (the combat system only uses these).
