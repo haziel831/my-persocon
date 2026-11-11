@@ -1,6 +1,14 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.13', [
+    ['Cada golpe agora custa menos energia quanto maior o nível de combate (nível 10 sai quase metade do custo do nível 1)', 'Every strike now costs less energy the higher the combat level (level 10 costs almost half of level 1)'],
+    ['O Boneco de Treino agora pode ser melhorado para o Boneco Sucataoxidado: chapas enferrujadas, engrenagens e juntas mecânicas', 'The Training Dummy can now be upgraded into the Rusty Scrap Dummy: rusty plates, gears and mechanical joints'],
+    ['Treino Pesado: só no boneco melhorado e só pela mão do jogador — uma luta de verdade, com borda vermelha, trilha de combate e dano de verdade na Saúde', 'Heavy Training: only on the upgraded dummy and only started by hand — a real fight, with the red frame, the combat track and real Health damage'],
+    ['O Sucataoxidado ataca de volta: um nível abaixo do dela (ou igual, nos níveis 1 e 2), com barra de vida em cima dele', 'The Scrap Dummy fights back: one level below her (or equal, at levels 1 and 2), with a health bar above it'],
+    ['Parada de segurança: o treino pesado nunca é fatal (ela para com metade da Saúde) e o boneco volta a 100% depois', 'Safety stop: the heavy training is never lethal (she stops at half Health) and the dummy goes back to 100% afterwards'],
+    ['Efeitos de impacto nos golpes: faísca nos golpes leves, corte e explosão nos pesados, escudo no bloqueio e fumaça de ferrugem no boneco', 'Impact effects on the strikes: a spark on the light hits, a slash and burst on the heavy ones, a shield on the block and rust smoke on the dummy'],
+  ]],
   ['1.9.12', [
     ['Combate por turnos no Boneco de Treino: ela luta desarmada, com antecipação, golpe e recuperação, e o treino só acaba quando ela fica sem energia', 'Turn-based combat on the Training Dummy: she fights unarmed, with anticipation, strike and recovery, and the training only ends when she runs out of energy'],
     ['Golpes novos conforme o nível de combate: jab (Nv 1), guarda (Nv 1), cross (Nv 3), passo evasivo (Nv 5), uppercut (Nv 7) e chute circular (Nv 10)', 'New moves as the combat level grows: jab (Lv 1), guard (Lv 1), cross (Lv 3), evasive step (Lv 5), uppercut (Lv 7) and roundhouse kick (Lv 10)'],

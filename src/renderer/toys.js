@@ -106,10 +106,7 @@ export class Toys {
       const pick = ids.find((_, i) => (r -= w[i]) <= 0) || ids[0];
       const id = pick.id;
       if (pick.bag) {
-        // Weapons in the bag go to the dummy when it is out.
-        if (dummyOk && ['espada', 'syntoyo', 'bola_queimada'].includes(id)) {
-          return { x: this.spot('boneco_treino'), play: (p) => this.playDummy(p, id === 'bola_queimada' ? 'queimada' : id) };
-        }
+        // The weapons have no combat use: she plays them normally, never at the dummy.
         return { x: pet.x, play: (p) => this.playBag(id, p) };
       }
       if (BALLS[id]) {
@@ -119,9 +116,7 @@ export class Toys {
       }
       if (id === 'pelucia' && this.app.doll?.x != null) return { x: this.app.doll.x, play: (p) => this.play(id, p) };
       if (baseId(id) === 'boneco_treino') return { x: this.spot(id), play: (p) => this.playDummy(p) };
-      if (dummyOk && (id === 'espada' || id === 'syntoyo' || id === 'bola_queimada')) {
-        return { x: this.spot('boneco_treino'), play: (p) => this.playDummy(p, id === 'bola_queimada' ? 'queimada' : id) };
-      }
+      // The weapons never train at the dummy: no combat utility for now.
       return { x: this.spot(id), play: (p) => this.play(id, p) };
     };
     pet.needsSupply = () => this.needsSupply();
@@ -339,21 +334,21 @@ export class Toys {
       if (t?.up && !t.broken) btn('🔫 Chamar para jogar no Arcade', () => this.callFurn(id));
     }
     if (baseId(id) === 'boneco_treino' && t && !t.broken) {
-      const train = (mode) => {
+      const train = (heavy) => {
         const pet = this.app.pet;
         if (pet.dead || pet.mode !== 'ground') return;
-        if (pet.stats.energy < 50) {
+        const need = heavy ? 30 : 50;
+        if (pet.stats.energy < need) {
           this.app.sound.play('cancel', { volume: 0.4 });
-          this.furn.floatText(pet.x, pet.y - this.P, '😵 Precisa de ≥50% de energia');
+          this.furn.floatText(pet.x, pet.y - this.P, `😵 Precisa de ≥${need}% de energia`);
           return;
         }
         if (pet.toyPlay) pet.endToy(true);
-        pet.goTo(this.spot(id), () => this.playDummy(pet, mode));
+        pet.goTo(this.spot(id), () => this.playDummy(pet, heavy ? 'sparring' : 'unarmed'));
       };
-      btn('👊 Treinar corpo a corpo', () => train('unarmed'));
-      if (game.toys.espada?.placed || game.bagHas?.('espada')) btn('🗡️ Treinar com espada', () => train('espada'));
-      if (game.gear.syntoyo || game.bagHas?.('syntoyo')) btn('🪀 Treinar com Syntoyo', () => train('syntoyo'));
-      if (game.toys.bola_queimada?.placed || game.bagHas?.('bola_queimada')) btn('🏀 Treinar com queimada', () => train('queimada'));
+      btn('👊 Treinar corpo a corpo', () => train(false));
+      // The heavy training only exists on the upgraded Scrap Dummy, and only by hand.
+      if (t.up) btn('💥 Treino Pesado (luta de verdade)', () => train(true));
     }
     if (id === 'gacha' && !t?.broken) btn(`🎰 Girar a Gacha (¥ ${GACHA_PRICE}, você paga)`, () => this.casino.click(id, x, y));
     if (id === 'slot' && !t?.broken) btn(`🎰 Pedir para ela jogar (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
@@ -1131,14 +1126,17 @@ export class Toys {
     return pet.chooseNext();
   }
 
-  // Training dummy: unarmed melee practice. The weapons have no combat use for now, so she
-  // always fights with her fists (the melee engine runs the turns).
+  // Training dummy: unarmed melee practice. The weapons have no combat use for now, so
+  // she always fights with her fists (the melee engine runs the turns).
+  // mode: 'unarmed' (the basic training) or 'sparring' (the heavy training, real fight).
   playDummy(pet, forcedMode = null, onEnd = null) {
     const { game } = this.app;
     const t = game.toys.boneco_treino;
     if (!t?.placed || t.broken) return pet.chooseNext();
     const melee = this.app.melee;
-    if (!melee?.startTraining()) return pet.chooseNext();
+    const heavy = forcedMode === 'sparring';
+    const started = heavy ? melee?.startSparring() : melee?.startTraining();
+    if (!started) return pet.chooseNext();
     this.lastPlay.boneco_treino = performance.now();
     const item = itemById('boneco_treino');
     const pickAnim = pet.pickClip(['pegar'], ['use_mainhand', 'swing_hand', 'idle']);
@@ -1184,12 +1182,6 @@ export class Toys {
     };
     const pickAnim = pet.pickClip(['pegar'], ['use_mainhand', 'swing_hand', 'idle']);
     if (b === 'boneco_treino') return this.playDummy(pet, null, end);
-    // Syntoyo / espada: com boneco disponível e energia ≥50%, treina nele.
-    const dummyT = game.toys.boneco_treino;
-    const dummyReady = dummyT?.placed && !dummyT.broken && pet.stats.energy >= 50;
-    if (dummyReady && (b === 'syntoyo' || (b === 'ioio' && game.gear.syntoyo))) {
-      return this.playDummy(pet, 'syntoyo', end);
-    }
     if (this.fun.owns(b)) return this.fun.play(id, pet, end, scale, pickAnim) || pet.chooseNext();
     if (FURN[b] && !FURN[b].console && this.furn.play(id, pet, end)) return;
     if (FURN[b] && !FURN[b].console) return pet.chooseNext();
@@ -1215,8 +1207,7 @@ export class Toys {
     } else if (id === 'pelucia') {
       this.dollPlay(pet, item, scale, pickAnim, end);
     } else if (id === 'espada') {
-      if (dummyReady) return this.playDummy(pet, 'espada', end);
-      // Solo: usa a espada mesmo com energia baixa (só o boneco exige ≥50%).
+      // Solo: uses the sword even with low energy (only the dummy needs ≥50%).
       pet.playToy({
         id, dur: rand(16, 26), gain: item.gain, scale, hold: art, holdFrom: 0.9, pickAnim, one: true, effort: 2.2,
         onEnd: (i) => {

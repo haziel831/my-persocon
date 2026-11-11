@@ -13,11 +13,13 @@ import { COMBAT_META } from './combatanims.js';
 export const TURN = { PERSOCON: 'persocon', OPPONENT: 'opponent' };
 // Energy below this ends the training: she is too tired to keep going.
 export const EXHAUST_ENERGY = 15;
-// Energy spent on every turn of the dummy training.
-export const TURN_ENERGY = 3;
+// Base energy spent on a turn; a higher Combat Skill Level makes every strike cheaper.
+export const BASE_TURN_ENERGY = 3;
+export const MIN_TURN_ENERGY = 0.8;
+// The sparring is non-lethal: she stops at half of her health.
+export const SAFETY_HP = 0.5;
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
-const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 
 // ---------- the combat track (a small 8-bit battle loop) ----------
@@ -102,7 +104,7 @@ export class Melee {
   constructor(app) {
     this.app = app;
     this.active = false;    // COMBAT_MODE
-    this.kind = null;       // 'dummy' (training) | 'fight'
+    this.kind = null;       // 'dummy' (training) | 'fight' (the scrap dummy)
     this.turn = TURN.PERSOCON;
     this.phase = 'idle';    // 'idle' | 'intro' | 'acting' | 'resolve'
     this.t = 0;
@@ -111,10 +113,12 @@ export class Melee {
     this.next = TURN.PERSOCON;
     this.turns = 0;
     this.hits = 0;
+    this.hitResolved = false;
+    this.introT = 0;
     this.petHp = 100;
-    this.opp = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, name: 'Boneco' };
+    this.opp = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, name: 'Boneco' };
     this.music = null;
-    this.introDone = false;
+    this.hpBar = null;
     this.onPetEvent = (type, data) => this.onEvent(type, data);
     app.pet?.on?.(this.onPetEvent);
   }
@@ -127,6 +131,12 @@ export class Melee {
   get moves() { return combatMoves(this.game?.skillXp?.('unarmed') || 0); }
   get attacks() { return this.moves.filter((m) => m.kind === 'attack'); }
 
+  // The energy a strike costs: the better she is, the less it costs.
+  energyCost() {
+    const lvl = this.level;
+    return Math.max(MIN_TURN_ENERGY, BASE_TURN_ENERGY * (1 - (lvl - 1) * 0.06));
+  }
+
   // ---------------- COMBAT_MODE ----------------
 
   enter(kind = 'fight') {
@@ -135,7 +145,7 @@ export class Melee {
     this.kind = kind;
     this.turns = 0;
     this.hits = 0;
-    this.petHp = 100;
+    this.petHp = this.pet?.stats?.health ?? 100;
     this.pet.combatMode = true;
     // The frame and the combat track belong to the real fights; the training stays clean.
     if (kind !== 'dummy') {
@@ -158,6 +168,7 @@ export class Melee {
     this.music?.stop();
     this.music = null;
     this.app.sound?.resumeMusic?.();
+    this.removeHpBar();
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
   }
 
@@ -172,11 +183,43 @@ export class Melee {
       toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '😵 Precisa de ≥50% de energia');
       return false;
     }
-    this.opp = { hp: 100, max: 100, level: 1, defense: 0.22, dummy: true, name: 'Boneco' };
+    this.opp = { hp: 100, max: 100, level: 1, defense: 0.22, dummy: true, scrap: false, name: 'Boneco' };
     if (!this.enter('dummy')) return false;
     this.phase = 'intro';
     this.t = 0;
     this.introT = 0;
+    return true;
+  }
+
+  // ---------------- the heavy training (real sparring) ----------------
+
+  // "Treino Pesado": a real fight against the upgraded Scrap Dummy. It attacks back.
+  startSparring() {
+    const { pet, game, toys } = this.app;
+    const dummy = game?.toys?.boneco_treino;
+    if (!dummy?.placed || dummy.broken) return false;
+    if (!dummy.up) {
+      toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '🔧 Precisa do boneco Sucataoxidado');
+      return false;
+    }
+    if (pet.stats.energy < 30) {
+      toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '😵 Precisa de ≥30% de energia');
+      return false;
+    }
+    // The Scrap Dummy is one level below hers (at level 1 and 2 it is her equal).
+    const lvl = this.level;
+    const oppLvl = lvl <= 2 ? lvl : lvl - 1;
+    this.opp = {
+      hp: 100, max: 100, level: oppLvl, defense: 0.16 + oppLvl * 0.03,
+      dummy: false, scrap: true, name: 'Sucataoxidado',
+    };
+    this.petHp = pet.stats.health;
+    this.petHpMax = 100;      // her health never goes over 100
+    if (!this.enter('fight')) return false;
+    this.phase = 'intro';
+    this.t = 0;
+    this.introT = 0;
+    this.showHpBar();
     return true;
   }
 
@@ -209,11 +252,19 @@ export class Melee {
       default:
         break;
     }
+    if (this.opp.scrap) this.updateHpBar();
     // The training ends when she is too tired (or the dummy is gone).
     if (this.active && this.kind === 'dummy') {
       const d = this.game?.toys?.boneco_treino;
       if (!d?.placed || d.broken) this.finishTraining('dummy-gone');
       else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishTraining('tired');
+    }
+    // The sparring: non-lethal. She stops at half of her health.
+    if (this.active && this.kind === 'fight') {
+      const hp = pet.stats.health;
+      if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishSparring('safety');
+      else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishSparring('tired');
+      else if (this.opp.hp <= 0) this.finishSparring('win');
     }
   }
 
@@ -246,24 +297,86 @@ export class Melee {
   }
 
   // The opponent's turn. The Training Dummy NEVER attacks: it braces and waits.
+  // The Scrap Dummy fights back.
   opponentTurn() {
     const pet = this.pet;
     this.next = TURN.PERSOCON;
-    if (this.opp.dummy) {
-      this.move = { id: 'brace', name: 'Defende', kind: 'defend', clip: 'combat_block', dmg: 0 };
-      this.moveDur = 0.45;
-      const x = this.oppX();
-      this.float(x, this.oppY() - 20, '🛡 O boneco se defende!');
-      this.app.sound?.tone8?.(220, 160, 0.12, 'triangle', 0.05);
-      // She waits in the fighting stance while the dummy braces.
-      pet.anim('idle', { facing: this.facing() > 0 ? 'right' : 'left', restart: false });
-    } else {
-      // A real opponent would attack here (not implemented yet).
-      this.move = { id: 'attack', name: 'Ataca', kind: 'attack', clip: 'attack_jab', dmg: 5 };
-      this.moveDur = 0.5;
-    }
+    if (this.opp.scrap) return this.scrapTurn();
+    this.move = { id: 'brace', name: 'Defende', kind: 'defend', clip: 'combat_block', dmg: 0 };
+    this.moveDur = 0.45;
+    const x = this.oppX();
+    this.float(x, this.oppY() - 20, '🛡 O boneco se defende!');
+    this.app.sound?.tone8?.(220, 160, 0.12, 'triangle', 0.05);
+    // She waits in the fighting stance while the dummy braces.
+    pet.anim('idle', { facing: this.facing() > 0 ? 'right' : 'left', restart: false });
     this.phase = 'acting';
     this.t = 0;
+  }
+
+  // The Scrap Dummy attacks: it rolls against her block/dodge and really hurts.
+  scrapTurn() {
+    const pet = this.pet;
+    this.next = TURN.PERSOCON;
+    this.move = { id: 'scrap', name: 'Golpe de Sucata', kind: 'attack', clip: 'attack_jab', dmg: 4 + this.opp.level * 2.2 };
+    this.moveDur = 0.5;
+    this.phase = 'acting';
+    this.t = 0;
+    this.float(this.oppX(), this.oppY() - 26, '⚙️ O Sucataoxidado ataca!');
+    // The rolls: its accuracy against her defense.
+    const lvl = this.level;
+    const acc = clamp(0.38 + this.opp.level * 0.05, 0.2, 0.9);
+    const block = clamp(0.06 + lvl * 0.035, 0.02, 0.4);
+    const dodge = clamp(0.04 + lvl * 0.02, 0.02, 0.3);
+    const r = Math.random();
+    if (r < block) {
+      this.resolveDefence('block');
+    } else if (r < block + dodge) {
+      this.resolveDefence('dodge');
+    } else if (r < block + dodge + acc) {
+      this.resolvePlayerHit();
+    } else {
+      this.resolveMiss();
+    }
+  }
+
+  // She blocks: the metallic spark + the guard pose.
+  resolveDefence(kind) {
+    const pet = this.pet;
+    const heavy = kind === 'block';
+    pet.playAnimation(kind === 'dodge' ? 'combat_dodge_step' : 'combat_block', { facing: this.facing() > 0 ? 'right' : 'left' });
+    this.float(pet.x, pet.y - pet.P * 1.1, kind === 'dodge' ? '💨 Ela desviou!' : '🛡 Ela bloqueou!');
+    this.app.fx?.impact(kind === 'dodge' ? 'dust' : 'shield', pet.x + this.facing() * pet.P * 0.35, pet.y - pet.P * 0.6, kind === 'dodge' ? 0.45 : 0.5);
+    this.app.fx?.shake(0.3);
+    this.app.sound?.tone8?.(kind === 'dodge' ? 700 : 520, 220, 0.1, 'square', 0.07);
+    this.afterTurn(0.45);
+  }
+
+  // The Scrap Dummy's blow lands: real health damage and the stagger animation.
+  resolvePlayerHit() {
+    const pet = this.pet;
+    const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (Math.random() < 0.15 ? 1.6 : 1));
+    pet.adjust({ health: -dmg });
+    pet.playAnimation('combat_hit_stagger', { facing: this.facing() > 0 ? 'right' : 'left' });
+    this.float(pet.x, pet.y - pet.P * 1.15, `💢 −${dmg} Saúde`);
+    this.app.fx?.impact('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
+    this.app.fx?.shake(0.55);
+    this.app.sound?.tone8?.(140, 60, 0.14, 'square', 0.11);
+    this.afterTurn(0.6);
+  }
+
+  // The Scrap Dummy misses.
+  resolveMiss() {
+    const pet = this.pet;
+    this.float(pet.x, pet.y - pet.P * 1.1, '💨 O Sucataoxidado errou!');
+    this.app.fx?.impact('dust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.7, 0.4);
+    this.app.sound?.tone8?.(520, 300, 0.08, 'triangle', 0.04);
+    this.afterTurn(0.4);
+  }
+
+  afterTurn(wait) {
+    this.phase = 'resolve';
+    this.t = 0;
+    this.wait = wait;
   }
 
   // The hit frame of the current move: the rolls happen here.
@@ -287,8 +400,12 @@ export class Melee {
     const side = this.facing();
     const x = this.oppX();
     const y = this.oppY() - 24;
+    const heavy = move.lvl >= 7;
     if (r < blockChance) {
       this.float(x, y, '🛡 Bloqueou!');
+      this.app.fx?.impact('shield', x, y, 0.45);
+      this.app.fx?.impact('dust', x, y + 6, 0.4);
+      this.app.fx?.shake(0.25);
       this.app.sound?.tone8?.(300, 180, 0.1, 'square', 0.06);
     } else if (r < blockChance + hitChance) {
       const crit = Math.random() < critChance;
@@ -296,6 +413,17 @@ export class Melee {
       opp.hp = Math.max(0, opp.hp - dmg);
       this.hits++;
       this.float(x, y, crit ? `💥 Crítico! ${dmg}` : `💥 ${move.name} · ${dmg}`);
+      // The impact: a sharp spark for the light hits, a slash + burst for the heavy ones.
+      if (heavy) {
+        this.app.fx?.impact('slash', x, y, 0.85);
+        this.app.fx?.impact('burst', x, y, 0.8);
+        this.app.fx?.shake(0.9);
+      } else {
+        this.app.fx?.impact('spark', x, y, 0.6);
+        this.app.fx?.shake(0.45);
+      }
+      // The mechanical dummy throws rust when it takes the hit.
+      if (opp.scrap) this.app.fx?.impact('rust', x, y - 6, 0.5);
       this.app.sound?.tone8?.(180 + dmg * 9, 70, 0.12, 'square', 0.1);
       this.app.sound?.swish?.();
       this.app.dummy?.hit?.(dmg, side);
@@ -308,13 +436,33 @@ export class Melee {
     this.game.skillAdd('unarmed', skillGain('dummy'));
     const after = this.level;
     if (after > before) this.float(pet.x, pet.y - pet.P * 1.2, `⬆️ Nv ${after}`);
-    pet.adjust({ energy: -TURN_ENERGY, mood: 0.4 });
+    pet.adjust({ energy: -this.energyCost(), mood: 0.4 });
     this.phase = 'resolve';
     this.t = 0;
     this.wait = 0.5;
   }
 
   finishTraining(reason = 'done') {
+    this.stop(reason);
+  }
+
+  // The sparring ends: the Scrap Dummy goes back to 100% and she leaves the fight.
+  finishSparring(reason = 'done') {
+    if (!this.active) return;
+    const pet = this.pet;
+    if (reason === 'win') {
+      // Defeating the Scrap Dummy gives a bonus of Combat Skill XP.
+      this.game.skillAdd('unarmed', 12 + this.opp.level * 6);
+      this.float(this.oppX(), this.oppY() - 40, '🏆 Sucataoxidado derrubado!');
+      this.float(pet.x, pet.y - pet.P * 1.3, `⬆️ Nv ${this.level}`);
+      this.app.sound?.play?.('ok', { volume: 0.5 });
+    } else if (reason === 'safety') {
+      this.float(pet.x, pet.y - pet.P * 1.3, '🛑 Treino interrompido (segurança)');
+    } else {
+      this.float(pet.x, pet.y - pet.P * 1.3, '😵 Sem energia — fim do treino');
+    }
+    // The Scrap Dummy is reset for the next round.
+    this.opp.hp = this.opp.max;
     this.stop(reason);
   }
 
@@ -325,6 +473,38 @@ export class Melee {
     this.pet.endToy?.(true);
     this.pet.chooseNext?.();
     return true;
+  }
+
+  // ---------------- the Scrap Dummy's health bar ----------------
+
+  showHpBar() {
+    if (this.hpBar) return this.hpBar;
+    const el = document.createElement('div');
+    el.className = 'scrap-hp';
+    el.innerHTML = '<i></i>';
+    document.body.append(el);
+    this.hpBar = el;
+    return el;
+  }
+
+  updateHpBar() {
+    const el = this.hpBar;
+    if (!el) return;
+    const P = this.pet.P;
+    const x = this.oppX() ?? this.pet.x;
+    const y = this.oppY() - P * 1.15;
+    const w = Math.max(40, P * 0.9);
+    const pct = Math.max(0, Math.round((this.opp.hp / this.opp.max) * 100));
+    el.style.left = `${Math.round(x - w / 2)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    el.style.width = `${Math.round(w)}px`;
+    el.firstElementChild.style.width = `${pct}%`;
+    el.classList.toggle('low', pct <= 30);
+  }
+
+  removeHpBar() {
+    this.hpBar?.remove();
+    this.hpBar = null;
   }
 
   // ---------------- helpers ----------------

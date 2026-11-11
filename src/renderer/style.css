@@ -566,6 +566,20 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   animation: fx-flash 0.45s ease-out forwards; }
 
 /* ---------- COMBAT_MODE: a red frame burns around the screen ---------- */
+.vfx-impact { position: fixed; pointer-events: none; z-index: 9996; image-rendering: pixelated; }
+body.combat-shake { animation: combat-shake 0.2s ease-out; }
+body.combat-shake #pet { animation: combat-shake 0.2s ease-out; }
+@keyframes combat-shake {
+  0% { translate: 0 0; }
+  20% { translate: calc(var(--shake, 0.5) * 6px) calc(var(--shake, 0.5) * -3px); }
+  45% { translate: calc(var(--shake, 0.5) * -5px) calc(var(--shake, 0.5) * 2px); }
+  70% { translate: calc(var(--shake, 0.5) * 3px) 0; }
+  100% { translate: 0 0; }
+}
+/* The Scrap Dummy's health bar while the sparring is on. */
+.scrap-hp { position: fixed; z-index: 9995; pointer-events: none; height: 7px; background: #1d1a26; border: 2px solid #0f0d16; image-rendering: pixelated; }
+.scrap-hp i { display: block; height: 100%; background: linear-gradient(#ff7a5c, #e2475a); }
+.scrap-hp.low i { background: linear-gradient(#ffd23f, #e2475a); }
 .combat-frame { position: fixed; inset: 0; pointer-events: none; z-index: 9997; opacity: 0; transition: opacity 0.35s ease-out; }
 body.combat-mode .combat-frame { opacity: 1; }
 .combat-frame::before {

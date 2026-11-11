@@ -21,6 +21,7 @@ export const UPGRADES = {
   venda_comida: { name: 'Máquina de Comida Neon', note: 'Visual synthwave, compras com holograma e teleporte e comidas exclusivas com buff' },
   venda_bebida: { name: 'Máquina de Bebida Neon', note: 'Visual synthwave, compras com holograma e teleporte e bebidas exclusivas com buff' },
   alvo: { name: 'Arcade de Tiro', note: 'Vira uma máquina de arcade de tiro (maior): ela joga com a pistola de luz', pix: 'arcade_up', size: 1.45, ratio: 46 / 26 },
+  boneco_treino: { price: 1200, name: 'Boneco Sucataoxidado', note: 'Robusto: chapas de metal enferrujado, engrenagens e juntas mecânicas · libera o Treino Pesado (luta de verdade)', pix: 'dummy_scrap' },
 };
 
 export const upgradeCost = (id, item) => UPGRADES[id]?.price ?? Math.ceil((item?.price || 0) * 1.5);

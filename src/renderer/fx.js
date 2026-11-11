@@ -4,6 +4,17 @@
 import { icon } from './pixel.js';
 import { isPowerUp } from './game.js';
 
+// Impact effects for the melee (pixel sheets from 06_VFX): the strike spark, the slash, the
+// dust and the metallic shield. Drawn on a small canvas, one frame at a time.
+const IMPACT = {
+  spark: { file: 'electric-impact', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.6 },
+  rust: { file: 'electric-impact', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.5, tint: 'sepia(1) saturate(3.4) hue-rotate(-18deg) brightness(0.9)' },
+  slash: { file: 'crescent-slash', frames: 10, cols: 5, cell: 96, ms: 50, scale: 0.85 },
+  burst: { file: 'warm-explosion', frames: 15, cols: 5, cell: 96, ms: 50, scale: 0.8 },
+  dust: { file: 'smoke-puff', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.5 },
+  shield: { file: 'electric-impact', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.5, tint: 'grayscale(0.4) brightness(1.5) contrast(1.2)' },
+};
+
 export class Fx {
   constructor(app) {
     this.app = app;
@@ -65,6 +76,52 @@ export class Fx {
     ring.style.borderColor = '#7f7';
     document.body.append(ring);
     setTimeout(() => ring.remove(), 1100);
+  }
+
+  // A melee impact at (x, y): the pixel sheet of the effect, played frame by frame.
+  impact(kind, x, y, scale = 1) {
+    const def = IMPACT[kind];
+    if (!def || typeof document === 'undefined') return;
+    const cv = document.createElement('canvas');
+    cv.className = 'vfx-impact';
+    cv.width = def.cell;
+    cv.height = def.cell;
+    const size = Math.round(def.cell * def.scale * scale);
+    cv.style.width = `${size}px`;
+    cv.style.height = `${size}px`;
+    cv.style.left = `${Math.round(x - size / 2)}px`;
+    cv.style.top = `${Math.round(y - size / 2)}px`;
+    if (def.tint) cv.style.filter = def.tint;
+    document.body.append(cv);
+    const img = new Image();
+    img.src = new URL(`./assets/vfx/${def.file}.png`, import.meta.url).href;
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const t0 = performance.now();
+    const tick = () => {
+      const i = Math.min(def.frames - 1, Math.floor((performance.now() - t0) / def.ms));
+      const sx = (i % def.cols) * def.cell;
+      const sy = Math.floor(i / def.cols) * def.cell;
+      g.clearRect(0, 0, def.cell, def.cell);
+      g.drawImage(img, sx, sy, def.cell, def.cell, 0, 0, def.cell, def.cell);
+      if (i < def.frames - 1) requestAnimationFrame(tick);
+      else setTimeout(() => cv.remove(), 60);
+    };
+    if (img.complete && img.naturalWidth) tick();
+    else img.onload = tick;
+    img.onerror = () => cv.remove();
+  }
+
+  // The screen (and the pet) shake on a heavy hit.
+  shake(strength = 0.5) {
+    if (typeof document === 'undefined') return;
+    const b = document.body;
+    b.classList.remove('combat-shake');
+    void b.offsetWidth;      // restart the animation
+    b.style.setProperty('--shake', String(Math.max(0.15, Math.min(1, strength))));
+    b.classList.add('combat-shake');
+    clearTimeout(this.shakeT);
+    this.shakeT = setTimeout(() => b.classList.remove('combat-shake'), 220);
   }
 
   update(dt, head, hidden) {

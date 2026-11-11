@@ -336,6 +336,34 @@ defineIcons({
     px(6, 5, '#5a3a28'); px(7, 6, '#5a3a28'); px(8, 5, '#5a3a28'); px(9, 6, '#5a3a28');
     circle(8, 13, 3, '#c02828'); circle(8, 13, 1, '#e83838');
   }),
+  // The upgraded dummy: rusty scrap metal, exposed gears, bolts and mechanical joints.
+  dummy_scrap: (sprite) => sprite(16, 28, ({ rect, circle, px }) => {
+    // Base plate and the post.
+    rect(4, 24, 8, 4, '#4a3b33'); rect(4, 24, 8, 1, '#6d564a');
+    rect(6, 14, 4, 11, '#5a4a40'); rect(6, 14, 1, 11, '#7d6558');
+    rect(3, 24, 10, 1, '#2f2620');
+    // Torso: rusty plates with rivets.
+    rect(3, 8, 10, 7, '#8a6b52'); rect(3, 8, 10, 1, '#b08a68');
+    rect(4, 9, 8, 5, '#75563f'); rect(4, 9, 1, 5, '#9c7a5c');
+    rect(7, 9, 2, 5, '#5e4534');
+    px(3, 9, '#d8b487'); px(12, 9, '#d8b487'); px(3, 14, '#d8b487'); px(12, 14, '#d8b487');
+    // Exposed gear on the chest.
+    circle(8, 12, 2, '#c9a15e'); circle(8, 12, 1, '#6b4f2c'); px(8, 11, '#e8c88a');
+    // Rust spots.
+    px(5, 11, '#b5613a'); px(10, 13, '#b5613a'); px(6, 14, '#9c4f2f'); px(11, 10, '#9c4f2f');
+    // Arms: scrap beams with bolts.
+    rect(1, 9, 2, 6, '#6b5449'); rect(13, 9, 2, 6, '#6b5449');
+    rect(0, 10, 1, 4, '#8a6b52'); rect(15, 10, 1, 4, '#8a6b52');
+    px(1, 9, '#d8b487'); px(14, 9, '#d8b487'); px(1, 14, '#d8b487'); px(14, 14, '#d8b487');
+    // Joints (mechanical shoulders).
+    circle(2, 9, 1, '#3a3a44'); circle(13, 9, 1, '#3a3a44');
+    // Head: a metal box with a single glowing eye and antennae.
+    rect(5, 2, 6, 5, '#8a6b52'); rect(5, 2, 6, 1, '#b08a68'); rect(6, 3, 4, 3, '#5e4534');
+    rect(7, 4, 2, 1, '#ff7a3d'); px(6, 3, '#d8b487'); px(9, 3, '#d8b487');
+    px(5, 0, '#6b5449'); px(10, 0, '#6b5449'); px(5, 1, '#8a6b52'); px(10, 1, '#8a6b52');
+    // Scrap on the head and a crack on the plates.
+    px(4, 6, '#b5613a'); px(11, 6, '#b5613a'); px(9, 10, '#4a3b33');
+  }),
 });
 
 defineIcons({ printer3d: (sprite) => sprite(28, 28, ({ rect, px }) => {

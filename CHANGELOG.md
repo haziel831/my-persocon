@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.13 — 11/11/2026
+**Energia por nível.** Cada golpe agora custa menos energia conforme o Nível de Combate: `custo = max(0,8; 3 × (1 − (nível − 1) × 0,06))` — no nível 1 são 3 de energia por golpe e no nível 10 menos de 1,4. Ela treina e luta muito mais tempo conforme domina o combate.
+**Boneco Sucataoxidado.** O Boneco de Treino agora pode ser melhorado (¥ 1200) e vira um boneco de sucata: chapas de metal enferrujado, engrenagens expostas, parafusos, juntas mecânicas e um olho aceso.
+**Treino Pesado** (só no boneco melhorado e **apenas pela mão do jogador** — ela nunca começa isso sozinha): uma luta de verdade, com `COMBAT_MODE` completo (borda vermelha pulsante, trilha de combate, trava de interação e de eventos). O Sucataoxidado é **um nível abaixo** dela (ou igual nos níveis 1 e 2), **ataca de volta** com dano real na Saúde dela (a Accuracy dele contra o bloqueio/desvio dela) e tem **barra de vida em cima dele**. Nunca é fatal: se a Saúde dela cair a 50% (ou ela perder 50% do HP), a luta para na hora; se o HP do boneco chegar a 0, ela ganha um bônus de XP; e no fim o Sucataoxidado volta a 100%.
+**Efeitos de impacto** sincronizados com o frame do golpe: faísca nos golpes leves (jab, cross), corte + explosão nos pesados (uppercut, chute circular), brilho metálico e poeira no bloqueio, faíscas de ferrugem quando o boneco mecânico toma dano — tudo em pixel art, com tremor de tela proporcional à força do golpe.
+Detalhes em `ChangeLogs\v1.9.13.md`.
+
 ## v1.9.12 — 11/11/2026
 **Combate por turnos.** Treinar no Boneco de Treino virou uma luta de verdade: enquanto ela luta, o jogo entra em `COMBAT_MODE` — nada interrompe (sem carinho, sem arrastar, sem comandos manuais, sem pedidos de comida, sem anticinhas e sem o corvo atrapalhando).
 Os turnos alternam (ela → adversário) e cada um rola a chance de acerto, de crítico e de bloqueio a partir do **Nível de Combate**: nível alto = mais acerto, mais crítico e defesa melhor. As animações de combate (antecipação, frame do golpe e recuperação) tocam em cada turno, com o feedback flutuante do resultado (💥 acertou, 🛡 bloqueou, 💨 errou).
