@@ -15,9 +15,12 @@ function sprite(w, h, paint, outline = '#1d1a26', hd = true, light = true) {
   const circle = (cx, cy, r, color) => {
     for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * 0.6) px(cx + x, cy + y, color);
   };
-  // Draws an already loaded image (a sprite-sheet cell) inside the icon being painted.
+  // Draws an already loaded image (a sprite-sheet cell) or a canvas inside the icon being painted.
   const image = (img, sx, sy, sw, sh, dx, dy, dw, dh) => {
-    if (!img || !img.complete || !img.naturalWidth) return;
+    if (!img) return;
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h) return;
     const smooth = g.imageSmoothingEnabled;
     g.imageSmoothingEnabled = false;
     g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
@@ -806,6 +809,13 @@ const cache = new Map();
 export function icon(name) {
   if (!cache.has(name)) cache.set(name, DEFS[name] ? DEFS[name]() : '');
   return cache.get(name);
+}
+
+// Redraws an icon whose definition changed (the shelf is rebuilt when its content changes)
+// and returns the new url, without piling up old versions in the cache.
+export function refreshIcon(name) {
+  cache.delete(name);
+  return icon(name);
 }
 
 // Switches the finish and redraws the cached icons, swapping them in the images already on screen.

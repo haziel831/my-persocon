@@ -180,17 +180,27 @@ export const FIGURES = FIG.map(([id, name, rarity, kind, look, up]) => ({
 export const figureById = (id) => FIGURES.find((f) => f.id === id);
 
 // Paints the 14x20 figure (with its base) at (ox, oy) of another sprite: the shelves use it.
-export function paintFigure(id, p, ox = 0, oy = 0) {
+// k scales the art by an integer factor (the shelves draw it twice as big, still pixel sharp).
+// base = false skips the little stand, so the shelf can draw its own on the plank.
+export function paintFigure(id, p, ox = 0, oy = 0, k = 1, base = true) {
   const f = FIG.find((e) => e[0] === id);
   if (!f) return;
   const [, , rarity, kind, look] = f;
   const q = {
-    rect: (x, y, w, h, c) => p.rect(ox + x, oy + y, w, h, c),
-    px: (x, y, c) => p.px(ox + x, oy + y, c),
-    circle: (x, y, r, c) => p.circle(ox + x, oy + y, r, c),
+    rect: (x, y, w, h, c) => p.rect(ox + x * k, oy + y * k, w * k, h * k, c),
+    px: (x, y, c) => p.rect(ox + x * k, oy + y * k, k, k, c),
+    circle: (x, y, r, c) => p.circle(ox + x * k, oy + y * k, r * k, c),
   };
   (kind === 'person' ? person(look) : SHAPES[kind](look))(q);
-  q.rect(1, 17, 12, 3, '#2c2e38'); q.rect(1, 17, 12, 1, RARITY_COLOR[rarity]);
+  if (!base) return;
+  q.rect(1, 17, 12, 3, '#2c2e38');
+  q.rect(1, 17, 12, 1, RARITY_COLOR[rarity]);
+}
+
+// Color of the little stand under a figure (its rarity).
+export function figureStandColor(id) {
+  const f = FIG.find((e) => e[0] === id);
+  return f ? RARITY_COLOR[f[2]] : '#2c2e38';
 }
 
 defineIcons(Object.fromEntries(FIG.map(([id]) => [id, (sprite) => sprite(14, 20, (p) => paintFigure(id, p))])));

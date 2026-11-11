@@ -14,6 +14,7 @@ import { loadClips, Animator } from './animation.js';
 import { ITEMS, itemById } from './game.js';
 import { LOOT_ITEMS } from './lootitems.js';
 import { defineIcons, icon, emojiOnly } from './pixel.js';
+import { CONSOLE_SLOTS } from './furniture.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -811,7 +812,31 @@ export class Crow {
       if (t.y != null && t.y < floor - P * 0.35) continue;
       out.push(id);
     }
+    // The handhelds left scattered on the desktop are picked up too.
+    for (const slot of CONSOLE_SLOTS) {
+      const t = game.toys[slot.id];
+      if (!t?.placed || t.broken || t.on || out.includes(slot.id)) continue;
+      if (!toys.here(t) || toys.busy(slot.id) || toys.hops?.has(slot.id)) continue;
+      if (pet.toyPlay?.id === slot.id || this.app.doll?.brain?.task?.toy === slot.id) continue;
+      if (this.holdToyId === slot.id) continue;
+      if (t.y != null && t.y < floor - P * 0.35) continue;
+      out.push(slot.id);
+    }
     return out;
+  }
+
+  // Where a handheld goes back to: its reserved slot on the Gaming Shelf (or Pro).
+  shelfSpot(id) {
+    const { game, toys } = this.app;
+    const slot = CONSOLE_SLOTS.find((s) => s.id === base(id));
+    if (!slot) return null;
+    const shelf = Object.entries(game.toys)
+      .find(([k, t]) => base(k) === 'estante_cartuchos' && t.placed && toys.here(t));
+    if (!shelf) return null;
+    const [key, furn] = shelf;
+    const w = toys.size(key);
+    const x = furn.x + (slot.at - 0.5) * w;
+    return { key, x, y: toys.topAt(key, x) };
   }
 
   tidySpot(exceptId) {
@@ -841,15 +866,17 @@ export class Crow {
       }
       return false;
     }
-    const spot = this.tidySpot(ids[0]);
-    if (!spot) {
-      if (manual) this.app.minigames?.toast('Não tem mobília para guardar em cima');
-      return false;
-    }
     const id = pick(ids);
     const { game, toys, sound } = this.app;
     const t = game.toys[id];
     const item = itemById(base(id));
+    // A handheld goes straight back to its reserved slot on the Gaming Shelf.
+    const home = this.shelfSpot(id);
+    const spot = home || this.tidySpot(ids[0]);
+    if (!spot) {
+      if (manual) this.app.minigames?.toast('Não tem mobília para guardar em cima');
+      return false;
+    }
     this.data.tidyAt = Date.now() + rand(2, 5) * 60e3;
     this.say('📦', 1.2);
     this.flyTo(() => ({ x: t.x, y: this.floorY() }), () => {
@@ -861,7 +888,7 @@ export class Crow {
       this.play('peck');
       this.idle(0.45, 'peck');
       this.act.then = () => {
-        const dest = this.tidySpot(id) || spot;
+        const dest = home || this.tidySpot(id) || spot;
         if (!dest || !game.toys[dest.key]?.placed) {
           this.holdToyId = null;
           this.carry = [];

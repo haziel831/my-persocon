@@ -1,6 +1,13 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.10', [
+    ['Estante e Gaming Shelf redesenhadas na própria resolução e mostradas 1:1: sem blur, com as capas dos mangás, as miniaturas e os cartuchos grandes e nítidos', 'Bookshelf and Gaming Shelf redrawn at their own resolution and shown 1:1: no blur, with the manga covers, the figures and the cartridges big and sharp'],
+    ['Mangás agora aparecem de frente com a capa real, miniaturas em dobro tamanho e cartuchos com a arte do rótulo legível', 'Mangas now show the real cover from the front, figures are twice as big and the cartridges show a readable label'],
+    ['Gaming Shelf ganhou um expositor no topo com 3 lugares reservados para o GameBuddy, o GameGlow e o PlayPocket 3000', 'The Gaming Shelf got a display deck on top with 3 reserved slots for the GameBuddy, the GameGlow and the PlayPocket 3000'],
+    ['Portátil guardado na estante aparece no lugar dele (sem cópia na mesa); dá para brincar com ele pela lista da estante', 'A handheld stored on the shelf shows in its slot (no copy on the desk); you can play with it from the shelf list'],
+    ['O corvo agora arruma os portáteis deixados na mesa: leva direto para o lugar reservado na Gaming Shelf', 'The crow now tidies the handhelds left on the desk: it takes them straight to their reserved slot on the Gaming Shelf'],
+  ]],
   ['1.9.9', [
     ['24 comidas novas com arte pixel-art 32×32 (hambúrguer, pizza, sushi, ramen, espaguete, curry, taco, panquecas, waffle, batata frita, pipoca e mais)', '24 new foods with 32×32 pixel-art (burger, pizza, sushi, ramen, spaghetti, curry, taco, pancakes, waffle, french fries, popcorn and more)'],
     ['11 sobremesas novas com arte pixel-art 32×32 (torta de maçã, torta de limão, bolo de frutas, donut, pudim, sorvete, biscoitos, chocolate, gelatina, ursinho de gummy e homem de gengibre)', '11 new desserts with 32×32 pixel-art (apple pie, lemon pie, fruit cake, donut, pudding, ice cream, cookies, chocolate, jelly, gummy bear and gingerbread man)'],

@@ -4,7 +4,7 @@ import { itemById, TASTE_RANK, HER_BAG } from './game.js';
 import { DIFFICULTIES } from './behavior.js';
 import { icon, cartridge, cartSheetStyle } from './pixel.js';
 import { GAMES } from './games.js';
-import { FURN, BALLS, CONSOLES, Furniture, baseId, PRINT_AREA, MANGAS, MANGA_GENRES } from './furniture.js';
+import { FURN, BALLS, CONSOLES, CONSOLE_SLOTS, Furniture, baseId, PRINT_AREA, MANGAS, MANGA_GENRES } from './furniture.js';
 import { Casino } from './casino.js';
 import { GACHA_PRICE, STYLES, pickStyle, figureById } from './casinoitems.js';
 import { FunToys, FUN_SIZE } from './funtoys.js';
@@ -2358,7 +2358,7 @@ export class Toys {
     info.textContent = `${en ? 'Used' : 'Ocupado'}: ${used}/${this.furn.shelfCapacity(id)} · ${en ? 'click anywhere to close' : 'clique em qualquer lugar para fechar'}`;
     const list = document.createElement('div');
     list.className = 'shelf-rows';
-    const mkRow = (owned, text, cart) => {
+    const mkRow = (owned, text, cart, consoleId) => {
       const r = document.createElement('div');
       r.className = `shelf-row ${owned ? 'owned' : 'unknown'}`;
       if (cart) {
@@ -2376,6 +2376,10 @@ export class Toys {
         r.title = en ? 'Use this cartridge' : 'Usar este cartucho';
         if (game.cartridge === cart) r.classList.add('active');
       }
+      if (consoleId) {
+        r.dataset.console = consoleId;
+        r.title = en ? 'Play with this handheld' : 'Brincar com este portátil';
+      }
       return r;
     };
     if (kind === 'cart') {
@@ -2389,7 +2393,7 @@ export class Toys {
         h.className = 'shelf-sub';
         h.textContent = en ? 'Consoles on top' : 'Consoles no topo';
         list.append(h);
-        for (const c of seenConsoles) list.append(mkRow(true, itemById(c)?.name || c));
+        for (const c of seenConsoles) list.append(mkRow(true, itemById(c)?.name || c, null, c));
       }
     } else {
       for (const m of MANGAS) {
@@ -2411,7 +2415,17 @@ export class Toys {
     sound.play('blip', { volume: 0.45 });
     const onDown = (ev) => {
       const cart = ev?.target?.closest?.('[data-cart]')?.dataset.cart;
-      if (cart) {
+      const consoleId = ev?.target?.closest?.('[data-console]')?.dataset.console;
+      if (consoleId) {
+        // A handheld stored on the shelf comes out to play with her.
+        if (!game.toys[consoleId]?.placed) {
+          const shelf = Object.entries(game.toys).find(([k, t]) => baseId(k) === 'estante_cartuchos' && t.placed);
+          game.placeToy(consoleId, shelf ? shelf[1].x : (this.app.pet.x ?? 0));
+        }
+        this.want = consoleId;
+        this.goPlay();
+        sound.play('ok', { volume: 0.4 });
+      } else if (cart) {
         game.cartridge = cart;
         game.changed();
         if (this.screen?.game) this.screen.start(cart);
@@ -2470,23 +2484,18 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       game.dirty = true;
     }
     const seen = new Set();
-    // Portable consoles rest on top of the Gaming Shelf (and follow it when it moves).
+    // The handhelds have a reserved slot on the Gaming Shelf: they stay lined up with it.
     const gshelf = Object.keys(game.toys)
       .filter((k) => baseId(k) === 'estante_cartuchos' && game.toys[k].placed)
       .sort((a, b) => (Number(a.split('#')[1]) || 1) - (Number(b.split('#')[1]) || 1))[0];
     if (gshelf) {
       const sw = this.size(gshelf);
-      let ci = 0;
-      for (const cid of Object.keys(CONSOLES)) {
-        if (cid === 'gameboy') continue; // GameBuddy stays on the desktop next to the printer
-        const ct = game.toys[cid];
+      for (const slot of CONSOLE_SLOTS) {
+        const ct = game.toys[slot.id];
         if (!ct?.placed || ct.broken) continue;
-        if (!ct.on || baseId(ct.on) !== 'estante_cartuchos') {
-          ct.on = gshelf;
-          ct.dx = (ci - 1) * sw * 0.24;
-          ct.y = undefined;
-        }
-        ci++;
+        if (!ct.on || baseId(ct.on) !== 'estante_cartuchos') continue;
+        ct.dx = (slot.at - 0.5) * sw;
+        ct.y = undefined;
       }
     }
     const list = Object.entries(game.toys).filter(([id, t]) => t.placed && !BALLS[id] && id !== 'pelucia' && this.here(t));
@@ -2519,7 +2528,9 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const tp = pet.toyPlay;
       const inHands = (tp?.id === id && tp.hold && tp.t >= tp.holdFrom && !(FURN[id] && !FURN[id].console)) || this.fun.hides(id);
       const crowHold = this.app.crow?.holdToyId === id;
-      el.style.display = hidden || inHands || crowHold ? 'none' : 'block';
+      // A handheld stored on the Gaming Shelf is drawn inside the shelf: no copy on the desk.
+      const onDeck = this.furn.onDeck?.(id);
+      el.style.display = hidden || inHands || crowHold || onDeck ? 'none' : 'block';
       el.classList.toggle('broken', !!t.broken);
       if (t.broken) {
         el.style.setProperty('--brk', `url("${src}")`);

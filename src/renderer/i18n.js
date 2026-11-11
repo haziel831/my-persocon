@@ -43,6 +43,7 @@ const EN = {
   'Nome': 'Name', 'Idade': 'Age', 'Afeição': 'Affection', 'Moedas': 'Coins', 'Itens consumidos': 'Items consumed',
   'Favoritos': 'Favorites', 'Cafunés / tapas': 'Pats / slaps', 'Jogos no GameBuddy': 'GameBuddy games', 'Cartuchos': 'Cartridges',
   '📚 Ver conteúdo da estante': '📚 View shelf contents', '🕹 Ver conteúdo da Gaming Shelf': '🕹 View Gaming Shelf contents',
+  'Brincar com este portátil': 'Play with this handheld', 'Consoles no topo': 'Consoles on top',
   'Brinquedos comprados': 'Toys bought', 'Pedidos atendidos': 'Requests fulfilled',
   'Tem certeza? Clique de novo para apagar tudo': 'Are you sure? Click again to erase everything',
   '🗑 Apagar save e começar uma nova Persocon': '🗑 Delete save and start a new Persocon',
