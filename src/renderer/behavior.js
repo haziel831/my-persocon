@@ -67,6 +67,11 @@ export const DEBUFFS = {
   lesao: { icon: '🩹', art: 'db_lesao', color: '#ff8a8a', auto: 3600e3, fx: { energy: -0.03, mood: -0.02, health: -0.012 },
     pt: { name: 'Lesão', desc: 'Energia, humor e saúde caem', cure: 'Remédio ou tempo' },
     en: { name: 'Injury', desc: 'Energy, Mood and Health drop', cure: 'Medicine or time' } },
+  // Atordoado: um golpe pesado do inimigo deixa ela tonta por 1 a 3 turnos (a duração em turnos é
+  // sorteada na hora; o debuff só mantém o ícone na tela até a luta acabar).
+  atordoado: { icon: '💫', art: 'db_atordoado', color: '#c8a0f0', auto: 45000e3, fx: { mood: -0.01 },
+    pt: { name: 'Atordoado', desc: 'Ela erra muitos golpes (1 a 3 turnos)', cure: 'Esperar ou tomar um remédio' },
+    en: { name: 'Stunned', desc: 'She misses many strikes (1 to 3 turns)', cure: 'Wait it out or take a medicine' } },
 };
 
 // How low her core stats are (0 = fine, 1 = everything critical): scales the random rolls, so

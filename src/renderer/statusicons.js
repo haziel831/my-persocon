@@ -85,4 +85,15 @@ defineIcons({
     px(5, 7, '#d8303c'); px(7, 7, '#d8303c');
     px(2, 7, '#d89070'); px(11, 7, '#d89070');
   }),
+  // Dazed: a purple face with swirling stars around it.
+  db_atordoado: (s) => s(14, 14, ({ rect, px, circle }) => {
+    circle(7, 8, 5, '#c8a0f0');
+    rect(4, 7, 2, 2, '#1d1a26'); rect(8, 7, 2, 2, '#1d1a26');
+    rect(5, 11, 4, 1, '#1d1a26');
+    px(4, 10, '#1d1a26'); px(10, 10, '#1d1a26');
+    // The little stars around the head.
+    px(1, 2, '#ffe98a'); px(2, 1, '#ffe98a'); px(3, 2, '#ffe98a'); px(2, 3, '#ffe98a');
+    px(11, 2, '#ffe98a'); px(12, 1, '#ffe98a'); px(13, 2, '#ffe98a'); px(12, 3, '#ffe98a');
+    px(1, 12, '#ffe98a'); px(2, 11, '#ffe98a'); px(3, 12, '#ffe98a');
+  }),
 });

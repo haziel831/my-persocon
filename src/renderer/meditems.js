@@ -13,13 +13,14 @@ const med = (id, name, price, file, extra = {}) => ({
 export const MED_ITEMS = [
   // Cura de efeitos negativos
   med('md_bandage', 'Bandagem', 10, 'bandage.png', { cures: ['lesao'], effects: { health: 8, mood: -2 } }),
-  med('md_firstaid', 'Kit de Primeiros Socorros', 40, 'firstaid.png', { cures: ['gripe', 'prisao', 'nausea', 'lesao'], effects: { health: 18, mood: -4 } }),
-  med('md_firstaid_red', 'Kit de Primeiros Socorros (Vermelho)', 55, 'firstaid_red.png', { cures: ['gripe', 'prisao', 'nausea', 'lesao'], effects: { health: 28, mood: -6 } }),
+  // O kit de primeiros socorros é o cura grande do combate: limpa tudo e devolve muita Saúde.
+  med('md_firstaid', 'Kit de Primeiros Socorros', 40, 'firstaid.png', { cures: ['gripe', 'prisao', 'nausea', 'lesao', 'atordoado'], effects: { health: 45, mood: -4 } }),
+  med('md_firstaid_red', 'Kit de Primeiros Socorros (Vermelho)', 55, 'firstaid_red.png', { cures: ['gripe', 'prisao', 'nausea', 'lesao', 'atordoado'], effects: { health: 65, mood: -6 } }),
   med('md_bottle_red', 'Remédio para Gripe', 15, 'bottle_red.png', { cures: ['gripe'], effects: { health: 10, mood: -3 } }),
   med('md_bottle_blue', 'Remédio para Estômago', 15, 'bottle_blue.png', { cures: ['prisao'], effects: { health: 8, mood: -3 } }),
   med('md_bottle_green', 'Remédio para Náusea', 15, 'bottle_green.png', { cures: ['nausea'], effects: { health: 8, mood: -3 } }),
-  med('md_bottle_orange', 'Remédio de Cura', 18, 'bottle_orange.png', { cures: ['lesao'], effects: { health: 14, mood: -3 } }),
-  med('md_bottle_pink', 'Remédio Universal', 25, 'bottle_pink.png', { cures: ['gripe', 'prisao', 'nausea', 'lesao'], effects: { health: 12, mood: -4 } }),
+  med('md_bottle_orange', 'Remédio de Cura', 18, 'bottle_orange.png', { cures: ['lesao', 'atordoado'], effects: { health: 14, mood: -3 } }),
+  med('md_bottle_pink', 'Remédio Universal', 25, 'bottle_pink.png', { cures: ['gripe', 'prisao', 'nausea', 'lesao', 'atordoado'], effects: { health: 12, mood: -4 } }),
   med('md_pills', 'Comprimidos', 20, 'pills.png', { clearBuffs: true, effects: { mood: -5 } }),
 
   // Bônus (buffs) — todos custam Humor
