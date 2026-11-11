@@ -1,4 +1,4 @@
-MY PERSOCON — v1.9.9
+MY PERSOCON — v1.9.10
 ==================
 
 Um companheiro virtual que vive no seu desktop: anda sobre as janelas e a barra

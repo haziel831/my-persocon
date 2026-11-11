@@ -7,6 +7,12 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.10 — 10/11/2026
+Redesenho completo das estantes: a Estante e a Gaming Shelf agora são desenhadas na própria resolução e mostradas 1:1 na tela (sem escala), então nada fica borrado — mangás aparecem de frente com a capa real, miniaturas colecionáveis em dobro tamanho e cartuchos com a arte do rótulo legível. As estantes também ficaram maiores na área de trabalho (cerca de 2,3× a altura da Persocon), para os itens caberem e serem vistos.
+A Gaming Shelf ganhou um expositor no topo com 3 lugares reservados (esquerda, centro, direita) para o GameBuddy, o GameGlow e o PlayPocket 3000, com base e moldura próprias. O portátil guardado na estante é desenhado no lugar dele (sem cópia na mesa) e dá para brincar com ele pela lista da estante.
+O corvo aprendeu a arrumar os portáteis: quando encontra um deles solto na mesa, leva direto para o lugar reservado dele na Gaming Shelf (se ela não estiver na mesa, usa o guardado normal).
+Detalhes em `ChangeLogs\v1.9.10.md`.
+
 ## v1.9.9 — 10/11/2026
 35 novos itens de comida e sobremesa com arte pixel-art 32×32 (copiada de `Assets\NEW\Ghostpixxells_pixelfood` para `src\renderer\assets\food32\` pelo script `scripts\copy-food32.ps1`): 24 comidas (hambúrguer, pizza, sushi, ramen, espaguete, macarrão com queijo, curry, burrito, taco, sanduíche, hot dog, panquecas, waffle, frango assado, bife, salmão, momo, omelete, batata frita, nachos, cheese puff, pão de alho, pipoca, chips) e 11 sobremesas (torta de maçã, torta de limão, bolo de frutas, donut, homem de gengibre, pudim, sorvete, biscoitos, chocolate, gelatina, ursinho de gummy).
 Preços e efeitos conforme o tipo: prato principal enche a fome (¥14–32), lanche é barato (¥10–13) e sobremesa é cara, dá muita alegria e quase nenhuma fome (¥22–40).
