@@ -803,6 +803,9 @@ export class Toys {
     const scale = this.app.game.toys[key]?.scale || 1;
     const id = baseId(key);
     const bagUp = (id === 'bag' || id === 'food') && this.bagsUp() ? 1.3 : 1;
+    // A handheld docked on the roof of the Gaming Shelf shrinks to fit the three slots.
+    const roof = this.furn.roofSize?.(key);
+    if (roof) return roof;
     return Math.round(this.P * scale * bagUp * upSize(id, this.app.game.toys[key]) * (FURN[id]?.size ?? FUN_SIZE[id]?.[0] ?? { gameboy: 0.2, bag: 0.26, food: 0.3, espada: 0.07, syntoyo: 0.09 }[id] ?? 0.28));
   }
 
@@ -2202,10 +2205,15 @@ export class Toys {
       const s = x != null && this.landing(id, x, po.y ?? floor);
       if (s) {
         Object.assign(po, { on: s.key, dx: x - game.toys[s.key].x, y: this.topAt(s.key, x) });
+        po.loose = false;
         this.app.sound.play('blip', { volume: 0.35, rate: 1.3 });
-      } else if (!this.editing && po.y !== undefined) {
-        this.ys.set(id, po.y);
-        po.y = undefined;
+      } else {
+        // Left on the desk: a handheld stays there until the crow puts it back on the shelf.
+        po.loose = true;
+        if (!this.editing && po.y !== undefined) {
+          this.ys.set(id, po.y);
+          po.y = undefined;
+        }
       }
     };
     if (this.editing) this.select(id);
@@ -2484,7 +2492,8 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       game.dirty = true;
     }
     const seen = new Set();
-    // The handhelds have a reserved slot on the Gaming Shelf: they stay lined up with it.
+    // The handhelds stand on the ROOF of the Gaming Shelf, each one in its reserved slot.
+    // A console left lying on the desk stays there (the crow picks it up and puts it back).
     const gshelf = Object.keys(game.toys)
       .filter((k) => baseId(k) === 'estante_cartuchos' && game.toys[k].placed)
       .sort((a, b) => (Number(a.split('#')[1]) || 1) - (Number(b.split('#')[1]) || 1))[0];
@@ -2493,9 +2502,13 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       for (const slot of CONSOLE_SLOTS) {
         const ct = game.toys[slot.id];
         if (!ct?.placed || ct.broken) continue;
-        if (!ct.on || baseId(ct.on) !== 'estante_cartuchos') continue;
+        if (this.draggingId === slot.id) continue;         // being dragged by the player
+        if (!ct.on && (ct.y != null || ct.loose)) continue;  // lying on the desk: leave it there
+        if (ct.on && baseId(ct.on) !== 'estante_cartuchos') continue;
+        ct.on = gshelf;
         ct.dx = (slot.at - 0.5) * sw;
         ct.y = undefined;
+        ct.loose = false;
       }
     }
     const list = Object.entries(game.toys).filter(([id, t]) => t.placed && !BALLS[id] && id !== 'pelucia' && this.here(t));
@@ -2528,9 +2541,7 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const tp = pet.toyPlay;
       const inHands = (tp?.id === id && tp.hold && tp.t >= tp.holdFrom && !(FURN[id] && !FURN[id].console)) || this.fun.hides(id);
       const crowHold = this.app.crow?.holdToyId === id;
-      // A handheld stored on the Gaming Shelf is drawn inside the shelf: no copy on the desk.
-      const onDeck = this.furn.onDeck?.(id);
-      el.style.display = hidden || inHands || crowHold || onDeck ? 'none' : 'block';
+      el.style.display = hidden || inHands || crowHold ? 'none' : 'block';
       el.classList.toggle('broken', !!t.broken);
       if (t.broken) {
         el.style.setProperty('--brk', `url("${src}")`);

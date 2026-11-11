@@ -419,17 +419,6 @@ export class Game {
     }
     if (this.cartridges?.length && !this.hasGamingShelf()) this.bag = true;
     if (!t) return;
-    // With a Gaming Shelf on the desk the GameBuddy is stored on its slot on top of the shelf.
-    if (this.hasGamingShelf?.() && !this.manualGameboyStored) {
-      if (t.placed) {
-        t.placed = false;
-        t.x = null;
-        t.y = t.on = t.dx = undefined;
-        this.inventory.gameboy = (this.inventory.gameboy || 0) + 1;
-        this.changed();
-      }
-      return;
-    }
     if (this.count('gameboy') > 0) this.take('gameboy');
     if (!t.placed || t.x == null) {
       t.placed = true;
@@ -761,8 +750,6 @@ export class Game {
     t.x = x;
     t.y = t.on = t.dx = undefined;
     t.display = display;
-    // The player decided where the GameBuddy goes: it stays on the desk.
-    if (id === 'gameboy') this.manualGameboyStored = true;
     if (this.count(id)) this.take(id);
     else this.changed();
     return id;

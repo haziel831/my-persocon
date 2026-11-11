@@ -196,13 +196,6 @@ export function paintFigure(id, p, ox = 0, oy = 0, k = 1, base = true) {
   q.rect(1, 17, 12, 3, '#2c2e38');
   q.rect(1, 17, 12, 1, RARITY_COLOR[rarity]);
 }
-
-// Color of the little stand under a figure (its rarity).
-export function figureStandColor(id) {
-  const f = FIG.find((e) => e[0] === id);
-  return f ? RARITY_COLOR[f[2]] : '#2c2e38';
-}
-
 defineIcons(Object.fromEntries(FIG.map(([id]) => [id, (sprite) => sprite(14, 20, (p) => paintFigure(id, p))])));
 
 // ---------- machine art ----------

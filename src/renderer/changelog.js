@@ -2,11 +2,10 @@
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
   ['1.9.10', [
-    ['Estante e Gaming Shelf redesenhadas na própria resolução e mostradas 1:1: sem blur, com as capas dos mangás, as miniaturas e os cartuchos grandes e nítidos', 'Bookshelf and Gaming Shelf redrawn at their own resolution and shown 1:1: no blur, with the manga covers, the figures and the cartridges big and sharp'],
-    ['Mangás agora aparecem de frente com a capa real, miniaturas em dobro tamanho e cartuchos com a arte do rótulo legível', 'Mangas now show the real cover from the front, figures are twice as big and the cartridges show a readable label'],
-    ['Gaming Shelf ganhou um expositor no topo com 3 lugares reservados para o GameBuddy, o GameGlow e o PlayPocket 3000', 'The Gaming Shelf got a display deck on top with 3 reserved slots for the GameBuddy, the GameGlow and the PlayPocket 3000'],
-    ['Portátil guardado na estante aparece no lugar dele (sem cópia na mesa); dá para brincar com ele pela lista da estante', 'A handheld stored on the shelf shows in its slot (no copy on the desk); you can play with it from the shelf list'],
-    ['O corvo agora arruma os portáteis deixados na mesa: leva direto para o lugar reservado na Gaming Shelf', 'The crow now tidies the handhelds left on the desk: it takes them straight to their reserved slot on the Gaming Shelf'],
+    ['Mangás, miniaturas e cartuchos da Estante e da Gaming Shelf agora aparecem de frente, com a arte real (capa do mangá, rótulo do cartucho) e ocupando a altura da prateleira', 'Mangas, figures and cartridges on the Bookshelf and the Gaming Shelf now show from the front, with the real art (manga cover, cartridge label) and filling the height of the shelf row'],
+    ['Os portáteis (GameBuddy, GameGlow e PlayPocket 3000) ficam em cima do teto da Gaming Shelf, um em cada lugar reservado, e cabem os três lado a lado', 'The handhelds (GameBuddy, GameGlow and PlayPocket 3000) stand on the roof of the Gaming Shelf, one in each reserved slot, all three fitting side by side'],
+    ['O corvo arruma os portáteis deixados na mesa: leva direto para o lugar reservado no teto da Gaming Shelf', 'The crow tidies the handhelds left on the desk: it takes them straight to their reserved slot on the roof of the Gaming Shelf'],
+    ['O mangá nas mãos da Persocon ficou menor, do tamanho dela', 'The manga in the Persocon\'s hands is smaller now, in proportion to her'],
   ]],
   ['1.9.9', [
     ['24 comidas novas com arte pixel-art 32×32 (hambúrguer, pizza, sushi, ramen, espaguete, curry, taco, panquecas, waffle, batata frita, pipoca e mais)', '24 new foods with 32×32 pixel-art (burger, pizza, sushi, ramen, spaghetti, curry, taco, pancakes, waffle, french fries, popcorn and more)'],

@@ -905,6 +905,7 @@ export class Crow {
           const po = toys.perchOf(id);
           const dx = dest.x - furn.x;
           Object.assign(po, { on: dest.key, dx, y: toys.topAt(dest.key, dest.x) });
+          po.loose = false;
           t.x = dest.x;
           toys.hops?.delete(id);
           toys.ys?.delete(id);

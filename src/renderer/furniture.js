@@ -1,7 +1,7 @@
 // Furniture, extra consoles, ball types, mangás and the party (disco) kit: catalog, pixel art
 // and what the pet does with each one. Toys delegates placement/drag to this through play().
 import { icon, defineIcons, refreshIcon, cartridge, CART_SHEET_CELLS } from './pixel.js';
-import { GACHA_PRICE, figureById, paintFigure, figureStandColor } from './casinoitems.js';
+import { GACHA_PRICE, figureById, paintFigure } from './casinoitems.js';
 import { upIcon, upSize, ARCADE_SCREEN } from './upgrades.js';
 import { ArcadeShooter } from './arcadeshooter.js';
 import { crtFilter, GAMES } from './games.js';
@@ -38,13 +38,6 @@ const paintPlayPocket = ({ rect, px }) => {
   rect(7, 1, 12, 1, '#2fb4ff'); rect(7, 9, 12, 1, '#2fb4ff'); px(7, 2, '#2fb4ff'); px(18, 2, '#2fb4ff');
   rect(2, 4, 3, 1, '#666'); rect(3, 3, 1, 3, '#666'); rect(21, 3, 1, 1, '#c33'); rect(23, 4, 1, 1, '#3c3'); rect(21, 5, 1, 1, '#33c'); rect(19, 4, 1, 1, '#cc3');
 };
-// Draws a 1x painter at an integer scale, so the pixels stay square and sharp.
-const atScale = (paint, k) => (p, ox = 0, oy = 0) => paint({
-  rect: (x, y, w, h, c) => p.rect(ox + x * k, oy + y * k, w * k, h * k, c),
-  px: (x, y, c) => p.rect(ox + x * k, oy + y * k, k, k, c),
-  circle: (x, y, r, c) => p.circle(ox + x * k, oy + y * k, r * k, c),
-});
-
 defineIcons({
   bed: (sprite) => sprite(34, 18, ({ rect }) => {
     rect(0, 2, 3, 16, '#8a5a2b'); rect(31, 6, 3, 12, '#8a5a2b');
@@ -195,14 +188,15 @@ function loadShelfArt() {
       im.src = mangaCover(i);
       continue;
     }
-    if (im.complete && im.naturalWidth) mangaMinis[i] = shrink(im, 0, 0, im.naturalWidth, im.naturalHeight, MANGA_W, MANGA_H);  }
+    if (im.complete && im.naturalWidth) mangaMinis[i] = shrink(im, 0, 0, im.naturalWidth, im.naturalHeight, MANGA_W, MANGA_H);
+  }
   if (!cartMinis.length && CART_ART?.complete && CART_ART.naturalWidth) {
     for (const id of CART_SHEET_CELLS) {
       const idx = CART_SHEET_CELLS.indexOf(id);
       const sx = (idx % 4) * 128;
       const sy = Math.floor(idx / 4) * 128;
-      // The cartridge itself (the label is the colourful part in the middle of the cell).
-      cartMinis.push(shrink(CART_ART, sx + 12, sy + 2, 100, 124, CART_W, CART_H));
+      // The label of the cartridge (the colourful part in the middle of the cell).
+      cartMinis.push(shrink(CART_ART, sx + 48, sy + 16, 64, 64, CART_W - 2, 13));
     }
   }
 }
@@ -218,10 +212,9 @@ export const FURN = {
   videogame: { size: 0.55, ratio: 1, back: true, screen: { x: 3 / 30, y: 6 / 30, w: 24 / 30, h: 15 / 30 } },
   almofada: { size: 0.38, ratio: 9 / 22, back: true },
   banheira: { size: 0.72, ratio: 17 / 34 },
-  // The shelves are drawn at their own resolution and shown 1:1, so the mangas, figures and
-  // cartridges inside them stay big and sharp (see SHELF_* below).
-  estante: { size: 2.32, ratio: 206 / 302, back: true },
-  estante_cartuchos: { size: 2.32, ratio: 266 / 302, back: true },
+  // The shelves keep their original size: the picture is 97x118 (111x141 for the Pro).
+  estante: { size: 0.6, ratio: 118 / 97, back: true },
+  estante_cartuchos: { size: 0.6, ratio: 118 / 97, back: true },
   alvo: { size: 0.4, ratio: 26 / 22, back: true },
   globo: { size: 0.16, ratio: 18 / 14, disco: true },
   holofote: { size: 0.2, ratio: 16 / 14, disco: true },
@@ -242,28 +235,25 @@ export const FURN = {
 const SHELF_ROWS = 5;
 const SHELF_COLS = 13;
 // ---------- shelf grid (pixels of the shelf picture) ----------
-// The picture is drawn at this resolution and shown 1:1 at the default pet size, so every
-// manga, figure and cartridge keeps its pixels (image-rendering: pixelated, no smoothing).
-const SHELF_CELL = 22;   // column pitch (a manga is one slot, a figure two)
-const SHELF_ROWP = 38;   // row pitch
-const SHELF_PAD = 8;     // frame padding
-const SHELF_PLANK = 4;   // the board at the bottom of every row
-const SHELF_BAND = SHELF_ROWP - SHELF_PLANK;   // 34: usable height of a row
-const MANGA_H = 31;      // cover, ~90% of the band (keeps the 128x190 proportion)
-const MANGA_W = 20;
-const FIG_H = 34;        // collectible figure: the 14x20 sprite at 2x
-const FIG_W = 28;
-const CART_H = 26;       // cartridge, front view
-const CART_W = 20;
-const DECK_H = 60;       // top deck of the Gaming Shelf (3 slots for the handhelds)
-// The three handhelds and the slot each one takes on top of the Gaming Shelf.
+// The picture keeps the original size (97x118, 111x141 for the Pro) so the furniture looks
+// exactly as before; only the drawing of the items inside got better.
+const SHELF_CELL = 7;    // column pitch
+const SHELF_ROWP = 23;   // row pitch (the original one)
+const SHELF_PADX = 6;    // frame padding on the sides
+const MANGA_H = 19;      // cover: ~85% of the row
+const MANGA_W = 7;
+const FIG_H = 20;        // collectible figure: the 14x20 sprite
+const FIG_W = 14;
+const CART_H = 19;       // cartridge, front view
+const CART_W = 7;
+// The three handhelds stand on the ROOF of the Gaming Shelf, outside the internal rows:
+// each one has its own slot (left, center, right) and they shrink to fit side by side.
 export const CONSOLE_SLOTS = [
-  { id: 'gameboy', at: 1 / 6, w: 28, h: 46 },
-  { id: 'gamegear', at: 3 / 6, w: 44, h: 24 },
-  { id: 'psp', at: 5 / 6, w: 52, h: 22 },
+  { id: 'gameboy', at: 0.24 },
+  { id: 'gamegear', at: 0.5 },
+  { id: 'psp', at: 0.76 },
 ];
-// Size of each handheld in its slot (the picture is drawn at 2x, like the desk icons).
-const CONSOLE_DRAW = { gameboy: paintBuddy, gamegear: paintGameGlow, psp: paintPlayPocket };
+const ROOF_W = 0.146;    // width of a docked handheld, as a fraction of the pet height
 // 3D printer build area, in fractions of its picture (28x28): between the posts, down to the bed.
 export const PRINT_AREA = { x1: 5 / 28, x2: 23 / 28, top: 6 / 28, bed: 21 / 28 };
 export const BALLS = {
@@ -477,15 +467,14 @@ export class Furniture {
   shelfGeom(key) {
     const kind = this.shelfKind(key);
     const [rows, cols] = this.shelfDims(key);
-    const deck = kind === 'cart' ? DECK_H : 0;
-    const W = SHELF_PAD * 2 + cols * SHELF_CELL;
-    const H = SHELF_PAD * 2 + deck + rows * SHELF_ROWP;
+    const W = SHELF_PADX + cols * SHELF_CELL;   // 97 (111 for the Pro)
+    const H = 3 + rows * SHELF_ROWP;             // 118 (141 for the Pro)
     return {
-      kind, rows, cols, deck, W, H,
-      rowTop: (r) => SHELF_PAD + deck + r * SHELF_ROWP,
-      colX: (c) => SHELF_PAD + c * SHELF_CELL,
-      // Bottom of the board of a row: everything stands on it.
-      floor: (r) => SHELF_PAD + deck + r * SHELF_ROWP + SHELF_BAND,
+      kind, rows, cols, W, H,
+      rowTop: (r) => 2 + r * SHELF_ROWP,
+      colX: (c) => 3 + c * SHELF_CELL,
+      // Top of the board of a row: everything stands on it.
+      floor: (r) => 2 + r * SHELF_ROWP + 21,
     };
   }
 
@@ -494,16 +483,15 @@ export class Furniture {
     const list = this.shelfList(key);
     const up = !!this.app.game.toys[key]?.up;
     loadShelfArt();
-    const consoles = kind === 'cart' ? this.deckConsoles() : [];
-    const sig = `${kind}${up ? '+' : ''}${shelfArtReady()}${consoles.map((c) => c.id).join('')}|${list.map((e) => `${e.manga || e.figure || e.cart}@${e.row}.${e.col}`).join(',')}`;
+    const sig = `${kind}${up ? '+' : ''}${shelfArtReady()}|${list.map((e) => `${e.manga || e.figure || e.cart}@${e.row}.${e.col}`).join(',')}`;
     this.shelfArt ||= new Map();
     const cached = this.shelfArt.get(key);
     if (cached?.sig === sig) return cached.url;
     const g = this.shelfGeom(key);
-    const { rows, deck, W, H } = g;
+    const { rows, W, H } = g;
     const name = `shelf_${kind}${up ? 'up' : ''}_${String(key).replace(/[^a-z0-9]/gi, '')}`;
-    // Manga shelf: wood. Gaming shelf: graphite metal with neon strips and a display deck.
-    // Drawn 1:1 (no Scale2x) so the shelf can be shown at its own size without any blur.
+    // Manga shelf: wood. Gaming shelf: graphite metal with neon strips.
+    // The handhelds stand on the roof of the shelf, outside the picture.
     defineIcons({ [name]: (sprite) => sprite(W, H, (p) => {
       const { rect } = p;
       if (kind === 'cart') {
@@ -512,35 +500,26 @@ export class Furniture {
         rect(0, 0, W, H, frame); rect(2, 2, W - 4, H - 4, inner);
         rect(0, 0, W, 1, up ? '#5ef0ff' : '#5a5a70'); rect(0, H - 1, W, 1, up ? '#ff3ea5' : '#3a3a48');
         rect(0, 1, 1, H - 2, up ? '#ff3ea5' : '#4a4a5a'); rect(W - 1, 1, 1, H - 2, up ? '#5ef0ff' : '#4a4a5a');
-        // Top deck: the three reserved slots for the handhelds.
-        rect(2, SHELF_PAD - 2, W - 4, 1, up ? '#7af4ff' : '#3a3a48');
-        rect(2, SHELF_PAD + deck - 4, W - 4, 4, up ? '#2c2048' : '#22222c');
-        rect(2, SHELF_PAD + deck - 4, W - 4, 1, up ? '#ff7ac8' : '#3a3a48');
-        for (const slot of CONSOLE_SLOTS) {
-          const owned = consoles.some((c) => c.id === slot.id);
-          this.paintConsoleSlot(p, g, slot, up, owned ? CONSOLE_DRAW[slot.id] : null);
-        }
         for (let r = 0; r < rows; r++) {
           const y = g.rowTop(r);
-          rect(2, y - 2, W - 4, 2, up ? '#2c2048' : '#1c1c24');
-          rect(2, y - 2, W - 4, 1, up ? (r % 2 ? '#ff7ac8' : '#7af4ff') : '#3a3a48');
-          rect(2, g.floor(r), W - 4, SHELF_PLANK, up ? '#2c2048' : '#22222c');
-          rect(2, g.floor(r), W - 4, 1, up ? (r % 2 ? '#7af4ff' : '#ff7ac8') : '#3a3a48');
+          rect(2, y, W - 4, 1, up ? '#7af4ff' : '#3a3a48');
+          rect(2, g.floor(r), W - 4, 2, up ? '#2c2048' : '#22222c');
+          rect(2, g.floor(r), W - 4, 1, up ? (r % 2 ? '#ff7ac8' : '#7af4ff') : '#3a3a48');
         }
       } else if (up) {
         rect(0, 0, W, H, '#8a5a2b'); rect(2, 2, W - 4, H - 4, '#5a3818'); rect(0, 0, W, 1, '#5ef0ff'); rect(0, H - 1, W, 1, '#ff3ea5');
         rect(0, 1, 1, H - 2, '#ff3ea5'); rect(W - 1, 1, 1, H - 2, '#5ef0ff');
         for (let r = 0; r < rows; r++) {
           const y = g.rowTop(r);
-          rect(2, y - 2, W - 4, 1, r % 2 ? '#ff7ac8' : '#7af4ff'); rect(2, y - 1, W - 4, 1, '#4a2e12');
-          rect(2, g.floor(r), W - 4, SHELF_PLANK, '#a8743c'); rect(2, g.floor(r), W - 4, 1, '#c8945c');
+          rect(2, y, W - 4, 1, r % 2 ? '#ff7ac8' : '#7af4ff');
+          rect(2, g.floor(r), W - 4, 2, '#a8743c'); rect(2, g.floor(r), W - 4, 1, '#c8945c');
         }
       } else {
         rect(0, 0, W, H, '#8a5a2b'); rect(2, 2, W - 4, H - 4, '#5a3818'); rect(0, 0, W, 1, '#a8743c');
         for (let r = 0; r < rows; r++) {
           const y = g.rowTop(r);
-          rect(2, y - 2, W - 4, 2, '#4a2e12');
-          rect(2, g.floor(r), W - 4, SHELF_PLANK, '#8a5a2b'); rect(2, g.floor(r), W - 4, 1, '#a8743c');
+          rect(2, y, W - 4, 1, '#4a2e12');
+          rect(2, g.floor(r), W - 4, 2, '#8a5a2b'); rect(2, g.floor(r), W - 4, 1, '#a8743c');
         }
       }
       for (const e of list) {
@@ -548,42 +527,38 @@ export class Furniture {
         const floor = g.floor(e.row);
         const m = e.manga && MANGAS.find((v) => v.id === e.manga);
         if (m) {
-          // The real cover, seen from the front: it fills most of the row.
+          // The real cover, seen from the front, filling the row of the shelf.
           const idx = MANGAS.indexOf(m);
           const mini = mangaMinis[idx];
           const top = floor - MANGA_H;
           if (mini) {
-            p.image(mini, 0, 0, MANGA_W, MANGA_H, x + 1, top, MANGA_W, MANGA_H);
+            p.image(mini, 0, 0, MANGA_W, MANGA_H, x, top, MANGA_W, MANGA_H);
+            // A darker edge on the left: the book seen a little from the side.
+            rect(x, top, 1, MANGA_H, 'rgba(0,0,0,0.3)');
           } else {
             // Cover not loaded yet: the genre color keeps the slot readable.
-            rect(x + 1, top, MANGA_W, MANGA_H, MANGA_GENRES[m.genre].color);
-            rect(x + 3, top + 4, MANGA_W - 4, 3, hsl(m.hue, 70, 75));
+            rect(x, top, MANGA_W, MANGA_H, MANGA_GENRES[m.genre].color);
+            rect(x + 1, top + 4, MANGA_W - 2, 3, hsl(m.hue, 70, 75));
           }
-          rect(x + 1, floor, MANGA_W, 1, 'rgba(0,0,0,0.3)');
+          rect(x, floor, MANGA_W, 1, 'rgba(0,0,0,0.3)');
         } else if (e.figure && figureById(e.figure)) {
-          // The figure stands on the plank: the sprite at 2x, its stand on the board.
+          // The figure stands on the plank, with its little stand under it.
           const fx = x + (SHELF_CELL * 2 - FIG_W) / 2;
-          paintFigure(e.figure, p, fx, floor - FIG_H, 2, false);          rect(fx + 2, floor, FIG_W - 4, 2, '#2c2e38');
-          rect(fx + 2, floor, FIG_W - 4, 1, figureStandColor(e.figure));
+          paintFigure(e.figure, p, fx, floor - FIG_H, 1, true);
         } else if (e.cart && GAMES[e.cart]) {
-          // Front view of the cartridge, with the label artwork of the game.
+          // Front view of the cartridge: body, label with the art of the game, connector.
           const col = GAMES[e.cart].color || '#888';
           const idx = CART_SHEET_CELLS.indexOf(e.cart);
-          const cx = x + 1;
           const top = floor - CART_H;
           const mini = cartMinis[idx];
-          if (mini) {
-            p.image(mini, 0, 0, CART_W, CART_H, cx, top, CART_W, CART_H);
-          } else {
-            // Sheet not loaded yet: body + the game's colored label.
-            const body = up ? '#22222c' : '#9a98a4';
-            rect(cx, top, CART_W, CART_H, body);
-            rect(cx, top, CART_W, 1, up ? '#5a5a70' : '#bdbbc6');
-            rect(cx + 3, top + 3, CART_W - 6, 16, col);
-            rect(cx + 3, top + 19, CART_W - 6, 4, up ? '#3a3a48' : '#6d6b78');
-            rect(cx + 3, top + 23, CART_W - 6, 2, up ? '#111' : '#4a4852');
-          }
-          rect(cx, floor, CART_W, 1, 'rgba(0,0,0,0.3)');
+          const body = up ? '#3a3a48' : '#9a98a4';
+          rect(x, top, CART_W, CART_H, body);
+          rect(x, top, CART_W, 1, up ? '#5a5a70' : '#bdbbc6');
+          rect(x + 1, top + 2, CART_W - 2, 13, col);
+          if (mini) p.image(mini, 0, 0, CART_W - 2, 13, x + 1, top + 2, CART_W - 2, 13);
+          rect(x + 1, top + 15, CART_W - 2, 2, up ? '#3a3a48' : '#6d6b78');
+          rect(x + 1, top + 17, CART_W - 2, 2, up ? '#111' : '#4a4852');
+          rect(x, floor, CART_W, 1, 'rgba(0,0,0,0.3)');
         }
       }
     }, undefined, false) });
@@ -592,46 +567,20 @@ export class Furniture {
     return url;
   }
 
-  // The three handhelds shown on the display deck of the Gaming Shelf, in their reserved slot.
-  deckConsoles() {
-    const { game } = this.app;
-    const out = [];
-    for (const slot of CONSOLE_SLOTS) {
-      const t = game.toys[slot.id];
-      const loose = t?.placed && !t.on;   // lying on the desk: it is not on display
-      if (loose) continue;
-      const owned = game.count(slot.id) > 0 || !!t?.placed;
-      if (!owned) continue;
-      out.push({ id: slot.id });
-    }
-    return out;
+  // The reserved slot of a handheld on the roof of the Gaming Shelf (left, center, right).
+  roofSlot(id) {
+    const slot = CONSOLE_SLOTS.find((s) => s.id === id);
+    return slot ? slot.at : null;
   }
 
-  // True when the handheld is shown inside the Gaming Shelf: the copy on the desk is hidden.
-  onDeck(id) {
+  // Width of a handheld docked on the roof: the three of them fit side by side.
+  roofSize(id) {
     const t = this.app.game.toys[id];
-    if (!t?.placed || !t.on) return false;
-    return this.deckConsoles().some((c) => c.id === id);
+    if (!t?.placed || !t.on || baseId(t.on) !== 'estante_cartuchos') return 0;
+    return Math.round(this.P * ROOF_W);
   }
 
   // One reserved slot: a small dock with the handheld standing on it (empty when not owned).
-  paintConsoleSlot(p, g, slot, up, art) {
-    const { rect } = p;
-    const cx = Math.round(g.W * slot.at);
-    const base = SHELF_PAD + DECK_H - 6;
-    const glow = up ? '#2c1c4a' : '#1e1e28';
-    // Dock: a recessed niche with a small platform at the bottom.
-    rect(cx - 24, base - 50, 48, 50, glow);
-    rect(cx - 24, base - 50, 48, 1, up ? '#5ef0ff' : '#4a4a5a');
-    rect(cx - 24, base - 50, 1, 50, up ? '#3a2a5e' : '#2a2a34');
-    rect(cx + 23, base - 50, 1, 50, up ? '#3a2a5e' : '#2a2a34');
-    rect(cx - 18, base - 3, 36, 3, up ? '#3a2a5e' : '#3a3a48');
-    rect(cx - 18, base - 3, 36, 1, up ? '#ff7ac8' : '#5a5a70');
-    if (!art) return;
-    // The handheld itself, at 2x so it reads clearly.
-    atScale(art, 2)(p, cx - slot.w / 2, base - 2 - slot.h);
-  }
-
   // Whether the pet would play with this piece right now.
   usable(id) {
     const b = baseId(id);
@@ -758,7 +707,7 @@ export class Furniture {
     if (!m) return false;
     const g = MANGA_GENRES[m.genre];
     pet.playToy({
-      id, dur: rand(20, 60), gain: g.gain, scale, hold: mangaCoverIcon(m), holdFrom: 0.9, holdSize: 0.25, pickAnim,
+      id, dur: rand(20, 60), gain: g.gain, scale, hold: mangaCoverIcon(m), holdFrom: 0.9, holdSize: 0.16, pickAnim,
       anim: 'sit', pose: 'sit', facing: 'front', manga: m, onEnd: end,
       tick: (dt, tp) => {
         pet.dir = 1;

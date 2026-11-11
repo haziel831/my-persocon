@@ -8,9 +8,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
 ## v1.9.10 — 10/11/2026
-Redesenho completo das estantes: a Estante e a Gaming Shelf agora são desenhadas na própria resolução e mostradas 1:1 na tela (sem escala), então nada fica borrado — mangás aparecem de frente com a capa real, miniaturas colecionáveis em dobro tamanho e cartuchos com a arte do rótulo legível. As estantes também ficaram maiores na área de trabalho (cerca de 2,3× a altura da Persocon), para os itens caberem e serem vistos.
-A Gaming Shelf ganhou um expositor no topo com 3 lugares reservados (esquerda, centro, direita) para o GameBuddy, o GameGlow e o PlayPocket 3000, com base e moldura próprias. O portátil guardado na estante é desenhado no lugar dele (sem cópia na mesa) e dá para brincar com ele pela lista da estante.
-O corvo aprendeu a arrumar os portáteis: quando encontra um deles solto na mesa, leva direto para o lugar reservado dele na Gaming Shelf (se ela não estiver na mesa, usa o guardado normal).
+As estantes mantêm o tamanho original (as mesmas dimensões de antes, ao lado da Persocon), mas o que está dentro delas mudou: os mangás aparecem de frente com a capa real, as miniaturas colecionáveis ocupam a altura da prateleira e os cartuchos mostram a arte do rótulo — tudo preencheando uns 85%–90% da linha, sem sobrepor.
+Os três portáteis (GameBuddy, GameGlow e PlayPocket 3000) agora ficam **em cima do teto** da Gaming Shelf / Gaming Shelf Pro, um em cada lugar reservado (esquerda, centro, direita), encolhidos para caber os três lado a lado — as fileiras internas ficam só para cartuchos.
+O corvo continua arrumando os portáteis deixados soltos na mesa: agora ele leva direto para o lugar reservado no teto da Gaming Shelf. E o mangá nas mãos da Persocon ficou menor, do tamanho dela.
 Detalhes em `ChangeLogs\v1.9.10.md`.
 
 ## v1.9.9 — 10/11/2026

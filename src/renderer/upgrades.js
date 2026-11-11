@@ -8,8 +8,8 @@ import { icon, defineIcons } from './pixel.js';
 // ratio: height / width of the upgraded picture when it differs from the original.
 export const UPGRADES = {
   impressora: { price: 1500, name: 'Impressora 3D Neon', note: 'Visual neon e imprime 1,5x mais rápido', pix: 'printer3d_up' },
-  estante: { name: 'Estante Grande', note: 'Maior: 6 prateleiras de 15 espaços (90 mangás ou 42 bonecos)', size: 1.15, ratio: 244 / 346 },
-  estante_cartuchos: { name: 'Gaming Shelf Pro', note: 'Maior: 6 prateleiras de 15 espaços (90 cartuchos) e visual neon', size: 1.15, ratio: 304 / 346 },
+  estante: { name: 'Estante Grande', note: 'Maior: 6 prateleiras de 15 espaços (90 mangás ou 42 bonecos)', size: 1.22, ratio: 141 / 111 },
+  estante_cartuchos: { name: 'Gaming Shelf Pro', note: 'Maior: 6 prateleiras de 15 espaços (90 cartuchos) e visual neon', size: 1.22, ratio: 141 / 111 },
   gacha: { name: 'Gacha-Machine Neon', note: 'Visual neon, animações mais épicas, mais prêmios e bonecos novos só dela' },
   videogame: { name: 'VideoGame Neon (TV + console)', note: 'Visual neon, TV maior e jogos com gráficos melhores', pix: 'tvset_up', size: 1.3 },
   cama: { name: 'Cama Moderna', note: 'Recupera energia 1,5x mais rápido, sem perder fome nem sede', pix: 'bed_up' },
