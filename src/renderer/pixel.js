@@ -766,6 +766,24 @@ export function cartridge(color, game, consoleId = 'gb', fav = false) {
   if (cache.has(key)) return cache.get(key);
   const url = sprite(18, 18, (p) => {
     const { rect, circle } = p;
+    if (game === 'unknown') {
+      // O cartucho preto misterioso: todo preto, sem rótulo, sem coração.
+      if (consoleId === 'psp') {
+        circle(9, 9, 8, '#0a0a10');
+        rect(4, 5, 10, 8, '#040408');
+      } else {
+        rect(2, 0, 14, 18, '#0c0c12');
+        rect(2, 0, 14, 2, '#1e1e2a');
+        rect(4, 3, 10, 11, '#040408');
+        rect(5, 4, 8, 1, '#16161f');
+        // um brilho vermelho bem fraco no rótulo
+        rect(6, 7, 6, 1, '#2c0a12');
+        rect(7, 9, 4, 1, '#2c0a12');
+        rect(4, 15, 10, 2, '#14141c');
+        rect(4, 17, 10, 1, '#050508');
+      }
+      return;
+    }
     if (consoleId === 'psp') {
       circle(9, 9, 8, '#d8d8e0');
       rect(4, 5, 10, 8, color);

@@ -927,7 +927,7 @@ export class Menu {
     tabs.classList.add('wrap');
     const note = {
       fun: 'Brinquedos vão para o inventário; coloque na área de trabalho e a Persocon brinca sozinha. Quebram depois de um tempo.',
-      cartuchos: 'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores.',
+      cartuchos: 'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores. E sempre aparece um cartucho preto sem nome, de graça — ninguém sabe o que ele é.',
       comidas: 'Comida enche a Fome. Cada Persocon tem gostos próprios (♥ a ☹) e come sozinha quando está com fome.',
       bebidas: 'Bebidas matam a Sede e algumas dão Energia. Servem também para acompanhar uma refeição.',
       sobremesas: 'Sobremesas dão bastante Humor. Ela come como refeição, então não substituem um prato principal.',
@@ -1020,8 +1020,8 @@ export class Menu {
     const bagNote = HER_BAG
       ? h('div.note', {}, `🎒 "Dar a ela" → bolsa dela (${game.herBag().length}/${game.bagCap()}, ícone na tela): comidas/bebidas e brinquedos portáteis (ioiô, bolas…). GameBuddy fica no desktop. Ela usa sozinha e guarda de novo.`)
       : (game.herBag().length ? h('div.note', {}, `🎒 Bolsa dela pausada (${game.herBag().length} item(ns) ainda guardados — menu rápido para devolver).`) : null);
-    const known = new Set([...SHOP_CATEGORIES.map(([id]) => id), 'premios']);
-    const groups = [...SHOP_CATEGORIES, ['premios', '🎁', 'Prêmios'], ['outros', '✦', 'Outros']].map(([id, icon, label]) => {
+    const known = new Set([...SHOP_CATEGORIES.map(([id]) => id), 'premios', 'especiais']);
+    const groups = [...SHOP_CATEGORIES, ['premios', '🎁', 'Prêmios'], ['especiais', '💎', 'Especiais'], ['outros', '✦', 'Outros']].map(([id, icon, label]) => {
       const mine = (e) => (id === 'outros' ? !known.has(e.item.cat) : e.item.cat === id);
       return { id, icon, label, owned: owned.filter(mine), placed: placed.filter(mine) };
     }).filter((g) => g.owned.length || g.placed.length);

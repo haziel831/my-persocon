@@ -29,6 +29,7 @@ import { TvWatch } from './tvwatch.js';
 import { Interactions } from './interact.js';
 import { COMBAT_META } from './combat.js';
 import { Melee } from './melee.js';
+import { Unknown } from './unknown.js';
 import { Closeup } from './closeup.js';
 import { Rewards } from './rewards.js';
 import { Care } from './care.js';
@@ -453,6 +454,9 @@ export async function startPet(files, config) {
   // The melee engine (turns, COMBAT_MODE, combat track).
   const melee = new Melee(app);
   app.melee = melee;
+  // The event of the mysterious black cartridge (the "Unknown" that comes out of the TV).
+  const unknown = new Unknown(app);
+  app.unknown = unknown;
   const closeup = new Closeup(app);
   app.closeup = closeup;
   const rewards = new Rewards(app);
@@ -1999,6 +2003,7 @@ api.onTrayClick?.(() => {
       updateOverlays(dt, head, hidden, calm);
       toys.update(dt, hidden);
       dummy.update(dt);
+      unknown.update(dt, hidden);
       tvWatch.update(dt, hidden);
       ball.update(dt, hidden);
       doll.update(dt, hidden);

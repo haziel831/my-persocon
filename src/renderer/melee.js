@@ -277,6 +277,84 @@ export class Melee {
     return true;
   }
 
+  // ---------------- o Unknown (a gosma de glitch que saiu da TV) ----------------
+
+  // Começa a luta contra o Unknown (o slime de glitch que saiu da tela da TV).
+  startUnknown(enemy) {
+    this.opp = {
+      hp: 20, max: 20, level: 1, defense: 0.05,
+      dummy: false, scrap: false, unknown: true, name: 'Unknown',
+      x: enemy?.x, y: enemy?.y, enemy,
+    };
+    this.petHp = this.pet.stats.health;
+    this.petHpMax = this.pet.maxHealth?.() ?? 100;
+    if (!this.enter('unknown')) return false;
+    this.phase = 'intro';
+    this.t = 0;
+    this.introT = 0;
+    this.showHpBar();
+    return true;
+  }
+
+  // O turno do Unknown: Investida Viscosa ou Pulso de Glitch.
+  unknownTurn() {
+    const pet = this.pet;
+    this.next = TURN.PERSOCON;
+    const glitch = Math.random() < 0.38;
+    this.move = {
+      id: glitch ? 'glitch' : 'tackle',
+      name: glitch ? 'Pulso de Glitch' : 'Investida Viscosa',
+      kind: 'attack', clip: 'attack_jab',
+      dmg: glitch ? 3 + Math.random() * 2 : 2 + Math.random() * 2,
+      glitch, stunChance: glitch ? 0.15 : 0,
+    };
+    this.moveDur = 0.5;
+    this.opp.enemy?.play?.('attack');
+    this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, this.move.name, 'bad');
+    this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
+    if (glitch) this.app.sound?.tone8?.(900, 200, 0.18, 'sawtooth', 0.05);
+    // O alcance dele é curto: se ela estiver longe, o golpe passa e ele avança.
+    const dist = Math.abs((this.oppX() ?? pet.x) - pet.x);
+    if (dist > pet.P * 0.85) {
+      const dir = Math.sign(pet.x - (this.oppX() ?? pet.x)) || 1;
+      const e = this.opp.enemy;
+      if (e) e.x += dir * pet.P * 0.5;
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.25, 'Ele não alcançou!', 'good');
+      this.app.fx?.impact?.('dust', this.oppX(), this.oppY() - 8, 0.5);
+      this.hitResolved = true;
+      this.phase = 'impact';
+      this.t = 0;
+      return;
+    }
+    // A rolagem dele é baixa (a Fácil): ela bloqueia ou desvia com calma.
+    const lvl = this.level;
+    const block = clamp(0.08 + lvl * 0.035, 0.02, 0.4);
+    const dodge = clamp(0.05 + lvl * 0.02, 0.02, 0.3);
+    const acc = clamp(0.62 + this.opp.level * 0.05, 0.3, 0.92);
+    const r = Math.random();
+    this.hitResolved = true;
+    if (r < block) this.resolveDefence('block');
+    else if (r < block + dodge) this.resolveDefence('dodge');
+    else if (r < block + dodge + acc) this.resolvePlayerHit();
+    else this.resolveMiss();
+  }
+
+  // A luta com o Unknown acaba.
+  finishUnknown(reason = 'done') {
+    if (!this.active) return;
+    const pet = this.pet;
+    if (reason === 'win') {
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.1, 'Unknown derrotado!', 'good');
+      this.app.sound?.play?.('ok', { volume: 0.5 });
+    } else if (reason === 'safety') {
+      this.say(pet.x, pet.y - pet.P * 1.25, 'Treino interrompido (segurança)', 'bad');
+    } else {
+      this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia — o Unknown sumiu', 'bad');
+    }
+    this.app.unknown?.onDefeat?.(reason);
+    this.stop(reason);
+  }
+
   // ---------------- the turns ----------------
 
   update(dt) {
@@ -321,7 +399,7 @@ export class Melee {
       default:
         break;
     }
-    if (this.opp.scrap) this.updateHpBar();
+    if (this.opp.scrap || this.opp.unknown) this.updateHpBar();
     this.updateAuras();
     // The training ends when she is too tired (or the dummy is gone).
     if (this.active && this.kind === 'dummy') {
@@ -335,6 +413,13 @@ export class Melee {
       if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishSparring('safety');
       else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishSparring('tired');
       else if (this.opp.hp <= 0) this.finishSparring('win');
+    }
+    // A luta com o Unknown: mesma parada de segurança, e o drop quando ele cai.
+    if (this.active && this.kind === 'unknown') {
+      const hp = pet.stats.health;
+      if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishUnknown('safety');
+      else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishUnknown('tired');
+      else if (this.opp.hp <= 0) this.finishUnknown('win');
     }
   }
 
@@ -475,6 +560,7 @@ export class Melee {
     this.next = TURN.PERSOCON;
     this.phase = 'windup';
     this.t = 0;
+    if (this.opp.unknown) return this.unknownTurn();
     if (this.opp.scrap) return this.scrapTurn();
     this.move = { id: 'brace', name: 'Defende', kind: 'defend', clip: 'combat_block', dmg: 0 };
     this.moveDur = 0.45;
@@ -554,6 +640,8 @@ export class Melee {
     if (!this.stunTurns && (crit || (this.opp.level >= 2 && Math.random() < 0.18 + this.opp.level * 0.05))) {
       this.applyStun();
     }
+    // O Pulso de Glitch atordoa por 1 turno só.
+    if (this.move.stunChance && Math.random() < this.move.stunChance) this.applyStun(1);
     // Hits in a row without blocking or dodging: the Fúria comes up.
     this.hitStreak = (this.hitStreak || 0) + 1;
     if (this.hitStreak >= FURY_HITS && !this.fury) this.applyFury();
@@ -561,10 +649,10 @@ export class Melee {
     this.t = 0;
   }
 
-  // Atordoada: 1 a 3 turnos de grande penalidade na precisão.
-  applyStun() {
+  // Atordoada: 1 a 3 turnos de grande penalidade na precisão (ou o número fixo do Pulso de Glitch).
+  applyStun(fixed = 0) {
     const pet = this.pet;
-    const turns = 1 + Math.floor(Math.random() * 3);
+    const turns = fixed || 1 + Math.floor(Math.random() * 3);
     this.stunTurns = turns;
     pet.addDebuff?.('atordoado');
     this.say(pet.x, pet.y - pet.P * 1.2, 'Atordoada!', 'bad');
@@ -725,6 +813,8 @@ export class Melee {
       total += roll.dmg;
       opp.hp = Math.max(0, opp.hp - roll.dmg);
       this.hits++;
+      // O Unknown leva o golpe (e a animação de machucado).
+      if (opp.enemy) opp.enemy.play?.('hurt');
       // The impact: a sharp spark for the light hits, a slash + burst for the heavy ones.
       if (heavy) {
         this.app.fx?.impact?.('slash', x, y, 1.1);
@@ -881,11 +971,14 @@ export class Melee {
   }
 
   oppX() {
+    // O Unknown tem a posição dele; o boneco de treino usa a dele.
+    if (this.opp?.x != null) return this.opp.x;
     const d = this.app.game?.toys?.boneco_treino;
     return d?.x ?? this.pet.x + this.pet.P;
   }
 
   oppY() {
+    if (this.opp?.y != null) return this.opp.y;
     return this.app.toys?.floorY?.() ?? this.pet.y;
   }
 

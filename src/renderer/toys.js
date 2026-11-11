@@ -1258,6 +1258,22 @@ export class Toys {
       setTimeout(() => sound.sfx(boot, tp.console === 'psp' ? 1.1 : tp.console === 'gamegear' ? 0.95 : 0.8), 150);
       if (tp.console === 'gamegear' || tp.console === 'psp') setTimeout(() => sound.sfx('jingle', tp.console === 'psp' ? 0.55 : 0.4), 280);
     }
+    // O cartucho preto misterioso não é um jogo: na TV com console ele abre o evento do Unknown
+    // (nos portáteis ele não faz nada: a tela fica preta e o evento espera a TV).
+    if (cart === 'unknown') {
+      if (!tp.unknown) {
+        tp.unknown = true;
+        if (tp.console === 'tv') {
+          this.screen.stop();
+          this.app.unknown?.erupt?.();
+        } else {
+          // Nos portáteis a tela fica preta: o evento espera a TV.
+          this.screen.stop();
+          sound.sfx('cancel', 0.4);
+        }
+      }
+      return;
+    }
     if (!this.screen.game || (tp.dollP2 && !this.screen.ai2)) {
       this.screen.start(cart, { skill: game.cartSkill(cart), vs: !!tp.versus || !!tp.dollP2, ai2: tp.dollP2 || 0 });
       this.screen.setConsole?.(tp.console || 'gameboy');
@@ -2109,13 +2125,14 @@ export class Toys {
       const img = document.createElement('img');
       img.src = cartridge(GAMES[id]?.color || '#888', id, 'gb', game.isFavorite(id));
       const lvl = Math.round(game.cartSkill(id) * 10);
-      b.append(img, `${GAMES[id]?.name || id}${game.isFavorite(id) ? ' ♥' : ''} · nível ${lvl}`);
+      const nm = id === 'unknown' ? '' : (GAMES[id]?.name || id);
+      b.append(img, `${nm}${game.isFavorite(id) ? ' ♥' : ''}${nm ? ` · nível ${lvl}` : ''}`);
       b.onclick = (e) => {
         e.stopPropagation();
         game.cartridge = id;
         game.changed();
-        if (this.screen.game) this.screen.start(id);
-        sound.play('ok', { volume: 0.4 });
+        if (id !== 'unknown' && this.screen.game) this.screen.start(id);
+        sound.play(id === 'unknown' ? 'cancel' : 'ok', { volume: 0.4 });
         this.closeBag();
       };
       el.append(b);
@@ -2221,8 +2238,9 @@ export class Toys {
       } else if (cart) {
         game.cartridge = cart;
         game.changed();
-        if (this.screen?.game) this.screen.start(cart);
-        sound.play('ok', { volume: 0.4 });
+        // O cartucho preto não roda jogo nenhum: ele só espera a TV com console.
+        if (cart !== 'unknown' && this.screen?.game) this.screen.start(cart);
+        sound.play(cart === 'unknown' ? 'cancel' : 'ok', { volume: 0.4 });
       }
       this.closeShelf();
     };

@@ -1,6 +1,6 @@
 // Shop catalog, inventory, coins, toys and saved progress (save.json next to the app).
 import { FULL_STATS, DIFFICULTIES, DEBUFFS } from './behavior.js';
-import { icon } from './pixel.js';
+import { icon, cartridge } from './pixel.js';
 import { GAMES } from './games.js';
 import { FURN_ITEMS, baseId } from './furniture.js';
 import { FUN_ITEMS } from './funtoys.js';
@@ -86,6 +86,12 @@ export const ITEMS = [
     id: `cart_${id}`, cat: 'cartuchos', cart: id, name: g.name, price: CART_PRICES[id], effects: {},
     img: new URL(`./assets/carts/${id}.png`, import.meta.url).href,
   })),
+  // O cartucho preto misterioso: sem nome, de graça, e só faz alguma coisa na TV com console.
+  { id: 'cart_unknown', cat: 'cartuchos', cart: 'unknown', name: '   ', price: 0, effects: {}, mystery: true,
+    get img() { return cartridge('#000000', 'unknown', 'gb'); } },
+  // O Cristal Negro: cai do "Unknown" e fica guardado para uso futuro.
+  { id: 'cristal_negro', cat: 'especiais', name: 'Cristal Negro', price: 0, effects: {}, special: true,
+    img: new URL('./assets/items/black_crystal.png', import.meta.url).href },
   ...FOOD_ITEMS,
   ...MED_ITEMS,
   ...FURN_ITEMS,
@@ -371,7 +377,11 @@ export class Game {
   available(item) {
     if (item.legacy || item.fixed || item.loot) return false;
     if ((item.cart || item.manga || item.gear || (item.toy && !item.decor)) && this.pending(item.id)) return false;
-    if (item.cart) return ['gameboy', 'gamegear', 'psp', 'videogame'].some((c) => this.toys[c] || this.count(c) > 0) && !this.cartridges.includes(item.cart);
+    if (item.cart) {
+      // O cartucho preto some da loja para sempre depois do evento.
+      if (item.mystery && this.profile.unknownDone) return false;
+      return ['gameboy', 'gamegear', 'psp', 'videogame'].some((c) => this.toys[c] || this.count(c) > 0) && !this.cartridges.includes(item.cart);
+    }
     if (item.manga) return this.hasShelf() && !this.mangas.includes(item.id);
     if (item.id === 'ioio') return !this.gear.syntoyo && (!this.toys.ioio || this.toys.ioio.broken) && !(this.profile.herBag || []).includes('ioio');
     if (item.id === 'syntoyo') {
@@ -876,6 +886,16 @@ export class Game {
     s.plays++;
     s.love = Math.max(-1, Math.min(2, s.love + (Math.random() - 0.35) * 0.28 + Math.min(0.18, secs / 700)));
     this.changed();
+  }
+
+  // Removes a cartridge for good (the mysterious black one after its event).
+  removeCart(id) {
+    const i = this.cartridges.indexOf(id);
+    if (i < 0) return false;
+    this.cartridges.splice(i, 1);
+    if (this.profile.carts) delete this.profile.carts[id];
+    this.changed();
+    return true;
   }
 
   // The pet picks a cartridge on its own, leaning towards the ones it likes.

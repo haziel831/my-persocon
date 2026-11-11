@@ -73,6 +73,19 @@ const EN = {
   'Incentivos (cafuné) e desincentivos (tapa)': 'Encouraged (head pat) and discouraged (slap)',
   'Nada ainda. Faça cafuné enquanto ele faz algo para incentivar; um tapa desincentiva.': 'Nothing yet. Pat her while she does something to encourage it; a slap discourages it.',
   'Retirar': 'Remove',
+  // ---- o evento do cartucho preto: o Unknown ----
+  'Especiais': 'Specials', 'Cristal Negro': 'Black Crystal',
+  'Pulso de Glitch': 'Glitch Pulse', 'Investida Viscosa': 'Slime Tackle',
+  'Unknown derrotado!': 'Unknown defeated!', 'Ele não alcançou!': "It couldn't reach her!",
+  'Sem energia — o Unknown sumiu': 'Out of energy — the Unknown vanished',
+  'O-o que foi aquilo?! Essa coisa acabou de sair de dentro da tela da TV?!':
+    "W-what was that?! That thing just came out of the TV screen?!",
+  'Meus sensores não conseguiram identificar esse código... parecia uma falha viva.':
+    "My sensors couldn't identify that code... it looked like a living glitch.",
+  'Espera... cadê aquele cartucho preto? Ele sumiu da estante! Só sobrou esse cristal escuro estranho...':
+    "Wait... where's that black cartridge? It vanished from the shelf! Only this strange dark crystal is left...",
+  'De onde será que veio essa criatura? Será que alguém colocou esse cartucho na loja de propósito?':
+    'Where did that creature come from? Did someone put that cartridge in the shop on purpose?',
   // ---- themes tab ----
   'Janelas': 'Windows', '🧱 Importar resourcepack': '🧱 Import resourcepack', '🎨 Visual dos objetos': '🎨 Object looks',
   'Temas escolhidos aqui têm prioridade sobre as janelas do resourcepack; visuais importados por objeto têm prioridade sobre o resourcepack.': 'Themes chosen here take priority over the resourcepack windows; looks imported per object take priority over the resourcepack.',
@@ -532,6 +545,8 @@ const EN = {
   'Brinquedos vão para o inventário; coloque na área de trabalho e a Persocon brinca sozinha. Quebram depois de um tempo.': 'Toys go to the inventory; place them on the desktop and the Persocon plays on her own. They break after a while.',
   'Remédios curam na hora; PowerUps dão efeitos temporários. A Persocon pega sozinha da mochila quando a Saúde está baixa.': 'Medicine heals at once; PowerUps give temporary effects. The Persocon takes them from the backpack herself when Health is low.',
   'Cartuchos vão para a Gaming Shelf (ou para a bolsa do GameBuddy, sem ela). Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores.': 'Cartridges go onto the Gaming Shelf (or into the GameBuddy bag without it). The more complex the game, the pricier. The Persocon gets better with practice and has favorites (♥, give more Mood). All have a 2-player mode.',
+  'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores. E sempre aparece um cartucho preto sem nome, de graça — ninguém sabe o que ele é.':
+    'Cartridges go into the GameBuddy bag or onto the Gaming Shelf, if it is on the desktop. The more complex the game, the pricier. The Persocon gets better with practice and has favorites (♥, give more Mood). All have a 2-player mode. And a nameless black cartridge always shows up, free — nobody knows what it is.',
   'Ela já está jogando!': 'She is already playing!', 'Ela está ocupada agora': 'She is busy right now', 'Carteira dela vazia · Ações → Carteira': 'Her wallet is empty · Actions → Wallet',
   'Ela já está comprando!': 'She is already buying!', 'Ela está sem fome agora': "She isn't hungry right now", 'Ela está sem sede agora': "She isn't thirsty right now",
   'Nada aqui que ela queira': 'Nothing here she wants', 'Mais um grátis': 'One more free', 'Girando…': 'Spinning…', 'Pegar ✓': 'Take ✓', 'caixas com sorte': 'lucky boxes',

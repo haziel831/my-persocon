@@ -585,6 +585,50 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   background: radial-gradient(circle at 50% 55%, rgba(255, 227, 90, 0.45), rgba(94, 240, 255, 0.15) 40%, transparent 70%);
   animation: fx-flash 0.45s ease-out forwards; }
 
+/* ---------- o evento do cartucho preto: o Unknown ---------- */
+.unknown-slime {
+  position: fixed; z-index: 7; pointer-events: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 7px rgba(255, 40, 60, 0.6));
+}
+.unknown-slime.erupting { animation: unknown-erupt 0.1s steps(2) infinite; }
+@keyframes unknown-erupt {
+  0% { transform: translate(0, 0); opacity: 1; }
+  50% { transform: translate(-2px, 1px); opacity: 0.55; }
+  100% { transform: translate(2px, -1px); opacity: 1; }
+}
+/* A estática na tela da TV */
+.tv-static { position: fixed; z-index: 6; pointer-events: none; image-rendering: pixelated; }
+/* A fumaça escura saindo da tela */
+.unknown-smoke {
+  position: fixed; z-index: 6; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle, rgba(22, 20, 28, 0.9) 0%, rgba(34, 30, 42, 0.5) 45%, rgba(20, 18, 26, 0) 72%);
+  animation: unknown-smoke 2.2s ease-out var(--delay, 0s) forwards;
+}
+@keyframes unknown-smoke {
+  0% { transform: translate(0, 0) scale(0.35); opacity: 0; }
+  18% { opacity: 0.95; }
+  100% { transform: translate(var(--drift, 12px), var(--rise, -60px)) scale(1.6); opacity: 0; }
+}
+/* A gosma preta pingando no chão */
+.unknown-ooze {
+  position: fixed; z-index: 6; pointer-events: none;
+  width: 4px; height: 11px; margin-left: -2px; border-radius: 2px 2px 4px 4px;
+  background: linear-gradient(#15111c, #040308);
+  animation: unknown-ooze 1.7s cubic-bezier(0.45, 0, 0.8, 1) var(--delay, 0s) forwards;
+}
+@keyframes unknown-ooze {
+  0% { transform: translateY(0) scaleY(0.25); opacity: 0; }
+  12% { opacity: 1; }
+  86% { opacity: 1; }
+  100% { transform: translateY(var(--fall, 100px)) scaleY(1.25); opacity: 0; }
+}
+/* A poça que fica no chão */
+.unknown-blob {
+  position: fixed; z-index: 5; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 40%, rgba(12, 10, 16, 0.92), rgba(12, 10, 16, 0) 70%);
+}
+
 /* ---------- COMBAT_MODE: a red frame burns around the screen ---------- */
 .vfx-impact { position: fixed; pointer-events: none; z-index: 9996; image-rendering: pixelated; }
 .vfx-proj { position: fixed; pointer-events: none; z-index: 9996; image-rendering: pixelated; }

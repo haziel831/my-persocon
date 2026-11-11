@@ -573,12 +573,24 @@ export class Furniture {
           // The figure stands on the plank, with its little stand under it.
           const fx = x + (SHELF_CELL * 2 - FIG_W) / 2;
           paintFigure(e.figure, p, fx, floor - FIG_H, 1, true);
-        } else if (e.cart && GAMES[e.cart]) {
+        } else if (e.cart && (GAMES[e.cart] || e.cart === 'unknown')) {
           // Front view of the cartridge: body, label with the art of the game, connector.
-          const col = GAMES[e.cart].color || '#888';
           const idx = CART_SHEET_CELLS.indexOf(e.cart);
           const top = floor - CART_H;
           const mini = cartMinis[idx];
+          if (e.cart === 'unknown') {
+            // O cartucho preto misterioso: todo preto, com um brilho vermelho fraco.
+            rect(x, top, CART_W, CART_H, '#0c0c12');
+            rect(x, top, CART_W, 1, '#1e1e2a');
+            rect(x + 1, top + 2, CART_W - 2, 13, '#040408');
+            rect(x + 2, top + 6, CART_W - 4, 1, '#2c0a12');
+            rect(x + 3, top + 9, CART_W - 6, 1, '#2c0a12');
+            rect(x + 1, top + 15, CART_W - 2, 2, '#14141c');
+            rect(x + 1, top + 17, CART_W - 2, 2, '#050508');
+            rect(x, floor, CART_W, 1, 'rgba(0,0,0,0.3)');
+            continue;
+          }
+          const col = GAMES[e.cart].color || '#888';
           const body = up ? '#3a3a48' : '#9a98a4';
           rect(x, top, CART_W, CART_H, body);
           rect(x, top, CART_W, 1, up ? '#5a5a70' : '#bdbbc6');
