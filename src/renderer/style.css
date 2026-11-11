@@ -443,10 +443,30 @@ body:is([data-theme="gameboy"], [data-theme="gameboy-light"]) .cat.active .icon 
 .fill.affection { background: linear-gradient(90deg, #ff6fb5, #ffb3d9); }
 .bar.affection.danger b { color: #ff6b6b; }
 .attrs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
-.attr { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; font-size: 11px; color: var(--muted); }
+/* Cada atributo é clicável: abre a caixinha com a explicação. */
+.attr {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; font-size: 11px; color: var(--muted);
+  cursor: pointer; padding: 4px 6px; margin: -4px -6px; border-radius: 8px;
+}
+.attr:hover { background: color-mix(in srgb, var(--fg) 7%, transparent); }
+.attr.open { background: color-mix(in srgb, #f0b43c 12%, transparent); }
 .attr b { color: var(--fg, #eef0f6); }
 .attr .track { grid-column: span 2; }
 .fill.attr { background: linear-gradient(90deg, #f0b43c, #ffe08a); }
+.attr .attr-desc {
+  grid-column: span 2; margin: 4px 0 2px; font-size: 11px; line-height: 1.45;
+  color: var(--fg, #eef0f6); opacity: 0.92;
+  border-left: 2px solid #f0b43c; padding-left: 7px;
+}
+/* As artes do combate (só as que ela já sabe). */
+.combat { display: grid; gap: 10px; }
+.combat-art { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
+.combat-art-head {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: bold;
+  color: var(--fg, #eef0f6); margin-bottom: 2px;
+}
+.combat-art-head .muted { margin-left: auto; font-weight: normal; opacity: 0.7; }
+.combat .skill-moves { margin: 0; padding: 0 8px 4px 26px; display: grid; gap: 3px; font-size: 12px; }
 .filters { display: flex; flex-wrap: wrap; gap: 5px; }
 
 /* ---------- speech, hookshot, video marker, ball ---------- */
@@ -575,14 +595,23 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   image-rendering: pixelated; user-select: none;
 }
 .combat-aura.dizzy { width: 26px; height: 26px; animation: aura-spin 1.6s linear infinite; }
+/* The Fúria: a strong red energy aura around her body (the size comes from the JS). */
 .combat-aura.fury {
-  width: 30px; height: 30px; filter: drop-shadow(0 0 6px rgba(255, 140, 40, 0.85));
-  animation: aura-fury 0.55s ease-in-out infinite alternate;
+  position: fixed; z-index: 9996; pointer-events: none; user-select: none;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 50% 52%, rgba(255, 120, 90, 0.55) 0%, rgba(226, 42, 58, 0.38) 38%, rgba(150, 8, 30, 0.18) 62%, rgba(120, 0, 20, 0) 78%);
+  filter: drop-shadow(0 0 9px rgba(255, 60, 60, 0.8));
+  animation: aura-fury 0.45s ease-in-out infinite alternate;
+}
+.combat-aura.fury .fury-mark {
+  position: absolute; left: 50%; top: -16px; width: 26px; height: 26px;
+  transform: translateX(-50%); image-rendering: pixelated;
+  filter: drop-shadow(0 0 5px rgba(255, 150, 40, 0.9));
 }
 @keyframes aura-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes aura-fury {
-  from { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
-  to { transform: translate(-50%, -50%) scale(1.18); opacity: 1; }
+  from { transform: translate(-50%, -50%) scale(0.9); opacity: 0.7; }
+  to { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
 }
 /* The combat text above the heads: green for her, red for the enemy. */
 .combat-text {
@@ -1303,8 +1332,6 @@ body.editing-furn .toy[data-id].broken { animation: none; }
 }
 .maneuver b { color: #ffb457; }
 .maneuver small { grid-column: 1 / -1; font-size: 11px; opacity: 0.75; }
-.maneuver.locked { opacity: 0.5; }
-.maneuver.locked b { color: inherit; }
 
 /* Debug console (stays open after debug is turned off until closed) */
 .debug-console {

@@ -577,7 +577,8 @@ export class Melee {
     this.fury = true;
     this.hitStreak = 0;
     this.say(this.pet.x, this.pet.y - this.pet.P * 1.3, '[FÚRIA ATIVADA!]', 'good');
-    this.app.sound?.powerup?.(1);
+    // O som de ativação: o golpe grave que acompanha a aura vermelha.
+    this.app.sound?.play?.('fury', { volume: 0.6 });
     this.showFury();
   }
 
@@ -597,10 +598,18 @@ export class Melee {
     this.dizzyEl = null;
   }
 
-  // The fiery aura while she has the Fúria.
+  // The Fúria: a strong red energy aura around her, with the fire mark over the head.
   showFury() {
     if (this.furyAura || typeof document === 'undefined') return;
-    this.furyAura = this.makeAura('fury', 'fire.png');
+    const el = document.createElement('div');
+    el.className = 'combat-aura fury';
+    const mark = document.createElement('img');
+    mark.className = 'fury-mark';
+    mark.src = new URL('./assets/vfx/fire.png', import.meta.url).href;
+    mark.draggable = false;
+    el.appendChild(mark);
+    document.body.append(el);
+    this.furyAura = el;
   }
 
   // The stars above the stunned enemy.
@@ -628,10 +637,17 @@ export class Melee {
   updateAuras() {
     const pet = this.pet;
     const P = pet.P;
-    for (const el of [this.dizzyEl, this.furyAura]) {
-      if (!el) continue;
-      el.style.left = `${Math.round(pet.x)}px`;
-      el.style.top = `${Math.round(pet.y - P * 1.12)}px`;
+    if (this.dizzyEl) {
+      this.dizzyEl.style.left = `${Math.round(pet.x)}px`;
+      this.dizzyEl.style.top = `${Math.round(pet.y - P * 1.12)}px`;
+    }
+    if (this.furyAura) {
+      // The red energy aura wraps her whole body.
+      const s = Math.round(P * 1.55);
+      this.furyAura.style.width = `${s}px`;
+      this.furyAura.style.height = `${s}px`;
+      this.furyAura.style.left = `${Math.round(pet.x)}px`;
+      this.furyAura.style.top = `${Math.round(pet.y - P * 0.5)}px`;
     }
     if (this.oppDizzyEl) {
       this.oppDizzyEl.style.left = `${Math.round(this.oppX() ?? pet.x)}px`;

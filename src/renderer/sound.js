@@ -12,6 +12,7 @@ const SETS = {
   blip: ['ui/blip-', 2],
   ok: ['ui/ok-', 3],
   cancel: ['ui/cancel-', 3],
+  fury: ['powerup/epico_4_hyperflash', 0],
 };
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -32,6 +33,7 @@ const SYNTH_BASE = {
   bonk: [180, 0.5, 0.12, 0.6], hit: [140, 0.4, 0.18, 0.8], explode: [90, 0.3, 0.45, 1], jump: [300, 2.2, 0.16, 0],
   footstep: [120, 0.7, 0.04, 0.7], landing: [110, 0.5, 0.1, 0.6], blastoff: [200, 3, 0.35, 0.3], teleport: [400, 2.5, 0.3, 0],
   blip: [660, 1.1, 0.05, 0], ok: [520, 1.5, 0.14, 0], cancel: [420, 0.6, 0.14, 0],
+  fury: [200, 2.8, 0.55, 0.35],
 };
 const VOWEL = { a: 1, e: 1.18, i: 1.4, o: 0.88, u: 0.78 };
 
