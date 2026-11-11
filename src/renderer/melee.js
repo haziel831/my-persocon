@@ -26,8 +26,33 @@ export const PACE = {
   impact: 0.45,     // the hit lands and the numbers show up
   recover: 0.75,    // the recovery, before the next turn
 };
-// Melee range: further away and she throws instead of punching.
-export const MELEE_RANGE = 1.15;
+// Melee range: she has to be in contact to hit (no throwing yet). The distance is measured in
+// "pet widths": 0.85 is the distance of a real punch.
+export const MELEE_RANGE = 0.85;
+// How far the enemy's blow pushes her back (always past the contact distance).
+export const KNOCKBACK = 0.95;
+// The special maneuvers: one per Melee Combat Level, only with the Fúria status.
+export const MANEUVERS = [
+  { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'attack_uppercut', mult: 1.5, ignoreDefense: true,
+    pt: 'Smash que ignora a defesa do alvo (1,5× a Força)', en: 'A smash that ignores the target defense (1.5× Strength)' },
+  { lvl: 2, id: 'punho_relampago', name: 'Punho Relâmpago', clip: 'attack_jab', mult: 1.1, hits: 3,
+    pt: 'Combo de 3 socos rápidos num turno só', en: 'A 3-hit flurry of fast punches in one turn' },
+  { lvl: 3, id: 'chute_meteoro', name: 'Chute Meteoro', clip: 'attack_roundhouse_kick', mult: 1.8, stun: 0.45,
+    pt: 'Chute aéreo que pode atordoar o alvo (1,8×)', en: 'A leaping kick that can stun the target (1.8×)' },
+  { lvl: 4, id: 'contra_impacto', name: 'Contra-Impacto Sísmico', clip: 'attack_uppercut', mult: 2.2, energy: 6, shock: true,
+    pt: 'Uppercut devastador com onda de choque (2,2×) e devolve energia', en: 'A devastating uppercut with a shockwave (2.2×) that gives energy back' },
+  { lvl: 5, id: 'explosao_carmesim', name: 'Explosão Carmesim', clip: 'attack_uppercut', mult: 3, explosion: true,
+    pt: 'Explosão carmesim devastadora (3×)', en: 'A devastating crimson explosion (3×)' },
+];
+// The maneuver she can use at her current Melee Combat Level (the best one).
+export const maneuverFor = (lvl) => {
+  const list = MANEUVERS.filter((m) => m.lvl <= lvl);
+  return list.length ? list[list.length - 1] : null;
+};
+// How many hits in a row she takes before the Fúria comes up.
+export const FURY_HITS = 3;
+// The accuracy penalty while she is Atordoada.
+export const STUN_PENALTY = 0.45;
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -126,6 +151,12 @@ export class Melee {
     this.hitResolved = false;
     this.introT = 0;
     this.petHp = 100;
+    this.stunTurns = 0;      // turns left Atordoada
+    this.fury = false;       // the Fúria status
+    this.hitStreak = 0;      // hits taken in a row
+    this.dizzyEl = null;     // the stars above her head
+    this.furyAura = null;    // the fire above her head
+    this.oppDizzyEl = null;  // the stars above the stunned enemy
     this.opp = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, name: 'Boneco' };
     this.music = null;
     this.hpBar = null;
@@ -186,6 +217,9 @@ export class Melee {
     this.music = null;
     this.app.sound?.resumeMusic?.();
     this.removeHpBar();
+    this.removeDizzy();
+    this.removeFuryAura();
+    this.removeOppDizzy();
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
   }
 
@@ -231,7 +265,7 @@ export class Melee {
       dummy: false, scrap: true, name: 'Sucataoxidado',
     };
     this.petHp = pet.stats.health;
-    this.petHpMax = 100;      // her health never goes over 100
+    this.petHpMax = pet.maxHealth?.() ?? 100;   // her health never goes over the maximum
     if (!this.enter('fight')) return false;
     this.phase = 'intro';
     this.t = 0;
@@ -246,6 +280,7 @@ export class Melee {
     if (!this.active) return;
     const pet = this.pet;
     this.t += dt;
+    this.dt = dt;
     switch (this.phase) {
       case 'intro': {
         // She steps into the strike range (the toy play owns her position) and squares up.
@@ -262,18 +297,15 @@ export class Melee {
         // JRPG pace: the actor is named, then the wind-up starts.
         if (this.t >= PACE.announce) this.startTurn();
         break;
+      case 'close':
+        // She dashes back into contact; the strike only happens when she arrives.
+        if (this.outOfRange()) this.closeIn();
+        else { this.phase = 'windup'; this.t = 0; this.persoconTurn(); }
+        break;
       case 'windup': {
-        // A thrown object lands on its own timer.
-        if (this.pendingImpact != null) {
-          this.pendingImpact -= dt;
-          if (this.pendingImpact <= 0) {
-            this.pendingImpact = null;
-            this.resolveHit();
-          }
-        }
         // The clip is playing: the hit is resolved by the combatHit event. If the clip never
         // fires it (missing clip, interrupted), the turn still resolves.
-        if (!this.hitResolved && this.pendingImpact == null && this.t > (this.moveDur || 1) + 0.7) this.resolveHit();
+        if (!this.hitResolved && this.t > (this.moveDur || 1) + 0.7) this.resolveHit();
         break;
       }
       case 'impact':
@@ -287,6 +319,7 @@ export class Melee {
         break;
     }
     if (this.opp.scrap) this.updateHpBar();
+    this.updateAuras();
     // The training ends when she is too tired (or the dummy is gone).
     if (this.active && this.kind === 'dummy') {
       const d = this.game?.toys?.boneco_treino;
@@ -307,7 +340,6 @@ export class Melee {
     this.t = 0;
     this.hitResolved = false;
     this.move = null;
-    this.pendingImpact = null;
     this.phase = 'announce';
     // JRPG style: the actor is announced above the head (green for her, red for the enemy).
     if (who === TURN.PERSOCON) {
@@ -317,22 +349,55 @@ export class Melee {
     }
   }
 
-  // The turn itself: the move, the item or the throw.
+  // The turn itself: the move, the item or the maneuver.
   startTurn() {
-    if (this.turn === TURN.PERSOCON) this.persoconTurn();
-    else this.opponentTurn();
+    if (this.turn === TURN.PERSOCON) {
+      // Out of contact? She dashes back in first: a melee hit has to physically connect.
+      if (this.outOfRange()) { this.closeIn(); return; }
+      this.persoconTurn();
+    } else this.opponentTurn();
   }
 
-  // The Persocon's turn: she uses a medicine when hurt, throws when far, or attacks in melee.
+  // How far she is from the target.
+  distance() {
+    const ox = this.oppX() ?? this.pet.x;
+    return Math.abs(ox - this.pet.x);
+  }
+
+  outOfRange() {
+    return this.distance() > this.pet.P * MELEE_RANGE;
+  }
+
+  // She dashes back into contact (the attack only happens when she arrives).
+  closeIn() {
+    const pet = this.pet;
+    const ox = this.oppX() ?? pet.x;
+    const side = Math.sign(ox - pet.x) || pet.dir || 1;
+    const want = ox - side * pet.P * 0.8;
+    const d = want - pet.x;
+    pet.dir = side;
+    const first = this.phase !== 'close';
+    this.phase = 'close';
+    this.t = 0;
+    if (first) {
+      this.say(pet.x, pet.y - pet.P * 1.05, 'Avança!', 'good');
+      this.app.sound?.tone8?.(300, 420, 0.05, 'square', 0.04);
+    }
+    const step = Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 2.8 * (this.dt || 0.016));
+    pet.x += step;
+    pet.anim('walk', { facing: side > 0 ? 'right' : 'left', restart: true });
+  }
+
+  // The Persocon's turn: she uses a medicine when hurt, or fights with a maneuver/normal move.
   persoconTurn() {
     const pet = this.pet;
     this.phase = 'windup';
     this.t = 0;
-    // She spends the turn on a medicine instead of attacking when she is hurt.
+    // She spends the turn on a medicine instead of attacking when it actually helps.
+    // With the Fúria the maneuver comes first: the status is precious.
+    const man = this.fury ? maneuverFor(this.level) : null;
+    if (man) return this.maneuverTurn(man);
     if (this.useMedicine()) return;
-    // Too far away: she throws something at the target.
-    const dist = Math.abs((this.oppX() ?? pet.x) - pet.x);
-    if (dist > pet.P * MELEE_RANGE) return this.throwAttack();
     // Otherwise: one of the moves she has unlocked.
     const list = this.attacks.length ? this.attacks : this.moves;
     if (!list.length) { this.finishTraining('nomoves'); return; }
@@ -351,19 +416,41 @@ export class Melee {
     this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good');
   }
 
-  // She drinks a medicine instead of attacking (her turn is spent on it).
+  // The special maneuver (only with the Fúria): it consumes the status.
+  maneuverTurn(man) {
+    const pet = this.pet;
+    this.fury = false;                 // the Fúria is spent
+    this.removeFuryAura();
+    this.move = {
+      id: man.id, name: man.name, kind: 'attack', clip: man.clip,
+      dmg: man.mult, maneuver: man, hits: man.hits || 1,
+    };
+    this.next = TURN.OPPONENT;
+    const facing = this.facing();
+    pet.dir = facing > 0 ? 1 : -1;
+    pet.playAnimation(man.clip, { facing: facing > 0 ? 'right' : 'left' });
+    this.moveDur = (this.metaOf(this.move)?.durationMs ?? 500) / 1000;
+    this.say(pet.x, pet.y - pet.P * 1.15, `${man.name}!`, 'good');
+    this.app.sound?.play?.('powerup', { volume: 0.4 });
+  }
+
+  // She drinks a medicine instead of attacking — but only if it helps RIGHT NOW:
+  // it heals and she is hurt, or it cures a status she actually has.
   useMedicine() {
     const pet = this.pet;
     const game = this.game;
     const max = pet.maxHealth?.() ?? 100;
-    if (pet.stats.health >= max * 0.6) return false;
-    const meds = ITEMS
-      .filter((i) => (i.cat === 'medicina' || i.consumable) && (i.effects?.health > 0) && game.count(i.id) > 0);
+    const hurt = pet.stats.health < max * 0.6;
+    const cures = (item) => (item.cures || []).some((c) => pet.hasDebuff?.(c));
+    const meds = ITEMS.filter((i) => i.cat === 'medicina' && (game.count?.(i.id) || 0) > 0
+      && ((i.effects?.health > 0 && hurt) || cures(i)));
     if (!meds.length) return false;
-    meds.sort((a, b) => (b.effects?.health || 0) - (a.effects?.health || 0));
+    meds.sort((a, b) => ((b.effects?.health || 0) + (cures(b) ? 50 : 0)) - ((a.effects?.health || 0) + (cures(a) ? 50 : 0)));
     const item = meds[0];
     pet.adjust(item.effects || {});
     for (const c of item.cures || []) pet.cureDebuff?.(c);
+    // The stun wears off with the medicine that cures it.
+    if ((item.cures || []).includes('atordoado')) this.stunTurns = 0;
     game.take(item.id);
     game.changed();
     pet.emit('ate', { item });
@@ -372,32 +459,10 @@ export class Melee {
     this.hitResolved = true;          // no strike this turn
     this.say(pet.x, pet.y - pet.P * 1.05, `Usou ${item.name}`, 'good');
     this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.6, 0.4);
-    this.app.sound?.play?.('blip', { volume: 0.4 });
+    this.app.sound?.play?.('puff', { volume: 0.4 });
     this.phase = 'impact';
     this.t = 0;
     return true;
-  }
-
-  // Ranged attack: she throws a small object at the target (the Strength scales it).
-  throwAttack() {
-    const pet = this.pet;
-    const from = { x: pet.x, y: pet.y - pet.P * 0.62 };
-    const to = { x: this.oppX(), y: this.oppY() - pet.P * 0.55 };
-    this.move = {
-      id: 'throw', name: 'Arremesso', kind: 'attack', clip: 'attack_jab',
-      dmg: 3 + this.strength * 1.6, thrown: true,
-    };
-    this.next = TURN.OPPONENT;
-    const facing = this.facing();
-    pet.dir = facing > 0 ? 1 : -1;
-    pet.playAnimation('attack_jab', { facing: facing > 0 ? 'right' : 'left' });
-    this.moveDur = 0.4;
-    this.say(pet.x, pet.y - pet.P * 1.05, 'Arremessou um objeto!', 'good');
-    this.app.fx?.projectile?.(from.x, from.y, to.x, to.y);
-    this.app.sound?.swish?.();
-    // The object lands a moment later: that is when the hit counts.
-    this.pendingImpact = 0.34;
-    this.phase = 'windup';
   }
 
   // The opponent's turn. The Training Dummy NEVER attacks: it braces and waits.
@@ -429,7 +494,10 @@ export class Melee {
     this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
     // The rolls: its accuracy against her defense.
     const lvl = this.level;
-    const acc = clamp(0.38 + this.opp.level * 0.05, 0.2, 0.9);
+    let acc = clamp(0.38 + this.opp.level * 0.05, 0.2, 0.9);
+    // Atordoado: the enemy hits far less often.
+    const stunned = this.opp.stunned > 0;
+    if (stunned) acc = clamp(acc - 0.45, 0.05, 0.9);
     const block = clamp(0.06 + lvl * 0.035, 0.02, 0.4);
     const dodge = clamp(0.04 + lvl * 0.02, 0.02, 0.3);
     const r = Math.random();
@@ -441,7 +509,12 @@ export class Melee {
     } else if (r < block + dodge + acc) {
       this.resolvePlayerHit();
     } else {
-      this.resolveMiss();
+      this.resolveMiss(stunned);
+    }
+    // The stun of the enemy wears off with the turns.
+    if (stunned) {
+      this.opp.stunned = Math.max(0, this.opp.stunned - 1);
+      if (!this.opp.stunned) this.removeOppDizzy();
     }
   }
 
@@ -453,6 +526,8 @@ export class Melee {
     this.app.fx?.impact?.(kind === 'dodge' ? 'dust' : 'shield', pet.x + this.facing() * pet.P * 0.35, pet.y - pet.P * 0.6, kind === 'dodge' ? 0.45 : 0.5);
     this.app.fx?.shake?.(0.3);
     this.app.sound?.tone8?.(kind === 'dodge' ? 700 : 520, 220, 0.1, 'square', 0.07);
+    // Blocking or dodging breaks the streak of hits: no Fúria.
+    this.hitStreak = 0;
     this.phase = 'impact';
     this.t = 0;
   }
@@ -460,25 +535,117 @@ export class Melee {
   // The Scrap Dummy's blow lands: real health damage and the stagger animation.
   resolvePlayerHit() {
     const pet = this.pet;
-    const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (Math.random() < 0.15 ? 1.6 : 1));
+    const crit = Math.random() < 0.15;
+    const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1));
     pet.adjust({ health: -dmg });
     pet.playAnimation('combat_hit_stagger', { facing: this.facing() > 0 ? 'right' : 'left' });
-    // The blow pushes her back: now she is out of reach and has to throw.
+    // The blow pushes her back: now she is out of reach and has to close in again.
     const w = this.app.world?.width || 0;
-    const back = pet.x - this.facing() * pet.P * 0.45;
+    const back = pet.x - this.facing() * pet.P * KNOCKBACK;
     pet.x = w ? Math.max(pet.P * 0.25, Math.min(w - pet.P * 0.25, back)) : back;
     this.say(pet.x, pet.y - pet.P * 1.05, `−${dmg} de Saúde`, 'bad');
     this.app.fx?.impact?.('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
     this.app.fx?.shake?.(0.55);
     this.app.sound?.tone8?.(140, 60, 0.14, 'square', 0.11);
+    // A critical hit or a heavy blow can leave her Atordoada for 1 to 3 turns.
+    if (!this.stunTurns && (crit || (this.opp.level >= 2 && Math.random() < 0.18 + this.opp.level * 0.05))) {
+      this.applyStun();
+    }
+    // Hits in a row without blocking or dodging: the Fúria comes up.
+    this.hitStreak = (this.hitStreak || 0) + 1;
+    if (this.hitStreak >= FURY_HITS && !this.fury) this.applyFury();
     this.phase = 'impact';
     this.t = 0;
   }
 
-  // The Scrap Dummy misses.
-  resolveMiss() {
+  // Atordoada: 1 a 3 turnos de grande penalidade na precisão.
+  applyStun() {
     const pet = this.pet;
-    this.say(pet.x, pet.y - pet.P * 1.05, 'O Sucataoxidado errou!', 'bad');
+    const turns = 1 + Math.floor(Math.random() * 3);
+    this.stunTurns = turns;
+    pet.addDebuff?.('atordoado');
+    this.say(pet.x, pet.y - pet.P * 1.2, 'Atordoada!', 'bad');
+    this.app.sound?.tone8?.(880, 200, 0.25, 'triangle', 0.09);
+    this.showDizzy();
+  }
+
+  // Fúria: ela pode soltar a manobra especial do seu nível.
+  applyFury() {
+    this.fury = true;
+    this.hitStreak = 0;
+    this.say(this.pet.x, this.pet.y - this.pet.P * 1.3, '[FÚRIA ATIVADA!]', 'good');
+    this.app.sound?.powerup?.(1);
+    this.showFury();
+  }
+
+  removeFuryAura() {
+    this.furyAura?.remove();
+    this.furyAura = null;
+  }
+
+  // The dizzy stars above her head while she is Atordoada.
+  showDizzy() {
+    if (this.dizzyEl || typeof document === 'undefined') return;
+    this.dizzyEl = this.makeAura('dizzy', 'dizzy_stars.png');
+  }
+
+  removeDizzy() {
+    this.dizzyEl?.remove();
+    this.dizzyEl = null;
+  }
+
+  // The fiery aura while she has the Fúria.
+  showFury() {
+    if (this.furyAura || typeof document === 'undefined') return;
+    this.furyAura = this.makeAura('fury', 'fire.png');
+  }
+
+  // The stars above the stunned enemy.
+  showOppDizzy() {
+    if (this.oppDizzyEl || typeof document === 'undefined') return;
+    this.oppDizzyEl = this.makeAura('dizzy', 'dizzy_stars.png');
+  }
+
+  removeOppDizzy() {
+    this.oppDizzyEl?.remove();
+    this.oppDizzyEl = null;
+  }
+
+  // A small image that follows a position (the auras of the fight).
+  makeAura(cls, file) {
+    const el = document.createElement('img');
+    el.className = `combat-aura ${cls}`;
+    el.src = new URL(`./assets/vfx/${file}`, import.meta.url).href;
+    el.draggable = false;
+    document.body.append(el);
+    return el;
+  }
+
+  // The auras (her dizzy stars, her Fúria and the enemy's stars) follow their owners.
+  updateAuras() {
+    const pet = this.pet;
+    const P = pet.P;
+    for (const el of [this.dizzyEl, this.furyAura]) {
+      if (!el) continue;
+      el.style.left = `${Math.round(pet.x)}px`;
+      el.style.top = `${Math.round(pet.y - P * 1.12)}px`;
+    }
+    if (this.oppDizzyEl) {
+      this.oppDizzyEl.style.left = `${Math.round(this.oppX() ?? pet.x)}px`;
+      this.oppDizzyEl.style.top = `${Math.round(this.oppY() - P * 1.12)}px`;
+    }
+    if (this.stunTurns > 0 && !this.dizzyEl) this.showDizzy();
+    if (!this.stunTurns && this.dizzyEl) this.removeDizzy();
+    if (this.fury && !this.furyAura) this.showFury();
+    if (!this.fury && this.furyAura) this.removeFuryAura();
+    if (this.opp.stunned > 0 && !this.oppDizzyEl) this.showOppDizzy();
+    if (!this.opp.stunned && this.oppDizzyEl) this.removeOppDizzy();
+  }
+
+  // The Scrap Dummy misses.
+  resolveMiss(stunned = false) {
+    const pet = this.pet;
+    this.say(pet.x, pet.y - pet.P * 1.05, stunned ? 'O Sucataoxidado está tonto!' : 'O Sucataoxidado errou!', 'bad');
     this.app.fx?.impact?.('dust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.7, 0.4);
     this.app.sound?.tone8?.(520, 300, 0.08, 'triangle', 0.04);
     this.phase = 'impact';
@@ -492,35 +659,53 @@ export class Melee {
     this.resolveHit();
   }
 
+  // The roll of a single strike: 'block', 'miss' or the damage of the hit.
+  rollStrike(man, mult = 1) {
+    const lvl = this.level;
+    const str = this.strength;
+    const opp = this.opp;
+    // Atordoada: ela erra muitos golpes.
+    const stunned = this.stunTurns > 0;
+    let hitChance = clamp(0.52 + lvl * 0.04 - opp.defense, 0.2, 0.95);
+    if (man?.ignoreDefense) hitChance = clamp(0.6 + lvl * 0.03, 0.2, 0.95);
+    if (stunned) hitChance = clamp(hitChance - STUN_PENALTY, 0.02, 0.95);
+    const critChance = clamp(0.06 + lvl * 0.025, 0.06, 0.4);
+    const blockChance = clamp(0.1 + opp.defense * 0.5 - lvl * 0.015, 0.02, 0.45);
+    const r = Math.random();
+    if (r < blockChance) return { result: 'block' };
+    if (r >= blockChance + hitChance) return { result: 'miss', stunned };
+    const crit = Math.random() < critChance;
+    // The Strength decides how hard she hits; a maneuver has its own multiplier.
+    const base = man ? man.mult * 6 : (this.move?.dmg ?? 0);
+    const dmg = Math.max(1, Math.round(base * mult * (0.85 + lvl * 0.03) * (0.75 + str * 0.075) * (crit ? 1.7 : 1)));
+    return { result: 'hit', dmg, crit };
+  }
+
   resolveHit() {
     if (this.hitResolved) return;
     this.hitResolved = true;
     const move = this.move;
     const pet = this.pet;
     const lvl = this.level;
-    const str = this.strength;
     const opp = this.opp;
-    const hitChance = clamp(0.52 + lvl * 0.04 - opp.defense, 0.2, 0.95);
-    const critChance = clamp(0.06 + lvl * 0.025, 0.06, 0.4);
-    const blockChance = clamp(0.1 + opp.defense * 0.5 - lvl * 0.015, 0.02, 0.45);
-    const r = Math.random();
+    const man = move.maneuver;
     const side = this.facing();
     const x = this.oppX();
     const y = this.oppY() - 24;
-    const heavy = move.lvl >= 7;
-    if (r < blockChance) {
-      this.say(x, y - 10, 'Bloqueou!', 'good');
-      this.app.fx?.impact?.('shield', x, y, 0.45);
-      this.app.fx?.impact?.('dust', x, y + 6, 0.4);
-      this.app.fx?.shake?.(0.25);
-      this.app.sound?.tone8?.(300, 180, 0.1, 'square', 0.06);
-    } else if (r < blockChance + hitChance) {
-      const crit = Math.random() < critChance;
-      // The Strength decides how hard she hits.
-      const dmg = Math.round(move.dmg * (0.85 + lvl * 0.03) * (0.75 + str * 0.075) * (crit ? 1.7 : 1));
-      opp.hp = Math.max(0, opp.hp - dmg);
+    const heavy = move.lvl >= 7 || !!man;
+    const hits = man?.hits || 1;
+    let total = 0;
+    let landed = false;
+    let missed = false;
+    let blocked = false;
+    for (let h = 0; h < hits; h++) {
+      const roll = this.rollStrike(man);
+      if (roll.result === 'block') { blocked = true; break; }
+      if (roll.result === 'miss') { missed = true; continue; }
+      landed = true;
+      total += roll.dmg;
+      opp.hp = Math.max(0, opp.hp - roll.dmg);
       this.hits++;
-      this.say(x, y - 10, crit ? `Crítico! ${dmg}` : `${dmg}`, 'good');
       // The impact: a sharp spark for the light hits, a slash + burst for the heavy ones.
       if (heavy) {
         this.app.fx?.impact?.('slash', x, y, 1.1);
@@ -532,11 +717,27 @@ export class Melee {
       }
       // The mechanical dummy throws rust when it takes the hit.
       if (opp.scrap) this.app.fx?.impact?.('rust', x, y - 6, 0.5);
-      this.app.sound?.tone8?.(180 + dmg * 9, 70, 0.12, 'square', 0.1);
+      this.app.sound?.tone8?.(180 + roll.dmg * 9, 70, 0.12, 'square', 0.1);
       this.app.sound?.swish?.();
-      this.app.dummy?.hit?.(dmg, side);
+      this.app.dummy?.hit?.(roll.dmg, side);
+      // The combo shows each punch on its own.
+      if (hits > 1) this.say(x, y - 10 - h * 12, `${roll.dmg}`, 'good');
+    }
+    if (landed) {
+      this.say(x, y - 10, total > 0 ? `${total}` : '0', 'good');
+      // The critical is announced on top of the damage.
+      // The special effects of the maneuver.
+      this.applyManeuverFx(man, x, y);
+    } else if (blocked) {
+      this.say(x, y - 10, 'Bloqueou!', 'good');
+      this.app.fx?.impact?.('shield', x, y, 0.45);
+      this.app.fx?.impact?.('dust', x, y + 6, 0.4);
+      this.app.fx?.shake?.(0.25);
+      this.app.sound?.tone8?.(300, 180, 0.1, 'square', 0.06);
     } else {
-      this.say(x, y - 10, 'Errou!', 'good');
+      // She missed: while stunned it shows why.
+      this.say(x, y - 10, missed && this.stunTurns > 0 ? 'Atordoada!' : 'Errou!', missed && this.stunTurns > 0 ? 'bad' : 'good');
+      if (this.stunTurns > 0) this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.8, 0.5);
       this.app.sound?.tone8?.(520, 300, 0.08, 'triangle', 0.04);
     }
     // Every turn trains her: a little XP, a little energy spent.
@@ -548,8 +749,39 @@ export class Melee {
     const after = this.level;
     if (after > before) this.say(pet.x, pet.y - pet.P * 1.25, `Nível ${after}!`, 'good');
     pet.adjust({ energy: -this.energyCost(), mood: 0.4 });
+    // The stun lasts 1 to 3 of her turns.
+    if (this.stunTurns > 0) {
+      this.stunTurns = Math.max(0, this.stunTurns - 1);
+      if (!this.stunTurns) pet.cureDebuff?.('atordoado');
+    }
     this.phase = 'impact';
     this.t = 0;
+  }
+
+  // The special effect of a maneuver (the shockwave, the explosion, the stun on the enemy).
+  applyManeuverFx(man, x, y) {
+    if (!man) return;
+    // The Chute Meteoro can leave the enemy dizzy.
+    if (man.stun && Math.random() < man.stun) {
+      this.opp.stunned = 2;
+      this.say(x, y - 24, 'Atordoado!', 'good');
+      this.showOppDizzy();
+    }
+    // The Contra-Impacto Sísmico: a shockwave ring and a bit of energy back.
+    if (man.shock) {
+      this.app.fx?.impact?.('burst', x, y, 1.6);
+      this.app.fx?.impact?.('dust', x, y + 8, 1.2);
+      this.app.sound?.play?.('whoosh', { volume: 0.5 });
+      this.app.fx?.shake?.(1.2);
+    }
+    if (man.energy) this.pet.adjust({ energy: man.energy });
+    // The Explosão Carmesim: the big crimson blast.
+    if (man.explosion) {
+      this.app.fx?.explosion?.('blood', x, y, 1.5);
+      this.app.fx?.explosion?.('fire', x, y, 1.9, 1);
+      this.app.fx?.shake?.(1.4);
+      this.app.sound?.play?.('explode', { volume: 0.6 });
+    }
   }
 
   finishTraining(reason = 'done') {
