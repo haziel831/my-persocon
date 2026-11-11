@@ -686,9 +686,22 @@ export class Menu {
     const { app } = this;
     const g = app.game;
     const p = g.profile;
-    const consumed = Object.entries(p.consumed).sort((a, b) => b[1] - a[1]);
-    const total = consumed.reduce((n, [, c]) => n + c, 0);
-    const rows = [
+    const open = { ...(this._perfilOpen || {}) };
+    // A collapsible section: the title toggles the content.
+    const section = (key, title, list) => {
+      const isOpen = !!open[key];
+      return [
+        h('button.skill-head.perfil-head', {
+          onclick: () => { this._perfilOpen = { ...open, [key]: !isOpen }; this.render(); },
+        }, `${isOpen ? '▼' : '▶'} ${title}`),
+        isOpen ? h('dl.facts.profile', {}, list.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, String(v))])) : null,
+      ];
+    };
+    const combatLvl = skillLevel(g.skillXp('unarmed'));
+    const combatNext = skillXpFor(Math.min(10, combatLvl + 1));
+    const str = g.attrLevel?.('str') ?? 1;
+    const con = g.attrLevel?.('con') ?? 1;
+    const geral = [
       ['Nome', app.config.name || 'Ninna'],
       ['Idade', age(p.born)],
       ['Afeição', `${Math.round(app.pet.affection)} / ${AFFECTION_MAX} · moedas ×${(1 + Math.max(0, app.pet.affection) / 500).toFixed(1)}`],
@@ -709,17 +722,17 @@ export class Menu {
         return `${bits.join(' · ')} · ativos: ${active.join(' · ')}`;
       })()],
       ['Carteira dela', `¥ ${p.wallet || 0} · sorte nos jogos ${Math.round(Math.max(0, luckOf(app.pet.affection)) * 100)}%`],
-      ['Itens consumidos', total],
-      ['Mais consumidos', consumed.slice(0, 3).map(([id, c]) => `${itemById(id)?.name || id} ×${c}`).join(', ') || '—'],
+      ['Combate', `Nv ${combatLvl} · ${Math.floor(g.skillXp('unarmed'))}/${combatNext} XP`],
+      ['Força', `Nv ${str} · ${Math.floor(g.attrXp?.('str') || 0)} XP`],
+      ['Constituição', `Nv ${con} · ${Math.floor(g.attrXp?.('con') || 0)} XP`],
+      ['Saúde máxima', `${g.maxHealth?.() ?? 100}`],
+      ['Pega-pega', `${p.chases} partidas · ${p.chaseWins} vitórias da Persocon · ${p.escapes} fugas`],
+    ];
+    const favoritos = [
       ...[['love', '♥ Favoritos'], ['like', '👍 Gosta'], ['dislike', '👎 Não gosta'], ['hate', '💢 Odeia']].map(([t, label]) => [label,
         Object.entries(p.tastes || {}).filter(([, v]) => v === t).map(([id]) => itemById(id)?.name || id).join(', ') || '—']),
-      ['Gostos provados', `${Object.keys(p.tastes || {}).length} · ${Object.values(p.tastes || {}).filter((v) => v === 'ok').length} neutros`],
-      ['Cafunés / tapas', `${p.pats} / ${p.slaps}`],
-      ['Pega-pega', `${p.chases} partidas · ${p.chaseWins} vitórias da Persocon · ${p.escapes} fugas`],
-      ['Jogos no GameBuddy', p.gamesPlayed],
-      ['Cartuchos', g.cartridges.map((c) => `${GAMES[c]?.name || c}${g.isFavorite(c) ? ' ♥' : ''} (nv ${Math.round(g.cartSkill(c) * 10)})`).join(', ')],
-      ['Brinquedos comprados', p.toysBought],
-      ['Pedidos atendidos', p.requestsDone],
+    ];
+    const recordes = [
       ...(p.fun?.yoyo ? [['Ioiô', `nível ${Math.min(10, 1 + Math.floor(p.fun.yoyo / 12))} · ${p.fun.yoyo} truques`]] : []),
       ...(p.fun?.hoopBest ? [['Recorde no bambolê', `${p.fun.hoopBest}s`]] : []),
       ...(p.fun?.cubeBest ? [['Recorde do cubo mágico', `${p.fun.cubeBest}s`]] : []),
@@ -737,9 +750,14 @@ export class Menu {
       },
     }, '🗑 Apagar save e começar uma nova Persocon');
     const attrs = p.attrs || {};
-    const attrBox = h('div.attrs', {}, ATTRS.map(([k, label]) => h('div.attr', {},
-      h('span', {}, label), h('b', {}, attrs[k] ?? 0),
-      h('div.track', {}, h('div.fill.attr', { style: { width: `${((attrs[k] ?? 0) / 20) * 100}%` } })))));
+    const attrBox = h('div.attrs', {}, ATTRS.map(([k, label]) => {
+      const lvl = g.attrLevel?.(k) ?? (attrs[k] ?? 0);
+      const xp = Math.floor(g.attrXp?.(k) || 0);
+      return h('div.attr', {},
+        h('span', {}, label), h('b', {}, `Nv ${lvl}`),
+        h('div.track', {}, h('div.fill.attr', { style: { width: `${(lvl / 10) * 100}%` } })),
+        h('small.muted', {}, `${xp} XP`));
+    }));
     const skills = p.skills || {};
     const skillBox = h('div.skills', {}, Object.entries(SKILL_DEFS).map(([id, def]) => {
       const xp = skills[id] || 0;
@@ -761,8 +779,16 @@ export class Menu {
           : null);
     }));
     return [
-      h('dl.facts.profile', {}, rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, String(v))])),
-      h('div.group', {}, 'Atributos'), attrBox, h('div.note', {}, 'Os atributos começam em 0 e serão usados em breve.'),
+      h('div.group', {}, 'Perfil'),
+      ...section('geral', 'Informações Gerais', geral),
+      ...section('favoritos', 'Favoritos', favoritos),
+      ...section('pats', 'Cafunés / tapas', [['Cafunés / tapas', `${p.pats} / ${p.slaps}`]]),
+      ...section('games', 'Jogos no GameBuddy', [['Jogos no GameBuddy', p.gamesPlayed]]),
+      ...section('carts', 'Cartuchos', [['Cartuchos', g.cartridges.map((c) => `${GAMES[c]?.name || c}${g.isFavorite(c) ? ' ♥' : ''} (nv ${Math.round(g.cartSkill(c) * 10)})`).join(', ') || '—']]),
+      ...section('toys', 'Brinquedos comprados', [['Brinquedos comprados', p.toysBought]]),
+      ...section('requests', 'Pedidos atendidos', [['Pedidos atendidos', p.requestsDone]]),
+      ...(recordes.length ? section('records', 'Recordes e troféus', recordes) : []),
+      h('div.group', {}, 'Atributos'), attrBox, h('div.note', {}, 'A Força aumenta o dano dos golpes e os arremessos; a Constituição aumenta a Saúde máxima e faz toda ação gastar menos energia (ela ganha XP de Constituição a cada energia gasta).'),
       h('div.group', {}, 'Skills (armas e treino)'), skillBox, h('div.note', {}, 'Clique numa skill para ver os golpes/truques aprendidos.'),
       h('div.group', {}, 'Incentivos (cafuné) e desincentivos (tapa)'),
       Object.keys(app.pet.prefs || {}).length

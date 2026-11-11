@@ -101,6 +101,18 @@ export const ATTRS = [
   ['will', 'Força de Vontade'], ['per', 'Percepção'], ['cha', 'Carisma'], ['int', 'Inteligência'],
 ];
 
+// Attribute level from its XP: slow and gradual (level 10 needs ~2000 XP).
+export function attrLevelOf(xp) {
+  const v = Math.max(0, xp || 0);
+  return Math.min(10, 1 + Math.floor(Math.sqrt(v / 25)));
+}
+// How much Health the attributes add: the Constitution is the sturdy one, the Strength helps too.
+export const MAX_HP_BASE = 100;
+export const HP_PER_CON = 4;
+export const HP_PER_STR = 2;
+// The Constitution makes every action cheaper.
+export const ENERGY_PER_CON = 0.04;
+
 export const itemById = (id) => ITEMS.find((i) => i.id === id);
 export const isEdible = (item) => item && ['comidas', 'bebidas', 'sobremesas'].includes(item.cat);
 // Things she tastes the first time: from favorite to hated, neutral being the most common.
@@ -513,6 +525,33 @@ export class Game {
 
   skillXp(id) {
     return (this.profile.skills ||= {})[id] || 0;
+  }
+
+  // ---------- attributes (Força / Constituição) ----------
+
+  attrXp(id) {
+    return (this.profile.attrXp ||= {})[id] || 0;
+  }
+
+  attrLevel(id) {
+    return attrLevelOf(this.attrXp(id));
+  }
+
+  // Gains attribute XP (the level goes up on its own). The save is marked dirty, not written
+  // right away: this is called with every point of Energy spent.
+  attrAdd(id, amount) {
+    const xp = (this.profile.attrXp ||= {});
+    xp[id] = Math.max(0, (xp[id] || 0) + amount);
+    this.profile.attrs[id] = attrLevelOf(xp[id]);
+    this.dirty = true;
+    return this.profile.attrs[id];
+  }
+
+  // Her maximum Health: the Constitution and the Strength make her tougher.
+  maxHealth() {
+    const con = this.attrLevel('con');
+    const str = this.attrLevel('str');
+    return MAX_HP_BASE + (con - 1) * HP_PER_CON + (str - 1) * HP_PER_STR;
   }
 
   skillAdd(id, amount) {

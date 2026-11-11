@@ -4,15 +4,26 @@
 import { icon } from './pixel.js';
 import { isPowerUp } from './game.js';
 
-// Impact effects for the melee (pixel sheets from 06_VFX): the strike spark, the slash, the
-// dust and the metallic shield. Drawn on a small canvas, one frame at a time.
+// Impact effects for the melee: the 32x32 pixel sheet (assets/vfx/32x32_simple_sfx_sheet.png),
+// sliced frame by frame and drawn at the exact impact point.
+const SFX_COLS = 5;
+const SFX_CELL = 32;
+// The frames of each effect (col, row) inside the sheet.
 const IMPACT = {
-  spark: { file: 'electric-impact', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.6 },
-  rust: { file: 'electric-impact', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.5, tint: 'sepia(1) saturate(3.4) hue-rotate(-18deg) brightness(0.9)' },
-  slash: { file: 'crescent-slash', frames: 10, cols: 5, cell: 96, ms: 50, scale: 0.85 },
-  burst: { file: 'warm-explosion', frames: 15, cols: 5, cell: 96, ms: 50, scale: 0.8 },
-  dust: { file: 'smoke-puff', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.5 },
-  shield: { file: 'electric-impact', frames: 14, cols: 5, cell: 96, ms: 50, scale: 0.5, tint: 'grayscale(0.4) brightness(1.5) contrast(1.2)' },
+  hit: { frames: [[1, 0], [0, 1], [2, 1]], ms: 55, scale: 0.95 },       // the sharp star
+  slash: { frames: [[3, 4], [2, 5], [3, 5], [4, 5]], ms: 50, scale: 1.2 },  // the cut
+  burst: { frames: [[0, 7], [1, 7], [2, 7], [3, 7]], ms: 55, scale: 1.25 }, // the explosion rings
+  shield: { frames: [[3, 7], [4, 7], [0, 8]], ms: 70, scale: 1 },        // the guard ring
+  dust: { frames: [[2, 12], [3, 12], [4, 12], [1, 13]], ms: 70, scale: 0.8 },  // the puff
+  rust: { frames: [[1, 11], [2, 11], [3, 11], [4, 11]], ms: 55, scale: 0.8 }, // the rust flakes
+};
+let sfxSheet = null;
+const sfxImage = () => {
+  if (sfxSheet === null) {
+    sfxSheet = new Image();
+    sfxSheet.src = new URL('./assets/vfx/32x32_simple_sfx_sheet.png', import.meta.url).href;
+  }
+  return sfxSheet;
 };
 
 export class Fx {
@@ -78,38 +89,68 @@ export class Fx {
     setTimeout(() => ring.remove(), 1100);
   }
 
-  // A melee impact at (x, y): the pixel sheet of the effect, played frame by frame.
+  // A melee impact at (x, y): the frames of the 32x32 sheet played one by one.
   impact(kind, x, y, scale = 1) {
     const def = IMPACT[kind];
     if (!def || typeof document === 'undefined') return;
     const cv = document.createElement('canvas');
     cv.className = 'vfx-impact';
-    cv.width = def.cell;
-    cv.height = def.cell;
-    const size = Math.round(def.cell * def.scale * scale);
+    cv.width = SFX_CELL;
+    cv.height = SFX_CELL;
+    const size = Math.round(SFX_CELL * def.scale * scale);
     cv.style.width = `${size}px`;
     cv.style.height = `${size}px`;
     cv.style.left = `${Math.round(x - size / 2)}px`;
     cv.style.top = `${Math.round(y - size / 2)}px`;
-    if (def.tint) cv.style.filter = def.tint;
     document.body.append(cv);
-    const img = new Image();
-    img.src = new URL(`./assets/vfx/${def.file}.png`, import.meta.url).href;
+    const img = sfxImage();
     const g = cv.getContext('2d');
     g.imageSmoothingEnabled = false;
     const t0 = performance.now();
     const tick = () => {
-      const i = Math.min(def.frames - 1, Math.floor((performance.now() - t0) / def.ms));
-      const sx = (i % def.cols) * def.cell;
-      const sy = Math.floor(i / def.cols) * def.cell;
-      g.clearRect(0, 0, def.cell, def.cell);
-      g.drawImage(img, sx, sy, def.cell, def.cell, 0, 0, def.cell, def.cell);
-      if (i < def.frames - 1) requestAnimationFrame(tick);
+      const i = Math.min(def.frames.length - 1, Math.floor((performance.now() - t0) / def.ms));
+      const [c, r] = def.frames[i];
+      g.clearRect(0, 0, SFX_CELL, SFX_CELL);
+      if (img.complete && img.naturalWidth) {
+        g.drawImage(img, c * SFX_CELL, r * SFX_CELL, SFX_CELL, SFX_CELL, 0, 0, SFX_CELL, SFX_CELL);
+      }
+      if (i < def.frames.length - 1) requestAnimationFrame(tick);
       else setTimeout(() => cv.remove(), 60);
     };
     if (img.complete && img.naturalWidth) tick();
     else img.onload = tick;
     img.onerror = () => cv.remove();
+  }
+
+  // A small object thrown at the target: it flies in an arc and lands on it.
+  projectile(x0, y0, x1, y1, ms = 340) {
+    if (typeof document === 'undefined') return;
+    const cv = document.createElement('canvas');
+    cv.className = 'vfx-proj';
+    cv.width = 8;
+    cv.height = 8;
+    cv.style.width = '8px';
+    cv.style.height = '8px';
+    document.body.append(cv);
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const t0 = performance.now();
+    const tick = () => {
+      const u = Math.min(1, (performance.now() - t0) / ms);
+      const x = x0 + (x1 - x0) * u;
+      const y = y0 + (y1 - y0) * u - Math.sin(u * Math.PI) * 18;
+      cv.style.left = `${Math.round(x - 4)}px`;
+      cv.style.top = `${Math.round(y - 4)}px`;
+      g.clearRect(0, 0, 8, 8);
+      g.fillStyle = '#f4f1ea';
+      g.fillRect(2, 2, 4, 4);
+      g.fillStyle = '#9a98a4';
+      g.fillRect(2, 2, 4, 1);
+      g.fillRect(2, 5, 4, 1);
+      if (u < 1) requestAnimationFrame(tick);
+      else setTimeout(() => cv.remove(), 60);
+    };
+    tick();
   }
 
   // The screen (and the pet) shake on a heavy hit.

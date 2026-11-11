@@ -9,6 +9,7 @@
 // more accuracy, more crits and a better defense.
 import { combatMoves, skillLevel, skillGain } from './skills.js';
 import { COMBAT_META } from './combatanims.js';
+import { ITEMS, itemById } from './game.js';
 
 export const TURN = { PERSOCON: 'persocon', OPPONENT: 'opponent' };
 // Energy below this ends the training: she is too tired to keep going.
@@ -18,6 +19,15 @@ export const BASE_TURN_ENERGY = 3;
 export const MIN_TURN_ENERGY = 0.8;
 // The sparring is non-lethal: she stops at half of her health.
 export const SAFETY_HP = 0.5;
+// JRPG pacing: every phase of a turn waits a little before the next one.
+export const PACE = {
+  announce: 0.55,   // the turn is announced
+  windup: 0.35,     // the wind-up (before the hit frame)
+  impact: 0.45,     // the hit lands and the numbers show up
+  recover: 0.75,    // the recovery, before the next turn
+};
+// Melee range: further away and she throws instead of punching.
+export const MELEE_RANGE = 1.15;
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -134,8 +144,15 @@ export class Melee {
   // The energy a strike costs: the better she is, the less it costs.
   energyCost() {
     const lvl = this.level;
-    return Math.max(MIN_TURN_ENERGY, BASE_TURN_ENERGY * (1 - (lvl - 1) * 0.06));
+    const con = this.game?.attrLevel?.('con') ?? 1;
+    const base = Math.max(MIN_TURN_ENERGY, BASE_TURN_ENERGY * (1 - (lvl - 1) * 0.06));
+    // The Constitution makes everything cheaper.
+    return Math.max(MIN_TURN_ENERGY * 0.5, base * (1 - (con - 1) * 0.04));
   }
+
+  // Strength: how hard she hits (and how far she can throw).
+  get strength() { return this.game?.attrLevel?.('str') ?? 1; }
+  get constitution() { return this.game?.attrLevel?.('con') ?? 1; }
 
   // ---------------- COMBAT_MODE ----------------
 
@@ -241,13 +258,30 @@ export class Melee {
         if (Math.abs(want - pet.x) <= 3 || this.introT > 1.4) this.beginTurn(TURN.PERSOCON);
         break;
       }
-      case 'acting':
+      case 'announce':
+        // JRPG pace: the actor is named, then the wind-up starts.
+        if (this.t >= PACE.announce) this.startTurn();
+        break;
+      case 'windup': {
+        // A thrown object lands on its own timer.
+        if (this.pendingImpact != null) {
+          this.pendingImpact -= dt;
+          if (this.pendingImpact <= 0) {
+            this.pendingImpact = null;
+            this.resolveHit();
+          }
+        }
         // The clip is playing: the hit is resolved by the combatHit event. If the clip never
         // fires it (missing clip, interrupted), the turn still resolves.
-        if (!this.hitResolved && this.t > (this.moveDur || 1) + 0.7) this.resolveHit();
+        if (!this.hitResolved && this.pendingImpact == null && this.t > (this.moveDur || 1) + 0.7) this.resolveHit();
         break;
-      case 'resolve':
-        if (this.t >= this.wait) this.beginTurn(this.next);
+      }
+      case 'impact':
+        // The numbers and the effect are on screen for a beat.
+        if (this.t >= PACE.impact) { this.phase = 'recover'; this.t = 0; }
+        break;
+      case 'recover':
+        if (this.t >= PACE.recover) this.beginTurn(this.next);
         break;
       default:
         break;
@@ -270,16 +304,36 @@ export class Melee {
 
   beginTurn(who) {
     this.turn = who;
-    this.phase = 'acting';
     this.t = 0;
     this.hitResolved = false;
-    if (who === TURN.PERSOCON) this.persoconTurn();
+    this.move = null;
+    this.pendingImpact = null;
+    this.phase = 'announce';
+    // JRPG style: the actor is announced above the head (green for her, red for the enemy).
+    if (who === TURN.PERSOCON) {
+      this.say(this.pet.x, this.pet.y - this.pet.P * 1.22, this.app.config?.name || 'Persocon', 'good');
+    } else {
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.1, this.opp.name || 'Inimigo', 'bad');
+    }
+  }
+
+  // The turn itself: the move, the item or the throw.
+  startTurn() {
+    if (this.turn === TURN.PERSOCON) this.persoconTurn();
     else this.opponentTurn();
   }
 
-  // The Persocon's turn: she uses one of the moves she has unlocked.
+  // The Persocon's turn: she uses a medicine when hurt, throws when far, or attacks in melee.
   persoconTurn() {
     const pet = this.pet;
+    this.phase = 'windup';
+    this.t = 0;
+    // She spends the turn on a medicine instead of attacking when she is hurt.
+    if (this.useMedicine()) return;
+    // Too far away: she throws something at the target.
+    const dist = Math.abs((this.oppX() ?? pet.x) - pet.x);
+    if (dist > pet.P * MELEE_RANGE) return this.throwAttack();
+    // Otherwise: one of the moves she has unlocked.
     const list = this.attacks.length ? this.attacks : this.moves;
     if (!list.length) { this.finishTraining('nomoves'); return; }
     // The higher the level, the rarer the move (the basic jab is the bread and butter).
@@ -294,6 +348,56 @@ export class Melee {
       pet.playAnimation('combat_idle', { facing: facing > 0 ? 'right' : 'left' });
     }
     this.moveDur = (this.metaOf(move)?.durationMs ?? 400) / 1000;
+    this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good');
+  }
+
+  // She drinks a medicine instead of attacking (her turn is spent on it).
+  useMedicine() {
+    const pet = this.pet;
+    const game = this.game;
+    const max = pet.maxHealth?.() ?? 100;
+    if (pet.stats.health >= max * 0.6) return false;
+    const meds = ITEMS
+      .filter((i) => (i.cat === 'medicina' || i.consumable) && (i.effects?.health > 0) && game.count(i.id) > 0);
+    if (!meds.length) return false;
+    meds.sort((a, b) => (b.effects?.health || 0) - (a.effects?.health || 0));
+    const item = meds[0];
+    pet.adjust(item.effects || {});
+    for (const c of item.cures || []) pet.cureDebuff?.(c);
+    game.take(item.id);
+    game.changed();
+    pet.emit('ate', { item });
+    this.move = { id: 'item', name: item.name, kind: 'item', clip: 'combat_idle', dmg: 0 };
+    this.next = TURN.OPPONENT;
+    this.hitResolved = true;          // no strike this turn
+    this.say(pet.x, pet.y - pet.P * 1.05, `Usou ${item.name}`, 'good');
+    this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.6, 0.4);
+    this.app.sound?.play?.('blip', { volume: 0.4 });
+    this.phase = 'impact';
+    this.t = 0;
+    return true;
+  }
+
+  // Ranged attack: she throws a small object at the target (the Strength scales it).
+  throwAttack() {
+    const pet = this.pet;
+    const from = { x: pet.x, y: pet.y - pet.P * 0.62 };
+    const to = { x: this.oppX(), y: this.oppY() - pet.P * 0.55 };
+    this.move = {
+      id: 'throw', name: 'Arremesso', kind: 'attack', clip: 'attack_jab',
+      dmg: 3 + this.strength * 1.6, thrown: true,
+    };
+    this.next = TURN.OPPONENT;
+    const facing = this.facing();
+    pet.dir = facing > 0 ? 1 : -1;
+    pet.playAnimation('attack_jab', { facing: facing > 0 ? 'right' : 'left' });
+    this.moveDur = 0.4;
+    this.say(pet.x, pet.y - pet.P * 1.05, 'Arremessou um objeto!', 'good');
+    this.app.fx?.projectile?.(from.x, from.y, to.x, to.y);
+    this.app.sound?.swish?.();
+    // The object lands a moment later: that is when the hit counts.
+    this.pendingImpact = 0.34;
+    this.phase = 'windup';
   }
 
   // The opponent's turn. The Training Dummy NEVER attacks: it braces and waits.
@@ -301,15 +405,17 @@ export class Melee {
   opponentTurn() {
     const pet = this.pet;
     this.next = TURN.PERSOCON;
+    this.phase = 'windup';
+    this.t = 0;
     if (this.opp.scrap) return this.scrapTurn();
     this.move = { id: 'brace', name: 'Defende', kind: 'defend', clip: 'combat_block', dmg: 0 };
     this.moveDur = 0.45;
-    const x = this.oppX();
-    this.float(x, this.oppY() - 20, '🛡 O boneco se defende!');
+    this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, 'O boneco se defende', 'bad');
     this.app.sound?.tone8?.(220, 160, 0.12, 'triangle', 0.05);
     // She waits in the fighting stance while the dummy braces.
     pet.anim('idle', { facing: this.facing() > 0 ? 'right' : 'left', restart: false });
-    this.phase = 'acting';
+    this.hitResolved = true;
+    this.phase = 'impact';
     this.t = 0;
   }
 
@@ -319,15 +425,15 @@ export class Melee {
     this.next = TURN.PERSOCON;
     this.move = { id: 'scrap', name: 'Golpe de Sucata', kind: 'attack', clip: 'attack_jab', dmg: 4 + this.opp.level * 2.2 };
     this.moveDur = 0.5;
-    this.phase = 'acting';
-    this.t = 0;
-    this.float(this.oppX(), this.oppY() - 26, '⚙️ O Sucataoxidado ataca!');
+    this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, 'Golpe de Sucata', 'bad');
+    this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
     // The rolls: its accuracy against her defense.
     const lvl = this.level;
     const acc = clamp(0.38 + this.opp.level * 0.05, 0.2, 0.9);
     const block = clamp(0.06 + lvl * 0.035, 0.02, 0.4);
     const dodge = clamp(0.04 + lvl * 0.02, 0.02, 0.3);
     const r = Math.random();
+    this.hitResolved = true;
     if (r < block) {
       this.resolveDefence('block');
     } else if (r < block + dodge) {
@@ -342,13 +448,13 @@ export class Melee {
   // She blocks: the metallic spark + the guard pose.
   resolveDefence(kind) {
     const pet = this.pet;
-    const heavy = kind === 'block';
     pet.playAnimation(kind === 'dodge' ? 'combat_dodge_step' : 'combat_block', { facing: this.facing() > 0 ? 'right' : 'left' });
-    this.float(pet.x, pet.y - pet.P * 1.1, kind === 'dodge' ? '💨 Ela desviou!' : '🛡 Ela bloqueou!');
-    this.app.fx?.impact(kind === 'dodge' ? 'dust' : 'shield', pet.x + this.facing() * pet.P * 0.35, pet.y - pet.P * 0.6, kind === 'dodge' ? 0.45 : 0.5);
-    this.app.fx?.shake(0.3);
+    this.say(pet.x, pet.y - pet.P * 1.05, kind === 'dodge' ? 'Ela desviou!' : 'Ela bloqueou!', 'bad');
+    this.app.fx?.impact?.(kind === 'dodge' ? 'dust' : 'shield', pet.x + this.facing() * pet.P * 0.35, pet.y - pet.P * 0.6, kind === 'dodge' ? 0.45 : 0.5);
+    this.app.fx?.shake?.(0.3);
     this.app.sound?.tone8?.(kind === 'dodge' ? 700 : 520, 220, 0.1, 'square', 0.07);
-    this.afterTurn(0.45);
+    this.phase = 'impact';
+    this.t = 0;
   }
 
   // The Scrap Dummy's blow lands: real health damage and the stagger animation.
@@ -357,26 +463,26 @@ export class Melee {
     const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (Math.random() < 0.15 ? 1.6 : 1));
     pet.adjust({ health: -dmg });
     pet.playAnimation('combat_hit_stagger', { facing: this.facing() > 0 ? 'right' : 'left' });
-    this.float(pet.x, pet.y - pet.P * 1.15, `💢 −${dmg} Saúde`);
-    this.app.fx?.impact('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
-    this.app.fx?.shake(0.55);
+    // The blow pushes her back: now she is out of reach and has to throw.
+    const w = this.app.world?.width || 0;
+    const back = pet.x - this.facing() * pet.P * 0.45;
+    pet.x = w ? Math.max(pet.P * 0.25, Math.min(w - pet.P * 0.25, back)) : back;
+    this.say(pet.x, pet.y - pet.P * 1.05, `−${dmg} de Saúde`, 'bad');
+    this.app.fx?.impact?.('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
+    this.app.fx?.shake?.(0.55);
     this.app.sound?.tone8?.(140, 60, 0.14, 'square', 0.11);
-    this.afterTurn(0.6);
+    this.phase = 'impact';
+    this.t = 0;
   }
 
   // The Scrap Dummy misses.
   resolveMiss() {
     const pet = this.pet;
-    this.float(pet.x, pet.y - pet.P * 1.1, '💨 O Sucataoxidado errou!');
-    this.app.fx?.impact('dust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.7, 0.4);
+    this.say(pet.x, pet.y - pet.P * 1.05, 'O Sucataoxidado errou!', 'bad');
+    this.app.fx?.impact?.('dust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.7, 0.4);
     this.app.sound?.tone8?.(520, 300, 0.08, 'triangle', 0.04);
-    this.afterTurn(0.4);
-  }
-
-  afterTurn(wait) {
-    this.phase = 'resolve';
+    this.phase = 'impact';
     this.t = 0;
-    this.wait = wait;
   }
 
   // The hit frame of the current move: the rolls happen here.
@@ -392,6 +498,7 @@ export class Melee {
     const move = this.move;
     const pet = this.pet;
     const lvl = this.level;
+    const str = this.strength;
     const opp = this.opp;
     const hitChance = clamp(0.52 + lvl * 0.04 - opp.defense, 0.2, 0.95);
     const critChance = clamp(0.06 + lvl * 0.025, 0.06, 0.4);
@@ -402,44 +509,47 @@ export class Melee {
     const y = this.oppY() - 24;
     const heavy = move.lvl >= 7;
     if (r < blockChance) {
-      this.float(x, y, '🛡 Bloqueou!');
-      this.app.fx?.impact('shield', x, y, 0.45);
-      this.app.fx?.impact('dust', x, y + 6, 0.4);
-      this.app.fx?.shake(0.25);
+      this.say(x, y - 10, 'Bloqueou!', 'good');
+      this.app.fx?.impact?.('shield', x, y, 0.45);
+      this.app.fx?.impact?.('dust', x, y + 6, 0.4);
+      this.app.fx?.shake?.(0.25);
       this.app.sound?.tone8?.(300, 180, 0.1, 'square', 0.06);
     } else if (r < blockChance + hitChance) {
       const crit = Math.random() < critChance;
-      const dmg = Math.round(move.dmg * (0.85 + lvl * 0.03) * (crit ? 1.7 : 1));
+      // The Strength decides how hard she hits.
+      const dmg = Math.round(move.dmg * (0.85 + lvl * 0.03) * (0.75 + str * 0.075) * (crit ? 1.7 : 1));
       opp.hp = Math.max(0, opp.hp - dmg);
       this.hits++;
-      this.float(x, y, crit ? `💥 Crítico! ${dmg}` : `💥 ${move.name} · ${dmg}`);
+      this.say(x, y - 10, crit ? `Crítico! ${dmg}` : `${dmg}`, 'good');
       // The impact: a sharp spark for the light hits, a slash + burst for the heavy ones.
       if (heavy) {
-        this.app.fx?.impact('slash', x, y, 0.85);
-        this.app.fx?.impact('burst', x, y, 0.8);
-        this.app.fx?.shake(0.9);
+        this.app.fx?.impact?.('slash', x, y, 1.1);
+        this.app.fx?.impact?.('burst', x, y, 1.15);
+        this.app.fx?.shake?.(0.9);
       } else {
-        this.app.fx?.impact('spark', x, y, 0.6);
-        this.app.fx?.shake(0.45);
+        this.app.fx?.impact?.('hit', x, y, 0.9);
+        this.app.fx?.shake?.(0.45);
       }
       // The mechanical dummy throws rust when it takes the hit.
-      if (opp.scrap) this.app.fx?.impact('rust', x, y - 6, 0.5);
+      if (opp.scrap) this.app.fx?.impact?.('rust', x, y - 6, 0.5);
       this.app.sound?.tone8?.(180 + dmg * 9, 70, 0.12, 'square', 0.1);
       this.app.sound?.swish?.();
       this.app.dummy?.hit?.(dmg, side);
     } else {
-      this.float(x, y, '💨 Errou!');
+      this.say(x, y - 10, 'Errou!', 'good');
       this.app.sound?.tone8?.(520, 300, 0.08, 'triangle', 0.04);
     }
     // Every turn trains her: a little XP, a little energy spent.
     const before = lvl;
-    this.game.skillAdd('unarmed', skillGain('dummy'));
+    const gain = skillGain(this.kind === 'fight' ? 'sparring' : 'dummy');
+    this.game.skillAdd('unarmed', gain);
+    // The heavy training also makes her stronger (and it pays more combat XP).
+    if (this.kind === 'fight') this.game.attrAdd?.('str', gain * 0.6);
     const after = this.level;
-    if (after > before) this.float(pet.x, pet.y - pet.P * 1.2, `⬆️ Nv ${after}`);
+    if (after > before) this.say(pet.x, pet.y - pet.P * 1.25, `Nível ${after}!`, 'good');
     pet.adjust({ energy: -this.energyCost(), mood: 0.4 });
-    this.phase = 'resolve';
+    this.phase = 'impact';
     this.t = 0;
-    this.wait = 0.5;
   }
 
   finishTraining(reason = 'done') {
@@ -453,13 +563,13 @@ export class Melee {
     if (reason === 'win') {
       // Defeating the Scrap Dummy gives a bonus of Combat Skill XP.
       this.game.skillAdd('unarmed', 12 + this.opp.level * 6);
-      this.float(this.oppX(), this.oppY() - 40, '🏆 Sucataoxidado derrubado!');
-      this.float(pet.x, pet.y - pet.P * 1.3, `⬆️ Nv ${this.level}`);
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.1, 'Sucataoxidado derrubado!', 'good');
+      this.say(pet.x, pet.y - pet.P * 1.25, `Nível ${this.level}!`, 'good');
       this.app.sound?.play?.('ok', { volume: 0.5 });
     } else if (reason === 'safety') {
-      this.float(pet.x, pet.y - pet.P * 1.3, '🛑 Treino interrompido (segurança)');
+      this.say(pet.x, pet.y - pet.P * 1.25, 'Treino interrompido (segurança)', 'bad');
     } else {
-      this.float(pet.x, pet.y - pet.P * 1.3, '😵 Sem energia — fim do treino');
+      this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia — fim do treino', 'bad');
     }
     // The Scrap Dummy is reset for the next round.
     this.opp.hp = this.opp.max;
@@ -530,6 +640,18 @@ export class Melee {
 
   float(x, y, text) {
     this.app.toys?.furn?.floatText?.(x, y, text);
+  }
+
+  // Combat text above a head: green for her, red for the enemy. It floats up and fades.
+  say(x, y, text, kind = 'good') {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.className = `combat-text ${kind}`;
+    el.textContent = text;
+    el.style.left = `${Math.round(x)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    document.body.append(el);
+    setTimeout(() => el.remove(), 1500);
   }
 }
 

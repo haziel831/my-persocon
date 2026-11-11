@@ -91,8 +91,9 @@ export function skillPick(id, xp) {
   return list[Math.floor(Math.random() * list.length)] || null;
 }
 
-// Solo practice is slow; the training dummy gives more XP (still paced).
+// Solo practice is slow; the training dummy gives more XP and the heavy training much more.
 export function skillGain(kind = 'solo') {
+  if (kind === 'sparring') return 1.6 + Math.random() * 1.2;
   return kind === 'dummy' ? 0.8 + Math.random() * 0.6 : 0.12 + Math.random() * 0.12;
 }
 

@@ -1,6 +1,17 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.14', [
+    ['O combate agora tem ritmo de JRPG: anúncio do turno, antecipação, impacto, resultado e recuperação, com pausas entre cada fase', 'The combat now has a JRPG rhythm: the turn is announced, the wind-up, the impact, the result and the recovery, with a pause between each phase'],
+    ['Texto de combate flutuando acima da cabeça: verde nas ações da Persocon, vermelho nas ações do inimigo', 'Combat text floating above the head: green for the Persocon actions, red for the enemy actions'],
+    ['No turno dela ela pode gastar a vez tomando um remédio (ou um power-up) do inventário em vez de atacar', 'On her turn she can spend it on a medicine (or a power-up) from the inventory instead of attacking'],
+    ['Longe do alvo ela arremessa um objeto: o dano do arremesso depende da Força', 'Far from the target she throws an object: the throw damage depends on her Strength'],
+    ['Novos atributos: a Força aumenta o dano dos golpes e a Constituição aumenta a Saúde máxima e faz tudo gastar menos energia (ela ganha XP de Constituição a cada energia gasta)', 'New attributes: Strength raises the damage of the strikes and Constitution raises the maximum Health and makes everything cost less energy (she gains Constitution XP with every Energy spent)'],
+    ['O Treino Pesado dá muito mais XP de combate e também XP de Força', 'Heavy Training gives a lot more Combat Skill XP and also Strength XP'],
+    ['Os VFX de impacto agora vêm da folha de SFX 32×32 (quadros fatiados e animados no ponto do golpe)', 'The impact VFX now come from the 32×32 SFX sheet (sliced frames animated at the hit point)'],
+    ['O Perfil virou um sanfona: Informações Gerais, Favoritos, Cafunés/tapas, Jogos no GameBuddy, Cartuchos, Brinquedos comprados e Pedidos atendidos, cada um recolhível', 'The Profile became an accordion: General Info, Favorites, Pats/Slaps, GameBuddy Games, Cartridges, Purchased Toys and Fulfilled Requests, each one collapsible'],
+    ['Saiu do Perfil: Itens consumidos, Mais consumidos e Gostos provados', 'Removed from the Profile: Consumed Items, Most Consumed and Tastes Tried'],
+  ]],
   ['1.9.13', [
     ['Cada golpe agora custa menos energia quanto maior o nível de combate (nível 10 sai quase metade do custo do nível 1)', 'Every strike now costs less energy the higher the combat level (level 10 costs almost half of level 1)'],
     ['O Boneco de Treino agora pode ser melhorado para o Boneco Sucataoxidado: chapas enferrujadas, engrenagens e juntas mecânicas', 'The Training Dummy can now be upgraded into the Rusty Scrap Dummy: rusty plates, gears and mechanical joints'],

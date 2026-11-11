@@ -363,6 +363,13 @@ export class Pet {
   }
 
   // src: where a mood gain comes from (defaults to what she is doing); the same source gets boring.
+  // Her maximum Health: the Constitution and the Strength make her tougher.
+  maxHealth() {
+    const g = this.app?.game;
+    if (!g?.maxHealth) return 100;
+    return g.maxHealth();
+  }
+
   adjust(delta, src) {
     for (let [k, v] of Object.entries(delta)) {
       if (k === 'mood' && v > 0) v = this.moodGain(v, src);
@@ -371,11 +378,13 @@ export class Pet {
       if (k === 'mood' && v < 0 && !this.harsh) v = Math.max(v, Math.min(0, 50 - this.stats.mood));
       if (k === 'health' && v < 0 && this.buff('shield')) continue;
       if (k === 'affection') this.love(v);
-      else if (k in this.stats) this.stats[k] = clamp(this.stats[k] + v, 0, 100);
+      else if (k in this.stats) this.stats[k] = clamp(this.stats[k] + v, 0, k === 'health' ? this.maxHealth() : 100);
       // Spending energy is physical effort: sweats and gets dirty.
       if (k === 'energy' && v < 0 && this.action !== 'sleep') {
         this.exertion = Math.min(100, this.exertion - v * 5);
         this.stats.hygiene = clamp(this.stats.hygiene + v * 0.6, 0, 100);
+        // Every Energy spent trains her Constitution.
+        this.app?.game?.attrAdd?.('con', -v * 0.12);
       }
     }
   }
@@ -2441,6 +2450,13 @@ export class Pet {
   effort() {
     const a = this.action;
     const tp = this.toyPlay;
+    const base = this.effortBase(a, tp);
+    // A high Constitution makes every action cost less (see ENERGY_PER_CON in game.js).
+    const con = this.app?.game?.attrLevel?.('con') ?? 1;
+    return base * (1 - (con - 1) * 0.04);
+  }
+
+  effortBase(a, tp) {
     if (this.mode === 'held') return 0.7;
     if (this.mode === 'wall' || this.mode === 'scale' || this.mode === 'hook' || a === 'climbUp' || a === 'climbDown') return 2.6;
     if (this.mode === 'air') return 1.8;

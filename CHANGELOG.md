@@ -7,6 +7,20 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.14 — 11/11/2026
+**Ritmo de JRPG.** O combate por turnos ganhou pausas deliberadas entre as fases: anúncio do turno (0,55 s) → antecipação (a animação do golpe) → impacto (0,45 s) → resultado → recuperação (0,75 s) → próximo turno. Um turno inteiro leva uns 2,5 s, e o round completo (ela + o inimigo) uns 4 s.
+**Texto de combate acima da cabeça.** Cada ação escreve um texto flutuante sobre a cabeça de quem age: **verde (#22c55e)** nas ações da Persocon (o nome do golpe, o item usado, o acerto, o nível novo) e **vermelho (#ef4444)** nas do inimigo (o golpe do Sucataoxidado, o dano nela, o bloqueio e o desvio).
+**Remédios no combate.** No turno dela, se estiver machucada, ela gasta a vez tomando um **Medicamento** (ou um Power-Up) do inventário do jogador em vez de atacar — e o turno dela passa a ser o do item.
+**Arremesso.** Se o alvo estiver longe (o golpe do Sucataoxidado a empurra para trás), ela **arremessa um objeto** nele; o dano do arremesso cresce com a **Força**.
+**Atributos de núcleo.**
+- **Força**: define o dano dos golpes (corpo a corpo e arremesso). Progressão lenta (nível 10 = ~2000 XP).
+- **Constituição**: ganha XP **passivamente** a cada energia gasta (em combate, treino e qualquer ação) e reduz o custo de energia de todas as ações e golpes.
+- **Saúde máxima**: `100 + (Constituição − 1) × 4 + (Força − 1) × 2` (calculada na hora).
+- O **Treino Pesado** dá muito mais XP de combate e também XP de Força.
+**VFX de impacto.** A folha `32x32 simple sfx-Sheet.png` foi copiada para `src/renderer/assets/vfx/` e os quadros de 32×32 são fatiados e animados (`image-rendering: pixelated`) exatamente no ponto e no frame do golpe: faísca (leve), corte + explosão (pesado), anel metálico (bloqueio), poeira e flakes de ferrugem (o boneco mecânico).
+**Perfil em sanfona.** O Perfil virou seções recolhíveis (▼/▶): Informações Gerais (nome, idade, afeição, moedas, carteira + combate, força, constituição e saúde máxima), Favoritos, Cafunés/tapas, Jogos no GameBuddy, Cartuchos, Brinquedos comprados, Pedidos atendidos e Recordes. **Saíram** do Perfil: Itens consumidos, Mais consumidos e Gostos provados.
+Detalhes em `ChangeLogs\v1.9.14.md`.
+
 ## v1.9.13 — 11/11/2026
 **Energia por nível.** Cada golpe agora custa menos energia conforme o Nível de Combate: `custo = max(0,8; 3 × (1 − (nível − 1) × 0,06))` — no nível 1 são 3 de energia por golpe e no nível 10 menos de 1,4. Ela treina e luta muito mais tempo conforme domina o combate.
 **Boneco Sucataoxidado.** O Boneco de Treino agora pode ser melhorado (¥ 1200) e vira um boneco de sucata: chapas de metal enferrujado, engrenagens expostas, parafusos, juntas mecânicas e um olho aceso.
