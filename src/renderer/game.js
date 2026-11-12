@@ -10,7 +10,7 @@ import { MED_ITEMS } from './meditems.js';
 import './medicons.js';
 import { DEMO } from './edition.js';
 import { BAG_ITEMS as BAGGABLE } from './skills.js';
-import { ATTR_XP, attrProgress as attrProg } from './attrxp.js';
+import { attrProgress as attrProg } from './attrxp.js';
 
 export { ATTR_XP } from './attrxp.js';
 
