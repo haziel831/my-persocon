@@ -283,6 +283,8 @@ const EN = {
   'Ela tocar 3 músicas no Sintetizador Neon': 'Have her play 3 songs on the Neon Synth',
   'Banho': 'Bath', 'Música': 'Music', 'Mangá': 'Manga',
   '📺 Assistir na TV…': '📺 Watch on the TV…', '📺 Assistir na TV': '📺 Watch on the TV', '⏹ Desligar a TV': '⏹ Turn off the TV', '🎮 Chamar para jogar na TV': '🎮 Call her to play on the TV',
+  '🕹 Inserir o cartucho preto': '🕹 Insert the black cartridge', '🕹 Inserir o cartucho preto de novo': '🕹 Insert the black cartridge again',
+  'Só aparece depois que você tiver todos os outros cartuchos · só a TV aceita ele': 'Only shows up once you have every other cartridge · only the TV accepts it',
   '▶ Assistir': '▶ Watch', '🎲 Anime ou filme aleatório': '🎲 Random anime or movie', 'Link do YouTube (opcional)': 'YouTube link (optional)',
   'Sem link: passa um anime ou filme aleatório. O vídeo passa sem som.': 'No link: a random anime or movie plays. The video plays muted.',
   'Link inválido: cole um link do YouTube.': 'Invalid link: paste a YouTube link.',
@@ -545,8 +547,8 @@ const EN = {
   'Brinquedos vão para o inventário; coloque na área de trabalho e a Persocon brinca sozinha. Quebram depois de um tempo.': 'Toys go to the inventory; place them on the desktop and the Persocon plays on her own. They break after a while.',
   'Remédios curam na hora; PowerUps dão efeitos temporários. A Persocon pega sozinha da mochila quando a Saúde está baixa.': 'Medicine heals at once; PowerUps give temporary effects. The Persocon takes them from the backpack herself when Health is low.',
   'Cartuchos vão para a Gaming Shelf (ou para a bolsa do GameBuddy, sem ela). Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores.': 'Cartridges go onto the Gaming Shelf (or into the GameBuddy bag without it). The more complex the game, the pricier. The Persocon gets better with practice and has favorites (♥, give more Mood). All have a 2-player mode.',
-  'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores. E sempre aparece um cartucho preto sem nome, de graça — ninguém sabe o que ele é.':
-    'Cartridges go into the GameBuddy bag or onto the Gaming Shelf, if it is on the desktop. The more complex the game, the pricier. The Persocon gets better with practice and has favorites (♥, give more Mood). All have a 2-player mode. And a nameless black cartridge always shows up, free — nobody knows what it is.',
+  'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores. E, quando você já tiver todos os outros cartuchos, aparece um cartucho preto sem nome, de graça — ninguém sabe o que ele é (só a TV aceita ele).':
+    'Cartridges go into the GameBuddy bag or onto the Gaming Shelf, if it is on the desktop. The more complex the game, the pricier. The Persocon gets better with practice and has favorites (♥, give more Mood). All have a 2-player mode. And once you have every other cartridge, a nameless black cartridge shows up, free — nobody knows what it is (only the TV accepts it).',
   'Ela já está jogando!': 'She is already playing!', 'Ela está ocupada agora': 'She is busy right now', 'Carteira dela vazia · Ações → Carteira': 'Her wallet is empty · Actions → Wallet',
   'Ela já está comprando!': 'She is already buying!', 'Ela está sem fome agora': "She isn't hungry right now", 'Ela está sem sede agora': "She isn't thirsty right now",
   'Nada aqui que ela queira': 'Nothing here she wants', 'Mais um grátis': 'One more free', 'Girando…': 'Spinning…', 'Pegar ✓': 'Take ✓', 'caixas com sorte': 'lucky boxes',

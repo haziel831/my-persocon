@@ -321,6 +321,13 @@ export class Toys {
       if (tw?.on) btn('⏹ Desligar a TV', () => tw.stop());
       else btn('📺 Assistir na TV…', () => setTimeout(() => tw?.panel(x, y), 0));
       if (game.cartridges.length) btn('🎮 Chamar para jogar na TV', () => this.callTv());
+      // O cartucho preto: só o jogador insere (a Persocon nunca começa ele sozinha).
+      // Depois da primeira vitória dá para inseri-lo de novo, quantas vezes quiser.
+      if (game.cartridges.includes('unknown') || game.profile.unknownDone) {
+        btn(game.profile.unknownDone ? '🕹 Inserir o cartucho preto de novo' : '🕹 Inserir o cartucho preto', () => {
+          if (!this.app.unknown?.insert?.()) this.app.sound.play('cancel', { volume: 0.4 });
+        });
+      }
     }
     if (baseId(id) === 'estante' && t) btn('📚 Ver conteúdo da estante', () => this.showShelfContents(id));
     if (baseId(id) === 'estante_cartuchos' && t) btn('🕹 Ver conteúdo da Gaming Shelf', () => this.showShelfContents(id));

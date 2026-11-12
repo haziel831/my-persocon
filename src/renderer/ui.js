@@ -927,7 +927,7 @@ export class Menu {
     tabs.classList.add('wrap');
     const note = {
       fun: 'Brinquedos vão para o inventário; coloque na área de trabalho e a Persocon brinca sozinha. Quebram depois de um tempo.',
-      cartuchos: 'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores. E sempre aparece um cartucho preto sem nome, de graça — ninguém sabe o que ele é.',
+      cartuchos: 'Cartuchos vão para a bolsa do GameBuddy ou para a Gaming Shelf, se ela estiver na área de trabalho. Quanto mais complexo o jogo, mais caro. A Persocon melhora com a prática e tem favoritos (♥, dão mais Humor). Todos têm modo 2 jogadores. E, quando você já tiver todos os outros cartuchos, aparece um cartucho preto sem nome, de graça — ninguém sabe o que ele é (só a TV aceita ele).',
       comidas: 'Comida enche a Fome. Cada Persocon tem gostos próprios (♥ a ☹) e come sozinha quando está com fome.',
       bebidas: 'Bebidas matam a Sede e algumas dão Energia. Servem também para acompanhar uma refeição.',
       sobremesas: 'Sobremesas dão bastante Humor. Ela come como refeição, então não substituem um prato principal.',

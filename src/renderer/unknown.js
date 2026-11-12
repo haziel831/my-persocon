@@ -195,6 +195,28 @@ export class Unknown {
     }
   }
 
+  // O jogador insere o cartucho preto na TV: a criatura sai de novo (sempre na mão dele).
+  // Serve para a primeira luta e para todas as outras: depois da vitória dá para repetir.
+  insert() {
+    if (this.state !== 'idle' && this.state !== 'gone') return false;
+    const { app } = this;
+    const tv = app.game?.toys?.videogame;
+    if (!tv?.placed || tv.broken) return false;
+    if (app.melee?.active || app.pet?.dead) return false;
+    // A TV tem que estar livre: ela para o que estiver fazendo e a Persocon larga o que tinha na mão.
+    app.toys?.screen?.stop?.();
+    app.pet?.endToy?.(true);
+    this.state = 'idle';
+    this.t = 0;
+    this.glitch = 0;
+    this.jitter = 0;
+    this.anim = 'idle';
+    this.frame = 0;
+    this.frameT = 0;
+    this.erupt();
+    return true;
+  }
+
   // ---------- a erupção da TV ----------
 
   // O cartucho preto entrou na TV: começa a erupção.

@@ -175,7 +175,10 @@ export function effectText(item) {
   if (item.rarity && (item.loot || isPowerUp(item))) parts.push(`★ ${RARITIES[item.rarity]?.label || item.rarity}`);
   if (item.loot && item.note) parts.push(item.note);
   if (item.toy) parts.push('Coloque na área de trabalho');
-  if (item.cart) parts.push(`Vai para a Gaming Shelf (ou para a bolsa de cartuchos, sem ela) · complexidade ${'★'.repeat(GAMES[item.cart]?.tier || 1)}`);
+  if (item.cart) {
+    if (item.mystery) parts.push('Só aparece depois que você tiver todos os outros cartuchos · só a TV aceita ele');
+    else parts.push(`Vai para a Gaming Shelf (ou para a bolsa de cartuchos, sem ela) · complexidade ${'★'.repeat(GAMES[item.cart]?.tier || 1)}`);
+  }
   if ((item.toy || item.manga) && item.note) parts.push(item.note);
   if (item.watchOnly) parts.push('Petisco de sessão · assistindo ou jogando na TV ela prefere este');
   if (item.gear) parts.push(item.note || 'A Persocon guarda e usa sozinha: alcança lugares altos, puxa coisas e pega o mouse');
@@ -380,6 +383,8 @@ export class Game {
     if (item.cart) {
       // O cartucho preto some da loja para sempre depois do evento.
       if (item.mystery && this.profile.unknownDone) return false;
+      // E ele só aparece depois que o jogador tiver TODOS os outros cartuchos.
+      if (item.mystery && !this.allCarts()) return false;
       return ['gameboy', 'gamegear', 'psp', 'videogame'].some((c) => this.toys[c] || this.count(c) > 0) && !this.cartridges.includes(item.cart);
     }
     if (item.manga) return this.hasShelf() && !this.mangas.includes(item.id);
@@ -898,9 +903,16 @@ export class Game {
     return true;
   }
 
+  // O jogador já tem todos os cartuchos do catálogo? (o cartucho preto só aparece depois disso)
+  allCarts() {
+    return CART_GAMES.every((id) => this.cartridges.includes(id));
+  }
+
   // The pet picks a cartridge on its own, leaning towards the ones it likes.
+  // The mysterious black one never enters on its own: only the player inserts it.
   pickCart() {
-    const list = this.cartridges;
+    const list = this.cartridges.filter((id) => id !== 'unknown');
+    if (!list.length) return this.cartridges[0];
     const w = list.map((id) => Math.max(0.15, 1 + this.cartStat(id).love));
     let r = Math.random() * w.reduce((a, b) => a + b, 0);
     for (let i = 0; i < list.length; i++) if ((r -= w[i]) <= 0) return list[i];
