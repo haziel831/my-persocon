@@ -7,6 +7,27 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.18 — 12/11/2026
+**A Força e a Constituição agora se treinam.** Antes, a Força só subia no Treino Pesado e a Constituição só com o gasto de energia. Agora cada atividade treina do seu jeito:
+
+| atividade | Força | Constituição |
+|---|---|---|
+| escalar as janelas (por segundo) | pouco | — |
+| Bola de Queimada (arremesso / pegar) | médio | — |
+| Boneco de Treino (golpe acertado / turno) | médio | médio |
+| Treino Pesado e luta contra o Unknown (golpe acertado) | **muito** | — |
+| Treino Pesado e luta contra o Unknown (levar dano) | — | **muito** (por ponto de Saúde) |
+| terminar a sessão de Treino Pesado | bônus | — |
+| gastar energia no dia a dia | — | pouco |
+
+**No Perfil, a segunda barra.** Cada atributo ganhou uma barra fininha embaixo da do nível: ela mostra o XP do nível e o quanto falta para o próximo (12 / 75 XP), e **anda sozinha** enquanto o menu está aberto. O nível também se atualiza na hora.
+**O indicador pequeno de XP.** No canto da tela aparece o que ela acabou de ganhar (`+2 XP · Força`), e quando ela sobe de nível o aviso muda para `Nv 3 · Força subiu!` (com um sominho de confirmação).
+**As caixinhas dos atributos agora ensinam o caminho**: a Força diz que se treina escalando, arremessando e no boneco; a Constituição, que se treina gastando energia, levando dano e treinando.
+**O cartucho preto ficou mais difícil de achar.** Ele só aparece na Shop **depois que o jogador tiver todos os outros cartuchos** (os 14 do catálogo).
+**A Persocon nunca insere o cartucho preto sozinha.** Ela nunca escolhe esse cartucho sozinha (o `pickCart()` o ignora): o evento só começa quando o jogador insere o cartucho na TV.
+**A TV guarda o cartucho para sempre.** Depois de vencer o Unknown uma vez, o menu da TV ganha a opção **“🕹 Inserir o cartucho preto de novo”**: a criatura pode ser enfrentada quantas vezes o jogador quiser (a primeira inserção usa o mesmo caminho, então nada acontece por acidente).
+Detalhes em `ChangeLogs\v1.9.18.md`.
+
 ## v1.9.17 — 11/11/2026
 **O cartucho preto misterioso.** Na aba *Cartuchos* da Shop apareceu um cartucho **todo preto, sem nome e de graça**. Ele só faz alguma coisa na **TV com console** (nos portáteis — GameBuddy, GameGlow e Playpocket 3000 — a tela fica preta e nada acontece).
 **A erupção da TV.** Ao ser inserido na TV, o cartucho não abre jogo nenhum: a tela **chispa estática** (ruído branco), **fumaça escura** sobe da TV e **gosma preta pinga** no chão da frente dela. Do meio da tela sai o **Unknown**.

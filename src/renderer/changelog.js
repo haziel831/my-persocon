@@ -1,6 +1,18 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.18', [
+    ['A Força e a Constituição agora têm métodos de treino: escalar as janelas, arremessar a Bola de Queimada e acertar golpes no Boneco de Treino treinam a Força', 'Strength and Constitution now have training methods: climbing the windows, throwing the Dodgeball and landing hits on the Training Dummy train Strength'],
+    ['No Treino Pesado (e na luta contra o Unknown) cada golpe acertado treina a Força bem mais, e terminar a sessão dá um bônus de Força', 'In the Heavy Training (and in the fight against the Unknown) every landed hit trains Strength a lot more, and finishing the session gives a Strength bonus'],
+    ['A Constituição treina no treino do boneco (por turno) e explode quando ela leva dano de verdade em combate', 'Constitution trains on the dummy training (per turn) and bursts when she takes real damage in a fight'],
+    ['Gastar energia todo dia também treina a Constituição (de leve)', 'Spending Energy every day also trains Constitution (a little)'],
+    ['No Perfil, cada atributo ganhou uma segunda barra: o XP do nível e o quanto falta para o próximo (a barra anda sozinha)', 'In the Profile, every attribute got a second bar: the level XP and how much is left to the next one (the bar moves on its own)'],
+    ['Apareceu um indicador pequeno de XP no canto da tela (+2 XP Força), com aviso quando ela sobe de nível', 'A small XP indicator showed up in the screen corner (+2 XP Strength), with a notice when she levels up'],
+    ['As caixinhas dos atributos agora dizem COMO treinar cada um', 'The attribute boxes now say HOW to train each one'],
+    ['O cartucho preto da Shop só aparece depois que o jogador tiver TODOS os outros cartuchos', 'The black cartridge in the Shop only shows up after the player has ALL the other cartridges'],
+    ['A Persocon nunca insere o cartucho preto sozinha: ele só entra na TV pela mão do jogador', 'The Persocon never inserts the black cartridge on her own: it only goes into the TV by the player’s hand'],
+    ['Depois de vencer o Unknown uma vez, a TV ganha a opção "Inserir o cartucho preto de novo": a criatura pode ser enfrentada quantas vezes quiser', 'After beating the Unknown once, the TV gets the "Insert the black cartridge again" option: the creature can be faced as many times as you want'],
+  ]],
   ['1.9.17', [
     ['Na loja de Cartuchos apareceu um cartucho preto sem nome, de graça. Ninguém sabe o que ele é', 'A nameless black cartridge showed up in the Shop, free. Nobody knows what it is'],
     ['Esse cartucho só funciona na TV com console: nos portáteis a tela fica preta e nada acontece', 'That cartridge only works on the TV with console: on the handhelds the screen stays black and nothing happens'],
