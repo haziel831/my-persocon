@@ -22,13 +22,14 @@ import { CHANGES } from './changelog.js';
 import { REMINDER_SOUNDS } from './closeup.js';
 import { ALBUM_MAX } from './funtoys.js';
 import { logInfo, recentLog } from './logger.js';
+import { attrProgress as attrProg } from './attrxp.js';
 
 const DEFAULT_MODEL_DIR = 'models/MyPersocon';
 const AGHATA_MODEL_DIR = 'models/Aghata';
 // O que cada atributo faz (a caixinha que abre quando ela clica no atributo).
 const ATTR_DESC = {
-  str: 'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos.',
-  con: 'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos.',
+  str: 'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos. Treina escalando as janelas, arremessando a Bola de Queimada, acertando golpes no Boneco de Treino e ainda mais no Treino Pesado.',
+  con: 'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos. Treina gastando energia todo dia, levando dano de verdade em combate e treinando no Boneco de Treino.',
   dex: 'Aumenta a esquiva dos golpes e a precisão dos ataques rápidos. Por enquanto ela ainda não muda o jogo.',
   agi: 'Deixa os movimentos mais rápidos: ela se mexe e ataca antes do adversário. Por enquanto ela ainda não muda o jogo.',
   will: 'Resiste aos status negativos e segura o Humor mais alto. Por enquanto ela ainda não muda o jogo.',
@@ -382,6 +383,18 @@ export class Menu {
     if (state) state.textContent = this.stateText();
     const coins = this.el.querySelector('.coins b');
     if (coins) coins.textContent = coinText(this.app.game);
+    // Os atributos: o nível e a barra de XP andam sozinhos enquanto o menu está aberto.
+    for (const row of this.el.querySelectorAll('.attr[data-attr]')) {
+      const pr = attrProg(this.app.game.attrXp(row.dataset.attr));
+      const lvl = row.querySelector('b.attr-lvl');
+      if (lvl) lvl.textContent = `Nv ${pr.lvl}`;
+      const bar = row.querySelector('.fill.attr');
+      if (bar) bar.style.width = `${(pr.lvl / 10) * 100}%`;
+      const xp = row.querySelector('.fill.xp');
+      if (xp) xp.style.width = `${pr.done ? 100 : Math.max(0, Math.min(100, (pr.cur / pr.max) * 100))}%`;
+      const txt = row.querySelector('.attr-xp');
+      if (txt) txt.textContent = pr.done ? 'nível máximo' : `${Math.floor(pr.cur)} / ${pr.need} XP`;
+    }
   }
 
   stateText() {
@@ -766,13 +779,17 @@ export class Menu {
     const attrBox = h('div.attrs', {}, ATTRS.map(([k, label]) => {
       const lvl = g.attrLevel?.(k) ?? (attrs[k] ?? 0);
       const xp = Math.floor(g.attrXp?.(k) || 0);
+      const pr = attrProg(xp);
       const shown = this._attrOpen === k;
       return h(`div.attr${shown ? '.open' : ''}`, {
+        'data-attr': k,
+        title: `${xp} XP no total`,
         onclick: () => this.toggleAttr(k),
       },
-        h('span', {}, label), h('b', {}, `Nv ${lvl}`),
+        h('span', {}, label), h('b.attr-lvl', {}, `Nv ${lvl}`),
         h('div.track', {}, h('div.fill.attr', { style: { width: `${(lvl / 10) * 100}%` } })),
-        h('small.muted', {}, `${xp} XP`),
+        h('div.track.xp', {}, h('div.fill.xp', { style: { width: `${pr.done ? 100 : (pr.cur / pr.max) * 100}%` } })),
+        h('small.muted.attr-xp', {}, pr.done ? 'nível máximo' : `${Math.floor(pr.cur)} / ${pr.need} XP`),
         shown ? h('p.attr-desc', {}, ATTR_DESC[k] || '') : null);
     }));
     const attrsBody = h('div', {},

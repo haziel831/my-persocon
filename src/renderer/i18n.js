@@ -50,11 +50,12 @@ const EN = {
   '⤒ Exportar save': '⤒ Export save', '⤓ Importar save': '⤓ Import save',
   'O save atual vira backup antes de importar (3 backups automáticos).': 'The current save becomes a backup before importing (3 automatic backups).',
   'Atributos': 'Attributes', 'Os atributos ainda não têm efeito no jogo.': "Attributes don't affect the game yet.",
+  'nível máximo': 'max level', 'subiu!': 'went up!',
   // ---- a caixinha de cada atributo (abre ao clicar nele) ----
-  'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos.':
-    'Raises the physical damage of melee strikes, special maneuvers and throws. It also adds to the maximum Health Points (HP).',
-  'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos.':
-    'Lowers the Energy cost of every action and strike. It greatly raises the maximum Health Points (HP).',
+  'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos. Treina escalando as janelas, arremessando a Bola de Queimada, acertando golpes no Boneco de Treino e ainda mais no Treino Pesado.':
+    'Raises the physical damage of melee strikes, special maneuvers and throws. It also adds to the maximum Health Points (HP). She trains it climbing the windows, throwing the Dodgeball, landing hits on the Training Dummy and even more in the Heavy Training.',
+  'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos. Treina gastando energia todo dia, levando dano de verdade em combate e treinando no Boneco de Treino.':
+    'Lowers the Energy cost of every action and strike. It greatly raises the maximum Health Points (HP). She trains it spending Energy every day, taking real damage in a fight and training with the Training Dummy.',
   'Aumenta a esquiva dos golpes e a precisão dos ataques rápidos. Por enquanto ela ainda não muda o jogo.':
     'Raises her dodge and the accuracy of the fast attacks. It does not change the game yet.',
   'Deixa os movimentos mais rápidos: ela se mexe e ataca antes do adversário. Por enquanto ela ainda não muda o jogo.':

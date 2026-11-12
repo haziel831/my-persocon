@@ -10,6 +10,7 @@
 import { combatMoves, skillLevel, skillGain } from './skills.js';
 import { COMBAT_META } from './combatanims.js';
 import { ITEMS, itemById } from './game.js';
+import { ATTR_XP } from './attrxp.js';
 
 export const TURN = { PERSOCON: 'persocon', OPPONENT: 'opponent' };
 // Energy below this ends the training: she is too tired to keep going.
@@ -352,6 +353,8 @@ export class Melee {
       this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia — o Unknown sumiu', 'bad');
     }
     this.app.unknown?.onDefeat?.(reason);
+    // A luta contra o Unknown também é um treino de verdade: bônus de Força da sessão.
+    if (this.turns >= 3) this.game.attrGain?.('str', ATTR_XP.str.session);
     this.stop(reason);
   }
 
@@ -627,6 +630,8 @@ export class Melee {
     const crit = Math.random() < 0.15;
     const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1));
     pet.adjust({ health: -dmg });
+    // Levar dano de verdade treina a Constituição (é o jeito mais forte de ganhá-la).
+    this.game.attrGain?.('con', dmg * ATTR_XP.con.hurt);
     pet.playAnimation('combat_hit_stagger', { facing: this.facing() > 0 ? 'right' : 'left' });
     // The blow pushes her back: now she is out of reach and has to close in again.
     const w = this.app.world?.width || 0;
@@ -813,6 +818,8 @@ export class Melee {
       total += roll.dmg;
       opp.hp = Math.max(0, opp.hp - roll.dmg);
       this.hits++;
+      // Cada golpe acertado treina a Força (o treino pesado paga bem mais).
+      this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy);
       // O Unknown leva o golpe (e a animação de machucado).
       if (opp.enemy) opp.enemy.play?.('hurt');
       // The impact: a sharp spark for the light hits, a slash + burst for the heavy ones.
@@ -853,8 +860,8 @@ export class Melee {
     const before = lvl;
     const gain = skillGain(this.kind === 'fight' ? 'sparring' : 'dummy');
     this.game.skillAdd('unarmed', gain);
-    // The heavy training also makes her stronger (and it pays more combat XP).
-    if (this.kind === 'fight') this.game.attrAdd?.('str', gain * 0.6);
+    // Treinar no boneco também dá Constituição (de leve, um turno por vez).
+    if (this.kind === 'dummy') this.game.attrGain?.('con', ATTR_XP.con.turn);
     const after = this.level;
     if (after > before) this.say(pet.x, pet.y - pet.P * 1.25, `Nível ${after}!`, 'good');
     pet.adjust({ energy: -this.energyCost(), mood: 0.4 });
@@ -914,6 +921,8 @@ export class Melee {
     }
     // The Scrap Dummy is reset for the next round.
     this.opp.hp = this.opp.max;
+    // Terminar a sessão de Treino Pesado dá o bônus de Força da sessão.
+    if (this.turns >= 3) this.game.attrGain?.('str', ATTR_XP.str.session);
     this.stop(reason);
   }
 

@@ -1,4 +1,5 @@
 import { Combat } from './combat.js';
+import { ATTR_XP } from './attrxp.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const chance = (p) => Math.random() < p;
@@ -389,7 +390,7 @@ export class Pet {
         this.exertion = Math.min(100, this.exertion - v * 5);
         this.stats.hygiene = clamp(this.stats.hygiene + v * 0.6, 0, 100);
         // Every Energy spent trains her Constitution.
-        this.app?.game?.attrAdd?.('con', -v * 0.12);
+        this.app?.game?.attrGain?.('con', -v * ATTR_XP.con.energy);
       }
     }
   }
@@ -1043,6 +1044,8 @@ export class Pet {
       b.kick(fwd * rand(power, power + 5) * P, -rand(1 + lvl * 0.15, 3 + lvl * 0.25) * P);
       this.anim(this.pickClip(['arremessar'], ['swing_hand', 'use_mainhand']), { facing: fwd > 0 ? 'right' : 'left', restart: true });
       this.app?.game?.skillAdd?.('queimada', 0.9);
+      // Arremessar a bola treina a Força.
+      this.app?.game?.attrGain?.('str', ATTR_XP.str.throw);
       const doll = this.app?.doll;
       const dummy = this.app?.dummy;
       const playNice = this.toyPlay?.id === 'pelucia' || !!this.app?.crow?.playing;
@@ -1112,6 +1115,8 @@ export class Pet {
         bp.cool = 0.55;
         b.set(this.x + fwd * P * 0.25, this.y - P * 0.55);
         this.anim(this.pickClip(['pegar'], ['use_mainhand', 'idle']), { facing: fwd > 0 ? 'right' : 'left', restart: true });
+        // Pegar a bola também treina a Força.
+        this.app?.game?.attrGain?.('str', ATTR_XP.str.catch);
         return;
       }
       if (chance(0.2)) {
@@ -2595,6 +2600,10 @@ export class Pet {
     if (!this.powerOff && this.action !== 'boot') {
       this.updateStats(dt);
       if (!this.dead) this.updateRequest(dt);
+    }
+    // Escalar a janela treina a Força aos poucos (o tempo lá em cima conta).
+    if ((this.mode === 'wall' || this.mode === 'scale') && (this.action === 'climbUp' || this.action === 'climbDown')) {
+      this.app?.game?.attrGain?.('str', ATTR_XP.str.climb * dt);
     }
     if (this.mode !== 'held') this.tilt *= Math.exp(-8 * dt);
     if (this.eating && this.action !== 'eat') this.finishEating();

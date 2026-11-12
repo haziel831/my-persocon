@@ -1,9 +1,11 @@
 // Small feed in a screen corner listing what was won, spent or received (machines, Crow, repairs, buffs).
 // Readable for a few seconds but out of the way: no clicks, at most a few lines, fades out on its own.
-import { BUFF_LABELS, BUFF_ICONS } from './game.js';
+import { BUFF_LABELS, BUFF_ICONS, ATTRS } from './game.js';
 
 const LIFE = 5200;
 const MAX = 4;
+// O nome de cada atributo (Força, Constituição…).
+const ATTR_LABELS = Object.fromEntries(ATTRS);
 
 export class Gains {
   constructor(app) {
@@ -13,9 +15,22 @@ export class Gains {
     this.el.className = 'gains';
     document.body.append(this.el);
     app.pet?.on((type, data) => {
+      if (type === 'attrXp') return this.attrXp(data);
       if (type !== 'medicine' && type !== 'ate') return;
       for (const [b, s] of data.item.buffs || (data.item.buff ? [data.item.buff] : [])) this.show(`+${Math.round(s / 60)} min`, 'buff', BUFF_LABELS[b] || b, BUFF_ICONS[b]);
     });
+  }
+
+  // O indicador pequeno dos atributos: o XP que ela acabou de ganhar (ou o nível novo).
+  attrXp({ id, amount, level, up }) {
+    const label = ATTR_LABELS[id] || id;
+    if (up) {
+      this.show(`Nv ${level}`, 'attr', `${label} subiu!`);
+      this.app.sound?.play?.('ok', { volume: 0.25 });
+      return;
+    }
+    const v = amount < 10 ? amount.toFixed(1) : String(Math.round(amount));
+    this.show(`+${v} XP`, 'attr', label);
   }
 
   // kind: 'gain' | 'spend' | 'item' | 'buff'. ic: emoji (PxEmoji) or an image URL.

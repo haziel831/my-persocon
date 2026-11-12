@@ -453,6 +453,10 @@ body:is([data-theme="gameboy"], [data-theme="gameboy-light"]) .cat.active .icon 
 .attr b { color: var(--fg, #eef0f6); }
 .attr .track { grid-column: span 2; }
 .fill.attr { background: linear-gradient(90deg, #f0b43c, #ffe08a); }
+/* A segunda barra: o XP do atributo rumo ao próximo nível (anda sozinha). */
+.attr .track.xp { height: 4px; }
+.fill.xp { background: linear-gradient(90deg, #4fb8a8, #b9f2e6); }
+.attr small.attr-xp { grid-column: span 2; }
 .attr .attr-desc {
   grid-column: span 2; margin: 4px 0 2px; font-size: 11px; line-height: 1.45;
   color: var(--fg, #eef0f6); opacity: 0.92;

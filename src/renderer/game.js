@@ -10,6 +10,9 @@ import { MED_ITEMS } from './meditems.js';
 import './medicons.js';
 import { DEMO } from './edition.js';
 import { BAG_ITEMS as BAGGABLE } from './skills.js';
+import { ATTR_XP, attrProgress as attrProg } from './attrxp.js';
+
+export { ATTR_XP } from './attrxp.js';
 
 const START_COINS = DEMO ? 2000 : 1000;
 // Coins added to saves from before the bigger starting money (save version 2).
@@ -199,6 +202,8 @@ export class Game {
     this.dirty = false;
     this.load(save);
     setInterval(() => this.persist(), 15000);
+    // O XP de atributo chega aos poucos (escalada, energia): junta e joga no save de 1 em 1s.
+    setInterval(() => this.flushAttrGain(), 1000);
     // Coins per minute while alive: 1, +1 when happy, +1 when well cared for (max 180/hour).
     setInterval(() => {
       if (pet.dead) return;
@@ -556,10 +561,34 @@ export class Game {
   // right away: this is called with every point of Energy spent.
   attrAdd(id, amount) {
     const xp = (this.profile.attrXp ||= {});
+    const before = this.profile.attrs[id] ?? 1;
     xp[id] = Math.max(0, (xp[id] || 0) + amount);
-    this.profile.attrs[id] = attrLevelOf(xp[id]);
+    const lvl = attrLevelOf(xp[id]);
+    this.profile.attrs[id] = lvl;
     this.dirty = true;
-    return this.profile.attrs[id];
+    // O indicador pequeno: quanto de XP ela acabou de ganhar neste atributo.
+    if (amount > 0) this.pet?.emit?.('attrXp', { id, amount, xp: xp[id], level: lvl, up: lvl > before });
+    return lvl;
+  }
+
+  // Ganho de XP que chega aos poucos (escalada, energia): fica acumulado e entra de uma vez.
+  attrGain(id, amount) {
+    if (!(amount > 0)) return;
+    const acc = (this._attrAcc ||= {});
+    acc[id] = (acc[id] || 0) + amount;
+  }
+
+  // Joga o XP acumulado no atributo (a cada segundo).
+  flushAttrGain() {
+    const acc = this._attrAcc;
+    if (!acc) return;
+    this._attrAcc = null;
+    for (const [id, v] of Object.entries(acc)) if (v > 0) this.attrAdd(id, v);
+  }
+
+  // O progresso do atributo (nível, quanto falta para o próximo) para a barra do perfil.
+  attrProgress(id) {
+    return attrProg(this.attrXp(id));
   }
 
   // Her maximum Health: the Constitution and the Strength make her tougher.
