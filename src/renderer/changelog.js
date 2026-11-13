@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.22', [
+    ['A prévia do Visual dos objetos ficou fixa (100%): ela é só a referência estática para pegar a cor de transparência e marcar o hitbox', 'The Visual dos objetos preview is fixed now (100%): it is only the static reference for picking the transparency color and marking the hitbox'],
+    ['O objeto de verdade na área de trabalho muda ao vivo com tudo o que o modal mexe: imagem/GIF/modelo 3D, tamanho, rotação livre, espelho, velocidade e transparência', 'The real desktop object changes live with everything the dialog tweaks: image/GIF/3D model, size, free rotation, mirror, speed and transparency'],
+    ['Fechar ou o X sem aplicar desfaz tudo: o objeto volta exatamente como estava antes de abrir o modal (Aplicar salva de vez)', 'Closing or the X without applying undoes everything: the object goes back exactly as it was before the dialog was opened (Apply saves for good)'],
+  ]],
   ['1.9.21', [
     ['Ao importar uma imagem ou GIF (Visual dos objetos) dá para aumentar ou diminuir o tamanho (25% a 400%), girar em qualquer ângulo e escolher a cor que fica transparente', 'When importing an image or GIF (Object looks) you can now scale it up or down (25% to 400%), rotate it by any angle and pick the color that becomes transparent'],
     ['Dá para clicar na prévia para pegar a cor de um pixel e usá-la como a cor de transparência (com tolerância ajustável)', 'You can click the preview to pick the color of a pixel and use it as the transparency color (with an adjustable tolerance)'],

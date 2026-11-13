@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.22 — 13/11/2026
+**Visual dos objetos: ajuste ao vivo no objeto de verdade.** A prévia pequena do import continua **fixa (100%)** — ela é só a referência estática para o conta-gotas de transparência e para marcar o hitbox. Tudo o que o modal muda agora aparece **na hora, no objeto real na área de trabalho** (ex.: o boneco de treino do lado da Persocon):
+- **imagem/GIF/modelo 3D novo**, **tamanho**, **rotação livre**, **espelho**, **velocidade** e a **transparência** (assada no `bake()`, com *debounce* de ~140 ms);
+- o objeto real é desenhado a partir do **rascunho** do modal enquanto ele está aberto (o jogo nunca toca no objeto salvo antes do *Aplicar*).
+**Aplicar vs. desfazer.** O modal guarda uma cópia da aparência salva (`initialConfigSnapshot`) antes de abrir (e ao trocar de objeto na lista): *Aplicar* persiste o rascunho e limpa a cópia; *Fechar* ou o **X** descartam o rascunho e o objeto volta **exatamente** à aparência de antes — sem reescrever disco.
+Detalhes em `ChangeLogs\v1.9.22.md`.
+
 ## v1.9.21 — 13/11/2026
 **Importar imagem/GIF ficou mais completo** (menu *Visual dos objetos*):
 - **Tamanho**: slider de **25% a 400%** — a imagem entra maior ou menor na área de trabalho (o proporção do objeto é recalculada na hora);

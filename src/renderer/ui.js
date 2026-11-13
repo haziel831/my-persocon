@@ -2221,14 +2221,34 @@ export async function bake(frames, rot, flip, transparent = null) {
 }
 
 export class ObjectsDialog extends Dialog {
-  // Fechar o diálogo: o objeto volta ao tamanho salvo.
+  // Fechar (ou o X) sem aplicar: o objeto volta exatamente como estava ao abrir o modal.
   close() {
+    this.revert();
+    super.close();
+  }
+
+  // Guarda a aparência salva do objeto no momento em que o modal (ou a seleção) muda.
+  captureSnapshot() {
+    const id = this.sel;
+    this.snapshot = { id, cfg: this.app.skins.objects[id] ? JSON.parse(JSON.stringify(this.app.skins.objects[id])) : null };
+  }
+
+  // Descarta a edição ao vivo e devolve a aparência salva no desktop.
+  revert() {
+    const s = this.snapshot;
+    this.snapshot = null;
     this.app.toys.livePreview = null;
+    if (s) {
+      if (s.cfg) this.app.skins.objects[s.id] = JSON.parse(JSON.stringify(s.cfg));
+      else delete this.app.skins.objects[s.id];
+    }
     this.draft = null;
     this.baked = null;
     this.bakeKey = '';
     this.hitboxDraft = null;
-    super.close();
+    this.liveRatio = null;
+    this.liveSeq = 0;
+    this.ratioKey = '';
   }
 
   async show(focus, preset) {
@@ -2239,6 +2259,11 @@ export class ObjectsDialog extends Dialog {
     ];
     this.sel = focus || this.list[0][0];
     this.draft = null;
+    this.snapshot = null;
+    this.liveRatio = null;
+    this.liveSeq = 0;
+    this.ratioKey = '';
+    this.captureSnapshot();
     if (preset?.kind === '3d') await this.load3d(preset.data, preset.rot);
     else this.render();
   }
@@ -2301,7 +2326,7 @@ export class ObjectsDialog extends Dialog {
     const old = this.app.skins.objects[id] || {};
     const region = this.region || old.region;
     if (!d) {
-      if (region) await this.app.skins.setObject(id, { ...old, region });
+      if (region) { await this.app.skins.setObject(id, { ...old, region }); this.snapshot = null; }
       return this.close();
     }
     // A prévia usa os quadros assados (rotação + transparência); o tamanho é o do objeto real.
@@ -2309,6 +2334,7 @@ export class ObjectsDialog extends Dialog {
       : (this.baked?.frames?.length ? this.baked.frames : await bake(d.src, d.rot, d.flip, d.transparent));
     const first = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = frames[0]; });
     const hitbox = d.hitbox || old.hitbox || null;
+    this.snapshot = null; // aplicado: o objeto na área de trabalho já é o salvo
     await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region, hitbox, scale: d.scale || 1 });
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
     this.draft = null;
@@ -2347,10 +2373,45 @@ export class ObjectsDialog extends Dialog {
     }, 140);
   }
 
-  // O objeto de verdade na área de trabalho acompanha o tamanho enquanto o diálogo está aberto.
+  // O objeto de verdade na área de trabalho acompanha tudo enquanto o diálogo está aberto
+  // (imagem/GIF/3D, tamanho, rotação, espelho, velocidade e a transparência assada).
   syncLive() {
     const d = this.draft;
-    this.app.toys.livePreview = d ? { id: this.sel, scale: d.scale || 1 } : null;
+    const toys = this.app.toys;
+    if (!d) { toys.livePreview = null; this.liveRatio = null; this.liveSeq = 0; return; }
+    const baked = this.baked?.frames?.length ? this.baked.frames : null;
+    const frames = d.kind === '3d' ? (d.src || null) : (baked || d.src || null);
+    const first = frames?.[0];
+    // A proporção vem do quadro final (o que vale no desktop); recarrega só quando os quadros mudam.
+    const ratioKey = first ? `${frames.length}|${first.length}|${this.bakeKey || d.src?.length || 0}` : 'none';
+    if (first && ratioKey !== this.ratioKey) {
+      this.ratioKey = ratioKey;
+      this.liveRatio = null;
+      const seq = ++this.liveSeq;
+      const img = new Image();
+      img.onload = () => { if (this.liveSeq === seq) { this.liveRatio = (img.naturalHeight / img.naturalWidth) || 1; this.pushLive(); } };
+      img.src = first;
+    }
+    this.pushLive();
+  }
+
+  // Empurra o rascunho para o objeto real na área de trabalho (uma vez só, com o que já se sabe).
+  pushLive() {
+    const d = this.draft;
+    const toys = this.app.toys;
+    if (!d) { toys.livePreview = null; return; }
+    const baked = this.baked?.frames?.length ? this.baked.frames : null;
+    const frames = d.kind === '3d' ? (d.src || null) : (baked || d.src || null);
+    toys.livePreview = {
+      id: this.sel,
+      scale: d.scale || 1,
+      rot: 0, // a rotação e o espelho do rascunho já vão ASSADOS nos quadros (bake) — o transform não reaplica
+      flip: false,
+      speed: d.speed || 1,
+      frames: frames || null,
+      delays: d.delays || [100],
+      ratio: this.liveRatio || null,
+    };
   }
 
   // Clicar na prévia: a cor do pixel vira a cor de transparência.
@@ -2362,13 +2423,12 @@ export class ObjectsDialog extends Dialog {
     c.height = img.naturalHeight;
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0);
-    // A prévia já mostra o arquivo modificado: o clique cai direto no pixel.
-    // (O preview aplica o tamanho como escala CSS, então divide pela escala para ir no frame original.)
+    // A prévia fica fixa (100%): o clique cai direto no pixel do arquivo já modificado.
     const r = img.getBoundingClientRect();
     const fx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
     const fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
-    const x = Math.round(fx * c.width / (d.scale || 1));
-    const y = Math.round(fy * c.height / (d.scale || 1));
+    const x = Math.round(fx * c.width);
+    const y = Math.round(fy * c.height);
     if (x < 0 || y < 0 || x >= c.width || y >= c.height) return;
     const p = g.getImageData(x, y, 1, 1).data;
     const hex = `#${[p[0], p[1], p[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
@@ -2396,18 +2456,15 @@ export class ObjectsDialog extends Dialog {
     const id = this.sel;
     const d = this.draft;
     const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
-      onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.render(); this.syncLive(); },
+      onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.captureSnapshot(); this.render(); this.syncLive(); },
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
-    // A prévia mostra o arquivo de verdade já modificado (assado com rotação e transparência;
-    // o tamanho é aplicado na própria prévia via escala CSS).
+    // A prévia fica fixa (100%): é a referência estática para o conta-gotas de transparência e o hitbox.
+    // O tamanho em edição aparece no objeto de verdade, na área de trabalho.
     const baked = this.baked?.frames?.length ? this.baked.frames : null;
     const srcFrames = baked || (d ? d.src : null);
     const shown = srcFrames ? srcFrames[0] : this.current(id);
     const previewW = 200;
-    const img = h('img.obj-preview', {
-      src: shown || '', draggable: false,
-      style: { width: `${previewW}px`, transform: d && d.kind !== '3d' && d.scale !== 1 ? `scale(${d.scale})` : '' },
-    });
+    const img = h('img.obj-preview', { src: shown || '', draggable: false, style: { width: `${previewW}px` } });
     this.previewImg = img;
     // Clicar na prévia: pega a cor do pixel (é a cor que vira transparente).
     if (d && d.kind !== '3d' && !this.hitMode) {
@@ -2496,7 +2553,7 @@ export class ObjectsDialog extends Dialog {
       controls.push(
         h('div.row', {}, h('span.label', {}, 'Rotação'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); this.refreshBake(); })),
         slider({ label: 'Rotação livre', min: 0, max: 360, step: 1, value: d.rot, format: (v) => `${v}°`, oninput: (v) => { d.rot = v; this.refreshBake(); }, onchange: () => this.render() }),
-        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.previewImg.style.transform = d.scale === 1 ? '' : `scale(${d.scale})`; this.refreshBake(); }, onchange: () => this.render() }),
+        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.syncLive(); }, onchange: () => this.render() }),
         toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); this.refreshBake(); } }),
         this.colorControl(d),
         h('div.row', {},
@@ -2504,7 +2561,7 @@ export class ObjectsDialog extends Dialog {
           hbDraft ? h('button', { onclick: () => { delete d.hitbox; this.hitboxDraft = null; this.render(); } }, '✕ Limpar hitbox') : null),
         h('small.muted', {}, 'O hitbox é a parte da imagem que responde ao clique (o resto deixa passar).'));
     }
-    if (d && d.src.length > 1) controls.push(slider({ label: 'Velocidade', min: 0.25, max: 3, step: 0.25, value: d.speed, format: (v) => `${v}×`, oninput: (v) => (d.speed = v) }));
+    if (d && d.src.length > 1) controls.push(slider({ label: 'Velocidade', min: 0.25, max: 3, step: 0.25, value: d.speed, format: (v) => `${v}×`, oninput: (v) => { d.speed = v; this.syncLive(); } }));
     const has = !!app.skins?.objects[id];
     const right = h('div.obj-edit', {},
       stage,
@@ -2515,7 +2572,7 @@ export class ObjectsDialog extends Dialog {
         has && h('button', { onclick: async () => {
           await app.skins.setObject(id, null);
           if (id === 'pelucia') app.doll?.setScale(1);
-          this.draft = null; this.region = null; this.render();
+          this.draft = null; this.region = null; this.snapshot = null; this.render(); this.syncLive();
         } }, '↺ Restaurar padrão')),
       controls,
       this.error && h('div.error', {}, this.error),

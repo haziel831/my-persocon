@@ -225,8 +225,10 @@ export class Skins {
   }
 
   // Current image of an object (animated objects cycle through their frames).
+  // A live edit (Visual dos objetos dialog) takes priority over the saved config.
   art(id, fallback) {
-    const o = this.objects[id];
+    const live = this.app.toys?.live?.(id);
+    const o = live?.frames?.length ? live : this.objects[id];
     if (o?.frames?.length) {
       if (o.frames.length === 1) return o.frames[0];
       const total = o.delays.reduce((a, b) => a + b, 0) / (o.speed || 1);
@@ -248,6 +250,8 @@ export class Skins {
 
   // Height / width of a custom image (null = use the default proportions).
   ratio(id) {
+    const live = this.app.toys?.live?.(id);
+    if (live?.ratio) return live.ratio;
     const o = this.objects[id];
     if (o?.ratio) return o.ratio;
     if (!o && this.rp?.tex?.[id] && this.rp.ratio?.[id]) return this.rp.ratio[id];
@@ -265,6 +269,8 @@ export class Skins {
 
   // The size of a custom image (1 = the same size as the default art).
   scale(id) {
+    const live = this.app.toys?.live?.(id);
+    if (live?.scale != null) return live.scale;
     return this.objects[id]?.scale || 1;
   }
 

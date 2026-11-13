@@ -820,6 +820,8 @@ export class Toys {
   }
 
   ratio(key) {
+    const live = this.live(key);
+    if (live?.ratio) return live.ratio;
     const id = baseId(key);
     const upgraded = this.app.game.toys[key]?.up || ((id === 'bag' || id === 'food') && this.bagsUp());
     const own = !(upgraded && !this.app.skins?.objects?.[id]) && this.app.skins?.ratio(id);
@@ -2293,10 +2295,16 @@ export class Toys {
     return false;
   }
 
+  // A edição ao vivo (diálogo Visual dos objetos) tem prioridade sobre o salvo.
+  live(id) {
+    const l = this.livePreview;
+    return l && l.id === id ? l : null;
+  }
+
   // O tamanho em edição (o diálogo de visual manda) tem prioridade sobre o salvo.
   liveScale(id) {
-    const live = this.livePreview;
-    if (live && live.id === id) return live.scale || 1;
+    const live = this.live(id);
+    if (live?.scale != null) return live.scale;
     return this.app.skins?.scale?.(id) || 1;
   }
 
@@ -2370,9 +2378,10 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const item = itemById(b);
       const nb = this.bagsUp() ? '_up' : '';
       const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : this.furn.art(b, id) || item?.img;
-      // Upgraded art beats the resource pack textures; only art the player imported wins over it.
-      const bagUp = nb && (id === 'bag' || id === 'food') && !skins?.objects?.[id];
-      const src = (t.up && !skins?.objects?.[b] && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base) || base;
+      // Arte importada (ao vivo ou salva) vence upgrade/casino/resourcepack, como já valia no salvo.
+      const custom = this.live(b)?.frames?.length || skins?.objects?.[b]?.frames?.length;
+      const bagUp = nb && (id === 'bag' || id === 'food') && !custom;
+      const src = (custom ? skins?.art(b, base) : null) || (t.up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base) || base;
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');
       if (img && img.getAttribute('src') !== src) img.src = src;
