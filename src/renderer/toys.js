@@ -351,7 +351,8 @@ export class Toys {
           return;
         }
         if (pet.toyPlay) pet.endToy(true);
-        pet.goTo(this.spot(id), () => this.playDummy(pet, heavy ? 'sparring' : 'unarmed'));
+        // O Treino Pesado é sempre pedido pelo jogador (a IA nunca começa uma luta de verdade).
+        pet.goTo(this.spot(id), () => this.playDummy(pet, heavy ? 'sparring' : 'unarmed', null, true));
       };
       btn('👊 Treinar corpo a corpo', () => train(false));
       // The heavy training only exists on the upgraded Scrap Dummy, and only by hand.
@@ -1136,12 +1137,13 @@ export class Toys {
   // Training dummy: unarmed melee practice. The weapons have no combat use for now, so
   // she always fights with her fists (the melee engine runs the turns).
   // mode: 'unarmed' (the basic training) or 'sparring' (the heavy training, real fight).
-  playDummy(pet, forcedMode = null, onEnd = null) {
+  // byPlayer: the heavy training ONLY starts when the player asks for it (the AI never does).
+  playDummy(pet, forcedMode = null, onEnd = null, byPlayer = false) {
     const { game } = this.app;
     const t = game.toys.boneco_treino;
     if (!t?.placed || t.broken) return pet.chooseNext();
     const melee = this.app.melee;
-    const heavy = forcedMode === 'sparring';
+    const heavy = forcedMode === 'sparring' && byPlayer;
     const started = heavy ? melee?.startSparring() : melee?.startTraining();
     if (!started) return pet.chooseNext();
     this.lastPlay.boneco_treino = performance.now();
@@ -1888,16 +1890,16 @@ export class Toys {
   // A print is ready: she drops what she's doing and goes to get it (running if she has energy).
   callPet() {
     const { pet, antics, minigames } = this.app;
+    // Dormindo: a impressão fica esperando ela acordar (a impressora não acorda ninguém).
+    if (pet.action === 'sleep') return false;
     if (this.unpacking || pet.dead || pet.mode !== 'ground' || pet.chase || pet.mini || minigames?.active || pet.paused || pet.eating || pet.meals?.length) return false;
     if (this.app.crow?.wantsPrinter()) return false;
     if (!['idle', 'walk', 'run', 'sit', 'emote', 'sleep', 'toy', 'antic', 'ball', 'jam', 'watch', 'react'].includes(pet.action)) return false;
     if (pet.toyPlay?.id === 'inspect') return false;
-    const wasSleeping = pet.action === 'sleep';
     if (pet.toyPlay) pet.endToy(true);
     if (pet.action === 'antic') antics?.stop(false);
     if (pet.ballPlay) pet.endBall?.(true);
     pet.chooseNext();
-    if (wasSleeping) pet.emit('wake', { startled: false });
     return pet.action === 'goto';
   }
 

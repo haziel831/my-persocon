@@ -1,11 +1,9 @@
 // Small feed in a screen corner listing what was won, spent or received (machines, Crow, repairs, buffs).
 // Readable for a few seconds but out of the way: no clicks, at most a few lines, fades out on its own.
-import { BUFF_LABELS, BUFF_ICONS, ATTRS } from './game.js';
+import { BUFF_LABELS, BUFF_ICONS } from './game.js';
 
 const LIFE = 5200;
 const MAX = 4;
-// O nome de cada atributo (Força, Constituição…).
-const ATTR_LABELS = Object.fromEntries(ATTRS);
 
 export class Gains {
   constructor(app) {
@@ -15,22 +13,11 @@ export class Gains {
     this.el.className = 'gains';
     document.body.append(this.el);
     app.pet?.on((type, data) => {
-      if (type === 'attrXp') return this.attrXp(data);
+      // O XP tem a caixinha dele (abaixo do Chat): o feed não repete.
+      if (type === 'attrXp') return;
       if (type !== 'medicine' && type !== 'ate') return;
       for (const [b, s] of data.item.buffs || (data.item.buff ? [data.item.buff] : [])) this.show(`+${Math.round(s / 60)} min`, 'buff', BUFF_LABELS[b] || b, BUFF_ICONS[b]);
     });
-  }
-
-  // O indicador pequeno dos atributos: o XP que ela acabou de ganhar (ou o nível novo).
-  attrXp({ id, amount, level, up }) {
-    const label = ATTR_LABELS[id] || id;
-    if (up) {
-      this.show(`Nv ${level}`, 'attr', `${label} subiu!`);
-      this.app.sound?.play?.('ok', { volume: 0.25 });
-      return;
-    }
-    const v = amount < 10 ? amount.toFixed(1) : String(Math.round(amount));
-    this.show(`+${v} XP`, 'attr', label);
   }
 
   // kind: 'gain' | 'spend' | 'item' | 'buff'. ic: emoji (PxEmoji) or an image URL.
@@ -59,13 +46,16 @@ export class Gains {
     setTimeout(() => row.remove(), this.life + 500);
   }
 
-  // Sits next to the status dock when it is shown in a bottom corner, otherwise bottom-right.
+  // Sits right under the XP box (in the dock) when it is shown, otherwise bottom-right.
   place() {
     const dock = document.querySelector('.status-dock');
+    // A caixinha de XP fica no fim do dock: o feed entra logo abaixo dela.
+    const xp = document.querySelector('.sd-xp');
+    const anchor = xp?.getClientRects().length ? xp : dock;
     const s = this.el.style;
     s.left = s.right = s.top = s.bottom = '';
-    if (dock?.getClientRects().length) {
-      const r = dock.getBoundingClientRect();
+    if (anchor?.getClientRects().length) {
+      const r = anchor.getBoundingClientRect();
       const left = r.left + r.width / 2 < innerWidth / 2;
       if (left) s.left = `${Math.round(r.left)}px`;
       else s.right = `${Math.round(innerWidth - r.right)}px`;

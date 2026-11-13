@@ -717,7 +717,11 @@ export class Pet {
       this.action = 'hurt';
       this.timer = this.paused ? Infinity : 1.2;
       this.anim('attacked', { restart: true, facing: 'front' });
-      if (startled) this.emit('wake', { startled: true });
+      if (startled) {
+        this.emit('wake', { startled: true });
+        // O jogador acordou ela: o que ficou na fila entra na fila de comida.
+        this.drainWakeUpQueue();
+      }
     } else if (this.action === 'toy') {
       // Not on the floor (or chase): still drop the orphan toy action so queues work again.
       this.action = 'idle';
@@ -733,20 +737,45 @@ export class Pet {
     if (this.dead || this.meals.length >= 5) return false;
     // COMBAT_MODE: no feeding during the fight.
     if (this.combatMode) return false;
+    // Dormindo: o item fica na fila para depois (ela não acorda por causa disso).
+    if (this.action === 'sleep') return this.queueForWakeUp(item);
     this.meals.push(item);
     if (this.canStartEating()) this.startEating();
     else if (this.mode === 'wall') this.fall(0, 0);
     return true;
   }
 
+  // Fila do que o jogador deu enquanto ela dormia: nada acorda ela, ela consome na ordem
+  // assim que acordar.
+  queueForWakeUp(item) {
+    const q = (this.pendingWakeUpQueue ||= []);
+    q.push(item);
+    this.emit('wakeQueued', { item });
+    return true;
+  }
+
+  // Depois de acordar: o que ficou na fila entra na fila normal de comida/remédio.
+  drainWakeUpQueue() {
+    const q = this.pendingWakeUpQueue;
+    if (!q?.length) return;
+    this.pendingWakeUpQueue = [];
+    for (const item of q) {
+      if (this.meals.length >= 8) break;
+      this.meals.push(item);
+    }
+    if (this.meals.length && this.canStartEating()) this.startEating();
+  }
+
   canStartEating() {
     return !this.eating && !(this.dosing > 0) && !(this.doseGap > 0) && !this.chase
-      && this.mode === 'ground' && !['land', 'dizzy', 'hurt', 'dead', 'goto', 'toy'].includes(this.action);
+      && this.mode === 'ground' && !['land', 'dizzy', 'hurt', 'dead', 'goto', 'toy', 'sleep'].includes(this.action);
   }
 
   // Medicines and power-ups share the meal queue: finish FX → short gap → next (never overlap).
   medicate(item) {
     if (this.dead) return false;
+    // Dormindo: fica na fila para depois (ela não acorda por causa disso).
+    if (this.action === 'sleep') return this.queueForWakeUp(item);
     if (this.eating || this.dosing > 0 || this.doseGap > 0 || this.meals.length) {
       if (this.meals.length >= 8) return false;
       this.meals.push(item);
@@ -2189,7 +2218,11 @@ export class Pet {
     if (this.timer <= 0) {
       const wasSleeping = this.action === 'sleep';
       this.chooseNext();
-      if (wasSleeping) this.emit('wake', { startled: false });
+      if (wasSleeping) {
+        this.emit('wake', { startled: false });
+        // Acabou de acordar: ela consome o que o jogador deixou na fila.
+        this.drainWakeUpQueue();
+      }
     }
   }
 

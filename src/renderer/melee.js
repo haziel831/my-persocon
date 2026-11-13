@@ -22,11 +22,13 @@ export const MIN_TURN_ENERGY = 0.8;
 // The sparring is non-lethal: she stops at half of her health.
 export const SAFETY_HP = 0.5;
 // JRPG pacing: every phase of a turn waits a little before the next one.
+// The whole turn (announce + charge + windup + impact + recover) is over 3 s, so
+// every action can be read before the next one starts.
 export const PACE = {
-  announce: 0.55,   // the turn is announced
-  windup: 0.35,     // the wind-up (before the hit frame)
-  impact: 0.45,     // the hit lands and the numbers show up
-  recover: 0.75,    // the recovery, before the next turn
+  announce: 0.85,   // the turn is announced
+  windup: 0.5,      // the wind-up (before the hit frame)
+  impact: 0.65,     // the hit lands and the numbers show up
+  recover: 1.0,     // the recovery, before the next turn
 };
 // The charge before the strike: she glows blue and gathers energy (the hit waits for it).
 export const CHARGE_TIME = 0.45;
@@ -225,10 +227,6 @@ export class Melee {
     this.removeDizzy();
     this.removeFuryAura();
     this.removeOppDizzy();
-    // O banner de combate some com a luta.
-    this.bannerEl?.remove();
-    this.bannerEl = null;
-    this.bannerLines = [];
     // The Atordoado is a combat status: it goes away with the fight.
     this.stunTurns = 0;
     this.pet.cureDebuff?.('atordoado');
@@ -421,8 +419,6 @@ export class Melee {
     }
     if (this.opp.scrap || this.opp.unknown) this.updateHpBar();
     this.updateAuras();
-    // O banner acompanha a luta (fica acima das cabeças).
-    this.placeBanner();
     // The training ends when she is too tired (or the dummy is gone).
     if (this.active && this.kind === 'dummy') {
       const d = this.game?.toys?.boneco_treino;
@@ -521,7 +517,8 @@ export class Melee {
     const facing = this.facing();
     pet.dir = facing > 0 ? 1 : -1;
     this.moveDur = (this.metaOf(move)?.durationMs ?? 400) / 1000;
-    this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good');
+    // O nome do golpe: maior e piscando (é uma arte de combate).
+    this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good', { big: move.kind === 'attack' });
     // A carga vem antes: a animação do golpe só começa depois dela.
     this.startCharge(move.kind === 'attack' ? CHARGE_TIME : 0);
   }
@@ -570,7 +567,7 @@ export class Melee {
     const facing = this.facing();
     pet.dir = facing > 0 ? 1 : -1;
     this.moveDur = (this.metaOf(this.move)?.durationMs ?? 500) / 1000;
-    this.say(pet.x, pet.y - pet.P * 1.15, `${man.name}!`, 'good');
+    this.say(pet.x, pet.y - pet.P * 1.15, `${man.name}!`, 'good', { big: true });
     // A manobra carrega mais: a aura azul dura um pouco mais.
     this.startCharge(CHARGE_MANEUVER);
   }
@@ -897,14 +894,14 @@ export class Melee {
       // The special effects of the maneuver.
       this.applyManeuverFx(man, x, y);
     } else if (blocked) {
-      this.say(x, y - 10, 'Bloqueou!', 'good');
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, 'Bloqueou!', 'good');
       this.app.fx?.impact?.('shield', x, y, 0.45);
       this.app.fx?.impact?.('dust', x, y + 6, 0.4);
       this.app.fx?.shake?.(0.25);
       this.app.sound?.tone8?.(300, 180, 0.1, 'square', 0.06);
     } else {
       // She missed: while stunned it shows why.
-      this.say(x, y - 10, missed && this.stunTurns > 0 ? 'Atordoada!' : 'Errou!', missed && this.stunTurns > 0 ? 'bad' : 'good');
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, missed && this.stunTurns > 0 ? 'Atordoada!' : 'Errou!', missed && this.stunTurns > 0 ? 'bad' : 'good');
       if (this.stunTurns > 0) this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.8, 0.5);
       this.app.sound?.tone8?.(520, 300, 0.08, 'triangle', 0.04);
     }
@@ -932,7 +929,7 @@ export class Melee {
     // The Chute Meteoro can leave the enemy dizzy.
     if (man.stun && Math.random() < man.stun) {
       this.opp.stunned = 2;
-      this.say(x, y - 24, 'Atordoado!', 'good');
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, 'Atordoado!', 'good');
       this.showOppDizzy();
     }
     // The Contra-Impacto Sísmico: a shockwave ring and a bit of energy back.
@@ -1048,49 +1045,20 @@ export class Melee {
     this.app.toys?.furn?.floatText?.(x, y, text);
   }
 
-  // Combat text above the battlefield: a FIXED banner (nothing floats over the sprites).
-  // The box sits above the highest head of the two fighters and the lines stack inside it.
-  banner() {
-    if (!this.bannerEl) {
-      const el = document.createElement('div');
-      el.className = 'combat-banner';
-      document.body.append(el);
-      this.bannerEl = el;
-      this.bannerLines = [];
-    }
-    return this.bannerEl;
-  }
-
-  // The banner follows the battle: above the heads, centered between the two fighters.
-  placeBanner() {
-    const el = this.bannerEl;
-    if (!el) return;
-    const pet = this.pet;
-    if (!pet) return;
-    const ox = this.oppX();
-    const mid = ox != null ? (pet.x + ox) / 2 : pet.x;
-    const floor = Math.min(pet.y, this.oppY?.() ?? pet.y);
-    const top = floor - (pet.P || 100) * 1.85;
-    el.style.left = `${Math.round(mid)}px`;
-    el.style.top = `${Math.round(Math.max(6, top))}px`;
-  }
-
-  // Combat text above the heads: green for her, red for the enemy.
-  say(x, y, text, kind = 'good') {
+  // The action text: a small box right above THAT fighter's head (green for her, red for
+  // the enemy). The skills and the special maneuvers get a bigger, flashing text.
+  say(x, y, text, kind = 'good', opts = {}) {
     if (typeof document === 'undefined') return;
-    const el = this.banner();
-    const line = document.createElement('div');
-    line.className = `combat-line ${kind}`;
-    line.textContent = text;
-    el.appendChild(line);
-    this.bannerLines.push(line);
-    // No máximo 4 linhas na caixinha.
-    while (this.bannerLines.length > 4) this.bannerLines.shift()?.remove?.();
+    const el = document.createElement('div');
+    el.className = `combat-line ${kind}${opts.big ? ' big' : ''}`;
+    el.textContent = text;
+    el.style.left = `${Math.round(x)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    document.body.append(el);
     setTimeout(() => {
-      line.classList.add('out');
-      setTimeout(() => line.remove(), 400);
-    }, 1500);
-    this.placeBanner();
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 400);
+    }, opts.big ? 1900 : 1500);
   }
 }
 

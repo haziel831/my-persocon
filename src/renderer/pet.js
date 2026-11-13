@@ -1113,6 +1113,8 @@ api.onTrayClick?.(() => {
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
       + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock();
+    // O feed de ganhos fica logo abaixo da caixinha de XP (ele segue o dock).
+    app.gains?.place?.();
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
