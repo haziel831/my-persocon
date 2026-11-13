@@ -26,6 +26,9 @@ A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 **O cartucho preto ficou mais difícil de achar.** Ele só aparece na Shop **depois que o jogador tiver todos os outros cartuchos** (os 14 do catálogo).
 **A Persocon nunca insere o cartucho preto sozinha.** Ela nunca escolhe esse cartucho sozinha (o `pickCart()` o ignora): o evento só começa quando o jogador insere o cartucho na TV.
 **A TV guarda o cartucho para sempre.** Depois de vencer o Unknown uma vez, o menu da TV ganha a opção **“🕹 Inserir o cartucho preto de novo”**: a criatura pode ser enfrentada quantas vezes o jogador quiser (a primeira inserção usa o mesmo caminho, então nada acontece por acidente).
+**Impacto em sequência de quadros.** O golpe agora toca uma sequência do *Free Pixel Effects Pack #16* (copiado para `src\renderer\assets\vfx\pixel_effects_16\`, 9 pastas × 60 quadros de 32×32): **uma pasta por golpe** — a leve (1) ou a pesada (6) — tocada em ordem a 24 quadros por segundo, e a instância se destrói quando a sequência acaba.
+**Flash vermelho proporcional ao dano.** Quem leva o golpe pisca em vermelho: a Persocon (filtro no canvas do modelo), o Sucataoxidado (filtro no boneco) e o Unknown (pintura vermelha no sprite). A força do vermelho é `min(1, max(0.25, dano / 20))` — um arranhão acende 25%, um golpe pesado ou crítico acende 100% — e apaga em ~300 ms.
+**Número de dano flutuante.** Todo dano mostra o número **vermelho** (`#ff2a2a`) com a borda pixelada escura, subindo e sumindo; o tamanho acompanha o golpe (13 px no dano 1, até 40 px, e o crítico cresce mais).
 Detalhes em `ChangeLogs\v1.9.18.md`.
 
 ## v1.9.17 — 11/11/2026

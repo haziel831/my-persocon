@@ -12,6 +12,9 @@ export const CHANGES = [
     ['O cartucho preto da Shop só aparece depois que o jogador tiver TODOS os outros cartuchos', 'The black cartridge in the Shop only shows up after the player has ALL the other cartridges'],
     ['A Persocon nunca insere o cartucho preto sozinha: ele só entra na TV pela mão do jogador', 'The Persocon never inserts the black cartridge on her own: it only goes into the TV by the player’s hand'],
     ['Depois de vencer o Unknown uma vez, a TV ganha a opção "Inserir o cartucho preto de novo": a criatura pode ser enfrentada quantas vezes quiser', 'After beating the Unknown once, the TV gets the "Insert the black cartridge again" option: the creature can be faced as many times as you want'],
+    ['O impacto do golpe virou uma sequência de quadros do pack de efeitos: UMA pasta por golpe (a leve ou a pesada), tocada em ordem a 24 quadros por segundo, e a instância some quando acaba', 'The strike impact is now a frame sequence from the effects pack: ONE folder per hit (the light or the heavy one), played in order at 24 frames per second, and the instance is destroyed when it ends'],
+    ['Flash vermelho no dano: quem leva o golpe (ela, o Sucataoxidado ou o Unknown) pisca em vermelho, e quanto maior o dano mais forte o vermelho acende (de 25% a 100%)', 'Red flash on damage: whoever takes the hit (her, the Scrap Dummy or the Unknown) flashes red, and the bigger the damage the brighter the red burns (from 25% to 100%)'],
+    ['O número de dano agora flutua em vermelho (#ff2a2a) com a borda pixelada escura, e o tamanho cresce com o golpe (13px no dano 1, até 40px)', 'The damage number now floats up in red (#ff2a2a) with a dark pixel outline, and its size grows with the hit (13px at 1 damage, up to 40px)'],
   ]],
   ['1.9.17', [
     ['Na loja de Cartuchos apareceu um cartucho preto sem nome, de graça. Ninguém sabe o que ele é', 'A nameless black cartridge showed up in the Shop, free. Nobody knows what it is'],
