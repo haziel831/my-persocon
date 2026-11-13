@@ -290,10 +290,11 @@ export class Unknown {
       return false;
     }
     if (!tv?.placed || tv.broken) return false;
-    if (app.melee?.active || app.pet?.dead) return false;
-    // A TV tem que estar livre: ela para o que estiver fazendo e a Persocon larga o que tinha na mão.
+    if (app.melee?.active) app.melee.leave('interrupted');   // a luta com o boneco para na hora
+    if (app.pet?.dead) return false;
+    // Ela larga TUDO e encara a horda: toy, comer, assistir, jam, correr, o boneco de treino.
     app.toys?.screen?.stop?.();
-    app.pet?.endToy?.(true);
+    this.interruptPet();
     this.wave = wave;
     this.t = 0;
     this.slimes = [];
@@ -302,6 +303,27 @@ export class Unknown {
     this.cartAnimation(tv);
     setTimeout(() => this.erupt(wave), 1650);
     return true;
+  }
+
+  // Ela para tudo o que está fazendo e fica parada encarando a horda até o contato.
+  interruptPet() {
+    const app = this.app;
+    const pet = app.pet;
+    const wasSleeping = pet?.action === 'sleep';
+    app.modes?.stop?.();               // assistir/jam/etc.
+    pet?.stopActivity?.();             // atividade dela (watch/jam/react)
+    if (pet?.toyPlay) pet.endToy(true);           // solta o que estava nas mãos (o boneco!)
+    if (pet?.ballPlay) pet.endBall?.(true);
+    if (pet?.eating) pet.finishEating?.();
+    if (pet?.chase) pet.endChase?.(false);
+    if (pet?.mini) pet.mini = null;
+    if (pet?.hook) pet.hook = null;
+    if (Array.isArray(pet?.actionQueue)) pet.actionQueue.length = 0;
+    if (Array.isArray(pet?.afterPlay)) pet.afterPlay.length = 0;   // consumíveis na fila: fora
+    if (wasSleeping) pet.emit?.('wake', { startled: true });
+    if (pet?.mode === 'wall') pet.restOnWall?.(Infinity);
+    if (pet?.mode === 'ground') pet.startGround?.('idle');
+    pet?.pause?.();                    // congela o que sobrou da IA (ela fica parada)
   }
 
   // O cartucho preto desce sobre a TV e se acopla (estática e partículas escuras).
@@ -326,7 +348,7 @@ export class Unknown {
   // ---------- a erupção da TV ----------
 
   erupt(wave = null) {
-    if (this.state !== 'idle' && this.state !== 'erupt') return;
+    if (this.state !== 'idle' && this.state !== 'gone' && this.state !== 'erupt') return;
     this.state = 'erupt';
     const { app } = this;
     const toys = app.toys;
@@ -453,8 +475,10 @@ export class Unknown {
     const { app } = this;
     const pet = app.pet;
     const melee = app.melee;
+    pet.resume?.();                    // a IA volta (o combate assume o controle dela)
     pet.endToy?.(true);
     app.toys?.screen?.stop?.();
+    if (app.melee?.active) app.melee.leave('interrupted');
     if (!melee) { this.fleeAll(); return; }
     pet.playToy({
       id: 'unknown', train: true, dummy: true, combatKind: 'combat', dur: 3600, gain: {},

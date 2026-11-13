@@ -17,6 +17,10 @@ A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 Detalhes em `ChangeLogs\v1.9.23.md`.
 **Correção: o modal de lore não fechava no clique.** A janela do jogo vive em **pass-through** (cliques atravessam para a área de trabalho, exceto quando há UI aberta): o modal agora entra no `uiOpen()` do jogo — a janela volta a receber cliques enquanto ele está na tela e volta a atravessar quando ele fecha. As camadas decorativas (fatias de glitch, ícone, texto, prompt) viraram `pointer-events: none`, o fundo e a caixa ganharam `cursor: pointer` e z-index 99999, o prompt pisca `[ Clique para fechar ▼ ]` após o texto terminar e as teclas **Esc**, **Enter** e **Espaço** também avançam/fecham o modal.
 
+**Correção: o cartucho preto interrompe TUDO o que a Persocon está fazendo** (luta com o boneco, comer, dormir, assistir, brincar, correr) e ela encara a horda — a inserção chama `interruptPet()` (larga o toy/refeição/atividade/perseguição e congela a IA dela até o contato) e `melee.leave('interrupted')` derruba qualquer combate em curso. Reinserir após a primeira vitória voltou a funcionar (o estado `gone` rejeitava a nova erupção).
+**As waves escalam de verdade.** Cada onda traz mais inimigos e mais fortes: 1→2→2→3→3→4→4→5→5 inimigos, com HP/ATK/DEF/precisão/atordoamento crescentes a cada wave.
+Detalhes em `ChangeLogs\v1.9.23.md`.
+
 ## v1.9.22 — 13/11/2026
 **Visual dos objetos: ajuste ao vivo no objeto de verdade.** A prévia pequena do import continua **fixa (100%)** — ela é só a referência estática para o conta-gotas de transparência e para marcar o hitbox. Tudo o que o modal muda agora aparece **na hora, no objeto real na área de trabalho** (ex.: o boneco de treino do lado da Persocon):
 - **imagem/GIF/modelo 3D novo**, **tamanho**, **rotação livre**, **espelho**, **velocidade** e a **transparência** (assada no `bake()`, com *debounce* de ~140 ms);

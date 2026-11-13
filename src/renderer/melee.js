@@ -41,16 +41,17 @@ export const MELEE_RANGE = 0.85;
 // How far the enemy's blow pushes her back (always past the contact distance).
 export const KNOCKBACK = 0.95;
 // As ondas do Cartucho Preto (o índice é a onda). 1 a 9 são lutáveis; 10 é a trava do Boss.
+// Cada onda traz mais inimigos e mais fortes (vida/ataque/defesa/precisão/atordoamento).
 export const BLACK_WAVES = [null,
   { count: 1, hp: 95, atk: 1.9, def: 0.15, level: 1, acc: 0.6, stun: 0 },
-  { count: 2, hp: 115, atk: 2.5, def: 0.18, level: 2, acc: 0.65, stun: 0.06 },
-  { count: 2, hp: 140, atk: 3.1, def: 0.22, level: 3, acc: 0.69, stun: 0.1 },
-  { count: 2, hp: 170, atk: 3.8, def: 0.26, level: 4, acc: 0.73, stun: 0.13 },
-  { count: 3, hp: 195, atk: 4.5, def: 0.3, level: 5, acc: 0.77, stun: 0.16 },
-  { count: 3, hp: 225, atk: 5.3, def: 0.34, level: 6, acc: 0.81, stun: 0.19 },
-  { count: 3, hp: 260, atk: 6.2, def: 0.38, level: 7, acc: 0.84, stun: 0.23 },
-  { count: 4, hp: 300, atk: 7.2, def: 0.43, level: 8, acc: 0.87, stun: 0.26 },
-  { count: 4, hp: 350, atk: 8.5, def: 0.48, level: 9, acc: 0.9, stun: 0.3 },
+  { count: 2, hp: 130, atk: 2.4, def: 0.18, level: 2, acc: 0.65, stun: 0.06 },
+  { count: 2, hp: 165, atk: 3.0, def: 0.22, level: 3, acc: 0.69, stun: 0.1 },
+  { count: 3, hp: 200, atk: 3.8, def: 0.26, level: 4, acc: 0.73, stun: 0.13 },
+  { count: 3, hp: 240, atk: 4.6, def: 0.3, level: 5, acc: 0.77, stun: 0.16 },
+  { count: 4, hp: 275, atk: 5.5, def: 0.34, level: 6, acc: 0.81, stun: 0.19 },
+  { count: 4, hp: 325, atk: 6.5, def: 0.38, level: 7, acc: 0.84, stun: 0.23 },
+  { count: 5, hp: 375, atk: 7.5, def: 0.43, level: 8, acc: 0.87, stun: 0.26 },
+  { count: 5, hp: 440, atk: 8.7, def: 0.48, level: 9, acc: 0.9, stun: 0.3 },
 ];
 // The special maneuvers: one per Melee Combat Level, only with the Fúria status.
 export const MANEUVERS = [
