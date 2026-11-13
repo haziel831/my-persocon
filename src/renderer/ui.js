@@ -2246,7 +2246,10 @@ export class ObjectsDialog extends Dialog {
     const { decodeAnimated } = await import('./skins.js');
     const anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data).catch(() => null) : null;
     this.draft = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100], rot: 0, flip: false, speed: 1, scale: 1, transparent: { color: '#ff00ff', on: false, tolerance: 48 } };
+    this.baked = null;
+    this.bakeKey = '';
     this.render();
+    this.refreshBake();
   }
 
   async pick3d() {
@@ -2290,20 +2293,45 @@ export class ObjectsDialog extends Dialog {
       if (region) await this.app.skins.setObject(id, { ...old, region });
       return this.close();
     }
-    const frames = d.kind === '3d' ? d.src : await bake(d.src, d.rot, d.flip, d.scale, d.transparent);
+    // A prévia já mostra o arquivo assado: usa ele (é o que vai para o save).
+    const frames = d.kind === '3d' ? d.src
+      : (this.baked?.frames?.length ? this.baked.frames : await bake(d.src, d.rot, d.flip, d.scale, d.transparent));
     const first = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = frames[0]; });
-    await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region });
+    const hitbox = d.hitbox || old.hitbox || null;
+    await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region, hitbox });
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
     this.draft = null;
+    this.baked = null;
+    this.bakeKey = '';
+    this.hitboxDraft = null;
     this.render();
   }
 
   // Atualiza só a prévia (sem redesenhar o diálogo inteiro).
   updatePreview() {
-    const img = this.previewImg;
     const d = this.draft;
-    if (!img || !d) return;
-    img.style.transform = `rotate(${d.rot}deg)${d.flip ? ' scaleX(-1)' : ''} scale(${d.scale || 1})`;
+    if (!d) return;
+    // A prévia mostra o arquivo de verdade, já modificado: reassa e redesenha.
+    this.refreshBake();
+  }
+
+  // Reassa o rascunho (tamanho, rotação, transparência) para a prévia mostrar o resultado real.
+  refreshBake() {
+    const d = this.draft;
+    if (!d || d.kind === '3d') { this.baked = null; return; }
+    const t = d.transparent || {};
+    const key = `${d.rot}|${d.flip}|${d.scale}|${t.color}|${t.on}|${t.tolerance}|${d.src.length}`;
+    if (this.bakeKey === key) return;
+    this.bakeKey = key;
+    clearTimeout(this.bakeT);
+    this.bakeT = setTimeout(async () => {
+      try {
+        const frames = await bake(d.src, d.rot, d.flip, d.scale, d.transparent);
+        if (this.draft !== d) return;
+        this.baked = { frames, delays: d.delays };
+        this.render();
+      } catch { /* a prévia fica com a imagem original */ }
+    }, 140);
   }
 
   // Clicar na prévia: a cor do pixel vira a cor de transparência.
@@ -2315,18 +2343,10 @@ export class ObjectsDialog extends Dialog {
     c.height = img.naturalHeight;
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0);
-    // O clique vem na tela: desfaz a rotação e o tamanho para achar o pixel.
+    // A prévia já mostra o arquivo modificado: o clique cai direto no pixel.
     const r = img.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    const s = d.scale || 1;
-    const dx = (e.clientX - cx) / s;
-    const dy = (e.clientY - cy) / s;
-    const a = (-d.rot * Math.PI) / 180;
-    const lx = dx * Math.cos(a) - dy * Math.sin(a) + c.width / 2;
-    const ly = dx * Math.sin(a) + dy * Math.cos(a) + c.height / 2;
-    const x = Math.round(lx);
-    const y = Math.round(ly);
+    const x = Math.round(((e.clientX - r.left) / r.width) * c.width);
+    const y = Math.round(((e.clientY - r.top) / r.height) * c.height);
     if (x < 0 || y < 0 || x >= c.width || y >= c.height) return;
     const p = g.getImageData(x, y, 1, 1).data;
     const hex = `#${[p[0], p[1], p[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
@@ -2334,17 +2354,18 @@ export class ObjectsDialog extends Dialog {
     t.color = hex;
     t.on = true;
     this.render();
+    this.refreshBake();
   }
 
   // A cor de transparência: qual cor some da imagem importada.
   colorControl(d) {
     const t = d.transparent || (d.transparent = { color: '#ff00ff', on: false, tolerance: 48 });
-    const input = h('input', { type: 'color', value: t.color, oninput: (e) => { t.color = e.target.value; } });
+    const input = h('input', { type: 'color', value: t.color, oninput: (e) => { t.color = e.target.value; this.refreshBake(); } });
     return h('div.obj-color', {},
       h('div.row', {}, h('span.label', {}, 'Cor de transparência'), input,
         h('label.row.toggle', {}, h('span.label', {}, 'Remover'),
-          h('input', { type: 'checkbox', checked: !!t.on, onchange: (e) => { t.on = e.target.checked; } }), h('span.switch'))),
-      slider({ label: 'Tolerância', min: 0, max: 120, step: 4, value: t.tolerance ?? 48, format: (v) => `${v}`, oninput: (v) => { t.tolerance = v; } }),
+          h('input', { type: 'checkbox', checked: !!t.on, onchange: (e) => { t.on = e.target.checked; this.refreshBake(); } }), h('span.switch'))),
+      slider({ label: 'Tolerância', min: 0, max: 120, step: 4, value: t.tolerance ?? 48, format: (v) => `${v}`, oninput: (v) => { t.tolerance = v; this.refreshBake(); } }),
       h('small.muted', {}, 'Clique na prévia para pegar a cor de um pixel.'));
   }
 
@@ -2353,30 +2374,69 @@ export class ObjectsDialog extends Dialog {
     const id = this.sel;
     const d = this.draft;
     const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
-      onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.render(); },
+      onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.render(); },
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
-    const shown = d ? d.src[0] : this.current(id);
-    const img = h('img.obj-preview', {
-      src: shown || '', draggable: false,
-      style: d && d.kind !== '3d' ? { transform: `rotate(${d.rot}deg)${d.flip ? ' scaleX(-1)' : ''} scale(${d.scale || 1})` } : {},
-    });
+    // A prévia mostra o arquivo de verdade já modificado (assado com tamanho, rotação e
+    // transparência).
+    const baked = this.baked?.frames?.length ? this.baked.frames : null;
+    const srcFrames = baked || (d ? d.src : null);
+    const shown = srcFrames ? srcFrames[0] : this.current(id);
+    const previewW = d && d.kind !== '3d' ? Math.min(420, Math.round(200 * (d.scale || 1))) : 200;
+    const img = h('img.obj-preview', { src: shown || '', draggable: false, style: { width: `${previewW}px` } });
     this.previewImg = img;
     // Clicar na prévia: pega a cor do pixel (é a cor que vira transparente).
-    if (d && d.kind !== '3d') {
+    if (d && d.kind !== '3d' && !this.hitMode) {
       img.addEventListener('click', (e) => this.pickColor(e, d));
       img.style.cursor = 'crosshair';
     }
-    if (d && d.src.length > 1) {
+    if (srcFrames && srcFrames.length > 1) {
       let i = 0;
       const tick = () => {
         if (!img.isConnected) return;
-        i = (i + 1) % d.src.length;
-        img.src = d.src[i];
-        setTimeout(tick, (d.delays[i] || 100) / (d.speed || 1));
+        i = (i + 1) % srcFrames.length;
+        img.src = srcFrames[i];
+        setTimeout(tick, (d?.delays?.[i] || 100) / (d?.speed || 1));
       };
       setTimeout(tick, 100);
     }
     const stage = h('div.obj-stage', {}, img);
+    // A caixa do hitbox: a parte da imagem que realmente responde ao clique.
+    const hb = this.hitboxDraft || (d && d.hitbox) || app.skins.hitbox?.(id);
+    const hbBox = hb ? h('div.obj-hitbox', { style: { left: `${hb.x * 100}%`, top: `${hb.y * 100}%`, width: `${hb.w * 100}%`, height: `${hb.h * 100}%` } }) : null;
+    if (hbBox) stage.append(hbBox);
+    if (d && this.hitMode) {
+      img.style.cursor = 'crosshair';
+      stage.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const r = img.getBoundingClientRect();
+        const fx = (v) => Math.min(1, Math.max(0, (v - r.left) / r.width));
+        const fy = (v) => Math.min(1, Math.max(0, (v - r.top) / r.height));
+        const x0 = fx(e.clientX);
+        const y0 = fy(e.clientY);
+        stage.setPointerCapture(e.pointerId);
+        const move = (ev) => {
+          const x1 = fx(ev.clientX);
+          const y1 = fy(ev.clientY);
+          this.hitboxDraft = {
+            x: Math.min(x0, x1), y: Math.min(y0, y1),
+            w: Math.max(0.05, Math.abs(x1 - x0)), h: Math.max(0.05, Math.abs(y1 - y0)),
+          };
+          Object.assign(hbBox?.style || {}, {
+            left: `${this.hitboxDraft.x * 100}%`, top: `${this.hitboxDraft.y * 100}%`,
+            width: `${this.hitboxDraft.w * 100}%`, height: `${this.hitboxDraft.h * 100}%`,
+          });
+        };
+        const up = () => {
+          stage.removeEventListener('pointermove', move);
+          stage.removeEventListener('pointerup', up);
+          this.hitMode = false;
+          if (this.hitboxDraft) d.hitbox = this.hitboxDraft;
+          this.render();
+        };
+        stage.addEventListener('pointermove', move);
+        stage.addEventListener('pointerup', up);
+      });
+    }
     if (id === 'videogame') {
       const reg = this.region || app.skins.region(id) || { x: 0.1, y: 0.2, w: 0.8, h: 0.5 };
       const box = h('div.obj-region', { style: { left: `${reg.x * 100}%`, top: `${reg.y * 100}%`, width: `${reg.w * 100}%`, height: `${reg.h * 100}%` } });
@@ -2407,12 +2467,17 @@ export class ObjectsDialog extends Dialog {
         slider({ label: 'Inclinação', min: -60, max: 60, step: 5, value: d.tilt, format: (v) => `${v}°`, onchange: (v) => { d.tilt = v; rerender(); } }),
         toggle({ label: 'Girando (animado)', value: d.spin, onchange: (v) => { d.spin = v; rerender(); } }));
     } else if (d) {
+      const hbDraft = this.hitboxDraft || d.hitbox;
       controls.push(
-        h('div.row', {}, h('span.label', {}, 'Rotação'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); })),
-        slider({ label: 'Rotação livre', min: 0, max: 360, step: 1, value: d.rot, format: (v) => `${v}°`, oninput: (v) => { d.rot = v; this.updatePreview(); }, onchange: () => this.render() }),
-        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.updatePreview(); }, onchange: () => this.render() }),
-        toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); } }),
-        this.colorControl(d));
+        h('div.row', {}, h('span.label', {}, 'Rotação'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); this.refreshBake(); })),
+        slider({ label: 'Rotação livre', min: 0, max: 360, step: 1, value: d.rot, format: (v) => `${v}°`, oninput: (v) => { d.rot = v; this.refreshBake(); }, onchange: () => this.render() }),
+        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.refreshBake(); }, onchange: () => this.render() }),
+        toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); this.refreshBake(); } }),
+        this.colorControl(d),
+        h('div.row', {},
+          h('button', { onclick: () => { this.hitMode = true; this.hitboxDraft = null; this.render(); } }, '🎯 Marcar hitbox'),
+          hbDraft ? h('button', { onclick: () => { delete d.hitbox; this.hitboxDraft = null; this.render(); } }, '✕ Limpar hitbox') : null),
+        h('small.muted', {}, 'O hitbox é a parte da imagem que responde ao clique (o resto deixa passar).'));
     }
     if (d && d.src.length > 1) controls.push(slider({ label: 'Velocidade', min: 0.25, max: 3, step: 0.25, value: d.speed, format: (v) => `${v}×`, oninput: (v) => (d.speed = v) }));
     const has = !!app.skins?.objects[id];

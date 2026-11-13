@@ -221,6 +221,9 @@ const EN = {
   'Inclinação': 'Tilt', 'Espelhar': 'Mirror', 'Arraste sobre a imagem para marcar onde fica a tela da TV.': "Drag over the image to mark where the TV's screen is.",
   'Rotação livre': 'Free rotation', 'Cor de transparência': 'Transparency color',
   'Tolerância': 'Tolerance', 'Clique na prévia para pegar a cor de um pixel.': 'Click the preview to pick the color of a pixel.',
+  'Marcar hitbox': 'Mark hitbox', 'Limpar hitbox': 'Clear hitbox',
+  'O hitbox é a parte da imagem que responde ao clique (o resto deixa passar).':
+    'The hitbox is the part of the image that answers the click (the rest lets it through).',
   '🖼 Imagem / GIF': '🖼 Image / GIF', '🧊 Modelo 3D': '🧊 3D model', '↺ Restaurar padrão': '↺ Restore default', 'Fechar': 'Close', 'Aplicar': 'Apply',
   'Janelas, itens, sons, músicas e mobília': 'Windows, items, sounds, music and furniture', 'Remover': 'Remove',
   'Com resourcepack, a mochila de comida vira um barril e a bolsa de cartuchos vira um baú. Temas e visuais por objeto continuam tendo prioridade.': 'With a resourcepack, the food backpack becomes a barrel and the cartridge bag a chest. Themes and per-object looks still take priority.',

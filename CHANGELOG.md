@@ -13,7 +13,9 @@ A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 - **Rotação livre**: slider de **0° a 360°** (além dos botões rápidos de 90°), com a prévia girando junto;
 - **Cor de transparência**: seletor de cor + **tolerância** (0–120) — os pixels daquela cor ficam transparentes; dá para **clicar na prévia** para pegar a cor de um pixel exato (o clique é corrigido pela rotação e pelo tamanho).
 - Tudo isso é assado no `bake()` (canvas), então vale igual para imagem solta e para GIF animado.
-**O aviso de golpe especial ficou dourado** (`#ffd75e` com brilho âmbar), no lugar do verde — para differentiate o golpe de combate e a manobra especial das falas normais dela.
+**A prévia do import mostra o arquivo de verdade.** Antes ela era só um `transform` de CSS (a imagem original com zoom); agora ela é **reassada** (o mesmo `bake()` que vai para o save): o que aparece é o arquivo **já modificado** — tamanho, rotação e a cor que sumiu. O botão *Aplicar* usa exatamente esses quadros, então **o que você vê é o que vai ficar na área de trabalho**.
+**Novo: marcar o hitbox do objeto.** No import há o botão **“🎯 Marcar hitbox”**: arraste sobre a prévia para marcar a parte da imagem que **responde ao clique** (o resto deixa o clique passar para a área de trabalho). O retângulo verde aparece na prévia, é salvo com o objeto e vale para o clique no objeto e para o clique-através.
+**O aviso de golpe especial ficou dourado** (`#ffd75e` com brilho âmbar), no lugar do verde — para diferenciar o golpe de combate e a manobra especial das falas normais dela.
 Detalhes em `ChangeLogs\v1.9.21.md`.
 
 ## v1.9.20 — 13/11/2026

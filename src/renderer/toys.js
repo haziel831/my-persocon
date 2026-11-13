@@ -1950,6 +1950,8 @@ export class Toys {
     const { game } = this.app;
     // COMBAT_MODE: nothing on the desk can be moved during the fight.
     if (this.app.pet?.combatMode) return;
+    // Fora do hitbox marcado, o clique passa (a parte transparente da imagem).
+    if (!this.inHitbox(id, e.clientX, e.clientY)) return;
     if (!this.editing) {
       // The pet in front of (or behind) an object gets the click.
       if (this.app.hitPet?.(e.clientX, e.clientY)) return;
@@ -2280,9 +2282,26 @@ export class Toys {
         if (!(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) this.passing = null;
         continue;
       }
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        // O objeto pode ter um hitbox marcado: fora dele, o clique passa.
+        if (!this.inHitbox(el.dataset?.id, x, y)) continue;
+        return true;
+      }
     }
     return false;
+  }
+
+  // O clique está dentro do hitbox marcado do objeto? (sem hitbox, vale a imagem toda).
+  inHitbox(id, x, y) {
+    const hb = id ? this.app.skins?.hitbox?.(id) : null;
+    if (!hb) return true;
+    const el = this.els.get(id);
+    const img = el?.querySelector('img:not(.mark)') || el;
+    const r = img?.getBoundingClientRect?.();
+    if (!r || !r.width || !r.height) return true;
+    const u = (x - r.left) / r.width;
+    const v = (y - r.top) / r.height;
+    return u >= hb.x && u <= hb.x + hb.w && v >= hb.y && v <= hb.y + hb.h;
   }
 
   update(dt, hidden) {

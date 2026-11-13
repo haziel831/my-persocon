@@ -258,6 +258,11 @@ export class Skins {
     return this.objects[id]?.region || null;
   }
 
+  // The hitbox of a custom image: the part that really answers the click (null = all of it).
+  hitbox(id) {
+    return this.objects[id]?.hitbox || null;
+  }
+
   async setObject(id, data) {
     if (data) this.objects[id] = data;
     else delete this.objects[id];
