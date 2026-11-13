@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.21', [
+    ['Ao importar uma imagem ou GIF (Visual dos objetos) dá para aumentar ou diminuir o tamanho (25% a 400%), girar em qualquer ângulo e escolher a cor que fica transparente', 'When importing an image or GIF (Object looks) you can now scale it up or down (25% to 400%), rotate it by any angle and pick the color that becomes transparent'],
+    ['Dá para clicar na prévia para pegar a cor de um pixel e usá-la como a cor de transparência (com tolerância ajustável)', 'You can click the preview to pick the color of a pixel and use it as the transparency color (with an adjustable tolerance)'],
+    ['O aviso do golpe de combate e da manobra especial mudou de cor: agora é dourado', 'The combat strike and special maneuver notice changed color: it is gold now'],
+  ]],
   ['1.9.20', [
     ['O feed de ganhos ficou logo abaixo da caixinha de XP (no dock) e parou de repetir o XP: cada coisa aparece uma vez só', 'The gains feed now sits right below the XP box (in the dock) and stopped repeating the XP: everything shows up only once'],
     ['O sono agora é lock: nada acorda ela (impressora, avisos, tarefas de fundo) — e o que o jogador dá enquanto ela dorme fica na fila para ela consumir assim que acordar', 'Sleep is now locked: nothing wakes her up (the printer, alerts, background tasks) — and whatever you give her while she sleeps waits in a queue for her to use right after she wakes up'],

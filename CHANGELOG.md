@@ -7,6 +7,15 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.21 — 13/11/2026
+**Importar imagem/GIF ficou mais completo** (menu *Visual dos objetos*):
+- **Tamanho**: slider de **25% a 400%** — a imagem entra maior ou menor na área de trabalho (o proporção do objeto é recalculada na hora);
+- **Rotação livre**: slider de **0° a 360°** (além dos botões rápidos de 90°), com a prévia girando junto;
+- **Cor de transparência**: seletor de cor + **tolerância** (0–120) — os pixels daquela cor ficam transparentes; dá para **clicar na prévia** para pegar a cor de um pixel exato (o clique é corrigido pela rotação e pelo tamanho).
+- Tudo isso é assado no `bake()` (canvas), então vale igual para imagem solta e para GIF animado.
+**O aviso de golpe especial ficou dourado** (`#ffd75e` com brilho âmbar), no lugar do verde — para differentiate o golpe de combate e a manobra especial das falas normais dela.
+Detalhes em `ChangeLogs\v1.9.21.md`.
+
 ## v1.9.20 — 13/11/2026
 **O feed de ganhos mudou de casa.** Ele agora fica **logo abaixo da caixinha ⭐ XP** (no dock) e **parou de repetir o XP**: cada informação aparece uma vez só — o XP na caixinha, o resto no feed.
 **O sono é lock.** Enquanto ela dorme, **nada** a acorda: a **impressora 3D** segura o aviso da impressão até ela acordar de novo (e ela continua clicável — o bug de ela ficar "travada" some), e **nenhuma tarefa de fundo** tira ela da cama. O que o jogador dá enquanto ela dorme (comida, bebida, sobremesa, remédio) entra na **`pendingWakeUpQueue`** e ela consome **na ordem**, assim que acordar.
