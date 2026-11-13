@@ -2182,12 +2182,13 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-// Assa os quadros: rotação, espelhamento, tamanho e a cor que vira transparente.
-export async function bake(frames, rot, flip, scale = 1, transparent = null) {
-  const s = Math.max(0.1, scale || 1);
+// Assa os quadros: rotação, espelhamento e a cor que vira transparente.
+// (O tamanho NÃO é assado: ele é aplicado na hora de desenhar o objeto, para
+//  o tamanho escolhido valer no objeto de verdade, na área de trabalho.)
+export async function bake(frames, rot, flip, transparent = null) {
   const key = transparent?.on ? transparent.color : null;
   const tol = transparent?.tolerance ?? 48;
-  if (!rot && !flip && s === 1 && !key) return frames;
+  if (!rot && !flip && !key) return frames;
   const out = [];
   for (const src of frames) {
     const img = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
@@ -2195,14 +2196,13 @@ export async function bake(frames, rot, flip, scale = 1, transparent = null) {
     const ih = img.naturalHeight || img.height || 1;
     const side = rot % 180 !== 0;
     const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round((side ? ih : iw) * s));
-    c.height = Math.max(1, Math.round((side ? iw : ih) * s));
+    c.width = Math.max(1, Math.round(side ? ih : iw));
+    c.height = Math.max(1, Math.round(side ? iw : ih));
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     g.translate(c.width / 2, c.height / 2);
     g.rotate((rot * Math.PI) / 180);
     if (flip) g.scale(-1, 1);
-    g.scale(s, s);
     g.drawImage(img, -iw / 2, -ih / 2);
     // A cor escolhida fica transparente (com a tolerância ao redor).
     if (key) {
@@ -2221,6 +2221,16 @@ export async function bake(frames, rot, flip, scale = 1, transparent = null) {
 }
 
 export class ObjectsDialog extends Dialog {
+  // Fechar o diálogo: o objeto volta ao tamanho salvo.
+  close() {
+    this.app.toys.livePreview = null;
+    this.draft = null;
+    this.baked = null;
+    this.bakeKey = '';
+    this.hitboxDraft = null;
+    super.close();
+  }
+
   async show(focus, preset) {
     this.open('Visual dos objetos');
     this.list = [
@@ -2245,7 +2255,8 @@ export class ObjectsDialog extends Dialog {
     const data = await window.petAPI.readFileData(path);
     const { decodeAnimated } = await import('./skins.js');
     const anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data).catch(() => null) : null;
-    this.draft = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100], rot: 0, flip: false, speed: 1, scale: 1, transparent: { color: '#ff00ff', on: false, tolerance: 48 } };
+    const old = this.app.skins.objects[this.sel] || {};
+    this.draft = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100], rot: 0, flip: false, speed: 1, scale: old.scale || 1, transparent: { color: '#ff00ff', on: false, tolerance: 48 } };
     this.baked = null;
     this.bakeKey = '';
     this.render();
@@ -2293,18 +2304,19 @@ export class ObjectsDialog extends Dialog {
       if (region) await this.app.skins.setObject(id, { ...old, region });
       return this.close();
     }
-    // A prévia já mostra o arquivo assado: usa ele (é o que vai para o save).
+    // A prévia usa os quadros assados (rotação + transparência); o tamanho é o do objeto real.
     const frames = d.kind === '3d' ? d.src
-      : (this.baked?.frames?.length ? this.baked.frames : await bake(d.src, d.rot, d.flip, d.scale, d.transparent));
+      : (this.baked?.frames?.length ? this.baked.frames : await bake(d.src, d.rot, d.flip, d.transparent));
     const first = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = frames[0]; });
     const hitbox = d.hitbox || old.hitbox || null;
-    await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region, hitbox });
+    await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region, hitbox, scale: d.scale || 1 });
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
     this.draft = null;
     this.baked = null;
     this.bakeKey = '';
     this.hitboxDraft = null;
     this.render();
+    this.syncLive();
   }
 
   // Atualiza só a prévia (sem redesenhar o diálogo inteiro).
@@ -2315,23 +2327,30 @@ export class ObjectsDialog extends Dialog {
     this.refreshBake();
   }
 
-  // Reassa o rascunho (tamanho, rotação, transparência) para a prévia mostrar o resultado real.
+  // Reassa o rascunho (rotação, transparência) para a prévia mostrar o resultado real.
   refreshBake() {
     const d = this.draft;
-    if (!d || d.kind === '3d') { this.baked = null; return; }
+    if (!d || d.kind === '3d') { this.baked = null; this.syncLive(); return; }
     const t = d.transparent || {};
-    const key = `${d.rot}|${d.flip}|${d.scale}|${t.color}|${t.on}|${t.tolerance}|${d.src.length}`;
-    if (this.bakeKey === key) return;
+    const key = `${d.rot}|${d.flip}|${t.color}|${t.on}|${t.tolerance}|${d.src.length}`;
+    if (this.bakeKey === key) { this.syncLive(); return; }
     this.bakeKey = key;
+    this.syncLive();
     clearTimeout(this.bakeT);
     this.bakeT = setTimeout(async () => {
       try {
-        const frames = await bake(d.src, d.rot, d.flip, d.scale, d.transparent);
+        const frames = await bake(d.src, d.rot, d.flip, d.transparent);
         if (this.draft !== d) return;
         this.baked = { frames, delays: d.delays };
         this.render();
       } catch { /* a prévia fica com a imagem original */ }
     }, 140);
+  }
+
+  // O objeto de verdade na área de trabalho acompanha o tamanho enquanto o diálogo está aberto.
+  syncLive() {
+    const d = this.draft;
+    this.app.toys.livePreview = d ? { id: this.sel, scale: d.scale || 1 } : null;
   }
 
   // Clicar na prévia: a cor do pixel vira a cor de transparência.
@@ -2344,9 +2363,12 @@ export class ObjectsDialog extends Dialog {
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0);
     // A prévia já mostra o arquivo modificado: o clique cai direto no pixel.
+    // (O preview aplica o tamanho como escala CSS, então divide pela escala para ir no frame original.)
     const r = img.getBoundingClientRect();
-    const x = Math.round(((e.clientX - r.left) / r.width) * c.width);
-    const y = Math.round(((e.clientY - r.top) / r.height) * c.height);
+    const fx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    const x = Math.round(fx * c.width / (d.scale || 1));
+    const y = Math.round(fy * c.height / (d.scale || 1));
     if (x < 0 || y < 0 || x >= c.width || y >= c.height) return;
     const p = g.getImageData(x, y, 1, 1).data;
     const hex = `#${[p[0], p[1], p[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
@@ -2374,15 +2396,18 @@ export class ObjectsDialog extends Dialog {
     const id = this.sel;
     const d = this.draft;
     const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
-      onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.render(); },
+      onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.render(); this.syncLive(); },
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
-    // A prévia mostra o arquivo de verdade já modificado (assado com tamanho, rotação e
-    // transparência).
+    // A prévia mostra o arquivo de verdade já modificado (assado com rotação e transparência;
+    // o tamanho é aplicado na própria prévia via escala CSS).
     const baked = this.baked?.frames?.length ? this.baked.frames : null;
     const srcFrames = baked || (d ? d.src : null);
     const shown = srcFrames ? srcFrames[0] : this.current(id);
-    const previewW = d && d.kind !== '3d' ? Math.min(420, Math.round(200 * (d.scale || 1))) : 200;
-    const img = h('img.obj-preview', { src: shown || '', draggable: false, style: { width: `${previewW}px` } });
+    const previewW = 200;
+    const img = h('img.obj-preview', {
+      src: shown || '', draggable: false,
+      style: { width: `${previewW}px`, transform: d && d.kind !== '3d' && d.scale !== 1 ? `scale(${d.scale})` : '' },
+    });
     this.previewImg = img;
     // Clicar na prévia: pega a cor do pixel (é a cor que vira transparente).
     if (d && d.kind !== '3d' && !this.hitMode) {
@@ -2471,7 +2496,7 @@ export class ObjectsDialog extends Dialog {
       controls.push(
         h('div.row', {}, h('span.label', {}, 'Rotação'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); this.refreshBake(); })),
         slider({ label: 'Rotação livre', min: 0, max: 360, step: 1, value: d.rot, format: (v) => `${v}°`, oninput: (v) => { d.rot = v; this.refreshBake(); }, onchange: () => this.render() }),
-        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.refreshBake(); }, onchange: () => this.render() }),
+        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.previewImg.style.transform = d.scale === 1 ? '' : `scale(${d.scale})`; this.refreshBake(); }, onchange: () => this.render() }),
         toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); this.refreshBake(); } }),
         this.colorControl(d),
         h('div.row', {},
@@ -2495,6 +2520,8 @@ export class ObjectsDialog extends Dialog {
       controls,
       this.error && h('div.error', {}, this.error),
       h('div.note', {}, 'PNG/GIF com transparência. Modelos 3D (.glb/.vrm) viram imagem na rotação escolhida (ou girando).'));
+    // O objeto de verdade na área de trabalho já está no tamanho escolhido.
+    this.syncLive();
     this.frame(h('div.objects', {}, list, right), [
       h('span.grow'),
       h('button', { onclick: () => this.close() }, 'Fechar'),

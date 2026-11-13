@@ -50,6 +50,8 @@ export class Toys {
     // Drawn height of objects gliding between a furniture top and the floor.
     this.ys = new Map();
     this.lastPlay = {};
+    // Tamanho em edição (o diálogo de visual mostra o objeto já no tamanho final).
+    this.livePreview = null;
     this.sadTimer = 30;
     this.popup = null;
     this.parcels = new Map();
@@ -2291,6 +2293,13 @@ export class Toys {
     return false;
   }
 
+  // O tamanho em edição (o diálogo de visual manda) tem prioridade sobre o salvo.
+  liveScale(id) {
+    const live = this.livePreview;
+    if (live && live.id === id) return live.scale || 1;
+    return this.app.skins?.scale?.(id) || 1;
+  }
+
   // O clique está dentro do hitbox marcado do objeto? (sem hitbox, vale a imagem toda).
   inHitbox(id, x, y) {
     const hb = id ? this.app.skins?.hitbox?.(id) : null;
@@ -2423,7 +2432,9 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       el.style.width = `${size}px`;
       el.style.height = `${Math.round(size * ratio)}px`;
       const rot = hp ? ` rotate(${hp.rot.toFixed(1)}deg)` : t.rot ? ` rotate(${t.rot}deg)` : '';
-      el.style.transform = `translate(${Math.round(t.x - size / 2)}px, ${Math.round(y)}px)${rot}`;
+      // O tamanho da imagem importada: vale no objeto de verdade (e a edição ao vivo manda).
+      const sc = this.liveScale(id);
+      el.style.transform = `translate(${Math.round(t.x - size / 2)}px, ${Math.round(y)}px)${rot}${sc !== 1 ? ` scale(${sc})` : ''}`;
       if (img) img.style.transform = t.flip ? 'scaleX(-1)' : '';
     }
     this.updateEditTools(hidden);

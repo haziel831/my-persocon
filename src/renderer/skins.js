@@ -263,6 +263,11 @@ export class Skins {
     return this.objects[id]?.hitbox || null;
   }
 
+  // The size of a custom image (1 = the same size as the default art).
+  scale(id) {
+    return this.objects[id]?.scale || 1;
+  }
+
   async setObject(id, data) {
     if (data) this.objects[id] = data;
     else delete this.objects[id];

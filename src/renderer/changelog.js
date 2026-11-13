@@ -4,8 +4,10 @@ export const CHANGES = [
   ['1.9.21', [
     ['Ao importar uma imagem ou GIF (Visual dos objetos) dá para aumentar ou diminuir o tamanho (25% a 400%), girar em qualquer ângulo e escolher a cor que fica transparente', 'When importing an image or GIF (Object looks) you can now scale it up or down (25% to 400%), rotate it by any angle and pick the color that becomes transparent'],
     ['Dá para clicar na prévia para pegar a cor de um pixel e usá-la como a cor de transparência (com tolerância ajustável)', 'You can click the preview to pick the color of a pixel and use it as the transparency color (with an adjustable tolerance)'],
-    ['Ao aumentar o arquivo de imagem importado para o objeto, o preview deve mostrar o arquivo original sendo modificado também', 'When you scale an imported image for an object, the preview shows the original file being modified too'],
+    ['Ao aumentar o arquivo de imagem importado para o objeto, o preview deve mostrar o tamanho no objeto sendo modificado (e não só na prévia)', 'When you scale an imported image for an object, the size shows on the object itself (and not only in the preview)'],
     ['A prévia do import agora mostra o arquivo de verdade já modificado (tamanho, rotação e a cor que sumiu): o que você vê é o que vai para a área de trabalho', 'The import preview now shows the real file already modified (size, rotation and the color that vanished): what you see is what goes to the desktop'],
+    ['O objeto da área de trabalho muda de tamanho ao vivo enquanto você mexe no slider (vale para qualquer objeto com imagem nova)', 'The object on the desktop changes size live while you move the slider (it works for any object with a new image)'],
+    ['O tamanho escolhido é salvo com o objeto e continua valendo depois de fechar o diálogo', 'The chosen size is saved with the object and keeps working after closing the dialog'],
     ['Nova opção de marcar o hitbox do objeto: a parte da imagem que responde ao clique (o resto deixa o clique passar)', 'New option to mark the object hitbox: the part of the image that answers the click (the rest lets the click through)'],
     ['O aviso do golpe de combate e da manobra especial mudou de cor: agora é dourado', 'The combat strike and special maneuver notice changed color: it is gold now'],
   ]],
