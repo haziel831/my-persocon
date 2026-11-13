@@ -22,6 +22,8 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 **Correção: a batalha começa no chão** (a formação desce a Persocon do móvel para o chão antes do combate) **e não termina mais sozinha** poucos segundos depois (em combate o toyPlay não é derrubado por uma ação qualquer e a exaustão é resolvida pelo próprio motor com a mensagem certa).
 **A fila de turnos** ficou no meio da tela e agora usa os **emotes recortados das Persocons**: Aghata (NORMAL/ANXIOSA/SAD) e Ninna (NORMAL/SAD/SHY) pela faixa de HP dela, mudando a cada golpe. Os inimigos usam o **retrato estático da gosma** (o frame 0 convertido do sprite original: corpo preto, olhos vermelhos).
 Detalhes em `ChangeLogs\v1.9.23.md`.
+**Correção definitiva: a Wave do cartucho preto.** A inserção derruba a Persocon do estado livre na hora (hard override): o combate começa **assim que a erupção termina** — ela vai para a esquerda, a horda aparece à direita, e o loop JRPG começa sem esperar o contato nem andar para o boneco. A luta com a horda nunca mira o boneco de treino; o dano e o flash vermelho só acontecem nos inimigos da onda; as ondas 1–9 usam a tabela oficial (100→135→175→220→270→330→400→480→580 HP).
+Detalhes em `ChangeLogs\v1.9.23.md`.
 
 ## v1.9.22 — 13/11/2026
 **Visual dos objetos: ajuste ao vivo no objeto de verdade.** A prévia pequena do import continua **fixa (100%)** — ela é só a referência estática para o conta-gotas de transparência e para marcar o hitbox. Tudo o que o modal muda agora aparece **na hora, no objeto real na área de trabalho** (ex.: o boneco de treino do lado da Persocon):
