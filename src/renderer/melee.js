@@ -41,17 +41,17 @@ export const MELEE_RANGE = 0.85;
 // How far the enemy's blow pushes her back (always past the contact distance).
 export const KNOCKBACK = 0.95;
 // As ondas do Cartucho Preto (o índice é a onda). 1 a 9 são lutáveis; 10 é a trava do Boss.
-// Cada onda traz mais inimigos e mais fortes (vida/ataque/defesa/precisão/atordoamento).
+// Cada onda lança mais inimigos e mais fortes (vida/ataque/defesa/precisão/atordoamento).
 export const BLACK_WAVES = [null,
-  { count: 1, hp: 95, atk: 1.9, def: 0.15, level: 1, acc: 0.6, stun: 0 },
-  { count: 2, hp: 130, atk: 2.4, def: 0.18, level: 2, acc: 0.65, stun: 0.06 },
-  { count: 2, hp: 165, atk: 3.0, def: 0.22, level: 3, acc: 0.69, stun: 0.1 },
-  { count: 3, hp: 200, atk: 3.8, def: 0.26, level: 4, acc: 0.73, stun: 0.13 },
-  { count: 3, hp: 240, atk: 4.6, def: 0.3, level: 5, acc: 0.77, stun: 0.16 },
-  { count: 4, hp: 275, atk: 5.5, def: 0.34, level: 6, acc: 0.81, stun: 0.19 },
-  { count: 4, hp: 325, atk: 6.5, def: 0.38, level: 7, acc: 0.84, stun: 0.23 },
-  { count: 5, hp: 375, atk: 7.5, def: 0.43, level: 8, acc: 0.87, stun: 0.26 },
-  { count: 5, hp: 440, atk: 8.7, def: 0.48, level: 9, acc: 0.9, stun: 0.3 },
+  { count: 1, hp: 100, atk: 8, def: 0.02, level: 1, acc: 0.6, stun: 0 },
+  { count: 2, hp: 135, atk: 11, def: 0.04, level: 2, acc: 0.65, stun: 0.06 },
+  { count: 2, hp: 175, atk: 14, def: 0.06, level: 3, acc: 0.69, stun: 0.1 },
+  { count: 3, hp: 220, atk: 18, def: 0.08, level: 4, acc: 0.73, stun: 0.13 },
+  { count: 3, hp: 270, atk: 22, def: 0.1, level: 5, acc: 0.77, stun: 0.16 },
+  { count: 3, hp: 330, atk: 27, def: 0.13, level: 6, acc: 0.81, stun: 0.19 },
+  { count: 4, hp: 400, atk: 33, def: 0.16, level: 7, acc: 0.84, stun: 0.23 },
+  { count: 4, hp: 480, atk: 40, def: 0.2, level: 8, acc: 0.87, stun: 0.26 },
+  { count: 4, hp: 580, atk: 48, def: 0.25, level: 9, acc: 0.9, stun: 0.3 },
 ];
 // The special maneuvers: one per Melee Combat Level, only with the Fúria status.
 export const MANEUVERS = [
@@ -528,9 +528,9 @@ export class Melee {
   // `foes` é a lista de instâncias de slime montada por `unknown.js`.
   startUnknown(foes, wave = 1) {
     this.foes = (foes || []).map((e) => ({
-      hp: e.hp, max: e.hp, level: e.level, defense: e.defense, name: e.name || 'Unknown',
+      hp: e.hp, max: e.hp, level: e.level, defense: e.defense ?? e.def, atk: e.atk, name: e.name || 'Unknown',
       unknown: true, enemy: e, scrap: false, stunned: 0,
-      atk: e.atk, acc: e.acc, stun: e.stun, bleed: null, defDown: 0, defTurns: 0, accPen: 0, accTurns: 0,
+      baseAtk: e.atk, acc: e.acc, stun: e.stun, bleed: null, defDown: 0, defTurns: 0, accPen: 0, accTurns: 0,
     }));
     this.foeIdx = 0;
     this.xpGained = 0;
@@ -539,9 +539,14 @@ export class Melee {
     this.petHpMax = this.pet.maxHealth?.() ?? 100;
     this.formation('unknown');
     if (!this.enter('unknown')) return false;
-    this.phase = 'intro';
-    this.t = 0;
-    this.introT = 0;
+    if (this.kind === 'unknown') {
+      // A horda já está na arena: o combate começa agora, sem a fase de deslocamento.
+      this.beginTurn({ turn: TURN.PERSOCON, foeIdx: 0 });
+    } else {
+      this.phase = 'intro';
+      this.t = 0;
+      this.introT = 0;
+    }
     return true;
   }
 
@@ -565,14 +570,17 @@ export class Melee {
       pet.x = Math.max(P * 0.25, Math.min(W - P * 0.25, dummy.x - Math.round(P * 1.7)));
     }
     if (kind === 'unknown' && this.foes.length) {
-      const base = Math.round(W * 0.58);
+      const W0 = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
+      const base = Math.round(W0 * 0.82);
       this.foes.forEach((f, i) => {
         if (f.enemy) {
-          f.enemy.x = Math.min(W - P * 0.25, base + i * Math.round(P * 1.15));
+          f.enemy.x = Math.max(P * 0.5, base - i * 75);
           f.enemy.y = this.app.toys?.floorY?.() ?? pet.y;
           f.enemy.dir = -1;
         }
       });
+      // Para o fallback de oppX() (caso todos morram numa mesma frame): a última posição conhecida.
+      this._foeFallbackX = Math.round(W0 * 0.82);
     }
     // O Corvo entra pela joinCrow() (chamada no enter), já na posição final dela.
   }
@@ -713,11 +721,12 @@ export class Melee {
     if (this.kind === 'unknown' && !foe) { this.phase = 'impact'; this.t = 0; return; }
     this.next = TURN.PERSOCON;
     const glitch = Math.random() < 0.38;
+    const baseAtk = foe?.atk ?? 3;
     this.move = {
       id: glitch ? 'glitch' : 'tackle',
       name: glitch ? 'Pulso de Glitch' : 'Investida Viscosa',
       kind: 'attack', clip: 'attack_jab',
-      dmg: glitch ? 2.5 + Math.random() * 2 + (foe?.level || 1) * 0.7 : 1.7 + Math.random() * 1.5 + (foe?.level || 1) * 0.5,
+      dmg: (glitch ? baseAtk * 1.6 : baseAtk) * (0.85 + (foe?.level || 1) * 0.03) * (0.9 + Math.random() * 0.2),
       glitch, stunChance: glitch ? (foe?.stun || 0) : 0,
     };
     this.moveDur = 0.5;
@@ -1484,7 +1493,11 @@ export class Melee {
   }
 
   oppX() {
-    // O Unknown tem a posição dele (e anda durante a luta); o boneco usa a dele.
+    // A luta com a horda NUNCA mira o Boneco de Treino: só os inimigos da onda.
+    if (this.kind === 'unknown') {
+      const foe = this.opp ?? this.foes.find((f) => f.hp > 0);
+      return foe?.enemy?.x ?? this._foeFallbackX ?? null;
+    }
     if (this.opp?.enemy) return this.opp.enemy.x;
     if (this.opp?.x != null) return this.opp.x;
     const d = this.app.game?.toys?.boneco_treino;
@@ -1492,6 +1505,11 @@ export class Melee {
   }
 
   oppY() {
+    // O chão da arena (a horda fica sempre embaixo).
+    if (this.kind === 'unknown') {
+      const foe = this.opp ?? this.foes.find((f) => f.hp > 0);
+      return foe?.enemy?.y ?? this.app.toys?.floorY?.() ?? this.pet.y;
+    }
     if (this.opp?.y != null) return this.opp.y;
     return this.app.toys?.floorY?.() ?? this.pet.y;
   }

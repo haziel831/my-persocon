@@ -387,6 +387,8 @@ export class Unknown {
       this.state = 'chase';
       for (const s of this.slimes) s.play('idle');
       app.sound?.tone8?.(40, 200, 0.35, 'square', 0.1);
+      // A erupção acabou: o combate começa AGORA (sem esperar o contato).
+      this.startFight();
     }, 1500);
   }
 
@@ -469,14 +471,16 @@ export class Unknown {
   // ---------- a perseguição ----------
 
   // Elas encostaram nela: larga o que estava fazendo e encara a horda.
+  // A erupção acabou e a horda saiu: ela larga TUDO e encara a horda imediatamente.
   startFight() {
     if (this.state !== 'chase') return;
     this.state = 'fight';
     const { app } = this;
     const pet = app.pet;
     const melee = app.melee;
-    pet.resume?.();                    // a IA volta (o combate assume o controle dela)
+    pet.resume?.();
     pet.endToy?.(true);
+    this.interruptPet();               // nada escapa: toy, comer, dormir, assistir…
     app.toys?.screen?.stop?.();
     if (app.melee?.active) app.melee.leave('interrupted');
     if (!melee) { this.fleeAll(); return; }
@@ -487,8 +491,9 @@ export class Unknown {
       onEnd: (interrupted) => { melee.leave(interrupted ? 'interrupted' : 'done'); },
       tick: (dt) => melee.update(dt),
     });
-    // A horda se forma do lado B da arena (o lado direito dela).
     melee.startUnknown(this.slimes, this.wave);
+    // O marcador de modo que o jogo usa internamente para saber que é a batalha do cartucho.
+    pet.combatKind = 'black_cartridge_wave';
     for (const s of this.slimes) s.play('attack');
     app.sound?.play?.('explode', { volume: 0.35 });
     if (!melee.active) this.fleeAll();
