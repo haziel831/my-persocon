@@ -83,6 +83,15 @@ export class PetView {
 
     this.facing = null;
     this.setFacing('front', true);
+    // The red flash when she takes damage (the intensity says how bad it was).
+    this.flashT = 0;
+    this.flashI = 0;
+  }
+
+  // The red flash on the model: the tint gets stronger with the damage.
+  flash(intensity = 1) {
+    this.flashT = Math.max(this.flashT, 0.32);
+    this.flashI = Math.max(this.flashI, Math.min(1, Math.max(0.25, intensity)));
   }
 
   // Pet height in CSS pixels; everything else scales from it.
@@ -391,6 +400,16 @@ export class PetView {
     const snap = this.snap;
     this.updateAnchor(dt);
     this.hair.update(dt, snap);
+    // The red flash fades out (it started when she took damage).
+    if (this.flashT > 0) {
+      this.flashT = Math.max(0, this.flashT - dt);
+      const i = this.flashI * (this.flashT / 0.32);
+      this.canvas.style.filter = `sepia(${(i * 0.9).toFixed(3)}) saturate(${(1 + i * 7).toFixed(2)}) hue-rotate(-40deg) brightness(${(1 + i * 0.4).toFixed(2)})`;
+      if (this.flashT <= 0) {
+        this.canvas.style.filter = '';
+        this.flashI = 0;
+      }
+    }
     this.renderer.render(this.scene, this.camera);
   }
 

@@ -42,6 +42,8 @@ export class Unknown {
     this.t = 0;
     this.glitch = 0;          // quanto falta do glitch (segundos)
     this.jitter = 0;
+    this.flash = 0;           // o flash vermelho do dano (segundos)
+    this.flashI = 0;          // o quanto ele acende (0.25 a 1)
     this.sheets = new Map();
     this.el = null;
     this.view = null;
@@ -119,6 +121,12 @@ export class Unknown {
     this.frameT = 0;
   }
 
+  // O flash vermelho quando ela leva dano: quanto maior o dano, mais forte acende.
+  flash(intensity = 1) {
+    this.flash = 0.3;
+    this.flashI = Math.min(1, Math.max(0.25, intensity));
+  }
+
   // Converte o quadro do slime: corpo todo preto e os olhos (e a boca) vermelhos e brilhando.
   convert() {
     const g = this.rawG;
@@ -192,6 +200,14 @@ export class Unknown {
       g.globalCompositeOperation = 'source-over';
     } else {
       g.drawImage(this.raw, 0, 0);
+    }
+    // O flash vermelho do dano: pinta o corpo de vermelho (só onde tem pixel).
+    if (this.flash > 0) {
+      const k = this.flashI * (this.flash / 0.3);
+      g.globalCompositeOperation = 'source-atop';
+      g.fillStyle = `rgba(255, 24, 48, ${(k * 0.85).toFixed(3)})`;
+      g.fillRect(0, 0, SPR, SPR);
+      g.globalCompositeOperation = 'source-over';
     }
   }
 
@@ -360,6 +376,8 @@ export class Unknown {
   update(dt) {
     if (this.state === 'idle' || this.state === 'gone') return;
     this.t += dt;
+    // O flash vermelho do dano se apaga.
+    this.flash = Math.max(0, this.flash - dt);
     // O glitch pisca de vez em quando (e mais forte quando ele está machucado).
     this.glitchT = (this.glitchT ?? 0) - dt;
     if (this.glitchT <= 0) {

@@ -3,6 +3,7 @@
 // stomach rumble every 5 points of hunger lost and the burst when drinking potions/power-ups.
 import { icon } from './pixel.js';
 import { isPowerUp } from './game.js';
+import { VfxSequence, VFX_FOLDERS } from './vfx.js';
 
 // Impact effects for the melee: the 32x32 pixel sheet (assets/vfx/32x32_simple_sfx_sheet.png),
 // sliced frame by frame and drawn at the exact impact point.
@@ -10,8 +11,6 @@ const SFX_COLS = 5;
 const SFX_CELL = 32;
 // The frames of each effect (col, row) inside the sheet.
 const IMPACT = {
-  hit: { frames: [[1, 0], [0, 1], [2, 1]], ms: 55, scale: 0.95 },       // the sharp star
-  slash: { frames: [[3, 4], [2, 5], [3, 5], [4, 5]], ms: 50, scale: 1.2 },  // the cut
   burst: { frames: [[0, 7], [1, 7], [2, 7], [3, 7]], ms: 55, scale: 1.25 }, // the explosion rings
   shield: { frames: [[3, 7], [4, 7], [0, 8]], ms: 70, scale: 1 },        // the guard ring
   dust: { frames: [[2, 12], [3, 12], [4, 12], [1, 13]], ms: 70, scale: 0.8 },  // the puff
@@ -109,7 +108,32 @@ export class Fx {
     setTimeout(() => ring.remove(), 1100);
   }
 
-  // A melee impact at (x, y): the frames of the 32x32 sheet played one by one.
+  // The damage number that floats up from the hit: red, with a dark pixel outline, and
+  // bigger the bigger the hit was.
+  damage(x, y, amount, opts = {}) {
+    if (typeof document === 'undefined' || !(amount > 0)) return;
+    const el = document.createElement('div');
+    el.className = 'dmg-num';
+    const n = Math.round(amount);
+    el.textContent = opts.crit ? `${n}!` : String(n);
+    // 13px num golpe de 1, até 40px (o crítico cresce mais).
+    const size = Math.max(13, Math.min(40, 13 + n * 1.25)) * (opts.crit ? 1.15 : 1);
+    el.style.fontSize = `${Math.round(size)}px`;
+    el.style.left = `${Math.round(x + (Math.random() - 0.5) * 14)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    el.style.setProperty('--rise', `${Math.round(-44 - n * 0.9)}px`);
+    document.body.append(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+
+  // A blood sequence from the pixel effects pack: ONE folder per hit (light or heavy).
+  seq(folder, x, y, opts = {}) {
+    if (typeof document === 'undefined') return null;
+    const f = folder || VFX_FOLDERS.light;
+    return new VfxSequence(f, x, y, opts);
+  }
+
+  // The melee impact at (x, y): the frames of the 32x32 sheet played one by one.
   impact(kind, x, y, scale = 1) {
     const def = IMPACT[kind];
     if (!def || typeof document === 'undefined') return;

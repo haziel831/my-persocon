@@ -6,6 +6,7 @@ export class TrainingDummy {
     this.tilt = 0;
     this.w = 0;
     this.flash = 0;
+    this.flashI = 0;
     this.punch = 0;
   }
 
@@ -34,7 +35,9 @@ export class TrainingDummy {
     if (!this.active) return;
     // Stronger impulse + squash punch so each strike reads clearly.
     this.w += side * (0.38 + dmg * 0.055);
-    this.flash = 0.5;
+    // The red flash: the harder the hit, the brighter it burns.
+    this.flash = 0.32;
+    this.flashI = Math.min(1, Math.max(0.25, dmg / 20));
     this.punch = Math.min(1, (this.punch || 0) + 0.55 + dmg * 0.03);
     this.app.sound?.tone8?.(160 + dmg * 8, 50, 0.07, 'triangle', 0.12);
     this.app.sound?.tone8?.(90, 40, 0.05, 'square', 0.06);
@@ -68,8 +71,9 @@ export class TrainingDummy {
     const s = 1 + this.punch * 0.12;
     const sy = 1 / Math.max(0.82, s);
     el.style.transform = `${base} rotate(${this.tilt}rad) scale(${s.toFixed(3)}, ${sy.toFixed(3)})`.trim();
+    // The red flash of the hit (it fades with the timer).
     el.style.filter = this.flash > 0
-      ? `brightness(${1.35 + this.flash * 0.5}) saturate(${0.25 + this.flash}) contrast(1.15)`
+      ? `sepia(${(this.flashI * (this.flash / 0.32) * 0.9).toFixed(3)}) saturate(${(1 + this.flashI * (this.flash / 0.32) * 7).toFixed(2)}) hue-rotate(-40deg) brightness(${(1 + this.flashI * (this.flash / 0.32) * 0.4).toFixed(2)})`
       : '';
   }
 }

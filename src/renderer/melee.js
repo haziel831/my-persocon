@@ -11,6 +11,7 @@ import { combatMoves, skillLevel, skillGain } from './skills.js';
 import { COMBAT_META } from './combatanims.js';
 import { ITEMS, itemById } from './game.js';
 import { ATTR_XP } from './attrxp.js';
+import { VFX_FOLDERS, flashIntensity } from './vfx.js';
 
 export const TURN = { PERSOCON: 'persocon', OPPONENT: 'opponent' };
 // Energy below this ends the training: she is too tired to keep going.
@@ -632,12 +633,17 @@ export class Melee {
     pet.adjust({ health: -dmg });
     // Levar dano de verdade treina a Constituição (é o jeito mais forte de ganhá-la).
     this.game.attrGain?.('con', dmg * ATTR_XP.con.hurt);
+    // O flash vermelho nela (proporcional ao dano), o número de dano e o sangue.
+    pet.view?.flash?.(flashIntensity(dmg));
+    this.app.fx?.damage?.(pet.x, pet.y - pet.P * 0.95, dmg);
+    this.app.fx?.seq?.(dmg >= 12 ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, pet.x, pet.y - pet.P * 0.7, {
+      scale: dmg >= 12 ? 2.4 : 1.7,
+    });
     pet.playAnimation('combat_hit_stagger', { facing: this.facing() > 0 ? 'right' : 'left' });
     // The blow pushes her back: now she is out of reach and has to close in again.
     const w = this.app.world?.width || 0;
     const back = pet.x - this.facing() * pet.P * KNOCKBACK;
     pet.x = w ? Math.max(pet.P * 0.25, Math.min(w - pet.P * 0.25, back)) : back;
-    this.say(pet.x, pet.y - pet.P * 1.05, `−${dmg} de Saúde`, 'bad');
     this.app.fx?.impact?.('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
     this.app.fx?.shake?.(0.55);
     this.app.sound?.tone8?.(140, 60, 0.14, 'square', 0.11);
@@ -806,7 +812,6 @@ export class Melee {
     const y = this.oppY() - 24;
     const heavy = move.lvl >= 7 || !!man;
     const hits = man?.hits || 1;
-    let total = 0;
     let landed = false;
     let missed = false;
     let blocked = false;
@@ -815,32 +820,28 @@ export class Melee {
       if (roll.result === 'block') { blocked = true; break; }
       if (roll.result === 'miss') { missed = true; continue; }
       landed = true;
-      total += roll.dmg;
       opp.hp = Math.max(0, opp.hp - roll.dmg);
       this.hits++;
       // Cada golpe acertado treina a Força (o treino pesado paga bem mais).
       this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy);
       // O Unknown leva o golpe (e a animação de machucado).
       if (opp.enemy) opp.enemy.play?.('hurt');
-      // The impact: a sharp spark for the light hits, a slash + burst for the heavy ones.
-      if (heavy) {
-        this.app.fx?.impact?.('slash', x, y, 1.1);
-        this.app.fx?.impact?.('burst', x, y, 1.15);
-        this.app.fx?.shake?.(0.9);
-      } else {
-        this.app.fx?.impact?.('hit', x, y, 0.9);
-        this.app.fx?.shake?.(0.45);
-      }
+      // O flash vermelho no alvo e o número de dano (vermelho, do tamanho do golpe).
+      const heavyHit = roll.crit || roll.dmg >= 12 || heavy;
+      opp.enemy?.flash?.(flashIntensity(roll.dmg));
+      this.app.fx?.damage?.(x, y - 10 - h * 12, roll.dmg, { crit: roll.crit });
+      // O impacto: a sequência de sangue do pack (UMA pasta por golpe: leve ou pesada).
+      this.app.fx?.seq?.(heavyHit ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, x, y, {
+        scale: heavyHit ? 2.6 : 1.8,
+      });
+      this.app.fx?.shake?.(heavyHit ? 0.9 : 0.45);
       // The mechanical dummy throws rust when it takes the hit.
       if (opp.scrap) this.app.fx?.impact?.('rust', x, y - 6, 0.5);
       this.app.sound?.tone8?.(180 + roll.dmg * 9, 70, 0.12, 'square', 0.1);
       this.app.sound?.swish?.();
       this.app.dummy?.hit?.(roll.dmg, side);
-      // The combo shows each punch on its own.
-      if (hits > 1) this.say(x, y - 10 - h * 12, `${roll.dmg}`, 'good');
     }
     if (landed) {
-      this.say(x, y - 10, total > 0 ? `${total}` : '0', 'good');
       // The critical is announced on top of the damage.
       // The special effects of the maneuver.
       this.applyManeuverFx(man, x, y);
