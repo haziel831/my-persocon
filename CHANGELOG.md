@@ -19,6 +19,8 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 
 **Correção: o cartucho preto interrompe TUDO o que a Persocon está fazendo** (luta com o boneco, comer, dormir, assistir, brincar, correr) e ela encara a horda — a inserção chama `interruptPet()` (larga o toy/refeição/atividade/perseguição e congela a IA dela até o contato) e `melee.leave('interrupted')` derruba qualquer combate em curso. Reinserir após a primeira vitória voltou a funcionar (o estado `gone` rejeitava a nova erupção).
 **As waves escalam de verdade.** Cada onda traz mais inimigos e mais fortes: 1→2→2→3→3→4→4→5→5 inimigos, com HP/ATK/DEF/precisão/atordoamento crescentes a cada wave.
+**Correção: a batalha começa no chão** (a formação desce a Persocon do móvel para o chão antes do combate) **e não termina mais sozinha** poucos segundos depois (em combate o toyPlay não é derrubado por uma ação qualquer e a exaustão é resolvida pelo próprio motor com a mensagem certa).
+**A fila de turnos** ficou no meio da tela e agora usa os **emotes recortados das Persocons**: Aghata (NORMAL/ANXIOSA/SAD) e Ninna (NORMAL/SAD/SHY) pela faixa de HP dela, mudando a cada golpe. Os inimigos usam o **retrato estático da gosma** (o frame 0 convertido do sprite original: corpo preto, olhos vermelhos).
 Detalhes em `ChangeLogs\v1.9.23.md`.
 
 ## v1.9.22 — 13/11/2026

@@ -1518,9 +1518,10 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
 
 /* ================= combate JRPG (v1.9.23) ================= */
 /* A fila de turnos no topo do campo de batalha. */
+/* A fila de turnos no topo do campo de batalha — fica no meio da tela (na faixa do campo). */
 .turn-queue {
   position: fixed; z-index: 9994; pointer-events: none; user-select: none;
-  top: 10px; left: 50%; transform: translateX(-50%);
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
   display: flex; align-items: center; gap: 2px;
   padding: 6px 12px; border-radius: 12px;
   background: rgba(8, 8, 14, 0.82); border: 2px solid rgba(120, 120, 160, 0.35);
@@ -1532,7 +1533,7 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
   background: linear-gradient(160deg, #241f33, #131020); border: 2px solid rgba(255, 255, 255, 0.14);
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
-.tq-unit img { width: 34px; height: 34px; object-fit: contain; image-rendering: pixelated; }
+.tq-unit img { width: 100%; height: 100%; object-fit: cover; object-position: center 15%; image-rendering: pixelated; }
 .tq-unit .tq-glyph { font: 22px PxEmoji, sans-serif; }
 .tq-unit.ally { border-color: rgba(60, 220, 120, 0.5); }
 .tq-unit.enemy { border-color: rgba(255, 60, 70, 0.5); }

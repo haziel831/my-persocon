@@ -2582,6 +2582,8 @@ export class Pet {
   // Energy hit zero: faint, lose humor / a little affection, warn the player about pat/slap prefs.
   collapseFromExhaustion() {
     if (this.dead || this.exhausted || this.offstage) return;
+    // Em combate, o motor encerra do jeito certo ('Sem energia — a horda recuou').
+    if (this.combatMode) return;
     this.exhausted = true;
     if (this.toyPlay) this.endToy(true);
     if (this.ballPlay) this.endBall(true);
@@ -2640,7 +2642,8 @@ export class Pet {
     }
     if (this.mode !== 'held') this.tilt *= Math.exp(-8 * dt);
     if (this.eating && this.action !== 'eat') this.finishEating();
-    if (this.toyPlay && this.action !== 'toy') this.endToy(true);
+    // Em combate, a luta não pode acabar porque uma ação mudou por baixo (só o motor encerra).
+    if (this.toyPlay && this.action !== 'toy' && !this.combatMode) this.endToy(true);
     if (this.goal && this.action !== 'goto') this.goal = null;
     // Closeup hop uses hideRect behind the taskbar; don't clear it mid-approach.
     if (this.hideRect && !this.chase?.hide && !this.closeup) this.hideRect = null;

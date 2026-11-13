@@ -13,7 +13,7 @@ import { ITEMS, itemById } from './game.js';
 import { ATTR_XP } from './attrxp.js';
 import { VFX_FOLDERS, flashIntensity } from './vfx.js';
 import { icon } from './pixel.js';
-import { enemyPortrait } from './combatui.js';
+import { enemyPortrait, persoconPortrait } from './combatui.js';
 
 export const TURN = { PERSOCON: 'persocon', CROW: 'corvo', FOE: 'foe' };
 // Energy below this ends the training: she is too tired to keep going.
@@ -254,7 +254,9 @@ export class Melee {
   queueActors() {
     const pet = this.pet;
     const name = this.app.config?.name || 'Persocon';
-    const list = [{ id: 'persocon', name, glyph: '🙂', face: null, side: 'ally', hp: pet.maxHealth?.() ? pet.stats.health / pet.maxHealth() : 1 }];
+    const modelDir = this.app.config?.modelDir || 'models/MyPersocon';
+    const hpPct = pet.maxHealth?.() ? Math.max(0, pet.stats.health / pet.maxHealth()) : 1;
+    const list = [{ id: 'persocon', name, face: persoconPortrait(modelDir, hpPct), glyph: null, side: 'ally', hp: hpPct }];
     if (this.crowFight) list.push({ id: 'corvo', name: 'Corvo', face: icon('crow'), glyph: null, side: 'ally', hp: null });
     if (this.kind === 'unknown') {
       this.foes.forEach((f, i) => list.push({
@@ -548,8 +550,15 @@ export class Melee {
     const { pet, game } = this.app;
     const W = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
     const P = pet.P;
+    const floor = this.app.toys?.floorY?.() ?? pet.y;
     const dummy = game?.toys?.boneco_treino;
     pet.x = Math.max(P * 0.25, Math.min(W - P * 0.25, Math.round(W * 0.2)));
+    // A arena é o chão: ela desce do móvel (e solta o colchão/cama) antes da luta começar.
+    pet.mode = 'ground';
+    pet.surfaceId = 'floor';
+    pet.y = floor;
+    pet.lift = 0;
+    pet.onBed = pet.onCushion = pet.onPrinter = false;
     pet.dir = 1;
     if (kind !== 'unknown' && dummy) {
       // O Boneco de Treino fica onde está (é mobília colocada); ela só entra pela esquerda.
@@ -1158,6 +1167,8 @@ export class Melee {
     // Hits in a row without blocking or dodging: the Fúria comes up.
     this.hitStreak = (this.hitStreak || 0) + 1;
     if (this.hitStreak >= FURY_HITS && !this.fury) this.applyFury();
+    // A fila de turnos mostra o estado (o retrato muda de emote conforme ela apanha).
+    this.updateQueueHud();
     this.phase = 'impact';
     this.t = 0;
   }
