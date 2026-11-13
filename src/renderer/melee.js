@@ -12,8 +12,10 @@ import { COMBAT_META } from './combatanims.js';
 import { ITEMS, itemById } from './game.js';
 import { ATTR_XP } from './attrxp.js';
 import { VFX_FOLDERS, flashIntensity } from './vfx.js';
+import { icon } from './pixel.js';
+import { enemyPortrait } from './combatui.js';
 
-export const TURN = { PERSOCON: 'persocon', OPPONENT: 'opponent' };
+export const TURN = { PERSOCON: 'persocon', CROW: 'corvo', FOE: 'foe' };
 // Energy below this ends the training: she is too tired to keep going.
 export const EXHAUST_ENERGY = 15;
 // Base energy spent on a turn; a higher Combat Skill Level makes every strike cheaper.
@@ -21,15 +23,15 @@ export const BASE_TURN_ENERGY = 3;
 export const MIN_TURN_ENERGY = 0.8;
 // The sparring is non-lethal: she stops at half of her health.
 export const SAFETY_HP = 0.5;
-// JRPG pacing: every phase of a turn waits a little before the next one.
-// The whole turn (announce + charge + windup + impact + recover) is over 3 s, so
-// every action can be read before the next one starts.
+// JRPG pacing: every phase of a turn waits a little before the next one (slow on purpose).
 export const PACE = {
-  announce: 0.85,   // the turn is announced
-  windup: 0.5,      // the wind-up (before the hit frame)
-  impact: 0.65,     // the hit lands and the numbers show up
-  recover: 1.0,     // the recovery, before the next turn
+  announce: 0.9,    // the turn is announced (ring + queue highlight)
+  windup: 0.8,      // the wind-up / step forward before the hit frame
+  impact: 0.7,      // the hit lands; the numbers and the effects show up
+  recover: 1.2,     // the breathing pause before the next unit acts
 };
+// The freeze on contact (hit-stop): everything halts for a beat.
+export const HIT_STOP = 0.12;
 // The charge before the strike: she glows blue and gathers energy (the hit waits for it).
 export const CHARGE_TIME = 0.45;
 export const CHARGE_MANEUVER = 0.55;
@@ -38,6 +40,18 @@ export const CHARGE_MANEUVER = 0.55;
 export const MELEE_RANGE = 0.85;
 // How far the enemy's blow pushes her back (always past the contact distance).
 export const KNOCKBACK = 0.95;
+// As ondas do Cartucho Preto (o índice é a onda). 1 a 9 são lutáveis; 10 é a trava do Boss.
+export const BLACK_WAVES = [null,
+  { count: 1, hp: 95, atk: 1.9, def: 0.15, level: 1, acc: 0.6, stun: 0 },
+  { count: 2, hp: 115, atk: 2.5, def: 0.18, level: 2, acc: 0.65, stun: 0.06 },
+  { count: 2, hp: 140, atk: 3.1, def: 0.22, level: 3, acc: 0.69, stun: 0.1 },
+  { count: 2, hp: 170, atk: 3.8, def: 0.26, level: 4, acc: 0.73, stun: 0.13 },
+  { count: 3, hp: 195, atk: 4.5, def: 0.3, level: 5, acc: 0.77, stun: 0.16 },
+  { count: 3, hp: 225, atk: 5.3, def: 0.34, level: 6, acc: 0.81, stun: 0.19 },
+  { count: 3, hp: 260, atk: 6.2, def: 0.38, level: 7, acc: 0.84, stun: 0.23 },
+  { count: 4, hp: 300, atk: 7.2, def: 0.43, level: 8, acc: 0.87, stun: 0.26 },
+  { count: 4, hp: 350, atk: 8.5, def: 0.48, level: 9, acc: 0.9, stun: 0.3 },
+];
 // The special maneuvers: one per Melee Combat Level, only with the Fúria status.
 export const MANEUVERS = [
   { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'attack_uppercut', mult: 1.5, ignoreDefense: true,
@@ -146,9 +160,11 @@ export class Melee {
   constructor(app) {
     this.app = app;
     this.active = false;    // COMBAT_MODE
-    this.kind = null;       // 'dummy' (training) | 'fight' (the scrap dummy)
+    this.kind = null;       // 'dummy' (training) | 'fight' (the scrap dummy) | 'unknown' (the wave)
     this.turn = TURN.PERSOCON;
-    this.phase = 'idle';    // 'idle' | 'intro' | 'acting' | 'resolve'
+    this.foeIdx = 0;        // o índice do inimigo em ação (ou do alvo sendo mirado)
+    this.foes = [];         // todos os inimigos da onda (multi-inimigo)
+    this.phase = 'idle';    // 'idle' | 'intro' | 'announce' | 'close' | 'charge' | 'windup' | 'impact' | 'recover' | 'victory'
     this.t = 0;
     this.wait = 0;
     this.move = null;
@@ -156,15 +172,23 @@ export class Melee {
     this.turns = 0;
     this.hits = 0;
     this.hitResolved = false;
+    this.hitStop = 0;        // o hit-stop: tempo congelado no contato
     this.introT = 0;
     this.petHp = 100;
+    this.petHpMax = 100;
     this.stunTurns = 0;      // turns left Atordoada
     this.fury = false;       // the Fúria status
     this.hitStreak = 0;      // hits taken in a row
     this.dizzyEl = null;     // the stars above her head
     this.furyAura = null;    // the fire above her head
     this.oppDizzyEl = null;  // the stars above the stunned enemy
-    this.opp = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
+    this.oppRef = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
+    this.crowFight = false;  // o Corvo entrou na luta
+    this.xpGained = 0;       // XP de combate ganho na luta (para o resumo)
+    this.attrGained = { str: 0, con: 0 };
+    this.blockBoost = 0;     // bônus temporário de bloqueio (Grito de Alerta)
+    this.dodgeBoost = 0;     // bônus temporário de desvio (Grito de Alerta)
+    this.itemPopT = 0;       // o ícone do item fica acima dela por um instante
     this.music = null;
     this.hpBar = null;
     this.onPetEvent = (type, data) => this.onEvent(type, data);
@@ -173,11 +197,175 @@ export class Melee {
 
   get pet() { return this.app.pet; }
   get game() { return this.app.game; }
+  get ui() { return this.app.combatUI; }
   // The Combat Skill Level (the unarmed skill).
   get level() { return skillLevel(this.game?.skillXp?.('unarmed') || 0); }
   // The moves she may use right now (only the unlocked ones).
   get moves() { return combatMoves(this.game?.skillXp?.('unarmed') || 0); }
   get attacks() { return this.moves.filter((m) => m.kind === 'attack'); }
+  // O oponente atual: na luta contra o Unknown é o inimigo da fila; no treino, o boneco.
+  get opp() {
+    if (this.kind === 'unknown') return this.foes[this.foeIdx] ?? this.foes.find((f) => f.hp > 0) ?? null;
+    return this.oppRef;
+  }
+  set opp(v) { this.oppRef = v; }
+
+  // ---------------- a fila de turnos (JRPG) ----------------
+
+  // A ordem desta luta: [Persocon, Corvo (se aliado), os inimigos vivos].
+  sequence() {
+    const seq = [{ turn: TURN.PERSOCON, foeIdx: -1 }];
+    if (this.crowFight) seq.push({ turn: TURN.CROW, foeIdx: -1 });
+    if (this.kind === 'unknown') {
+      this.foes.forEach((f, i) => { if (f.hp > 0) seq.push({ turn: TURN.FOE, foeIdx: i }); });
+    } else if (this.opp) {
+      seq.push({ turn: TURN.FOE, foeIdx: 0 });
+    }
+    return seq;
+  }
+
+  // O próximo da fila depois de quem agiu.
+  nextEntry() {
+    const seq = this.sequence();
+    if (!seq.length) return { turn: TURN.PERSOCON, foeIdx: -1 };
+    const i = seq.findIndex((s) => s.turn === this.turn && s.foeIdx === this.foeIdx);
+    return seq[(Math.max(0, i) + 1) % seq.length];
+  }
+
+  firstAliveFoe() {
+    const i = this.foes.findIndex((f) => f.hp > 0);
+    return i < 0 ? 0 : i;
+  }
+
+  foesAlive() {
+    if (this.kind === 'unknown') return this.foes.filter((f) => f.hp > 0).length;
+    return this.opp?.hp > 0 ? 1 : 0;
+  }
+
+  // O id do ator da vez (para destacar na fila).
+  activeId() {
+    if (this.turn === TURN.PERSOCON) return 'persocon';
+    if (this.turn === TURN.CROW) return 'corvo';
+    return `foe${this.foeIdx}`;
+  }
+
+  // Os atores da fila para o topo da tela.
+  queueActors() {
+    const pet = this.pet;
+    const name = this.app.config?.name || 'Persocon';
+    const list = [{ id: 'persocon', name, glyph: '🙂', face: null, side: 'ally', hp: pet.maxHealth?.() ? pet.stats.health / pet.maxHealth() : 1 }];
+    if (this.crowFight) list.push({ id: 'corvo', name: 'Corvo', face: icon('crow'), glyph: null, side: 'ally', hp: null });
+    if (this.kind === 'unknown') {
+      this.foes.forEach((f, i) => list.push({
+        id: `foe${i}`, name: f.name || 'Unknown', face: enemyPortrait(), glyph: null, side: 'enemy',
+        hp: f.max ? Math.max(0, f.hp / f.max) : 0, dead: f.hp <= 0,
+      }));
+    } else if (this.opp) {
+      list.push({
+        id: 'foe0', name: this.opp.name || 'Inimigo', glyph: '🤖', face: null, side: 'enemy',
+        hp: this.opp.max ? Math.max(0, this.opp.hp / this.opp.max) : 1,
+      });
+    }
+    return list;
+  }
+
+  updateQueueHud() {
+    const list = this.queueActors();
+    this.ui?.showQueue(list);
+    this.ui?.updateQueue(list, this.activeId());
+  }
+
+  // As barras de vida pequenas acima de cada inimigo.
+  updateFoeBars() {
+    if (this.kind !== 'unknown') return;
+    const floor = this.app.toys?.floorY?.() ?? this.pet.y;
+    const foes = this.foes
+      .map((f, i) => ({ id: `foe${i}`, x: f.enemy?.x ?? 0, y: f.enemy?.y ?? floor, pct: f.max ? Math.max(0, f.hp / f.max) : 0 }))
+      .filter((f) => f.pct > 0 || true);
+    this.ui?.foeBars(foes);
+  }
+
+  // O anel de chão no lutador da vez.
+  ringOnActor() {
+    const pet = this.pet;
+    if (this.turn === TURN.PERSOCON) return this.ui?.ring(pet.x, pet.y + 6);
+    if (this.turn === TURN.CROW) {
+      const c = this.app.crow;
+      return this.ui?.ring(c?.x ?? pet.x, (c?.y ?? pet.y) + 8);
+    }
+    const f = this.foes[this.foeIdx];
+    if (this.kind === 'unknown' && f?.enemy) return this.ui?.ring(f.enemy.x, (f.enemy.y ?? this.pet.y) + 6);
+    return this.ui?.ring(this.oppX() ?? pet.x, this.oppY() + 6);
+  }
+
+  // Uma fala do Corvo (o texto fica acima dele).
+  sayCrow(iconText, text = '') {
+    const crow = this.app.crow;
+    if (!crow) return;
+    const line = iconText ? `${iconText} ${text}`.trim() : text;
+    this.say(crow.x, crow.y - this.pet.P * 1.35, line, 'good');
+  }
+
+  // XP do Corvo pelas lutas (combate e suporte).
+  crowGain(id, amount = 26) {
+    const crow = this.app.crow;
+    crow?.combatGain?.(id, amount);
+  }
+
+  // O dano que ela causa num inimigo (qualquer um: boneco, sucata, gosmas).
+  damageFoe(dmg, opts = {}) {
+    const opp = this.opp;
+    if (!opp || opp.hp <= 0) return;
+    opp.hp = Math.max(0, opp.hp - dmg);
+    this.hits++;
+    if (opp.enemy) opp.enemy.play?.('hurt');
+    if (opp.enemy) opp.enemy.flash?.(flashIntensity(dmg));
+    const x = this.oppX();
+    const y = this.oppY() - 24;
+    const heavy = dmg >= 12 || opts.crit;
+    this.app.fx?.damage?.(x, y - 24, dmg, { crit: opts.crit });
+    this.app.fx?.seq?.(heavy ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, x, y, { scale: heavy ? 2.5 : 1.7 });
+    this.app.fx?.shake?.(heavy ? 0.9 : 0.45);
+    this.app.sound?.tone8?.(180 + dmg * 9, 70, 0.12, 'square', 0.1);
+    if (opp.scrap) this.app.fx?.impact?.('rust', x, y - 6, 0.5);
+    this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy,
+      this.kind === 'dummy' ? 'dummy' : (opp.unknown ? 'unknown' : 'heavy'));
+    this.attrGained.str += this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy;
+    this.hitStop = HIT_STOP;
+    if (opp.enemy) this.updateFoeBars();
+    this.updateQueueHud();
+  }
+
+  checkVictory() {
+    if (!this.active || this.phase === 'victory') return false;
+    if (this.kind !== 'dummy' && this.foesAlive() === 0) {
+      this.victory();
+      return true;
+    }
+    return false;
+  }
+
+  // A vitória: pose, fanfarra e o banner de resumo de XP.
+  victory() {
+    if (this.phase === 'victory') return;
+    const pet = this.pet;
+    this.phase = 'victory';
+    this.t = 0;
+    this.ui?.hideQueue();
+    this.ui?.hideRing();
+    this.ui?.hideFoeBars();
+    try {
+      pet.playAnimation?.(pet.pickClip?.(['victory', 'comemorar', 'emote_pos', 'dance'], ['idle']) || 'idle', { facing: 'front', restart: true });
+    } catch {}
+    this.app.sound?.play?.('ok', { volume: 0.6 });
+    // A horda morre de verdade (animação de morte + fala dela).
+    if (this.kind === 'unknown') this.app.unknown?.onDefeat?.('win');
+    const lines = [];
+    if (this.xpGained > 0) lines.push(['Combate Corpo a Corpo', this.xpGained]);
+    if (this.attrGained.str > 0) lines.push(['Força', this.attrGained.str]);
+    if (this.attrGained.con > 0) lines.push(['Constituição', this.attrGained.con]);
+    this.ui?.victoryBanner(lines);
+  }
 
   // The energy a strike costs: the better she is, the less it costs.
   energyCost() {
@@ -201,7 +389,19 @@ export class Melee {
     this.turns = 0;
     this.hits = 0;
     this.petHp = this.pet?.stats?.health ?? 100;
+    this.petHpMax = this.pet?.maxHealth?.() ?? 100;
+    this.foes = kind === 'unknown' ? this.foes : [];
+    this.foeIdx = 0;
+    this.crowFight = false;
+    this.xpGained = 0;
+    this.attrGained = { str: 0, con: 0 };
+    this.blockBoost = 0;
+    this.dodgeBoost = 0;
+    this.hitStop = 0;
+    this.itemPopT = 0;
     this.pet.combatMode = true;
+    // O Corvo entra como aliado se estiver livre na área de trabalho e tiver Skill de Combate.
+    if (this.crowAvailable()) this.joinCrow();
     // The frame and the combat track belong to the real fights; the training stays clean.
     if (kind !== 'dummy') {
       document.body.classList.add('combat-mode');
@@ -212,12 +412,38 @@ export class Melee {
     return true;
   }
 
+  // O Corvo está pronto para lutar ao lado dela? (na área de trabalho, livre, com ≥1 Skill de Combate)
+  crowAvailable() {
+    const crow = this.app.crow;
+    if (!crow?.owned) return false;
+    if (crow.x == null || crow.away || crow.duo || crow.fetching || crow.carry?.length || crow.leaving || crow.trick) return false;
+    return ['rasante', 'penas', 'bicada', 'grito', 'busca', 'provocacao'].some((id) => crow.learned?.(id));
+  }
+
+  // O Corvo entra no lado dela (flutuando ao lado/acima).
+  joinCrow() {
+    const crow = this.app.crow;
+    const pet = this.pet;
+    this.crowFight = true;
+    const W = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
+    // A formação: lado a lado, ele um pouco acima e atrás dela.
+    crow.x = Math.max(pet.P * 0.3, Math.min(W - pet.P * 0.3, pet.x + pet.P * 1.05));
+    crow.y = (this.app.toys?.floorY?.() ?? pet.y) - pet.P * 1.9;
+    crow.lift = 0;
+    crow.perch = 'combat';
+    crow.idle?.(9999, 'idle');
+    this.sayCrow('🪶', 'Comigo não passa!');
+  }
+
   leave(reason = 'end') {
     if (!this.active) return;
     this.active = false;
     this.kind = null;
     this.phase = 'idle';
     this.move = null;
+    this.foes = [];
+    this.foeIdx = 0;
+    this.crowFight = false;
     this.pet.combatMode = false;
     document.body.classList.remove('combat-mode');
     this.music?.stop();
@@ -227,6 +453,7 @@ export class Melee {
     this.removeDizzy();
     this.removeFuryAura();
     this.removeOppDizzy();
+    this.ui?.clear();
     // The Atordoado is a combat status: it goes away with the fight.
     this.stunTurns = 0;
     this.pet.cureDebuff?.('atordoado');
@@ -244,7 +471,11 @@ export class Melee {
       toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '😵 Precisa de ≥50% de energia');
       return false;
     }
+    this.foes = [];
     this.opp = { hp: 100, max: 100, level: 1, defense: 0.22, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
+    this.xpGained = 0;
+    this.attrGained = { str: 0, con: 0 };
+    this.formation('dummy');
     if (!this.enter('dummy')) return false;
     this.phase = 'intro';
     this.t = 0;
@@ -270,10 +501,14 @@ export class Melee {
     // The Scrap Dummy is one level below hers (at level 1 and 2 it is her equal).
     const lvl = this.level;
     const oppLvl = lvl <= 2 ? lvl : lvl - 1;
+    this.foes = [];
     this.opp = {
       hp: 100, max: 100, level: oppLvl, defense: 0.16 + oppLvl * 0.03,
       dummy: false, scrap: true, stunned: 0, name: 'Sucataoxidado',
     };
+    this.xpGained = 0;
+    this.attrGained = { str: 0, con: 0 };
+    this.formation('fight');
     this.petHp = pet.stats.health;
     this.petHpMax = pet.maxHealth?.() ?? 100;   // her health never goes over the maximum
     if (!this.enter('fight')) return false;
@@ -284,83 +519,275 @@ export class Melee {
     return true;
   }
 
-  // ---------------- o Unknown (a gosma de glitch que saiu da TV) ----------------
+  // ---------------- o Unknown (uma horda de gosmas de glitch que saiu da TV) ----------------
 
-  // Começa a luta contra o Unknown (o slime de glitch que saiu da tela da TV).
-  startUnknown(enemy) {
-    this.opp = {
-      hp: 20, max: 20, level: 1, defense: 0.05,
-      dummy: false, scrap: false, unknown: true, name: 'Unknown',
-      x: enemy?.x, y: enemy?.y, enemy,
-    };
+  // Começa a luta contra a horda do Unknown (N gosmas, dependendo da onda).
+  // `foes` é a lista de instâncias de slime montada por `unknown.js`.
+  startUnknown(foes, wave = 1) {
+    this.foes = (foes || []).map((e) => ({
+      hp: e.hp, max: e.hp, level: e.level, defense: e.defense, name: e.name || 'Unknown',
+      unknown: true, enemy: e, scrap: false, stunned: 0,
+      atk: e.atk, acc: e.acc, stun: e.stun, bleed: null, defDown: 0, defTurns: 0, accPen: 0, accTurns: 0,
+    }));
+    this.foeIdx = 0;
+    this.xpGained = 0;
+    this.attrGained = { str: 0, con: 0 };
     this.petHp = this.pet.stats.health;
     this.petHpMax = this.pet.maxHealth?.() ?? 100;
+    this.formation('unknown');
     if (!this.enter('unknown')) return false;
     this.phase = 'intro';
     this.t = 0;
     this.introT = 0;
-    this.showHpBar();
     return true;
   }
 
-  // O turno do Unknown: Investida Viscosa ou Pulso de Glitch.
-  unknownTurn() {
+  // A formação lado a lado: a Persocon (e o Corvo) à esquerda, os inimigos à direita.
+  formation(kind = 'unknown') {
+    const { pet, game } = this.app;
+    const W = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
+    const P = pet.P;
+    const dummy = game?.toys?.boneco_treino;
+    pet.x = Math.max(P * 0.25, Math.min(W - P * 0.25, Math.round(W * 0.2)));
+    pet.dir = 1;
+    if (kind !== 'unknown' && dummy) {
+      // O Boneco de Treino fica onde está (é mobília colocada); ela só entra pela esquerda.
+      pet.x = Math.max(P * 0.25, Math.min(W - P * 0.25, dummy.x - Math.round(P * 1.7)));
+    }
+    if (kind === 'unknown' && this.foes.length) {
+      const base = Math.round(W * 0.58);
+      this.foes.forEach((f, i) => {
+        if (f.enemy) {
+          f.enemy.x = Math.min(W - P * 0.25, base + i * Math.round(P * 1.15));
+          f.enemy.y = this.app.toys?.floorY?.() ?? pet.y;
+          f.enemy.dir = -1;
+        }
+      });
+    }
+    // O Corvo entra pela joinCrow() (chamada no enter), já na posição final dela.
+  }
+
+  // ---------------- o Corvo (aliado de combate) ----------------
+
+  // O sangramento (Penas Cortantes): dano no início do turno do inimigo.
+  tickBleed() {
+    if (this.kind !== 'unknown') return;
+    const f = this.foes[this.foeIdx];
+    if (f?.bleed) {
+      const dmg = f.bleed.dmg;
+      f.hp = Math.max(0, f.hp - dmg);
+      f.enemy?.play?.('hurt');
+      f.enemy?.flash?.(0.4);
+      this.app.fx?.damage?.(this.oppX(), this.oppY() - 30, dmg);
+      f.bleed.turns -= 1;
+      if (f.bleed.turns <= 0) f.bleed = null;
+      this.updateFoeBars();
+      this.updateQueueHud();
+      if (this.foes.every((g) => g.hp <= 0)) this.checkVictory();
+    }
+  }
+
+  // O turno do Corvo: escolhe a melhor Skill de Combate que ele aprendeu.
+  crowTurn() {
     const pet = this.pet;
+    const crow = this.app.crow;
+    const P = pet.P;
+    this.phase = 'windup';
+    this.t = 0;
+    this.move = { id: 'crow', name: 'Corvo', kind: 'attack', clip: 'combat_idle', dmg: 0 };
+    this.moveDur = 0.5;
+    this.next = TURN.PERSOCON;
+    // Se a horda já está caída (vitoria em andamento), o Corvo não age.
+    if (this.kind === 'unknown' && !this.foes.some((f) => f.hp > 0)) { this.phase = 'impact'; this.t = 0; return; }
+    const learned = (id) => crow?.learned?.(id);
+    const foeTarget = this.kind === 'unknown' ? this.foes[this.foeIdx] : null;
+    const maxHp = this.petHpMax || 100;
+    // Meds de cura no Inventário (para a Busca de Emergência).
+    const meds = [];
+    for (const i of ITEMS) {
+      if (i.cat !== 'medicina') continue;
+      if ((this.game.count?.(i.id) || 0) <= 0) continue;
+      if (!(i.effects?.health > 0)) continue;
+      meds.push(i);
+    }
+    meds.sort((a, b) => (b.effects?.health || 0) - (a.effects?.health || 0));
+    // As prioridades: socorrer ela ferida > enfraquecer > atacar > proteger.
+    let skill = null;
+    if (pet.stats.health < maxHp * 0.6 && meds.length && learned('busca')) skill = 'busca';
+    else if (foeTarget && foeTarget.defDown <= 0 && learned('provocacao')) skill = 'provocacao';
+    else if (foeTarget && !foeTarget.bleed && learned('penas')) skill = 'penas';
+    else if (this.blockBoost <= 0 && learned('grito')) skill = 'grito';
+    else if (learned('rasante')) skill = 'rasante';
+    else if (learned('penas')) skill = 'penas';
+    else if (learned('bicada')) skill = 'bicada';
+    else if (learned('provocacao')) skill = 'provocacao';
+    else if (learned('grito')) skill = 'grito';
+    else skill = 'grito'; // fallback (algum aprendizado de combate existe sempre)
+    crow?.play?.('fly', 1.6);
+    this.app.sound?.crow?.('flap', 0.7);
+    const face = 1;
+    crow.dir = face;
+    if (skill === 'busca') {
+      const item = meds[0];
+      pet.adjust(item.effects || {});
+      this.game.take(item.id);
+      this.game.changed();
+      this.ui?.itemPop(crow.x, crow.y - P * 1.2, item.img);
+      this.sayCrow('🎒', `Usou ${item.name}!`);
+      this.app.sound?.play?.('puff', { volume: 0.4 });
+      this.app.fx?.impact?.('dust', pet.x, pet.y - P * 0.6, 0.4);
+      this.crowGain('busca');
+      this.finishCrowTurn();
+      return;
+    }
+    if (skill === 'grito') {
+      this.blockBoost = Math.max(this.blockBoost, 0.25);
+      this.dodgeBoost = Math.max(this.dodgeBoost, 0.2);
+      this.sayCrow('📢', 'Grito de Alerta!');
+      this.app.sound?.crow?.('caw', 0.9);
+      this.crowGain('grito');
+      this.finishCrowTurn();
+      return;
+    }
+    if (skill === 'provocacao') {
+      if (foeTarget) {        foeTarget.defDown = 0.25;
+        foeTarget.defTurns = 2;
+        this.sayCrow('💨', 'Provocação Aérea!');
+        this.crowGain('provocacao');
+      }
+      this.finishCrowTurn();
+      return;
+    }
+    if (skill === 'penas') {
+      const dmg = 2 + Math.floor(Math.random() * 2) + Math.floor(this.level / 2);
+      foeTarget.bleed = { dmg: 2 + Math.floor(Math.random() * 2), turns: 4 };
+      this.sayCrow('🗡', 'Penas Cortantes!');
+      this.crowGain('penas');
+      this.damageFoe(dmg, { crit: false });
+      this.finishCrowTurn(true);
+      return;
+    }
+    if (skill === 'bicada') {
+      const dmg = 1 + Math.floor(Math.random() * 3);
+      foeTarget.accPen = 0.3;
+      foeTarget.accTurns = 2;
+      this.sayCrow('👁', 'Bicada nos Olhos!');
+      this.crowGain('bicada');
+      this.damageFoe(dmg, { crit: false });
+      this.finishCrowTurn(true);
+      return;
+    }
+    // Rasante Sombrio: o ataque leve e rápido.
+    const dmg = 5 + Math.floor(Math.random() * 3) + Math.floor(this.level / 2);
+    this.sayCrow('🪶', 'Rasante Sombrio!');
+    this.crowGain('rasante');
+    this.damageFoe(dmg, { crit: false });
+    this.finishCrowTurn(true);
+  }
+
+  // Fecha o turno do Corvo (depois do efeito principal).
+  finishCrowTurn(attacked = false) {
+    if (attacked) {
+      // O canto do Corvo pode derrubar a horda: a vitória começa aqui.
+      if (!this.checkVictory()) { this.phase = 'impact'; this.t = 0; }
+      return;
+    }
+    this.phase = 'impact';
+    this.t = 0;
+  }
+  // O turno de um inimigo da horda: Investida Viscosa ou Pulso de Glitch (só na Persocon).
+  foeTurn() {
+    const pet = this.pet;
+    const foe = this.opp;
+    // Se a horda morreu antes do turno (ex.: sangramento), o turno não acontece.
+    if (this.kind === 'unknown' && !foe) { this.phase = 'impact'; this.t = 0; return; }
     this.next = TURN.PERSOCON;
     const glitch = Math.random() < 0.38;
     this.move = {
       id: glitch ? 'glitch' : 'tackle',
       name: glitch ? 'Pulso de Glitch' : 'Investida Viscosa',
       kind: 'attack', clip: 'attack_jab',
-      dmg: glitch ? 3 + Math.random() * 2 : 2 + Math.random() * 2,
-      glitch, stunChance: glitch ? 0.15 : 0,
+      dmg: glitch ? 2.5 + Math.random() * 2 + (foe?.level || 1) * 0.7 : 1.7 + Math.random() * 1.5 + (foe?.level || 1) * 0.5,
+      glitch, stunChance: glitch ? (foe?.stun || 0) : 0,
     };
     this.moveDur = 0.5;
-    this.opp.enemy?.play?.('attack');
+    foe?.enemy?.play?.('attack');
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, this.move.name, 'bad');
     this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
     if (glitch) this.app.sound?.tone8?.(900, 200, 0.18, 'sawtooth', 0.05);
-    // O alcance dele é curto: se ela estiver longe, o golpe passa e ele avança.
+    // Se ela estiver longe, o golpe passa e ele avança.
     const dist = Math.abs((this.oppX() ?? pet.x) - pet.x);
     if (dist > pet.P * 0.85) {
       const dir = Math.sign(pet.x - (this.oppX() ?? pet.x)) || 1;
-      const e = this.opp.enemy;
-      if (e) e.x += dir * pet.P * 0.5;
+      if (foe?.enemy) foe.enemy.x += dir * pet.P * 0.5;
       this.say(this.oppX(), this.oppY() - this.pet.P * 1.25, 'Ele não alcançou!', 'good');
       this.app.fx?.impact?.('dust', this.oppX(), this.oppY() - 8, 0.5);
       this.hitResolved = true;
       this.phase = 'impact';
       this.t = 0;
+      this.endFoeTurn(foe);
       return;
     }
-    // A rolagem dele é baixa (a Fácil): ela bloqueia ou desvia com calma.
+    // A rolagem: precisão dele contra o bloqueio/desvio dela (o Corvo cobre com o Grito).
     const lvl = this.level;
-    const block = clamp(0.08 + lvl * 0.035, 0.02, 0.4);
-    const dodge = clamp(0.05 + lvl * 0.02, 0.02, 0.3);
-    const acc = clamp(0.62 + this.opp.level * 0.05, 0.3, 0.92);
+    const block = clamp(0.06 + lvl * 0.035 + this.blockBoost, 0.02, 0.6);
+    const dodge = clamp(0.04 + lvl * 0.02 + this.dodgeBoost, 0.02, 0.5);
+    const stunned = (foe?.stunned || 0) > 0;
+    const accBase = this.opp?.acc ?? 0.62;
+    const acc = clamp(accBase - (foe?.accPen || 0) - (stunned ? 0.45 : 0), 0.05, 0.95);
     const r = Math.random();
     this.hitResolved = true;
     if (r < block) this.resolveDefence('block');
     else if (r < block + dodge) this.resolveDefence('dodge');
     else if (r < block + dodge + acc) this.resolvePlayerHit();
-    else this.resolveMiss();
+    else this.resolveMiss(stunned);
+    this.endFoeTurn(foe, stunned);
   }
 
-  // A luta com o Unknown acaba.
+  // Fecha o turno do inimigo: a cegueira, a defesa derrubada e o Grito se desgastam.
+  endFoeTurn(foe, stunned = false) {
+    if (foe) {
+      if (foe.accTurns > 0) { foe.accTurns -= 1; if (!foe.accTurns) foe.accPen = 0; }
+      if (foe.defTurns > 0) { foe.defTurns -= 1; if (!foe.defTurns) foe.defDown = 0; }
+      if (stunned) { foe.stunned = Math.max(0, foe.stunned - 1); if (!foe.stunned) this.removeOppDizzy(); }
+    }
+    // O Grito de Alerta e a Provocação se gastam no turno dele.
+    this.blockBoost = 0;
+    this.dodgeBoost = 0;
+  }
+
+  // A luta contra a horda acaba.
   finishUnknown(reason = 'done') {
     if (!this.active) return;
     const pet = this.pet;
+    const game = this.game;
     if (reason === 'win') {
-      this.say(this.oppX(), this.oppY() - this.pet.P * 1.1, 'Unknown derrotado!', 'good');
       this.app.sound?.play?.('ok', { volume: 0.5 });
+      const wave = game.profile.blackCartridgeWave || 1;
+      // A onda foi vencida: +1 (até a trava do Wave 10).
+      if (wave < 10) game.profile.blackCartridgeWave = wave + 1;
+      // O Cristal Negro cai SÓ na primeira vitória de sempre.
+      if (!game.profile.cristalAwarded) {
+        game.profile.cristalAwarded = true;
+        game.inventory.cristal_negro = (game.inventory.cristal_negro || 0) + 1;
+        game.changed();
+        const item = game.items().find((e) => e.item?.id === 'cristal_negro');
+        this.app.gains?.show('Cristal Negro', 'item', 'a horda caiu', item?.item?.img || '💎');
+        this.app.sound?.play?.('powerup', { volume: 0.5 });
+        // A cutscene nefasta do cristal (Trigger B).
+        this.app.pet?.emit?.('cristalDrop');
+      }
+      // O cartucho preto continua guardado no Especial: dá para repetir as ondas.
+      game.profile.unknownDone = true;
+      game.changed();
+      game.persist?.();
     } else if (reason === 'safety') {
       this.say(pet.x, pet.y - pet.P * 1.25, 'Treino interrompido (segurança)', 'bad');
     } else {
-      this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia — o Unknown sumiu', 'bad');
+      this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia — a horda recuou', 'bad');
     }
-    this.app.unknown?.onDefeat?.(reason);
-    // A luta contra o Unknown também é um treino de verdade: bônus de Força da sessão.
-    if (this.turns >= 3) this.game.attrGain?.('str', ATTR_XP.str.session);
+    // A luta contra a horda também é um treino de verdade: bônus de Força da sessão.
+    if (this.turns >= 3) { game.attrGain?.('str', ATTR_XP.str.session); this.attrGained.str += ATTR_XP.str.session; }
     this.stop(reason);
   }
 
@@ -369,6 +796,12 @@ export class Melee {
   update(dt) {
     if (!this.active) return;
     const pet = this.pet;
+    // O hit-stop: no impacto tudo congela por um instante.
+    if (this.hitStop > 0) {
+      this.hitStop -= dt;
+      this.updateAuras();
+      return;
+    }
     this.t += dt;
     this.dt = dt;
     switch (this.phase) {
@@ -380,7 +813,7 @@ export class Melee {
         const d = want - pet.x;
         pet.dir = side;
         if (Math.abs(d) > 2) pet.x += Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 1.1 * dt);
-        if (Math.abs(want - pet.x) <= 3 || this.introT > 1.4) this.beginTurn(TURN.PERSOCON);
+        if (Math.abs(want - pet.x) <= 3 || this.introT > 1.4) this.beginTurn({ turn: TURN.PERSOCON, foeIdx: this.kind === 'unknown' ? this.firstAliveFoe() : this.foeIdx });
         break;
       }
       case 'announce':
@@ -412,12 +845,21 @@ export class Melee {
         if (this.t >= PACE.impact) { this.phase = 'recover'; this.t = 0; }
         break;
       case 'recover':
-        if (this.t >= PACE.recover) this.beginTurn(this.next);
+        if (this.t >= PACE.recover) this.beginTurn(this.nextEntry());
+        break;
+      case 'victory':
+        // A pose de vitória, o banner e o resumo de XP: depois a luta termina.
+        if (this.t >= 2.3) {
+          if (this.kind === 'unknown') this.finishUnknown('win');
+          else if (this.kind === 'fight') this.finishSparring('win');
+          else this.stop('done');
+        }
         break;
       default:
         break;
     }
-    if (this.opp.scrap || this.opp.unknown) this.updateHpBar();
+    if (this.opp?.scrap) this.updateHpBar();
+    if (this.kind === 'unknown') this.updateFoeBars();
     this.updateAuras();
     // The training ends when she is too tired (or the dummy is gone).
     if (this.active && this.kind === 'dummy') {
@@ -428,33 +870,44 @@ export class Melee {
     // The sparring: non-lethal. She stops at half of her health.
     if (this.active && this.kind === 'fight') {
       const hp = pet.stats.health;
-      // A vitória vem primeiro (o Sucataoxidado no chão conta).
-      if (this.opp.hp <= 0) this.finishSparring('win');
-      else if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishSparring('safety');
-      else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishSparring('tired');
+      const hpMax = this.petHpMax ?? 100;
+      // A vitória é conferida em checkVictory (fase victory); aqui é só a parada de segurança.
+      if (hp <= hpMax * SAFETY_HP && this.phase !== 'victory') this.finishSparring('safety');
+      else if (pet.stats.energy <= EXHAUST_ENERGY && this.phase !== 'victory') this.finishSparring('tired');
     }
     // A luta com o Unknown: mesma parada de segurança, e o drop quando ele cai.
     if (this.active && this.kind === 'unknown') {
       const hp = pet.stats.health;
-      // A vitória vem primeiro: se ela derrubou o Unknown, o Cristal Negro é dela (sem excusas).
-      if (this.opp.hp <= 0) this.finishUnknown('win');
-      else if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishUnknown('safety');
-      else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishUnknown('tired');
+      if (hp <= (this.petHpMax ?? 100) * SAFETY_HP && this.phase !== 'victory') this.finishUnknown('safety');
+      else if (pet.stats.energy <= EXHAUST_ENERGY && this.phase !== 'victory') this.finishUnknown('tired');
     }
   }
 
-  beginTurn(who) {
-    this.turn = who;
+  beginTurn(next) {
     this.t = 0;
     this.hitResolved = false;
     this.move = null;
     this.phase = 'announce';
-    // JRPG style: the actor is announced above the head (green for her, red for the enemy).
-    if (who === TURN.PERSOCON) {
+    // A fila reconhece os dois formatos: a entrada da fila ou a string simples.
+    const entry = typeof next === 'string' ? { turn: next, foeIdx: this.kind === 'unknown' ? this.firstAliveFoe() : this.foeIdx } : next || { turn: TURN.PERSOCON, foeIdx: this.foeIdx };
+    this.turn = entry.turn;
+    if (entry.turn === TURN.PERSOCON || entry.turn === TURN.CROW) {
+      this.foeIdx = this.kind === 'unknown' ? this.firstAliveFoe() : this.foeIdx;
+    } else this.foeIdx = entry.foeIdx ?? 0;
+    this.turns += 1;
+    // JRPG pace: o ator é anunciado em cima da cabeça; o anel marca o chão e a fila se acende.
+    if (this.turn === TURN.PERSOCON) {
       this.say(this.pet.x, this.pet.y - this.pet.P * 1.22, this.app.config?.name || 'Persocon', 'good');
+    } else if (this.turn === TURN.CROW) {
+      this.sayCrow('🪶', 'Corvo!');
     } else {
-      this.say(this.oppX(), this.oppY() - this.pet.P * 1.1, this.opp.name || 'Inimigo', 'bad');
+      const f = this.foes[this.foeIdx];
+      this.say(this.oppX(), this.oppY() - this.pet.P * 1.1, f?.name || this.opp?.name || 'Inimigo', 'bad');
     }
+    this.ringOnActor();
+    this.updateQueueHud();
+    // O sangramento começa no turno do inimigo ferido.
+    if (this.turn === TURN.FOE) this.tickBleed();
   }
 
   // The turn itself: the move, the item or the maneuver.
@@ -463,7 +916,8 @@ export class Melee {
       // Out of contact? She dashes back in first: a melee hit has to physically connect.
       if (this.outOfRange()) { this.closeIn(); return; }
       this.persoconTurn();
-    } else this.opponentTurn();
+    } else if (this.turn === TURN.CROW) this.crowTurn();
+    else this.opponentTurn();
   }
 
   // How far she is from the target.
@@ -596,6 +1050,7 @@ export class Melee {
     this.next = TURN.OPPONENT;
     this.hitResolved = true;          // no strike this turn
     this.say(pet.x, pet.y - pet.P * 1.05, `Usou ${item.name}`, 'good');
+    this.ui?.itemPop(pet.x, pet.y - pet.P * 1.6, item.img);
     this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.6, 0.4);
     this.app.sound?.play?.('puff', { volume: 0.4 });
     this.phase = 'impact';
@@ -610,7 +1065,7 @@ export class Melee {
     this.next = TURN.PERSOCON;
     this.phase = 'windup';
     this.t = 0;
-    if (this.opp.unknown) return this.unknownTurn();
+    if (this.opp.unknown) return this.foeTurn();
     if (this.opp.scrap) return this.scrapTurn();
     this.move = { id: 'brace', name: 'Defende', kind: 'defend', clip: 'combat_block', dmg: 0 };
     this.moveDur = 0.45;
@@ -830,11 +1285,13 @@ export class Melee {
     const opp = this.opp;
     // Atordoada: ela erra muitos golpes.
     const stunned = this.stunTurns > 0;
-    let hitChance = clamp(0.52 + lvl * 0.04 - opp.defense, 0.2, 0.95);
+    // A Provocação Aérea do Corvo derruba a defesa do inimigo.
+    const oppDef = Math.max(0, (opp?.defense ?? 0) - (opp?.defDown || 0));
+    let hitChance = clamp(0.52 + lvl * 0.04 - oppDef, 0.2, 0.95);
     if (man?.ignoreDefense) hitChance = clamp(0.6 + lvl * 0.03, 0.2, 0.95);
     if (stunned) hitChance = clamp(hitChance - STUN_PENALTY, 0.02, 0.95);
     const critChance = clamp(0.06 + lvl * 0.025, 0.06, 0.4);
-    const blockChance = clamp(0.1 + opp.defense * 0.5 - lvl * 0.015, 0.02, 0.45);
+    const blockChance = clamp(0.1 + oppDef * 0.5 - lvl * 0.015, 0.02, 0.45);
     const r = Math.random();
     if (r < blockChance) return { result: 'block' };
     if (r >= blockChance + hitChance) return { result: 'miss', stunned };
@@ -866,28 +1323,12 @@ export class Melee {
       if (roll.result === 'block') { blocked = true; break; }
       if (roll.result === 'miss') { missed = true; continue; }
       landed = true;
-      opp.hp = Math.max(0, opp.hp - roll.dmg);
-      this.hits++;
       // Cada golpe acertado treina a Força (o treino pesado paga bem mais).
-      this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy,
-        this.kind === 'dummy' ? 'dummy' : (opp.unknown ? 'unknown' : 'heavy'));
-      // O Unknown leva o golpe (e a animação de machucado).
-      if (opp.enemy) opp.enemy.play?.('hurt');
-      // O flash vermelho no alvo e o número de dano (vermelho, do tamanho do golpe).
-      const heavyHit = roll.crit || roll.dmg >= 12 || heavy;
-      opp.enemy?.flash?.(flashIntensity(roll.dmg));
-      // O número de dano sobe acima da cabeça de quem levou (nunca em cima do corpo).
-      this.app.fx?.damage?.(x, y - 30 - h * 14, roll.dmg, { crit: roll.crit });
-      // O impacto: a sequência de sangue do pack (UMA pasta por golpe: leve ou pesada).
-      this.app.fx?.seq?.(heavyHit ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, x, y, {
-        scale: heavyHit ? 2.6 : 1.8,
-      });
-      this.app.fx?.shake?.(heavyHit ? 0.9 : 0.45);
-      // The mechanical dummy throws rust when it takes the hit.
-      if (opp.scrap) this.app.fx?.impact?.('rust', x, y - 6, 0.5);
-      this.app.sound?.tone8?.(180 + roll.dmg * 9, 70, 0.12, 'square', 0.1);
+      this.damageFoe(roll.dmg, { crit: roll.crit });
       this.app.sound?.swish?.();
       this.app.dummy?.hit?.(roll.dmg, side);
+      // Se a horda acabou no meio de um combo, os golpes restantes não acontecem.
+      if (this.kind === 'unknown' && !this.foes.some((f) => f.hp > 0)) break;
     }
     if (landed) {
       // The critical is announced on top of the damage.
@@ -908,9 +1349,10 @@ export class Melee {
     // Every turn trains her: a little XP, a little energy spent.
     const before = lvl;
     const gain = skillGain(this.kind === 'fight' ? 'sparring' : 'dummy');
+    this.xpGained += gain;
     this.game.skillAdd('unarmed', gain);
     // Treinar no boneco também dá Constituição (de leve, um turno por vez).
-    if (this.kind === 'dummy') this.game.attrGain?.('con', ATTR_XP.con.turn, 'dummy');
+    if (this.kind === 'dummy') { this.game.attrGain?.('con', ATTR_XP.con.turn, 'dummy'); this.attrGained.con += ATTR_XP.con.turn; }
     const after = this.level;
     if (after > before) this.say(pet.x, pet.y - pet.P * 1.25, `Nível ${after}!`, 'good');
     pet.adjust({ energy: -this.energyCost(), mood: 0.4 });
@@ -919,6 +1361,7 @@ export class Melee {
       this.stunTurns = Math.max(0, this.stunTurns - 1);
       if (!this.stunTurns) pet.cureDebuff?.('atordoado');
     }
+    if (this.checkVictory()) return;
     this.phase = 'impact';
     this.t = 0;
   }

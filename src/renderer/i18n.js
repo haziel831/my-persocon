@@ -71,7 +71,7 @@ const EN = {
   // ---- as artes do combate ----
   'Combate Corpo a Corpo': 'Unarmed Melee', 'Espadas': 'Swordplay', 'Arremesso': 'Throwing',
   'Treino Pesado': 'Heavy Training', 'Boneco de Treino': 'Training Dummy', 'Escalada': 'Climbing',
-  'Especial': 'Special', 'Ainda sem XP': 'No XP yet',
+  'Especial': 'Special', 'Ainda sem XP': 'No XP yet', 'Skills de Combate': 'Combat Skills', '🕹 Usar na TV': '🕹 Use on the TV',
   'Resetar Missões (1/dia)': 'Reset Missions (1/day)',
   'Missões já resetadas hoje': 'Missions already reset today',
   'Sorteia de novo só as missões que você ainda não concluiu (1 vez por dia)':

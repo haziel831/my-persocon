@@ -91,7 +91,10 @@ export const ITEMS = [
     img: new URL(`./assets/carts/${id}.png`, import.meta.url).href,
   })),
   // O cartucho preto misterioso: sem nome, de graça, e só faz alguma coisa na TV com console.
-  { id: 'cart_unknown', cat: 'cartuchos', cart: 'unknown', name: '   ', price: 0, effects: {}, mystery: true,
+  // Fica guardado na aba Especial (compra única): pode ser usado em todas as ondas.
+  { id: 'cart_unknown', cat: 'especiais', cart: 'unknown', name: 'Cartucho Preto', price: 0, effects: {}, mystery: true,
+    special: true, unsellable: true, canSell: false,
+    note: 'O que quer que ele seja, só a TV aceita ele. Pode ser inserido quantas vezes quiser.',
     get img() { return cartridge('#000000', 'unknown', 'gb'); } },
   // O Cristal Negro: cai do "Unknown" e fica guardado para uso futuro.
   { id: 'cristal_negro', cat: 'especiais', name: 'Cristal Negro', price: 0, effects: {}, special: true,
@@ -269,6 +272,10 @@ export class Game {
     this.profile.bagSize ||= 1;
     this.profile.herBag ||= [];
     this.profile.skills ||= {};
+    // A progressão do Cartucho Preto (as ondas) — começa no Wave 1; o 10 é a trava do Boss.
+    this.profile.blackCartridgeWave ??= 1;
+    this.profile.cristalAwarded ??= !!this.profile.unknownDone;
+    this.profile.blackCartLore ??= false;
     // toys: { id: { uses, maxUses, broken, placed, x } }
     this.toys = { ...(save?.toys || {}) };
     // Decor kept in the inventory is just a count (older saves also had a record for it).
@@ -390,8 +397,8 @@ export class Game {
     if (item.legacy || item.fixed || item.loot) return false;
     if ((item.cart || item.manga || item.gear || (item.toy && !item.decor)) && this.pending(item.id)) return false;
     if (item.cart) {
-      // O cartucho preto some da loja para sempre depois do evento.
-      if (item.mystery && this.profile.unknownDone) return false;
+      // O cartucho preto some da loja para sempre depois de comprado.
+      if (item.mystery && (this.cartridges.includes('unknown') || (this.inventory.cart_unknown || 0) > 0 || this.profile.unknownDone)) return false;
       // E ele só aparece depois que o jogador tiver TODOS os outros cartuchos.
       if (item.mystery && !this.allCarts()) return false;
       return ['gameboy', 'gamegear', 'psp', 'videogame'].some((c) => this.toys[c] || this.count(c) > 0) && !this.cartridges.includes(item.cart);
@@ -749,6 +756,15 @@ export class Game {
       this.gear[id] = true;
       if (HER_BAG && item.baggable && !this.bagHas(id) && this.bagFree() > 0) this.herBag().push(id);
       this.pet.gear = this.gear;
+    } else if (item.cart === 'unknown') {
+      // O cartucho preto fica guardado na aba Especial (compra única, uso repetido).
+      this.inventory.cart_unknown = (this.inventory.cart_unknown || 0) + n;
+      if (!this.hasGamingShelf()) this.bag = true;
+      // A primeira vez que ele chega às suas mãos: a aura sombria aparece.
+      if (!this.profile.blackCartLore) {
+        this.profile.blackCartLore = true;
+        this.pet?.emit?.('blackCartGet');
+      }
     } else if (item.cart) {
       if (!this.cartridges.includes(item.cart)) this.cartridges.push(item.cart);
       if (!this.hasGamingShelf()) this.bag = true;

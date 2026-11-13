@@ -121,9 +121,10 @@ export class Fx {
     el.style.fontSize = `${Math.round(size)}px`;
     el.style.left = `${Math.round(x + (Math.random() - 0.5) * 14)}px`;
     el.style.top = `${Math.round(y)}px`;
-    el.style.setProperty('--rise', `${Math.round(-44 - n * 0.9)}px`);
+    el.style.setProperty('--rise', `${Math.round(-46 - n * 0.9)}px`);
+    el.style.setProperty('--drop', `${Math.round(26 + n * 0.35)}px`);
     document.body.append(el);
-    setTimeout(() => el.remove(), 1000);
+    setTimeout(() => el.remove(), 1250);
   }
 
   // A blood sequence from the pixel effects pack: ONE folder per hit (light or heavy).

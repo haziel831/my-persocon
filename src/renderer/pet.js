@@ -31,6 +31,7 @@ import { Interactions } from './interact.js';
 import { COMBAT_META } from './combat.js';
 import { Melee } from './melee.js';
 import { Unknown } from './unknown.js';
+import { CombatUI } from './combatui.js';
 import { Closeup } from './closeup.js';
 import { Rewards } from './rewards.js';
 import { Care } from './care.js';
@@ -456,6 +457,14 @@ export async function startPet(files, config) {
   // The melee engine (turns, COMBAT_MODE, combat track).
   const melee = new Melee(app);
   app.melee = melee;
+  // A interface de combate JRPG (fila de turnos, anel de chão, banners, modais de lore).
+  const combatUI = new CombatUI(app);
+  app.combatUI = combatUI;
+  // Os gatilhos dos modais de lore sombrios (uma vez cada).
+  pet.on((type) => {
+    if (type === 'blackCartGet') combatUI.loreModal('cart');
+    else if (type === 'cristalDrop') combatUI.loreModal('crystal');
+  });
   // The event of the mysterious black cartridge (the "Unknown" that comes out of the TV).
   const unknown = new Unknown(app);
   app.unknown = unknown;

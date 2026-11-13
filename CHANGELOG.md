@@ -7,6 +7,15 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.23 — 13/11/2026
+**Reformulação completa do combate em JRPG.** Barra de **ordem de turnos** no topo (retratos, o da vez cresce e ganha anel dourado), **formação lado a lado** (a Persocon e o Corvo à esquerda, os inimigos à direita) e cada turno em **4 fases**: anúncio (~900 ms, nome acima da cabeça + anel no chão), passo/carga (~800 ms, azul e partículas), impacto (animação do golpe + **hit-stop de 120 ms**) e respiração (~1,2 s) antes do próximo da fila agir.
+**Feedback novo.** O número de dano sobe e **quica no chão**; o **ícone do item** consumível usado flutua acima da cabeça dela; a vitória tem **pose, fanfarra e banner com o resumo de XP**.
+**O Corvo virou aliado de combate.** Se estiver na área de trabalho e souber ≥1 Skill de Combate, entra na luta por conta própria; inimigos não podem mirá-lo. **6 Skills de Combate** (Rasante Sombrio, Penas Cortantes com sangramento, Bicada nos Olhos com cegueira, Grito de Alerta, Busca de Emergência e Provocação Aérea). O perfil dele ganhou uma coluna **Skills de Combate**.
+**Especial.** O **Cartucho Preto** e o **Cristal Negro** moram exclusiva e permanentemente na aba **Especial** do Inventário (invendíveis). O cartucho preto some da Shop e da estante, mas pode ser usado **para sempre** (uma compra única).
+**Dois modais de lore nefastos** (fundo preto, borda vermelha pulsante, glitch, drone sombrio gerado por WebAudio, texto em máquina de escrever que acelera/completa no clique e fecha no segundo clique): **Trigger A** ao receber o cartucho pela primeira vez ("Este cartucho emite uma aura sombria . . .") e **Trigger B** na primeira vitória contra o Unknown ("Esta estranha substancia pulsa com uma energia ruim . . ."), que derruba o **Cristal Negro uma única vez**.
+**Waves 1–10.** A TV avisa `"⚠️ ALERTA DE ANOMALIA — WAVE X ⚠️"`, o cartucho desce flutuando sobre a TV e entra nela; saem N gosmas de glitch (Wave 1 rebalanceada para ~95 HP — **nunca mais morre de 1 golpe**; ondas 2–3: 2 inimigos; 4–6: 2–3 com stun; 7–9: 3–4 elite). Cada onda limpa avança +1 (`profile.blackCartridgeWave`). **Wave 10 = trava do Boss**: o cartucho recusa a TV ("O cartucho rejeita a TV... algo gigantesco aguarda no Wave 10.").
+Detalhes em `ChangeLogs\v1.9.23.md`.
+
 ## v1.9.22 — 13/11/2026
 **Visual dos objetos: ajuste ao vivo no objeto de verdade.** A prévia pequena do import continua **fixa (100%)** — ela é só a referência estática para o conta-gotas de transparência e para marcar o hitbox. Tudo o que o modal muda agora aparece **na hora, no objeto real na área de trabalho** (ex.: o boneco de treino do lado da Persocon):
 - **imagem/GIF/modelo 3D novo**, **tamanho**, **rotação livre**, **espelho**, **velocidade** e a **transparência** (assada no `bake()`, com *debounce* de ~140 ms);

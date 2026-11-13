@@ -1,9 +1,15 @@
-// O evento do cartucho preto misterioso.
+// O evento do cartucho preto misterioso — agora uma HORDA de gosmas de glitch que sai da TV.
 //
 // A TV com console cospe estática, fumaça escura e gosma; do meio dela sai o "Unknown": um
 // slime de glitch convertido em silhueta preta com os olhos vermelhos. Ele persegue a Persocon
 // pela área de trabalho até encostar nela, e aí o combate por turnos começa. Se ela vencer,
-// o Unknown morre, deixa um Cristal Negro e o cartucho preto some para sempre.
+// a horda morre e o Cristal Negro cai (só na primeira vitória de sempre).
+//
+// O `blackCartridgeWave` (game.profile) diz em que onda o jogador está:
+//   1-9 → lutável (escala de inimigos e atributos);  10 → trava (o Boss aguarda).
+import { BLACK_WAVES } from './melee.js';
+import { cartridge } from './pixel.js';
+
 const SHEET_DIR = './assets/enemies/unknown_slime/';
 
 // As animações do "Angry slime" (folhas PNG + metadados de scripts/gif-slime-sheet.mjs).
@@ -23,27 +29,37 @@ const EYE = [255, 46, 58];
 const AFTER = [
   'O-o que foi aquilo?! Essa coisa acabou de sair de dentro da tela da TV?!',
   'Meus sensores não conseguiram identificar esse código... parecia uma falha viva.',
-  'Espera... cadê aquele cartucho preto? Ele sumiu da estante! Só sobrou esse cristal escuro estranho...',
+  'Espera... cadê aquele cartucho preto? Ele sumiu da tela! E esse cristal escuro estranho...',
   'De onde será que veio essa criatura? Será que alguém colocou esse cartucho na loja de propósito?',
 ];
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export class Unknown {
-  constructor(app) {
+// ---------------- a gosma individual ----------------
+
+export class Slime {
+  constructor(app, x, y, stats) {
     this.app = app;
-    this.state = 'idle';      // idle | erupt | chase | fight | dying | gone
-    this.x = 0;
-    this.y = 0;
+    this.hp = stats.hp;
+    this.max = stats.hp;
+    this.atk = stats.atk;
+    this.defense = stats.def;
+    this.level = stats.level;
+    this.acc = stats.acc;
+    this.stun = stats.stun;
+    this.name = stats.name || 'Unknown';
+    this.x = x;
+    this.y = y;
     this.dir = -1;
     this.anim = 'idle';
     this.frame = 0;
     this.frameT = 0;
     this.t = 0;
-    this.glitch = 0;          // quanto falta do glitch (segundos)
+    this.glitch = 0;
+    this.glitchT = 0;
     this.jitter = 0;
-    this.flash = 0;           // o flash vermelho do dano (segundos)
-    this.flashI = 0;          // o quanto ele acende (0.25 a 1)
+    this.flash = 0;
+    this.flashI = 0;
     this.sheets = new Map();
     this.el = null;
     this.view = null;
@@ -54,8 +70,6 @@ export class Unknown {
   }
 
   get P() { return this.app.pet.P; }
-  // A vida vem do motor de combate (o Unknown é o oponente dele).
-  get hp() { return this.app.melee?.opp?.unknown ? (this.app.melee.opp.hp ?? 0) : 0; }
 
   // ---------- as folhas do slime ----------
 
@@ -68,8 +82,6 @@ export class Unknown {
     }
     return this.sheets.get(name);
   }
-
-  // ---------- o sprite ----------
 
   makeSprite() {
     if (this.el) return this.el;
@@ -121,7 +133,7 @@ export class Unknown {
     this.frameT = 0;
   }
 
-  // O flash vermelho quando ela leva dano: quanto maior o dano, mais forte acende.
+  // O flash vermelho quando ele leva dano: quanto maior o dano, mais forte acende.
   flash(intensity = 1) {
     this.flash = 0.3;
     this.flashI = Math.min(1, Math.max(0.25, intensity));
@@ -132,7 +144,6 @@ export class Unknown {
     const g = this.rawG;
     const d = g.getImageData(0, 0, SPR, SPR);
     const px = d.data;
-    // A borda de baixo da criatura (a sombra) fica preta: os olhos são só do rosto.
     let bottom = 0;
     for (let y = SPR - 1; y >= 0; y--) {
       let any = false;
@@ -144,7 +155,6 @@ export class Unknown {
         const i = (y * SPR + x) * 4;
         if (px[i + 3] < 40) { px[i + 3] = 0; continue; }
         const lum = px[i] * 0.3 + px[i + 1] * 0.6 + px[i + 2] * 0.1;
-        // Vizinhos opacos: os olhos ficam no meio do corpo, o contorno na borda.
         let n = 0;
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
@@ -157,7 +167,7 @@ export class Unknown {
         if (lum < 90 && n >= 6 && y < bottom - 3) {
           px[i] = EYE[0]; px[i + 1] = EYE[1]; px[i + 2] = EYE[2]; px[i + 3] = 255;
         } else {
-          const v = 5 + lum * 0.1;         // o corpo vira quase preto
+          const v = 5 + lum * 0.1;
           px[i] = v; px[i + 1] = v * 0.92; px[i + 2] = v * 1.4; px[i + 3] = 255;
         }
       }
@@ -172,12 +182,10 @@ export class Unknown {
     g.clearRect(0, 0, SPR, SPR);
     g.imageSmoothingEnabled = false;
     if (this.glitch > 0) {
-      // As fatias horizontais saem de lugar.
       for (let y = 0; y < SPR; y += 3) {
         const off = Math.round((Math.random() - 0.5) * 6);
         g.drawImage(this.raw, 0, y, SPR, 3, off, y, SPR, 3);
       }
-      // Separação RGB por cima.
       for (const k of ['r', 'g', 'b']) {
         const cg = this.chanG[k];
         cg.clearRect(0, 0, SPR, SPR);
@@ -201,7 +209,6 @@ export class Unknown {
     } else {
       g.drawImage(this.raw, 0, 0);
     }
-    // O flash vermelho do dano: pinta o corpo de vermelho (só onde tem pixel).
     if (this.flash > 0) {
       const k = this.flashI * (this.flash / 0.3);
       g.globalCompositeOperation = 'source-atop';
@@ -211,60 +218,152 @@ export class Unknown {
     }
   }
 
-  // O jogador insere o cartucho preto na TV: a criatura sai de novo (sempre na mão dele).
-  // Serve para a primeira luta e para todas as outras: depois da vitória dá para repetir.
+  // A perseguição e o desenho.
+  update(dt, pet) {
+    this.t += dt;
+    this.flash = Math.max(0, this.flash - dt);
+    this.glitchT = (this.glitchT ?? 0) - dt;
+    if (this.glitchT <= 0) {
+      this.glitchT = 1.6 + Math.random() * 3.4;
+      this.glitch = 0.14 + Math.random() * 0.12;
+    }
+    if (this.glitch > 0) {
+      this.glitch = Math.max(0, this.glitch - dt);
+      this.jitter = Math.round((Math.random() - 0.5) * 3);
+    }
+    const def = ANIMS[this.anim] || ANIMS.idle;
+    this.frameT += dt * 1000;
+    const delay = def.delays[this.frame] ?? 100;
+    if (this.frameT >= delay) {
+      this.frameT -= delay;
+      this.frame = (this.frame + 1) % def.frames;
+    }
+    // A perseguição (só antes da luta).
+    if (this.state === 'chase' && pet) {
+      const dx = pet.x - this.x;
+      this.dir = dx < 0 ? -1 : 1;
+      const speed = this.P * 0.75;
+      const step = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
+      if (step) this.x += step;
+      this.play(Math.abs(step) > 0.4 ? 'hop' : 'idle');
+      this.place();
+    }
+    if (!this.rawG) return;
+    const img = this.sheet(this.anim);
+    if (img?.complete && img.naturalWidth) {
+      this.rawG.clearRect(0, 0, SPR, SPR);
+      this.rawG.imageSmoothingEnabled = false;
+      this.rawG.drawImage(img, this.frame * def.cw, 0, def.cw, def.ch, 0, SPR - def.ch, def.cw, def.ch);
+      this.convert();
+      this.draw();
+    }
+  }
+}
+
+// ---------------- o evento ----------------
+
+export class Unknown {
+  constructor(app) {
+    this.app = app;
+    this.state = 'idle';      // idle | erupt | chase | fight | dying | gone
+    this.t = 0;
+    this.slimes = [];         // a horda (a luta)
+    this.wave = 1;
+  }
+
+  get P() { return this.app.pet.P; }
+  // A vida somada da horda (a barra do combate é por inimigo).
+  get hp() { return this.slimes.reduce((a, s) => a + s.hp, 0); }
+
+  // ---------- o jogador insere o cartucho preto na TV ----------
+
   insert() {
     if (this.state !== 'idle' && this.state !== 'gone') return false;
     const { app } = this;
+    const game = app.game;
     const tv = app.game?.toys?.videogame;
+    const wave = game?.profile?.blackCartridgeWave || 1;
+    // A trava do Wave 10: o cartucho rejeita a TV.
+    if (wave > 9) {
+      app.toys?.furn?.floatText?.(tv?.x ?? 0, app.toys?.floorY?.() - this.P * 1.4, 'O cartucho rejeita a TV... algo gigantesco aguarda no Wave 10.');
+      app.sound?.play?.('cancel', { volume: 0.5 });
+      return false;
+    }
     if (!tv?.placed || tv.broken) return false;
     if (app.melee?.active || app.pet?.dead) return false;
     // A TV tem que estar livre: ela para o que estiver fazendo e a Persocon larga o que tinha na mão.
     app.toys?.screen?.stop?.();
     app.pet?.endToy?.(true);
-    this.state = 'idle';
+    this.wave = wave;
     this.t = 0;
-    this.glitch = 0;
-    this.jitter = 0;
-    this.anim = 'idle';
-    this.frame = 0;
-    this.frameT = 0;
-    this.erupt();
+    this.slimes = [];
+    // O banner de aviso e a animação do cartucho flutuando sobre a TV.
+    app.combatUI?.warnBanner(`⚠️ ALERTA DE ANOMALIA — WAVE ${wave} ⚠️`, 2400);
+    this.cartAnimation(tv);
+    setTimeout(() => this.erupt(wave), 1650);
     return true;
+  }
+
+  // O cartucho preto desce sobre a TV e se acopla (estática e partículas escuras).
+  cartAnimation(tv) {
+    const { app } = this;
+    const rect = app.toys?.tvRect?.() || null;
+    if (rect) {
+      const el = document.createElement('div');
+      el.className = 'insertion-cart';
+      el.style.left = `${Math.round(rect.x + rect.w / 2)}px`;
+      el.style.top = `${Math.round(rect.y - 60)}px`;
+      const img = document.createElement('img');
+      img.src = cartridge('#000000', 'unknown', 'gb');
+      img.draggable = false;
+      img.alt = '';
+      el.append(img);
+      document.body.append(el);
+      setTimeout(() => el.remove(), 1600);
+    }
   }
 
   // ---------- a erupção da TV ----------
 
-  // O cartucho preto entrou na TV: começa a erupção.
-  erupt() {
-    if (this.state !== 'idle') return;
+  erupt(wave = null) {
+    if (this.state !== 'idle' && this.state !== 'erupt') return;
     this.state = 'erupt';
     const { app } = this;
     const toys = app.toys;
     const tv = app.game.toys.videogame;
-    const w = app.world?.width || innerWidth || 1280;
-    this.x = tv?.x ?? w / 2;
-    this.y = toys.floorY();
-    this.makeSprite();
-    this.place();
-    this.el.classList.add('erupting');
+    const w = app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
+    const floor = toys?.floorY?.() ?? (typeof innerHeight !== 'undefined' ? innerHeight : 900);
+    this.wave = wave ?? ((app.game?.profile?.blackCartridgeWave || 1) > 9 ? 1 : (app.game?.profile?.blackCartridgeWave || 1));
+    const plan = BLACK_WAVES[this.wave] || BLACK_WAVES[1];
+    // A horda nasce dentro da TV e cai no chão.
+    const baseX = tv?.x ?? w / 2;
+    this.slimes = [];
+    for (let i = 0; i < plan.count; i++) {
+      const hp = Math.round(plan.hp * (0.9 + Math.random() * 0.25));
+      const s = new Slime(app, baseX + (i - (plan.count - 1) / 2) * 18, floor, {
+        hp, atk: plan.atk, def: plan.def, level: plan.level, acc: plan.acc, stun: plan.stun, name: 'Unknown',
+      });
+      s.makeSprite();
+      s.place();
+      s.el.classList.add('erupting');
+      s.state = 'chase';
+      this.slimes.push(s);
+    }
     // Ela se assusta e dá um passo para trás da TV (dá para ver a perseguição).
     const pet = app.pet;
     if (pet && tv) {
       const away = pet.x >= tv.x ? 1 : -1;
       pet.x = Math.max(this.P * 0.3, Math.min(w - this.P * 0.3, pet.x + away * this.P * 1.1));
     }
-    const rect = toys.tvRect?.() || null;
-    if (rect) this.static(rect);
-    this.smoke(rect);
-    this.ooze(rect);
+    const rect = toys?.tvRect?.() || null;
+    if (rect) { this.static(rect); this.smoke(rect); this.ooze(rect); }
     app.sound?.play?.('tvstatic', { volume: 0.5 });
     app.sound?.tone8?.(90, 40, 0.5, 'sawtooth', 0.08);
     setTimeout(() => {
       if (this.state !== 'erupt') return;
-      this.el?.classList.remove('erupting');
+      for (const s of this.slimes) s.el?.classList.remove('erupting');
       this.state = 'chase';
-      this.play('idle');
+      for (const s of this.slimes) s.play('idle');
       app.sound?.tone8?.(40, 200, 0.35, 'square', 0.1);
     }, 1500);
   }
@@ -299,14 +398,15 @@ export class Unknown {
 
   // Fumaça escura saindo da tela.
   smoke(rect) {
-    const base = rect ? rect.y + rect.h : this.y - this.P * 0.6;
+    const base = rect ? rect.y + rect.h : (this.slimes[0]?.y ?? 0) - this.P * 0.6;
+    const x0 = rect ? rect.x + Math.random() * rect.w : this.slimes[0]?.x ?? 0;
     for (let i = 0; i < 12; i++) {
       const el = document.createElement('div');
       el.className = 'unknown-smoke';
       const s = 16 + Math.random() * 30;
       el.style.width = `${s}px`;
       el.style.height = `${s}px`;
-      el.style.left = `${Math.round((rect ? rect.x + Math.random() * rect.w : this.x) - s / 2)}px`;
+      el.style.left = `${Math.round((rect ? rect.x + Math.random() * rect.w : x0) - s / 2)}px`;
       el.style.top = `${Math.round(base - s / 2)}px`;
       el.style.setProperty('--rise', `${Math.round(-(30 + Math.random() * 80))}px`);
       el.style.setProperty('--drift', `${Math.round((Math.random() - 0.5) * 60)}px`);
@@ -318,14 +418,15 @@ export class Unknown {
 
   // A gosma preta pingando no chão da frente da TV.
   ooze(rect) {
-    const from = rect ? rect.y + rect.h : this.y - this.P * 0.6;
+    const floor = this.slimes[0]?.y ?? 0;
+    const from = rect ? rect.y + rect.h : floor - this.P * 0.6;
     for (let i = 0; i < 8; i++) {
       const el = document.createElement('div');
       el.className = 'unknown-ooze';
-      const x = Math.round(rect ? rect.x + Math.random() * rect.w : this.x);
+      const x = Math.round(rect ? rect.x + Math.random() * rect.w : this.slimes[0]?.x ?? 0);
       el.style.left = `${x}px`;
       el.style.top = `${Math.round(from)}px`;
-      el.style.setProperty('--fall', `${Math.round(this.y - from)}px`);
+      el.style.setProperty('--fall', `${Math.round(floor - from)}px`);
       el.style.setProperty('--delay', `${(Math.random() * 0.8).toFixed(2)}s`);
       document.body.append(el);
       setTimeout(() => {
@@ -336,7 +437,7 @@ export class Unknown {
         blob.style.width = `${Math.round(s)}px`;
         blob.style.height = `${Math.round(s * 0.5)}px`;
         blob.style.left = `${Math.round(x - s / 2)}px`;
-        blob.style.top = `${Math.round(this.y - s * 0.3)}px`;
+        blob.style.top = `${Math.round(floor - s * 0.3)}px`;
         document.body.append(blob);
         setTimeout(() => blob.remove(), 7000);
       }, 2400);
@@ -345,17 +446,16 @@ export class Unknown {
 
   // ---------- a perseguição ----------
 
-  // Ele encostou nela: ela larga o que estava fazendo e encara a criatura.
+  // Elas encostaram nela: larga o que estava fazendo e encara a horda.
   startFight() {
     if (this.state !== 'chase') return;
     this.state = 'fight';
     const { app } = this;
     const pet = app.pet;
     const melee = app.melee;
-    // Ela sai da TV (e a tela apaga) para encarar o Unknown.
     pet.endToy?.(true);
     app.toys?.screen?.stop?.();
-    if (!melee) { this.remove(); this.state = 'gone'; return; }
+    if (!melee) { this.fleeAll(); return; }
     pet.playToy({
       id: 'unknown', train: true, dummy: true, combatKind: 'combat', dur: 3600, gain: {},
       anim: pet.pickClip?.(['combat_idle'], ['melee_idle', 'idle']) || 'idle',
@@ -363,101 +463,48 @@ export class Unknown {
       onEnd: (interrupted) => { melee.leave(interrupted ? 'interrupted' : 'done'); },
       tick: (dt) => melee.update(dt),
     });
-    melee.startUnknown(this);
-    this.play('attack');
+    // A horda se forma do lado B da arena (o lado direito dela).
+    melee.startUnknown(this.slimes, this.wave);
+    for (const s of this.slimes) s.play('attack');
     app.sound?.play?.('explode', { volume: 0.35 });
-    // Se a luta não conseguiu começar (outro combate no ar), ele some.
-    if (!melee.active) {
-      this.remove();
-      this.state = 'gone';
-    }
+    if (!melee.active) this.fleeAll();
+  }
+
+  // Elas recuam para dentro da TV (a luta acabou sem a derrota delas).
+  fleeAll() {
+    for (const s of this.slimes) s.remove();
+    this.slimes = [];
+    this.state = 'gone';
   }
 
   update(dt) {
+    const pet = this.app.pet;
     if (this.state === 'idle' || this.state === 'gone') return;
-    this.t += dt;
-    // O flash vermelho do dano se apaga.
-    this.flash = Math.max(0, this.flash - dt);
-    // O glitch pisca de vez em quando (e mais forte quando ele está machucado).
-    this.glitchT = (this.glitchT ?? 0) - dt;
-    if (this.glitchT <= 0) {
-      this.glitchT = 1.6 + Math.random() * 3.4 - (this.state === 'fight' ? 0.6 : 0);
-      this.glitch = 0.14 + Math.random() * 0.12;
-    }
-    if (this.glitch > 0) {
-      this.glitch = Math.max(0, this.glitch - dt);
-      this.jitter = Math.round((Math.random() - 0.5) * 3);
-    }
-    // A animação.
-    const def = ANIMS[this.anim] || ANIMS.idle;
-    this.frameT += dt * 1000;
-    const delay = def.delays[this.frame] ?? 100;
-    if (this.frameT >= delay) {
-      this.frameT -= delay;
-      this.frame = (this.frame + 1) % def.frames;
-    }
-    // A perseguição.
+    // O flash vermelho do dano se apaga em cada slime.
+    for (const s of this.slimes) s.update(dt, this.state === 'chase' ? pet : null);
     if (this.state === 'chase') {
-      const pet = this.app.pet;
-      const dx = pet.x - this.x;
-      this.dir = dx < 0 ? -1 : 1;
-      const speed = this.P * 0.75;
-      const step = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
-      if (step) this.x += step;
-      this.play(Math.abs(step) > 0.4 ? 'hop' : 'idle');
-      this.place();
-      if (Math.abs(pet.x - this.x) < this.P * 0.8) this.startFight();
+      // Alguém encostou: a luta começa.
+      const dx = pet && this.slimes.length ? pet.x - this.slimes[0].x : 9999;
+      if (pet && Math.abs(dx) < pet.P * 0.8) this.startFight();
     } else if (this.state === 'fight') {
-      // A luta acabou sem a derrota dele (interrompida): ele foge.
-      if (!this.app.melee?.active) {
-        this.remove();
-        this.state = 'gone';
-      }
-      this.place();
-    }
-    // O desenho.
-    if (!this.rawG) return;
-    const img = this.sheet(this.anim);
-    if (img?.complete && img.naturalWidth) {
-      this.rawG.clearRect(0, 0, SPR, SPR);
-      this.rawG.imageSmoothingEnabled = false;
-      // O quadro é encostado no chão (as folhas têm alturas diferentes).
-      this.rawG.drawImage(img, this.frame * def.cw, 0, def.cw, def.ch, 0, SPR - def.ch, def.cw, def.ch);
-      this.convert();
-      this.draw();
+      // A luta acabou sem a derrota delas (interrompida): elas somem.
+      if (!this.app.melee?.active) this.fleeAll();
     }
   }
 
   // ---------- o fim da luta ----------
 
-  // O Unknown foi derrotado: a morte, o Cristal Negro e o cartucho que some para sempre.
+  // A horda foi derrotada (ou recuou): a morte delas e a fala dela.
   async onDefeat(reason) {
     if (this.state === 'dying' || this.state === 'gone') return;
     this.state = 'dying';
-    this.play('death');
-    this.app.sound?.play?.('explode', { volume: 0.5 });
+    for (const s of this.slimes) s.play(reason === 'win' ? 'death' : 'idle');
+    if (reason === 'win') this.app.sound?.play?.('explode', { volume: 0.5 });
     await wait(900);
-    const { app } = this;
-    const game = app.game;
-    if (reason === 'win' && !this.dropped) {
-      // O drop: 1 Cristal Negro no inventário (aba Especial). Garantido e salvo na hora.
-      this.dropped = true;
-      game.inventory.cristal_negro = (game.inventory.cristal_negro || 0) + 1;
-      game.changed();
-      const item = game.items().find((e) => e.item?.id === 'cristal_negro');
-      app.gains?.show('Cristal Negro', 'item', 'o Unknown caiu', item?.item?.img || '💎');
-      app.sound?.play?.('powerup', { volume: 0.5 });
-      // O cartucho preto desaparece: da lista, da estante e da loja.
-      game.removeCart('unknown');
-      game.profile.unknownDone = true;
-      game.changed();
-      // O save vai para o disco agora: o cristal não pode se perder.
-      await game.persist?.();
-    }
-    // Some da tela.
-    this.remove();
+    for (const s of this.slimes) s.remove();
+    this.slimes = [];
     this.state = 'gone';
-    // E ela fica confusa (só quando ele caiu de verdade).
+    // E ela fica confusa (só quando eles caíram de verdade).
     if (reason === 'win') this.talk();
   }
 

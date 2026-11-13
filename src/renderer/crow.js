@@ -36,6 +36,17 @@ export const CROW_SKILLS = {
   ninar: { name: 'Ninar...', icon: '🌙', note: 'Fica do lado dela enquanto dorme: acorda com mais energia e de bom humor' },
   guardar: { name: 'Guardar...', icon: '📦', note: 'Pega brinquedos espalhados no chão e guarda no topo das mobílias' },
 };
+// As Skills de Combate do Corvo: ele aprende pelo treinamento normal, mas só valem na luta.
+// 56-80: ataque/ataque/suporte/suporte/suporte/suporte.
+export const CROW_COMBAT_SKILLS = {
+  rasante: { name: 'Rasante Sombrio', icon: '🪶', note: 'Mergulha de bico no inimigo: dano físico leve, ao alcance de qualquer onda', combat: true, kind: 'attack' },
+  penas: { name: 'Penas Cortantes', icon: '🗡', note: 'Atira penas afiadas: dano pequeno + sangramento que corrói o inimigo por 4 turnos', combat: true, kind: 'attack' },
+  bicada: { name: 'Bicada nos Olhos', icon: '👁', note: 'Dano baixo, mas deixa o inimigo cego (erra mais) por 2 turnos', combat: true, kind: 'attack' },
+  grito: { name: 'Grito de Alerta', icon: '📢', note: 'Alerta a Persocon: ela desvia e bloqueia bem melhor no próximo turno inimigo', combat: true, kind: 'support' },
+  busca: { name: 'Busca de Emergência', icon: '🎒', note: 'Usa o turno para buscar um item de cura do Inventário e dar à Persocon', combat: true, kind: 'support' },
+  provocacao: { name: 'Provocação Aérea', icon: '💨', note: 'Distrai o inimigo no ar: a defesa dele cai 25% por 2 turnos', combat: true, kind: 'support' },
+};
+Object.assign(CROW_SKILLS, CROW_COMBAT_SKILLS);
 // Vigiar: stat, level that worries it, icon and the name in the toast.
 const WATCH = [
   ['hunger', 20, '🍙', 'Fome'], ['thirst', 20, '💧', 'Sede'], ['energy', 12, '💤', 'Energia'],
@@ -153,6 +164,27 @@ export class Crow {
 
   learned(id) {
     return this.data.learned.includes(id);
+  }
+
+  // Ele tem alguma Skill de Combate aprendida e está livre para entrar na luta?
+  get combatReady() {
+    if (!this.owned || this.x == null || this.away || this.duo || this.fetching || this.carry?.length || this.leaving || this.trick) return false;
+    return Object.keys(CROW_COMBAT_SKILLS).some((id) => this.learned(id));
+  }
+
+  // XP do Corvo pelas Skills de Combate usadas em luta.
+  combatGain(id, amount = 26) {
+    const d = this.data;
+    d.xp = d.xp || {};
+    d.xp[id] = (d.xp[id] || 0) + amount;
+    if (d.xp[id] >= XP && !this.learned(id)) {
+      d.learned.push(id);
+      d.xp[id] = 0;
+      this.app.minigames?.toast?.(`O Corvo aprendeu: ${CROW_SKILLS[id].name}`, icon('crow'));
+      this.app.sound?.crow?.('learn');
+      this.app.pet?.emit('crowLearn', { id, combat: true });
+    }
+    this.app.game.changed?.();
   }
 
   get away() {
@@ -1310,12 +1342,26 @@ export class Crow {
     };
     add('div', 'title', 'Corvo').prepend(crowIcon());
     add('div', 'crow-stats', `Treinos: ${d.trains || 0} · Presentes trazidos: ${d.gifts || 0}`);
-    add('div', 'crow-sub', 'Habilidades');
-    const list = add('div', 'crow-skills');
-    for (const [id, s] of Object.entries(CROW_SKILLS)) {
+    const cols = add('div', 'crow-cols');
+    const mkCol = (title, combat) => {
+      const col = document.createElement('div');
+      col.className = 'crow-col';
+      const h = document.createElement('div');
+      h.className = 'crow-sub';
+      h.textContent = title;
+      col.append(h);
+      const list = document.createElement('div');
+      list.className = 'crow-skills';
+      col.append(list);
+      cols.append(col);
+      return list;
+    };
+    const list = mkCol('Habilidades', false);
+    const listC = mkCol('Skills de Combate', true);
+    const skillRow = (id, s) => {
       const known = this.learned(id);
       const row = document.createElement('div');
-      row.className = `crow-skill${known || s.off ? ' known' : ''}${s.off ? ' off' : ''}`;
+      row.className = `crow-skill${known || s.off ? ' known' : ''}${s.off ? ' off' : ''}${s.combat ? ' combat' : ''}`;
       const head = document.createElement('div');
       head.className = 'crow-skill-head';
       const name = document.createElement('b');
@@ -1334,9 +1380,12 @@ export class Crow {
         note.textContent = s.note;
         row.append(note);
       }
-      list.append(row);
+      return row;
+    };
+    for (const [id, s] of Object.entries(CROW_SKILLS)) {
+      (s.combat ? listC : list).append(skillRow(id, s));
     }
-    add('div', 'crow-note', 'A Persocon decide o que ensinar. As habilidades ficam ocultas até serem aprendidas.');
+    add('div', 'crow-note', 'A Persocon decide o que ensinar. As Skills de Combate só valem na luta. As habilidades ficam ocultas até serem aprendidas.');
     add('div', 'crow-sub', 'Som');
     const vol = add('label', 'crow-opt');
     const range = document.createElement('input');

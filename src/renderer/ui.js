@@ -935,7 +935,7 @@ export class Menu {
     // A compra em quantidade (1x/5x/10x) volta nas coisas que dá para empilhar.
     const multi = ['comidas', 'bebidas', 'sobremesas', 'medicina'].includes(this.shopCat);
     const n = multi ? (this.qty || 1) : 1;
-    const list = ITEMS.filter((i) => i.cat === this.shopCat && game.available(i) && (HER_BAG || !i.bagSlots));
+    const list = ITEMS.filter((i) => (i.cat === this.shopCat || (this.shopCat === 'cartuchos' && i.mystery)) && game.available(i) && (HER_BAG || !i.bagSlots));
     if (['cartuchos', 'comidas', 'bebidas', 'sobremesas', 'medicina'].includes(this.shopCat)) list.sort((a, b) => (a.price || 0) - (b.price || 0));
     if (DEMO) list.sort((a, b) => demoLocked(a.id) - demoLocked(b.id));
     const price = (item) => (INFINITE_MONEY && item.price ? `¥ ∞` : item.price ? `¥ ${item.price * n}` : 'Grátis');
@@ -1003,6 +1003,10 @@ export class Menu {
         }, '🎒 Dar a ela'),
         item.toy && game.toys[item.id]?.broken && repairBtn(item.id),
         item.toy && !game.toys[item.id]?.broken && h('button.buy', { onclick: () => app.placeToy(item.id) }, 'Colocar'),
+        item.id === 'cart_unknown' && h('button.buy', {
+          onclick: () => { if (!app.unknown?.insert?.()) { /* insert já avisa */ } },
+          title: 'Insere o cartucho preto na TV (a ameaça da TV)',
+        }, '🕹 Usar na TV'),
         nSell > 0 && h('button.buy', {
           onclick: () => {
             const got = game.sell(item.id, nSell);

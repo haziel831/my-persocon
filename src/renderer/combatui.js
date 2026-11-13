@@ -1,0 +1,321 @@
+// HUD do combate JRPG: a fila de turnos no topo, o anel de chão do lutador da vez,
+// as barras pequenas de vida dos inimigos, o banner de aviso na TV, o banner de vitória
+// com o resumo de XP e os modais de lore sombrios (cartucho preto / cristal negro).
+import { icon, cartridge } from './pixel.js';
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// O retrato do inimigo: uma gosma preta com olhos vermelhos (estilo pixel art, 22x22).
+let _enemyPortrait = null;
+export function enemyPortrait() {
+  if (_enemyPortrait) return _enemyPortrait;
+  const c = document.createElement('canvas');
+  c.width = c.height = 22;
+  const g = c.getContext('2d');
+  g.fillStyle = '#07070d';
+  // Corpo: bolha disforme.
+  g.beginPath();
+  g.ellipse(11, 13.5, 9, 7.4, 0, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.ellipse(8, 7.6, 4.6, 3.4, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillRect(2, 15, 18, 3);
+  // Olhos vermelhos.
+  g.fillStyle = '#ff2e3a';
+  g.fillRect(7, 11, 2.4, 3.2);
+  g.fillRect(13, 11, 2.4, 3.2);
+  _enemyPortrait = c.toDataURL('image/png');
+  return _enemyPortrait;
+}
+
+export class CombatUI {
+  constructor(app) {
+    this.app = app;
+    this.queueEl = null;
+    this.ringEl = null;
+    this.foeEls = new Map();   // id → el da barra de vida pequena
+    this.winEl = null;
+  }
+
+  // ---------- a fila de turnos ----------
+
+  // actors: [{ id, name, face (img src ou null), glyph (fallback), side: 'ally'|'enemy', hp (0..1), dead }]
+  showQueue(actors) {
+    if (!this.queueEl) {
+      this.queueEl = document.createElement('div');
+      this.queueEl.className = 'turn-queue';
+      document.body.append(this.queueEl);
+    }
+    this.updateQueue(actors);
+  }
+
+  updateQueue(actors, activeId = null) {
+    const el = this.queueEl;
+    if (!el) return;
+    el.replaceChildren();
+    actors.forEach((a, i) => {
+      if (i > 0) {
+        const arrow = document.createElement('span');
+        arrow.className = 'tq-arrow';
+        arrow.textContent = '›';
+        el.append(arrow);
+      }
+      const unit = document.createElement('div');
+      unit.className = `tq-unit ${a.side}${a.id === activeId ? ' active' : ''}${a.dead ? ' dead' : ''}`;
+      unit.title = a.name;
+      if (a.face) {
+        const img = document.createElement('img');
+        img.src = a.face;
+        img.draggable = false;
+        img.alt = a.name;
+        unit.append(img);
+      } else if (a.glyph) {
+        const g = document.createElement('span');
+        g.className = 'tq-glyph';
+        g.textContent = a.glyph;
+        unit.append(g);
+      }
+      if (a.hp != null) {
+        const hp = document.createElement('div');
+        hp.className = 'tq-hp';
+        const i = document.createElement('i');
+        i.style.width = `${Math.max(0, Math.round(a.hp * 100))}%`;
+        hp.append(i);
+        unit.append(hp);
+      }
+      el.append(unit);
+    });
+  }
+
+  hideQueue() {
+    this.queueEl?.remove();
+    this.queueEl = null;
+  }
+
+  // ---------- o anel de chão ----------
+
+  ring(x, y) {
+    if (!this.ringEl) {
+      this.ringEl = document.createElement('div');
+      this.ringEl.className = 'combat-floor-ring';
+      document.body.append(this.ringEl);
+    }
+    this.ringEl.style.left = `${Math.round(x)}px`;
+    this.ringEl.style.top = `${Math.round(y + 6)}px`;
+  }
+
+  hideRing() {
+    this.ringEl?.remove();
+    this.ringEl = null;
+  }
+
+  // ---------- as barras pequenas dos inimigos ----------
+
+  foeBars(foes) {
+    // foes: [{ id, x, y, w, pct }]
+    const seen = new Set();
+    for (const f of foes) {
+      seen.add(f.id);
+      let el = this.foeEls.get(f.id);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'foe-hp';
+        el.innerHTML = '<i></i>';
+        document.body.append(el);
+        this.foeEls.set(f.id, el);
+      }
+      const P = this.app.pet?.P || 46;
+      const w = Math.max(46, Math.round(P * 0.95));
+      el.style.left = `${Math.round(f.x - w / 2)}px`;
+      el.style.top = `${Math.round(f.y - P * 1.18)}px`;
+      el.style.width = `${w}px`;
+      el.firstElementChild.style.width = `${Math.max(0, Math.round(f.pct * 100))}%`;
+      el.classList.toggle('low', f.pct <= 0.3);
+    }
+    for (const [id, el] of this.foeEls) {
+      if (!seen.has(id)) { el.remove(); this.foeEls.delete(id); }
+    }
+  }
+
+  hideFoeBars() {
+    for (const [, el] of this.foeEls) el.remove();
+    this.foeEls.clear();
+  }
+
+  // ---------- o ícone do item acima da cabeça ----------
+
+  itemPop(x, y, src) {
+    if (!src) return;
+    const el = document.createElement('div');
+    el.className = 'item-icon-pop';
+    const img = document.createElement('img');
+    img.src = src;
+    img.draggable = false;
+    el.append(img);
+    el.style.left = `${Math.round(x)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    document.body.append(el);
+    setTimeout(() => el.remove(), 2100);
+  }
+
+  // ---------- o banner de aviso na TV ----------
+
+  warnBanner(text, ms = 2400) {
+    const el = document.createElement('div');
+    el.className = 'unknown-warn';
+    el.textContent = text;
+    document.body.append(el);
+    setTimeout(() => el.remove(), ms);
+    return el;
+  }
+
+  // ---------- o banner de VITÓRIA ----------
+
+  victoryBanner(xpLines = []) {
+    this.hideVictory();
+    const el = document.createElement('div');
+    el.className = 'victory-banner';
+    const h = document.createElement('h1');
+    h.textContent = 'VITÓRIA!';
+    el.append(h);
+    if (xpLines.length) {
+      const box = document.createElement('div');
+      box.className = 'victory-xp';
+      for (const [label, amount] of xpLines) {
+        const line = document.createElement('div');
+        const b = document.createElement('b');
+        b.textContent = `+${Math.round(amount)} XP`;
+        line.append(b, ` ${label}`);
+        box.append(line);
+      }
+      el.append(box);
+    }
+    document.body.append(el);
+    this.winEl = el;
+    return el;
+  }
+
+  hideVictory() {
+    this.winEl?.remove();
+    this.winEl = null;
+  }
+
+  // ---------- os modais de lore sombrios ----------
+
+  // kind: 'cart' (Trigger A) | 'crystal' (Trigger B)
+  loreModal(kind) {
+    return new Promise((resolve) => {
+      const sound = this.app.sound;
+      const ctx = sound?.ctx;
+      const wasMusicPaused = !!sound?.musicPaused;
+      const wasMaster = sound?.master?.gain?.value;
+      // Pausa toda a música e abaixa o mix para deixar o drone tomar conta.
+      sound?.pauseMusic?.();
+      if (ctx && sound?.master) sound.master.gain.setTargetAtTime(Math.min(wasMaster ?? 1, 0.06), ctx.currentTime, 0.35);
+      const overlay = document.createElement('div');
+      overlay.className = 'lore-overlay';
+      const box = document.createElement('div');
+      box.className = 'lore-box';
+      const glyph = document.createElement('div');
+      glyph.className = 'lore-glyph';
+      const img = document.createElement('img');
+      img.draggable = false;
+      img.src = kind === 'crystal'
+        ? new URL('./assets/items/black_crystal.png', import.meta.url).href
+        : cartridge('#000000', 'unknown', 'gb');
+      glyph.append(img);
+      const text = kind === 'crystal'
+        ? ' Esta estranha substancia pulsa com uma energia ruim . . . '
+        : 'Este cartucho emite uma aura sombria . . .';
+      const p = document.createElement('p');
+      p.className = 'lore-text';
+      const hint = document.createElement('div');
+      hint.className = 'lore-hint';
+      hint.textContent = '— clique para prosseguir —';
+      box.append(glyph, p, hint);
+      overlay.append(box);
+      document.body.append(overlay);
+      // O drone sombrio em loop (WebAudio): três vozes graves desafinadas + sub-baixo.
+      // Ele sai direto para a saída (não passa pelo master, que está silenciado).
+      let nodes = null;
+      if (ctx) {
+        nodes = [];
+        const out = ctx.createGain();
+        out.gain.value = 0;
+        out.connect(ctx.destination);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 340;
+        filter.Q.value = 8;
+        filter.connect(out);
+        const mk = (freq, type, detune) => {
+          const o = ctx.createOscillator();
+          o.type = type;
+          o.frequency.value = freq;
+          o.detune.value = detune;
+          const g = ctx.createGain();
+          g.gain.value = type === 'sine' ? 0.5 : 0.22;
+          o.connect(g).connect(filter);
+          o.start();
+          nodes.push(o);
+          return o;
+        };
+        mk(55, 'sawtooth', -9);
+        mk(55, 'sawtooth', +9);
+        mk(27.5, 'sine', 0);
+        mk(110, 'triangle', +4);
+        // LFO no filtro (a "respiração" do drone).
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 0.12;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 140;
+        lfo.connect(lfoGain).connect(filter.frequency);
+        lfo.start();
+        nodes.push(lfo, filter, out);
+        out.gain.setTargetAtTime(0.3, ctx.currentTime, 0.6);
+      }
+      const stopDrone = () => {
+        if (nodes && ctx) {
+          try {
+            const out = nodes[nodes.length - 1];
+            out?.gain?.setTargetAtTime?.(0.0001, ctx.currentTime, 0.3);
+            setTimeout(() => { try { nodes.forEach((n) => n.disconnect?.()); } catch {} }, 900);
+          } catch {}
+        }
+      };
+      // O texto em máquina de escrever.
+      let shown = 0;
+      let typing = true;
+      let interval = null;
+      const tick = () => {
+        shown += 1;
+        p.textContent = text.slice(0, shown);
+        if (shown >= text.length) { typing = false; clearInterval(interval); p.textContent = text; }
+      };
+      interval = setInterval(tick, 46);
+      const finish = () => {
+        typing = false;
+        clearInterval(interval);
+        p.textContent = text;
+      };
+      overlay.addEventListener('pointerdown', () => {
+        if (typing) { finish(); return; }
+        stopDrone();
+        overlay.remove();
+        if (!wasMusicPaused) sound?.resumeMusic?.();
+        if (ctx && sound?.master && wasMaster != null) sound.master.gain.setTargetAtTime(wasMaster, ctx.currentTime, 0.4);
+        resolve();
+      });
+    });
+  }
+
+  // ---------- limpar tudo ----------
+
+  clear() {
+    this.hideQueue();
+    this.hideRing();
+    this.hideFoeBars();
+    this.hideVictory();
+  }
+}
