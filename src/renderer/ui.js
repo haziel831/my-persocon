@@ -695,6 +695,7 @@ export class Menu {
     if (tab === 'missoes') {
       const list = r.missions();
       const luck = this.app.game.profile.luck || 0;
+      const canReset = r.canResetDaily?.();
       return [tabs,
         h('div.note', {}, 'Novas missões todo dia. Cada uma vale uma Caixa Comum; completar as três dá uma Caixa Rara extra.'),
         h('div.quests', {}, list.map((m) => h(`div.quest${m.done ? '.done' : ''}`, {},
@@ -704,6 +705,17 @@ export class Menu {
         h(`div.quest.bonus${list.every((m) => m.done) ? '.done' : ''}`, {},
           h('span.quest-ico', {}, '⭐'), h('div.quest-body', {}, h('div', {}, 'Bônus: todas as missões do dia')), boxImg('caixa_rara')),
         luck ? h('div.note', {}, `🍀 Próximas ${luck} caixa(s) com sorte aumentada.`) : null,
+        h('div.row.center', {}, h('button', {
+          disabled: !canReset,
+          title: canReset
+            ? 'Sorteia de novo só as missões que você ainda não concluiu (1 vez por dia)'
+            : 'Você já resetou as missões hoje',
+          onclick: () => {
+            if (!r.resetDaily?.()) return this.app.sound.play('cancel', { volume: 0.4 });
+            this.app.sound.play('ok', { volume: 0.5 });
+            this.render();
+          },
+        }, canReset ? '🎲 Resetar Missões (1/dia)' : '✓ Missões já resetadas hoje')),
       ].filter(Boolean);
     }
     return [tabs, h('div.achs', {}, r.achievements().map((a) => h(`div.ach${a.done ? '.done' : ''}`, { title: a.done ? `Conquistada em ${new Date(a.at).toLocaleDateString()}` : '' },
@@ -920,8 +932,9 @@ export class Menu {
       this.shopCat = id;
       this.render();
     });
-    const multi = false;
-    const n = 1;
+    // A compra em quantidade (1x/5x/10x) volta nas coisas que dá para empilhar.
+    const multi = ['comidas', 'bebidas', 'sobremesas', 'medicina'].includes(this.shopCat);
+    const n = multi ? (this.qty || 1) : 1;
     const list = ITEMS.filter((i) => i.cat === this.shopCat && game.available(i) && (HER_BAG || !i.bagSlots));
     if (['cartuchos', 'comidas', 'bebidas', 'sobremesas', 'medicina'].includes(this.shopCat)) list.sort((a, b) => (a.price || 0) - (b.price || 0));
     if (DEMO) list.sort((a, b) => demoLocked(a.id) - demoLocked(b.id));

@@ -1,6 +1,18 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.20', [
+    ['O feed de ganhos ficou logo abaixo da caixinha de XP (no dock) e parou de repetir o XP: cada coisa aparece uma vez só', 'The gains feed now sits right below the XP box (in the dock) and stopped repeating the XP: everything shows up only once'],
+    ['O sono agora é lock: nada acorda ela (impressora, avisos, tarefas de fundo) — e o que o jogador dá enquanto ela dorme fica na fila para ela consumir assim que acordar', 'Sleep is now locked: nothing wakes her up (the printer, alerts, background tasks) — and whatever you give her while she sleeps waits in a queue for her to use right after she wakes up'],
+    ['A impressora 3D não acorda mais a Persocon: a impressão pronta espera ela acordar (e ela continua clicável)', 'The 3D printer no longer wakes the Persocon: the finished print waits for her to wake up (and she stays clickable)'],
+    ['O combate ficou mais devagar: cada turno dura mais de 3 segundos, para dar tempo de ler tudo', 'The combat got slower: every turn lasts more than 3 seconds, so there is time to read everything'],
+    ['O texto da ação fica em cima da cabeça de quem agiu: o dela em verde, o do inimigo em vermelho', 'The action text sits right above the head of whoever acted: hers in green, the enemy’s in red'],
+    ['Golpe de combate e manobra especial: o nome do golpe aparece maior (19px) e piscando 5 vezes', 'Combat strike and special maneuver: the move name shows up bigger (19px) and flashing 5 times'],
+    ['O Treino Pesado é sempre do jogador: a Persocon nunca começa uma luta de verdade sozinha', 'The Heavy Training is always the player’s: the Persocon never starts a real fight on her own'],
+    ['A Shop voltou a ter os botões de quantidade (1x / 5x / 10x) em Comidas, Bebidas, Sobremesas e Medicamentos', 'The Shop has the quantity buttons back (1x / 5x / 10x) for Food, Drinks, Desserts and Medicines'],
+    ['Bebida nova: Energy Drink (muita energia, mas deixa ela com sede)', 'New drink: Energy Drink (lots of Energy, but it leaves her thirsty)'],
+    ['No quadro das Missões Diárias tem o botão "Resetar Missões (1/dia)": ele sorteia de novo só as missões que você ainda não concluiu (uma vez por dia)', 'The Daily Missions board has a "Reset Missions (1/day)" button: it rerolls only the missions you have not completed yet (once per day)'],
+  ]],
   ['1.9.19', [
     ['Novo log de XP no canto da tela, logo abaixo do Chat: mostra em tempo real o que ela está treinando (+12 XP em Combate Corpo a Corpo, +4 XP em Força (Treino Pesado), +8 XP em Constituição)', 'New XP log in the screen corner, right below the Chat: it shows in real time what she is training (+12 XP in Unarmed Melee, +4 XP in Strength (Heavy Training), +8 XP in Constitution)'],
     ['O log tem um botão para recolher (e uma opção no menu do dock): some da tela quando você não quer ver', 'The log has a button to collapse it (and an option in the dock menu): it gets out of the way when you do not want to see it'],

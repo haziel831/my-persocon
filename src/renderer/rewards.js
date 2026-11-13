@@ -686,6 +686,29 @@ export class Rewards {
     return this.daily().list.map((m) => ({ ...m, text: MISSIONS[m.id].text(m.goal) }));
   }
 
+  // O reset das missões: uma vez por dia, e só as que NÃO foram concluídas são sorteadas
+  // de novo (as concluídas ficam como estão).
+  canResetDaily() {
+    return this.profile.lastDailyResetDate !== today();
+  }
+
+  resetDaily() {
+    const p = this.profile;
+    if (!this.canResetDaily()) return false;
+    const d = this.daily();
+    const keep = d.list.filter((m) => m.done);
+    const pool = Object.keys(MISSIONS)
+      .filter((id) => !MISSIONS[id].can || MISSIONS[id].can(this.app))
+      .filter((id) => !keep.some((m) => m.id === id))
+      .sort(() => Math.random() - 0.5);
+    const fresh = pool.slice(0, Math.max(0, 3 - keep.length))
+      .map((id) => ({ id, goal: randInt(...MISSIONS[id].goal), n: 0, done: false }));
+    d.list = [...keep, ...fresh];
+    p.lastDailyResetDate = today();
+    this.app.game.changed();
+    return true;
+  }
+
   completeMission(m) {
     const { game } = this.app;
     const d = this.profile.daily;

@@ -7,6 +7,17 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.20 — 13/11/2026
+**O feed de ganhos mudou de casa.** Ele agora fica **logo abaixo da caixinha ⭐ XP** (no dock) e **parou de repetir o XP**: cada informação aparece uma vez só — o XP na caixinha, o resto no feed.
+**O sono é lock.** Enquanto ela dorme, **nada** a acorda: a **impressora 3D** segura o aviso da impressão até ela acordar de novo (e ela continua clicável — o bug de ela ficar "travada" some), e **nenhuma tarefa de fundo** tira ela da cama. O que o jogador dá enquanto ela dorme (comida, bebida, sobremesa, remédio) entra na **`pendingWakeUpQueue`** e ela consome **na ordem**, assim que acordar.
+**O combate ficou mais devagar.** Cada turno passa a durar **mais de 3 segundos** (anúncio 0,85 s + carga 0,45 s + antecipação 0,5 s + impacto 0,65 s + recuperação 1 s), dando tempo de ler cada ação.
+**O texto da ação fica em cima de quem agiu.** Saiu a caixinha única: o texto dela (verde `#22c55e`) fica **diretamente acima da cabeça da Persocon** e o do inimigo (vermelho `#ef4444`) **acima da cabeça dele**. E **golpe de combate / manobra especial** mostram o nome **maior (19 px) e piscando 5 vezes** durante a carga e a execução.
+**Treino Pesado só do jogador.** O `playDummy()` agora exige o selo do jogador (`byPlayer`): a IA da Persocon **nunca** inicia uma luta de verdade, mesmo passando o modo "sparring" por engano.
+**Shop: a compra em quantidade voltou** — botões **1x / 5x / 10x** em *Comidas*, *Bebidas*, *Sobremesas* e *Medicamentos*.
+**Bebida nova: Energy Drink** (¥ 22) — dá **+45 de Energia** e **−12 de Sede** (a hidratação cai: ela fica com sede e quer uma água em seguida). O ícone é uma lata ciano do *16x16 Icon Pack*.
+**Missões Diárias: botão "🎲 Resetar Missões (1/dia)"** — só pode usar **uma vez por dia** (`lastDailyResetDate`): sorteia de novo **só as missões não concluídas**; as concluídas **mantêm** o estado e o prêmio.
+Detalhes em `ChangeLogs\v1.9.20.md`.
+
 ## v1.9.19 — 13/11/2026
 **Log de XP no canto da tela.** Uma caixinha **logo abaixo do Chat** no dock mostra, em tempo real, o que a Persocon está treinando: `+12 XP em Combate Corpo a Corpo`, `+4 XP em Força (Treino Pesado)`, `+8 XP em Constituição`. Tem **botão de recolher** (e uma opção no menu do dock).
 **Cristal Negro garantido.** Se ela derrubar o Unknown, o **1× Cristal Negro** é dela **sempre** — a vitória agora é conferida **antes** da parada de segurança (ela não perde mais o drop por estar com a vida baixa) — e o **save é escrito na hora**, para o cristal não se perder. O item é **invendível** (`unsellable`/`canSell: false`, e o `isSellable` respeita a flag) e mora na aba **Especial** do Inventário, **sem botão de vender**.

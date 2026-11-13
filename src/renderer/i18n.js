@@ -72,6 +72,10 @@ const EN = {
   'Combate Corpo a Corpo': 'Unarmed Melee', 'Espadas': 'Swordplay', 'Arremesso': 'Throwing',
   'Treino Pesado': 'Heavy Training', 'Boneco de Treino': 'Training Dummy', 'Escalada': 'Climbing',
   'Especial': 'Special', 'Ainda sem XP': 'No XP yet',
+  'Resetar Missões (1/dia)': 'Reset Missions (1/day)',
+  'Missões já resetadas hoje': 'Missions already reset today',
+  'Sorteia de novo só as missões que você ainda não concluiu (1 vez por dia)':
+    'Rerolls only the missions you have not completed yet (once per day)',
   'Mostrar ou ocultar o registro de XP': 'Show or hide the XP log',
   'Registro de XP (o que ela treina)': 'XP log (what she trains)',
   'Chat log (o que ela fala)': 'Chat log (what she says)',

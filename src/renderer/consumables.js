@@ -82,6 +82,8 @@ export const FOOD_ITEMS = [
   food('bv_soy_strawberry', 'bebidas', 'Strawberry Soymilk', 18, 'soymilk_strawberry.png', { thirst: 26, mood: 8 }),
   food('bv_soy_matcha', 'bebidas', 'Matcha Soymilk', 20, 'soymilk_match.png', { thirst: 30 }),
   food('bv_soy_coffee', 'bebidas', 'Coffee Soymilk', 20, 'soymilk_coffee.png', { energy: 22, thirst: 24 }),
+  // Energético: muita energia, mas deixa ela com sede (a hidratação cai).
+  food('bv_energy', 'bebidas', 'Energy Drink', 22, 'energy_drink.png', { energy: 45, thirst: -12 }),
 
   // ---------- Sobremesas (preço alto, pouca fome, muito humor) ----------
   food('sb_cheesecake', 'sobremesas', 'Cheesecake', 60, 'cake_cheese.png', { hunger: 5, mood: 38 }),
