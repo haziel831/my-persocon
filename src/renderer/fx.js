@@ -133,6 +133,33 @@ export class Fx {
     return new VfxSequence(f, x, y, opts);
   }
 
+  // The charge before a strike: the blue aura around her + the rising energy particles.
+  charge(x, y, size = 120, ms = 450) {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.className = 'combat-aura charge';
+    const s = Math.round(size * 0.95);
+    el.style.width = el.style.height = `${s}px`;
+    el.style.left = `${Math.round(x)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    document.body.append(el);
+    setTimeout(() => el.remove(), ms + 150);
+    // The blue particles rising around her.
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('div');
+      p.className = 'charge-spark';
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+      const r = size * (0.16 + Math.random() * 0.24);
+      p.style.left = `${Math.round(x + Math.cos(a) * r)}px`;
+      p.style.top = `${Math.round(y + Math.sin(a) * r * 0.55)}px`;
+      p.style.setProperty('--dy', `${Math.round(-size * (0.45 + Math.random() * 0.4))}px`);
+      p.style.setProperty('--delay', `${(Math.random() * (ms / 1000) * 0.65).toFixed(2)}s`);
+      document.body.append(p);
+      setTimeout(() => p.remove(), ms + 450);
+    }
+  }
+
   // The melee impact at (x, y): the frames of the 32x32 sheet played one by one.
   impact(kind, x, y, scale = 1) {
     const def = IMPACT[kind];

@@ -86,12 +86,17 @@ export class PetView {
     // The red flash when she takes damage (the intensity says how bad it was).
     this.flashT = 0;
     this.flashI = 0;
+    this.flashDur = 0.32;
+    this.flashColor = 'red';
   }
 
-  // The red flash on the model: the tint gets stronger with the damage.
-  flash(intensity = 1) {
-    this.flashT = Math.max(this.flashT, 0.32);
+  // The flash on the model: the tint gets stronger with the damage.
+  // color: 'red' (a hit) or 'blue' (the charge before a strike).
+  flash(intensity = 1, color = 'red', duration = 0.32) {
+    this.flashT = Math.max(this.flashT, duration);
+    this.flashDur = duration;
     this.flashI = Math.max(this.flashI, Math.min(1, Math.max(0.25, intensity)));
+    this.flashColor = color;
   }
 
   // Pet height in CSS pixels; everything else scales from it.
@@ -400,11 +405,15 @@ export class PetView {
     const snap = this.snap;
     this.updateAnchor(dt);
     this.hair.update(dt, snap);
-    // The red flash fades out (it started when she took damage).
+    // The flash fades out (it started when she took damage).
     if (this.flashT > 0) {
       this.flashT = Math.max(0, this.flashT - dt);
-      const i = this.flashI * (this.flashT / 0.32);
-      this.canvas.style.filter = `sepia(${(i * 0.9).toFixed(3)}) saturate(${(1 + i * 7).toFixed(2)}) hue-rotate(-40deg) brightness(${(1 + i * 0.4).toFixed(2)})`;
+      const i = this.flashI * (this.flashT / (this.flashDur || 0.32));
+      // Red when she is hit, blue while she charges the strike.
+      const f = this.flashColor === 'blue'
+        ? `sepia(${(i * 0.8).toFixed(3)}) saturate(${(1 + i * 5).toFixed(2)}) hue-rotate(170deg) brightness(${(1 + i * 0.5).toFixed(2)})`
+        : `sepia(${(i * 0.9).toFixed(3)}) saturate(${(1 + i * 7).toFixed(2)}) hue-rotate(-40deg) brightness(${(1 + i * 0.4).toFixed(2)})`;
+      this.canvas.style.filter = f;
       if (this.flashT <= 0) {
         this.canvas.style.filter = '';
         this.flashI = 0;

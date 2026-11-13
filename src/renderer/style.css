@@ -657,19 +657,52 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   filter: drop-shadow(0 0 5px rgba(255, 150, 40, 0.9));
 }
 @keyframes aura-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+/* A carga antes do golpe: a aura azul e as partículas subindo. */
+.combat-aura.charge {
+  position: fixed; z-index: 9996; pointer-events: none; user-select: none;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 50% 52%, rgba(120, 200, 255, 0.6) 0%, rgba(59, 130, 246, 0.42) 38%, rgba(0, 210, 255, 0.2) 62%, rgba(0, 210, 255, 0) 78%);
+  filter: drop-shadow(0 0 12px rgba(0, 210, 255, 0.85));
+  animation: aura-charge 0.28s ease-in-out infinite alternate;
+}
+@keyframes aura-charge {
+  from { transform: translate(-50%, -50%) scale(0.82); opacity: 0.65; }
+  to { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+}
+.charge-spark {
+  position: fixed; z-index: 9996; pointer-events: none; width: 4px; height: 4px;
+  background: #9fdcff; box-shadow: 0 0 6px 2px rgba(0, 180, 255, 0.85);
+  image-rendering: pixelated;
+  animation: charge-spark 0.5s ease-out var(--delay, 0s) forwards;
+}
+@keyframes charge-spark {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  25% { opacity: 1; transform: translate(-50%, -60%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, var(--dy, -50px)) scale(0.5); }
+}
 @keyframes aura-fury {
   from { transform: translate(-50%, -50%) scale(0.9); opacity: 0.7; }
   to { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
 }
-/* The combat text above the heads: green for her, red for the enemy. */
-.combat-text {
-  position: fixed; z-index: 9996; pointer-events: none; transform: translate(-50%, -50%);
-  font: bold 12px PxEmoji, Consolas, monospace; white-space: nowrap;
-  text-shadow: 1px 1px 0 #1d1a26, -1px 1px 0 #1d1a26, 0 -1px 0 #1d1a26, 0 1px 0 #1d1a26, 0 0 4px rgba(0, 0, 0, 0.7);
-  animation: combat-text 1.4s ease-out forwards;
+/* O banner fixo do combate: as falas empilhadas numa caixinha acima das cabeças. */
+.combat-banner {
+  position: fixed; z-index: 9996; pointer-events: none; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  max-width: 60vw;
 }
-.combat-text.good { color: #22c55e; }
-.combat-text.bad { color: #ef4444; }
+.combat-line {
+  padding: 2px 9px; border-radius: 6px; white-space: nowrap;
+  background: rgba(10, 10, 16, 0.78); border: 1px solid var(--line, rgba(255, 255, 255, 0.18));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  font: bold 12px PxEmoji, Consolas, monospace;
+  text-shadow: 1px 1px 0 #1d1a26, -1px 1px 0 #1d1a26, 0 -1px 0 #1d1a26, 0 1px 0 #1d1a26;
+  animation: combat-line 0.25s ease-out;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.combat-line.good { color: #22c55e; border-color: rgba(34, 197, 94, 0.55); }
+.combat-line.bad { color: #ef4444; border-color: rgba(239, 68, 68, 0.55); }
+.combat-line.out { opacity: 0; transform: translateY(-8px); }
+@keyframes combat-line { from { opacity: 0; transform: translateY(6px) scale(0.9); } }
 /* O número de dano: vermelho, com a borda pixelada escura, e sobe até sumir. */
 .dmg-num {
   position: fixed; z-index: 9997; pointer-events: none; transform: translate(-50%, -50%);
@@ -686,12 +719,6 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
 }
 /* A sequência de quadros do pack de efeitos (uma pasta por golpe). */
 .vfx-seq { position: fixed; pointer-events: none; z-index: 9996; image-rendering: pixelated; }
-@keyframes combat-text {
-  0% { opacity: 0; transform: translate(-50%, -20%) scale(0.85); }
-  14% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  62% { opacity: 1; transform: translate(-50%, -62%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -115%) scale(1); }
-}
 body.combat-shake { animation: combat-shake 0.2s ease-out; }
 body.combat-shake #pet { animation: combat-shake 0.2s ease-out; }
 @keyframes combat-shake {
@@ -1027,7 +1054,7 @@ body.app-hidden .bag-dock { opacity: 1; }
 .sd-log { margin-top: 4px; padding: 2px 5px 3px; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--line); border-radius: 6px; font-size: 0.85em; }
 .sd-log-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .sd-log-head b { opacity: 0.85; }
-.sd-log-toggle, .sd-chat-toggle {
+.sd-log-toggle, .sd-chat-toggle, .sd-xp-toggle {
   border: 1px solid var(--accent, rgba(255,255,255,0.4)); background: var(--panel, rgba(255,255,255,0.12));
   color: inherit; border-radius: 5px; cursor: pointer;
   min-width: calc(20px * var(--k)); height: calc(18px * var(--k)); padding: 0 4px;
@@ -1035,8 +1062,11 @@ body.app-hidden .bag-dock { opacity: 1; }
   display: inline-flex; align-items: center; justify-content: center;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
 }
-.sd-log-toggle:hover, .sd-chat-toggle:hover { background: var(--panel-hover, rgba(255,255,255,0.22)); }
+.sd-log-toggle:hover, .sd-chat-toggle:hover, .sd-xp-toggle:hover { background: var(--panel-hover, rgba(255,255,255,0.22)); }
 .sd-chat { border-color: color-mix(in srgb, var(--accent, #7aa2ff) 55%, transparent); }
+/* O log de XP: uma caixinha logo abaixo do chat. */
+.sd-xp { border-color: color-mix(in srgb, #f0b43c 55%, transparent); }
+.sd-xp .sd-log-rows div { color: #ffe08a; }
 .sd-log-rows { margin-top: 1px; }
 .sd-log-rows div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sd-log-rows div:nth-child(1) { opacity: 1; }

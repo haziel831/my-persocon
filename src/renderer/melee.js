@@ -28,6 +28,9 @@ export const PACE = {
   impact: 0.45,     // the hit lands and the numbers show up
   recover: 0.75,    // the recovery, before the next turn
 };
+// The charge before the strike: she glows blue and gathers energy (the hit waits for it).
+export const CHARGE_TIME = 0.45;
+export const CHARGE_MANEUVER = 0.55;
 // Melee range: she has to be in contact to hit (no throwing yet). The distance is measured in
 // "pet widths": 0.85 is the distance of a real punch.
 export const MELEE_RANGE = 0.85;
@@ -222,6 +225,10 @@ export class Melee {
     this.removeDizzy();
     this.removeFuryAura();
     this.removeOppDizzy();
+    // O banner de combate some com a luta.
+    this.bannerEl?.remove();
+    this.bannerEl = null;
+    this.bannerLines = [];
     // The Atordoado is a combat status: it goes away with the fight.
     this.stunTurns = 0;
     this.pet.cureDebuff?.('atordoado');
@@ -387,6 +394,15 @@ export class Melee {
         if (this.outOfRange()) this.closeIn();
         else { this.phase = 'windup'; this.t = 0; this.persoconTurn(); }
         break;
+      case 'charge':
+        // The charge ends and the strike begins (the animation only starts now).
+        if (this.t >= (this.chargeT || CHARGE_TIME)) {
+          this.chargeT = 0;
+          this.phase = 'windup';
+          this.t = 0;
+          this.startMoveAnim();
+        }
+        break;
       case 'windup': {
         // The clip is playing: the hit is resolved by the combatHit event. If the clip never
         // fires it (missing clip, interrupted), the turn still resolves.
@@ -405,6 +421,8 @@ export class Melee {
     }
     if (this.opp.scrap || this.opp.unknown) this.updateHpBar();
     this.updateAuras();
+    // O banner acompanha a luta (fica acima das cabeças).
+    this.placeBanner();
     // The training ends when she is too tired (or the dummy is gone).
     if (this.active && this.kind === 'dummy') {
       const d = this.game?.toys?.boneco_treino;
@@ -414,16 +432,18 @@ export class Melee {
     // The sparring: non-lethal. She stops at half of her health.
     if (this.active && this.kind === 'fight') {
       const hp = pet.stats.health;
-      if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishSparring('safety');
+      // A vitória vem primeiro (o Sucataoxidado no chão conta).
+      if (this.opp.hp <= 0) this.finishSparring('win');
+      else if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishSparring('safety');
       else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishSparring('tired');
-      else if (this.opp.hp <= 0) this.finishSparring('win');
     }
     // A luta com o Unknown: mesma parada de segurança, e o drop quando ele cai.
     if (this.active && this.kind === 'unknown') {
       const hp = pet.stats.health;
-      if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishUnknown('safety');
+      // A vitória vem primeiro: se ela derrubou o Unknown, o Cristal Negro é dela (sem excusas).
+      if (this.opp.hp <= 0) this.finishUnknown('win');
+      else if (hp <= (this.petHpMax ?? 100) * SAFETY_HP) this.finishUnknown('safety');
       else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishUnknown('tired');
-      else if (this.opp.hp <= 0) this.finishUnknown('win');
     }
   }
 
@@ -500,12 +520,41 @@ export class Melee {
     this.next = TURN.OPPONENT;
     const facing = this.facing();
     pet.dir = facing > 0 ? 1 : -1;
-    if (!pet.playAnimation(move.clip, { facing: facing > 0 ? 'right' : 'left' })) {
+    this.moveDur = (this.metaOf(move)?.durationMs ?? 400) / 1000;
+    this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good');
+    // A carga vem antes: a animação do golpe só começa depois dela.
+    this.startCharge(move.kind === 'attack' ? CHARGE_TIME : 0);
+  }
+
+  // A carga antes do golpe: ela brilha em azul e junta energia (0 = sem carga).
+  startCharge(dur = 0) {
+    const pet = this.pet;
+    if (!(dur > 0)) {
+      this.startMoveAnim();
+      return;
+    }
+    this.phase = 'charge';
+    this.t = 0;
+    this.chargeT = dur;
+    // A pose de espera enquanto a energia junta.
+    const facing = this.facing();
+    pet.playAnimation?.('combat_idle', { facing: facing > 0 ? 'right' : 'left', restart: false });
+    // A aura azul em volta dela e as partículas de energia subindo.
+    this.app.fx?.charge?.(pet.x, pet.y - pet.P * 0.45, pet.P, dur);
+    pet.view?.flash?.(1, 'blue', dur);
+    // O som de juntar energia (sobe de tom).
+    this.app.sound?.tone8?.(180, 920, dur, 'sawtooth', 0.045);
+  }
+
+  // A animação do golpe escolhido (depois da carga).
+  startMoveAnim() {
+    const pet = this.pet;
+    if (!this.move) return;
+    const facing = this.facing();
+    if (!pet.playAnimation(this.move.clip, { facing: facing > 0 ? 'right' : 'left' })) {
       // The model has no such clip: fall back to the stance.
       pet.playAnimation('combat_idle', { facing: facing > 0 ? 'right' : 'left' });
     }
-    this.moveDur = (this.metaOf(move)?.durationMs ?? 400) / 1000;
-    this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good');
   }
 
   // The special maneuver (only with the Fúria): it consumes the status.
@@ -520,10 +569,10 @@ export class Melee {
     this.next = TURN.OPPONENT;
     const facing = this.facing();
     pet.dir = facing > 0 ? 1 : -1;
-    pet.playAnimation(man.clip, { facing: facing > 0 ? 'right' : 'left' });
     this.moveDur = (this.metaOf(this.move)?.durationMs ?? 500) / 1000;
     this.say(pet.x, pet.y - pet.P * 1.15, `${man.name}!`, 'good');
-    this.app.sound?.play?.('powerup', { volume: 0.4 });
+    // A manobra carrega mais: a aura azul dura um pouco mais.
+    this.startCharge(CHARGE_MANEUVER);
   }
 
   // She drinks a medicine instead of attacking — but only if it helps RIGHT NOW:
@@ -632,10 +681,10 @@ export class Melee {
     const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1));
     pet.adjust({ health: -dmg });
     // Levar dano de verdade treina a Constituição (é o jeito mais forte de ganhá-la).
-    this.game.attrGain?.('con', dmg * ATTR_XP.con.hurt);
+    this.game.attrGain?.('con', dmg * ATTR_XP.con.hurt, this.kind === 'unknown' ? 'unknown' : 'heavy');
     // O flash vermelho nela (proporcional ao dano), o número de dano e o sangue.
     pet.view?.flash?.(flashIntensity(dmg));
-    this.app.fx?.damage?.(pet.x, pet.y - pet.P * 0.95, dmg);
+    this.app.fx?.damage?.(pet.x, pet.y - pet.P * 1.18, dmg);
     this.app.fx?.seq?.(dmg >= 12 ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, pet.x, pet.y - pet.P * 0.7, {
       scale: dmg >= 12 ? 2.4 : 1.7,
     });
@@ -823,13 +872,15 @@ export class Melee {
       opp.hp = Math.max(0, opp.hp - roll.dmg);
       this.hits++;
       // Cada golpe acertado treina a Força (o treino pesado paga bem mais).
-      this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy);
+      this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy,
+        this.kind === 'dummy' ? 'dummy' : (opp.unknown ? 'unknown' : 'heavy'));
       // O Unknown leva o golpe (e a animação de machucado).
       if (opp.enemy) opp.enemy.play?.('hurt');
       // O flash vermelho no alvo e o número de dano (vermelho, do tamanho do golpe).
       const heavyHit = roll.crit || roll.dmg >= 12 || heavy;
       opp.enemy?.flash?.(flashIntensity(roll.dmg));
-      this.app.fx?.damage?.(x, y - 10 - h * 12, roll.dmg, { crit: roll.crit });
+      // O número de dano sobe acima da cabeça de quem levou (nunca em cima do corpo).
+      this.app.fx?.damage?.(x, y - 30 - h * 14, roll.dmg, { crit: roll.crit });
       // O impacto: a sequência de sangue do pack (UMA pasta por golpe: leve ou pesada).
       this.app.fx?.seq?.(heavyHit ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, x, y, {
         scale: heavyHit ? 2.6 : 1.8,
@@ -862,7 +913,7 @@ export class Melee {
     const gain = skillGain(this.kind === 'fight' ? 'sparring' : 'dummy');
     this.game.skillAdd('unarmed', gain);
     // Treinar no boneco também dá Constituição (de leve, um turno por vez).
-    if (this.kind === 'dummy') this.game.attrGain?.('con', ATTR_XP.con.turn);
+    if (this.kind === 'dummy') this.game.attrGain?.('con', ATTR_XP.con.turn, 'dummy');
     const after = this.level;
     if (after > before) this.say(pet.x, pet.y - pet.P * 1.25, `Nível ${after}!`, 'good');
     pet.adjust({ energy: -this.energyCost(), mood: 0.4 });
@@ -997,16 +1048,49 @@ export class Melee {
     this.app.toys?.furn?.floatText?.(x, y, text);
   }
 
-  // Combat text above a head: green for her, red for the enemy. It floats up and fades.
+  // Combat text above the battlefield: a FIXED banner (nothing floats over the sprites).
+  // The box sits above the highest head of the two fighters and the lines stack inside it.
+  banner() {
+    if (!this.bannerEl) {
+      const el = document.createElement('div');
+      el.className = 'combat-banner';
+      document.body.append(el);
+      this.bannerEl = el;
+      this.bannerLines = [];
+    }
+    return this.bannerEl;
+  }
+
+  // The banner follows the battle: above the heads, centered between the two fighters.
+  placeBanner() {
+    const el = this.bannerEl;
+    if (!el) return;
+    const pet = this.pet;
+    if (!pet) return;
+    const ox = this.oppX();
+    const mid = ox != null ? (pet.x + ox) / 2 : pet.x;
+    const floor = Math.min(pet.y, this.oppY?.() ?? pet.y);
+    const top = floor - (pet.P || 100) * 1.85;
+    el.style.left = `${Math.round(mid)}px`;
+    el.style.top = `${Math.round(Math.max(6, top))}px`;
+  }
+
+  // Combat text above the heads: green for her, red for the enemy.
   say(x, y, text, kind = 'good') {
     if (typeof document === 'undefined') return;
-    const el = document.createElement('div');
-    el.className = `combat-text ${kind}`;
-    el.textContent = text;
-    el.style.left = `${Math.round(x)}px`;
-    el.style.top = `${Math.round(y)}px`;
-    document.body.append(el);
-    setTimeout(() => el.remove(), 1500);
+    const el = this.banner();
+    const line = document.createElement('div');
+    line.className = `combat-line ${kind}`;
+    line.textContent = text;
+    el.appendChild(line);
+    this.bannerLines.push(line);
+    // No máximo 4 linhas na caixinha.
+    while (this.bannerLines.length > 4) this.bannerLines.shift()?.remove?.();
+    setTimeout(() => {
+      line.classList.add('out');
+      setTimeout(() => line.remove(), 400);
+    }, 1500);
+    this.placeBanner();
   }
 }
 
