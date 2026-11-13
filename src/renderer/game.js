@@ -11,6 +11,7 @@ import './medicons.js';
 import { DEMO } from './edition.js';
 import { BAG_ITEMS as BAGGABLE } from './skills.js';
 import { attrProgress as attrProg } from './attrxp.js';
+import { skillLevel } from './skills.js';
 
 export { ATTR_XP } from './attrxp.js';
 
@@ -94,6 +95,7 @@ export const ITEMS = [
     get img() { return cartridge('#000000', 'unknown', 'gb'); } },
   // O Cristal Negro: cai do "Unknown" e fica guardado para uso futuro.
   { id: 'cristal_negro', cat: 'especiais', name: 'Cristal Negro', price: 0, effects: {}, special: true,
+    unsellable: true, canSell: false, note: 'Saiu do Unknown. Não vende e não se descarta.',
     img: new URL('./assets/items/black_crystal.png', import.meta.url).href },
   ...FOOD_ITEMS,
   ...MED_ITEMS,
@@ -160,6 +162,8 @@ export const shopValue = (item) => {
 };
 export const isSellable = (item) => {
   if (!item || item.fixed) return false;
+  // Itens marcados como invendíveis (o Cristal Negro) nunca podem ser vendidos.
+  if (item.unsellable || item.canSell === false) return false;
   if (isEdible(item) || item.decor) return shopValue(item) > 0;
   if (item.cat === 'premios' || item.loot) return true;
   // PowerUps (and other priced medicine).
@@ -559,7 +563,8 @@ export class Game {
 
   // Gains attribute XP (the level goes up on its own). The save is marked dirty, not written
   // right away: this is called with every point of Energy spent.
-  attrAdd(id, amount) {
+  // source: where the XP came from (the XP log shows it: "Força (Treino Pesado)").
+  attrAdd(id, amount, source = '') {
     const xp = (this.profile.attrXp ||= {});
     const before = this.profile.attrs[id] ?? 1;
     xp[id] = Math.max(0, (xp[id] || 0) + amount);
@@ -567,15 +572,18 @@ export class Game {
     this.profile.attrs[id] = lvl;
     this.dirty = true;
     // O indicador pequeno: quanto de XP ela acabou de ganhar neste atributo.
-    if (amount > 0) this.pet?.emit?.('attrXp', { id, amount, xp: xp[id], level: lvl, up: lvl > before });
+    if (amount > 0) this.pet?.emit?.('attrXp', { id, amount, xp: xp[id], level: lvl, up: lvl > before, source });
     return lvl;
   }
 
   // Ganho de XP que chega aos poucos (escalada, energia): fica acumulado e entra de uma vez.
-  attrGain(id, amount) {
+  attrGain(id, amount, source = '') {
     if (!(amount > 0)) return;
     const acc = (this._attrAcc ||= {});
-    acc[id] = (acc[id] || 0) + amount;
+    const keys = (this._attrAccKeys ||= {});
+    const key = `${id}|${source}`;
+    acc[key] = (acc[key] || 0) + amount;
+    keys[key] = { id, source };
   }
 
   // Joga o XP acumulado no atributo (a cada segundo).
@@ -583,7 +591,13 @@ export class Game {
     const acc = this._attrAcc;
     if (!acc) return;
     this._attrAcc = null;
-    for (const [id, v] of Object.entries(acc)) if (v > 0) this.attrAdd(id, v);
+    const keys = this._attrAccKeys || {};
+    this._attrAccKeys = null;
+    for (const [key, v] of Object.entries(acc)) {
+      if (v <= 0) continue;
+      const k = keys[key] || {};
+      this.attrAdd(k.id, v, k.source);
+    }
   }
 
   // O progresso do atributo (nível, quanto falta para o próximo) para a barra do perfil.
@@ -600,8 +614,11 @@ export class Game {
 
   skillAdd(id, amount) {
     const s = (this.profile.skills ||= {});
-    s[id] = (s[id] || 0) + amount;
+    const before = s[id] || 0;
+    s[id] = before + amount;
     this.changed();
+    // O log de XP sabe o quanto ela ganhou em cada arte.
+    this.pet?.emit?.('skillXp', { id, amount, xp: s[id], level: skillLevel(s[id]), up: skillLevel(s[id]) > skillLevel(before) });
     return s[id];
   }
 

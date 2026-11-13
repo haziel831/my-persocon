@@ -439,8 +439,9 @@ export class Unknown {
     await wait(900);
     const { app } = this;
     const game = app.game;
-    if (reason === 'win') {
-      // O drop: 1 Cristal Negro no inventário (categoria Especiais).
+    if (reason === 'win' && !this.dropped) {
+      // O drop: 1 Cristal Negro no inventário (aba Especial). Garantido e salvo na hora.
+      this.dropped = true;
       game.inventory.cristal_negro = (game.inventory.cristal_negro || 0) + 1;
       game.changed();
       const item = game.items().find((e) => e.item?.id === 'cristal_negro');
@@ -450,6 +451,8 @@ export class Unknown {
       game.removeCart('unknown');
       game.profile.unknownDone = true;
       game.changed();
+      // O save vai para o disco agora: o cristal não pode se perder.
+      await game.persist?.();
     }
     // Some da tela.
     this.remove();

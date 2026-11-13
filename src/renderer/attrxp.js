@@ -31,6 +31,16 @@ export const ATTR_XP = {
   },
 };
 
+// De onde veio o XP (o log mostra: "+4 XP em Força (Treino Pesado)").
+export const ATTR_SOURCES = {
+  climb: 'Escalada',
+  ball: 'Bola de queimada',
+  dummy: 'Boneco de Treino',
+  heavy: 'Treino Pesado',
+  unknown: 'Unknown',
+  energy: 'Energia',
+};
+
 // O XP em que o nível começa.
 export const attrXpFor = (lvl) => 25 * Math.pow(Math.max(0, lvl - 1), 2);
 

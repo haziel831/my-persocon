@@ -390,7 +390,7 @@ export class Pet {
         this.exertion = Math.min(100, this.exertion - v * 5);
         this.stats.hygiene = clamp(this.stats.hygiene + v * 0.6, 0, 100);
         // Every Energy spent trains her Constitution.
-        this.app?.game?.attrGain?.('con', -v * ATTR_XP.con.energy);
+        this.app?.game?.attrGain?.('con', -v * ATTR_XP.con.energy, 'energy');
       }
     }
   }
@@ -1045,7 +1045,7 @@ export class Pet {
       this.anim(this.pickClip(['arremessar'], ['swing_hand', 'use_mainhand']), { facing: fwd > 0 ? 'right' : 'left', restart: true });
       this.app?.game?.skillAdd?.('queimada', 0.9);
       // Arremessar a bola treina a Força.
-      this.app?.game?.attrGain?.('str', ATTR_XP.str.throw);
+      this.app?.game?.attrGain?.('str', ATTR_XP.str.throw, 'ball');
       const doll = this.app?.doll;
       const dummy = this.app?.dummy;
       const playNice = this.toyPlay?.id === 'pelucia' || !!this.app?.crow?.playing;
@@ -1116,7 +1116,7 @@ export class Pet {
         b.set(this.x + fwd * P * 0.25, this.y - P * 0.55);
         this.anim(this.pickClip(['pegar'], ['use_mainhand', 'idle']), { facing: fwd > 0 ? 'right' : 'left', restart: true });
         // Pegar a bola também treina a Força.
-        this.app?.game?.attrGain?.('str', ATTR_XP.str.catch);
+        this.app?.game?.attrGain?.('str', ATTR_XP.str.catch, 'ball');
         return;
       }
       if (chance(0.2)) {
@@ -2603,7 +2603,7 @@ export class Pet {
     }
     // Escalar a janela treina a Força aos poucos (o tempo lá em cima conta).
     if ((this.mode === 'wall' || this.mode === 'scale') && (this.action === 'climbUp' || this.action === 'climbDown')) {
-      this.app?.game?.attrGain?.('str', ATTR_XP.str.climb * dt);
+      this.app?.game?.attrGain?.('str', ATTR_XP.str.climb * dt, 'climb');
     }
     if (this.mode !== 'held') this.tilt *= Math.exp(-8 * dt);
     if (this.eating && this.action !== 'eat') this.finishEating();

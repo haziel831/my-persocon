@@ -18,6 +18,7 @@ import { Ball } from './ball.js';
 import { Speech } from './speech.js';
 import { applyFilter } from './filters.js';
 import { Fx } from './fx.js';
+import { XpLog } from './xplog.js';
 import { Doll } from './doll.js';
 import { Crow } from './crow.js';
 import { Skins } from './skins.js';
@@ -432,6 +433,7 @@ export async function startPet(files, config) {
   const fx = new Fx(app);
   app.fx = fx;
   app.gains = new Gains(app);
+  app.xpLog = new XpLog(app);
   const skins = new Skins(app);
   app.skins = skins;
   skins.load();
@@ -855,6 +857,7 @@ const toggleLogFilter = (cat) => {
   item('Filtro do log: moedas', config.logFilter?.money !== false, () => toggleLogFilter('money'));
   item('Filtro do log: corvo', config.logFilter?.crow !== false, () => toggleLogFilter('crow'));
   item('Chat log (o que ela fala)', config.chatLogOff !== true, () => { app.setOption('chatLogOff', config.chatLogOff !== true); dockT = 0; });
+  item('Registro de XP (o que ela treina)', config.xpLogOff !== true, () => { app.setOption('xpLogOff', config.xpLogOff !== true); dockT = 0; });
   item('✕ Fechar', undefined, () => app.setOption('statusDock', 'off'));
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
     document.body.append(el);
@@ -1051,6 +1054,7 @@ api.onTrayClick?.(() => {
         if (e.target.closest('.sd-hide') || appHidden) return setAppHidden(!appHidden);
         if (e.target.closest('.sd-log-toggle')) { app.setOption('logOff', !config.logOff); dockT = 0; return; }
         if (e.target.closest('.sd-chat-toggle')) { app.setOption('chatLogOff', !config.chatLogOff); dockT = 0; return; }
+        if (e.target.closest('.sd-xp-toggle')) { app.setOption('xpLogOff', !config.xpLogOff); dockT = 0; return; }
         app.openMenu();
       });
       dockEl.addEventListener('dblclick', (e) => {
@@ -1108,7 +1112,7 @@ api.onTrayClick?.(() => {
       + bar('❤️', Math.min(s.health, pet.maxHealth?.() ?? 100), '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock();
+      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock();
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
@@ -1202,6 +1206,16 @@ api.onTrayClick?.(() => {
     if (!open) return `<div class="sd-log sd-chat">${head}</div>`;
     const rows = (app.speechHistory || []).slice(-5).reverse().map((t) => `<div>${String(t).replace(/[<>&"]/g, '')}</div>`).join('') || `<div>${en ? 'She has not spoken yet' : 'Ela ainda não falou'}</div>`;
     return `<div class="sd-log sd-chat">${head}<div class="sd-log-rows">${rows}</div></div>`;
+  }
+  // The XP log right under the chat: what she is training right now and how much.
+  function xpLogBlock() {
+    const en = config.lang === 'en';
+    const open = config.xpLogOff !== true;
+    const tip = en ? 'Show or hide the XP log' : 'Mostrar ou ocultar o registro de XP';
+    const head = `<div class="sd-log-head"><b>⭐ XP</b><button class="sd-xp-toggle" type="button" title="${tip}" aria-label="${tip}">${open ? 'X' : '+'}</button></div>`;
+    if (!open) return `<div class="sd-log sd-xp">${head}</div>`;
+    const rows = (app.xpLog?.lines?.(5) || []).slice().reverse().map((t) => `<div>${String(t).replace(/[<>&"]/g, '')}</div>`).join('') || `<div>${en ? 'No XP yet' : 'Ainda sem XP'}</div>`;
+    return `<div class="sd-log sd-xp">${head}<div class="sd-log-rows">${rows}</div></div>`;
   }
 
   function updateOverlays(dt, head, hidden, calm) {

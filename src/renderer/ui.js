@@ -1038,7 +1038,7 @@ export class Menu {
       ? h('div.note', {}, `🎒 "Dar a ela" → bolsa dela (${game.herBag().length}/${game.bagCap()}, ícone na tela): comidas/bebidas e brinquedos portáteis (ioiô, bolas…). GameBuddy fica no desktop. Ela usa sozinha e guarda de novo.`)
       : (game.herBag().length ? h('div.note', {}, `🎒 Bolsa dela pausada (${game.herBag().length} item(ns) ainda guardados — menu rápido para devolver).`) : null);
     const known = new Set([...SHOP_CATEGORIES.map(([id]) => id), 'premios', 'especiais']);
-    const groups = [...SHOP_CATEGORIES, ['premios', '🎁', 'Prêmios'], ['especiais', '💎', 'Especiais'], ['outros', '✦', 'Outros']].map(([id, icon, label]) => {
+    const groups = [...SHOP_CATEGORIES, ['premios', '🎁', 'Prêmios'], ['especiais', '💎', 'Especial'], ['outros', '✦', 'Outros']].map(([id, icon, label]) => {
       const mine = (e) => (id === 'outros' ? !known.has(e.item.cat) : e.item.cat === id);
       return { id, icon, label, owned: owned.filter(mine), placed: placed.filter(mine) };
     }).filter((g) => g.owned.length || g.placed.length);
