@@ -12,6 +12,7 @@ A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 - **imagem/GIF/modelo 3D novo**, **tamanho**, **rotação livre**, **espelho**, **velocidade** e a **transparência** (assada no `bake()`, com *debounce* de ~140 ms);
 - o objeto real é desenhado a partir do **rascunho** do modal enquanto ele está aberto (o jogo nunca toca no objeto salvo antes do *Aplicar*).
 **Aplicar vs. desfazer.** O modal guarda uma cópia da aparência salva (`initialConfigSnapshot`) antes de abrir (e ao trocar de objeto na lista): *Aplicar* persiste o rascunho e limpa a cópia; *Fechar* ou o **X** descartam o rascunho e o objeto volta **exatamente** à aparência de antes — sem reescrever disco.
+**Correção: o Tamanho não mudava nada.** O motor do boneco de treino (`TrainingDummy.update()`) apagava **todos** os `scale()` do transform a cada quadro, destruindo o Tamanho ao vivo e o salvo; agora ele remove só o que é dele (giro em rad e squash de 2 argumentos) e preserva o `scale` de 1 argumento. Os objetos também passaram a crescer a partir do chão (`transform-origin: 50% 100%`).
 Detalhes em `ChangeLogs\v1.9.22.md`.
 
 ## v1.9.21 — 13/11/2026

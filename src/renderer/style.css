@@ -350,7 +350,8 @@ body.love-glitch { animation: love-shake 0.7s steps(7); }
 .countdown { font: 900 54px/1 PxEmoji, Consolas, monospace; color: #ffd34d; text-shadow: 3px 3px 0 #1d1a26, -2px -2px 0 #1d1a26; }
 .countdown.pop { animation: countPop 0.8s ease-out; }
 @keyframes countPop { from { transform-origin: center; scale: 1.8; opacity: 0.2; } 30% { scale: 1; opacity: 1; } }
-.toy { pointer-events: auto; cursor: pointer; z-index: 6; }
+/* O objeto cresce a partir do chão (o "Tamanho" do import escala do pé para cima). */
+.toy { pointer-events: auto; cursor: pointer; z-index: 6; transform-origin: 50% 100%; }
 .toy.dropped { pointer-events: none; animation: dropIn 0.4s ease-out; }
 @keyframes dropIn { from { opacity: 0; margin-top: -40px; } }
 .toy .mark { position: absolute; right: -6px; top: -6px; width: 16px !important; display: none; }

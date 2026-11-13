@@ -45,12 +45,21 @@ export class TrainingDummy {
 
   idle() {}
 
+  // Remove só o que é DESTE objeto (o giro em rad e o squash de 2 argumentos).
+  // O scale de 1 argumento (Tamanho do import/edição ao vivo) e o rotate em deg (Editar mobília) ficam.
+  stripOwn(t) {
+    return String(t || '')
+      .replace(/\s*rotate\([-\d.]+rad\)/g, '')
+      .replace(/\s*scale\(\s*[-\d.]+\s*,\s*[-\d.]+\s*\)/g, '')
+      .trim();
+  }
+
   update(dt) {
     if (!this.active) {
       this.tilt = this.w = this.flash = this.punch = 0;
       const el = this.app.toys.els.get('boneco_treino');
       if (el) {
-        el.style.transform = el.style.transform.replace(/rotate\([^)]*\)/g, '').replace(/scale\([^)]*\)/g, '').trim();
+        el.style.transform = this.stripOwn(el.style.transform);
         el.style.filter = '';
       }
       return;
@@ -66,7 +75,7 @@ export class TrainingDummy {
     if (!el) return;
     // Fixed point = bottom of the stand on the floor; top sways sideways.
     el.style.transformOrigin = '50% 100%';
-    const base = el.style.transform.replace(/rotate\([^)]*\)/g, '').replace(/scale\([^)]*\)/g, '').trim();
+    const base = this.stripOwn(el.style.transform);
     // Squash from the base (pin compresses on impact, doesn't lift the feet).
     const s = 1 + this.punch * 0.12;
     const sy = 1 / Math.max(0.82, s);
