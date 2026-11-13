@@ -219,6 +219,8 @@ const EN = {
   'Importando…': 'Importing…', 'Bolsa de cartuchos': 'Cartridge bag', 'Mochila de comida': 'Food backpack', 'Imagem do objeto': 'Object image',
   'Imagem': 'Image', 'Modelo 3D do objeto': "Object's 3D model", 'Renderizando modelo 3D…': 'Rendering 3D model…', 'Rotação': 'Rotation',
   'Inclinação': 'Tilt', 'Espelhar': 'Mirror', 'Arraste sobre a imagem para marcar onde fica a tela da TV.': "Drag over the image to mark where the TV's screen is.",
+  'Rotação livre': 'Free rotation', 'Cor de transparência': 'Transparency color',
+  'Tolerância': 'Tolerance', 'Clique na prévia para pegar a cor de um pixel.': 'Click the preview to pick the color of a pixel.',
   '🖼 Imagem / GIF': '🖼 Image / GIF', '🧊 Modelo 3D': '🧊 3D model', '↺ Restaurar padrão': '↺ Restore default', 'Fechar': 'Close', 'Aplicar': 'Apply',
   'Janelas, itens, sons, músicas e mobília': 'Windows, items, sounds, music and furniture', 'Remover': 'Remove',
   'Com resourcepack, a mochila de comida vira um barril e a bolsa de cartuchos vira um baú. Temas e visuais por objeto continuam tendo prioridade.': 'With a resourcepack, the food backpack becomes a barrel and the cartridge bag a chest. Themes and per-object looks still take priority.',

@@ -2174,21 +2174,47 @@ class Dialog {
 
 const OBJ_EXTRA = [['bag', 'Bolsa de cartuchos', 'bag'], ['food', 'Inventário', 'backpack']];
 
-async function bake(frames, rot, flip) {
-  if (!rot && !flip) return frames;
+// '#rrggbb' (ou #rgb) em [r, g, b].
+function hexToRgb(hex) {
+  const h = String(hex || '').replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const n = parseInt(full, 16) || 0;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// Assa os quadros: rotação, espelhamento, tamanho e a cor que vira transparente.
+export async function bake(frames, rot, flip, scale = 1, transparent = null) {
+  const s = Math.max(0.1, scale || 1);
+  const key = transparent?.on ? transparent.color : null;
+  const tol = transparent?.tolerance ?? 48;
+  if (!rot && !flip && s === 1 && !key) return frames;
   const out = [];
   for (const src of frames) {
     const img = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
-    const c = document.createElement('canvas');
+    const iw = img.naturalWidth || img.width || 1;
+    const ih = img.naturalHeight || img.height || 1;
     const side = rot % 180 !== 0;
-    c.width = side ? img.height : img.width;
-    c.height = side ? img.width : img.height;
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round((side ? ih : iw) * s));
+    c.height = Math.max(1, Math.round((side ? iw : ih) * s));
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     g.translate(c.width / 2, c.height / 2);
     g.rotate((rot * Math.PI) / 180);
     if (flip) g.scale(-1, 1);
-    g.drawImage(img, -img.width / 2, -img.height / 2);
+    g.scale(s, s);
+    g.drawImage(img, -iw / 2, -ih / 2);
+    // A cor escolhida fica transparente (com a tolerância ao redor).
+    if (key) {
+      const [tr, tg, tb] = hexToRgb(key);
+      const d = g.getImageData(0, 0, c.width, c.height);
+      const px = d.data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 8) continue;
+        if (Math.abs(px[i] - tr) <= tol && Math.abs(px[i + 1] - tg) <= tol && Math.abs(px[i + 2] - tb) <= tol) px[i + 3] = 0;
+      }
+      g.putImageData(d, 0, 0);
+    }
     out.push(c.toDataURL('image/png'));
   }
   return out;
@@ -2219,7 +2245,7 @@ export class ObjectsDialog extends Dialog {
     const data = await window.petAPI.readFileData(path);
     const { decodeAnimated } = await import('./skins.js');
     const anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data).catch(() => null) : null;
-    this.draft = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100], rot: 0, flip: false, speed: 1 };
+    this.draft = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100], rot: 0, flip: false, speed: 1, scale: 1, transparent: { color: '#ff00ff', on: false, tolerance: 48 } };
     this.render();
   }
 
@@ -2264,12 +2290,62 @@ export class ObjectsDialog extends Dialog {
       if (region) await this.app.skins.setObject(id, { ...old, region });
       return this.close();
     }
-    const frames = d.kind === '3d' ? d.src : await bake(d.src, d.rot, d.flip);
+    const frames = d.kind === '3d' ? d.src : await bake(d.src, d.rot, d.flip, d.scale, d.transparent);
     const first = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = frames[0]; });
     await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region });
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
     this.draft = null;
     this.render();
+  }
+
+  // Atualiza só a prévia (sem redesenhar o diálogo inteiro).
+  updatePreview() {
+    const img = this.previewImg;
+    const d = this.draft;
+    if (!img || !d) return;
+    img.style.transform = `rotate(${d.rot}deg)${d.flip ? ' scaleX(-1)' : ''} scale(${d.scale || 1})`;
+  }
+
+  // Clicar na prévia: a cor do pixel vira a cor de transparência.
+  pickColor(e, d) {
+    const img = this.previewImg;
+    if (!img?.naturalWidth) return;
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    // O clique vem na tela: desfaz a rotação e o tamanho para achar o pixel.
+    const r = img.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const s = d.scale || 1;
+    const dx = (e.clientX - cx) / s;
+    const dy = (e.clientY - cy) / s;
+    const a = (-d.rot * Math.PI) / 180;
+    const lx = dx * Math.cos(a) - dy * Math.sin(a) + c.width / 2;
+    const ly = dx * Math.sin(a) + dy * Math.cos(a) + c.height / 2;
+    const x = Math.round(lx);
+    const y = Math.round(ly);
+    if (x < 0 || y < 0 || x >= c.width || y >= c.height) return;
+    const p = g.getImageData(x, y, 1, 1).data;
+    const hex = `#${[p[0], p[1], p[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    const t = d.transparent || (d.transparent = { color: hex, on: true, tolerance: 48 });
+    t.color = hex;
+    t.on = true;
+    this.render();
+  }
+
+  // A cor de transparência: qual cor some da imagem importada.
+  colorControl(d) {
+    const t = d.transparent || (d.transparent = { color: '#ff00ff', on: false, tolerance: 48 });
+    const input = h('input', { type: 'color', value: t.color, oninput: (e) => { t.color = e.target.value; } });
+    return h('div.obj-color', {},
+      h('div.row', {}, h('span.label', {}, 'Cor de transparência'), input,
+        h('label.row.toggle', {}, h('span.label', {}, 'Remover'),
+          h('input', { type: 'checkbox', checked: !!t.on, onchange: (e) => { t.on = e.target.checked; } }), h('span.switch'))),
+      slider({ label: 'Tolerância', min: 0, max: 120, step: 4, value: t.tolerance ?? 48, format: (v) => `${v}`, oninput: (v) => { t.tolerance = v; } }),
+      h('small.muted', {}, 'Clique na prévia para pegar a cor de um pixel.'));
   }
 
   render() {
@@ -2280,7 +2356,16 @@ export class ObjectsDialog extends Dialog {
       onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.render(); },
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
     const shown = d ? d.src[0] : this.current(id);
-    const img = h('img.obj-preview', { src: shown || '', draggable: false, style: d && d.kind !== '3d' ? { transform: `rotate(${d.rot}deg)${d.flip ? ' scaleX(-1)' : ''}` } : {} });
+    const img = h('img.obj-preview', {
+      src: shown || '', draggable: false,
+      style: d && d.kind !== '3d' ? { transform: `rotate(${d.rot}deg)${d.flip ? ' scaleX(-1)' : ''} scale(${d.scale || 1})` } : {},
+    });
+    this.previewImg = img;
+    // Clicar na prévia: pega a cor do pixel (é a cor que vira transparente).
+    if (d && d.kind !== '3d') {
+      img.addEventListener('click', (e) => this.pickColor(e, d));
+      img.style.cursor = 'crosshair';
+    }
     if (d && d.src.length > 1) {
       let i = 0;
       const tick = () => {
@@ -2324,7 +2409,10 @@ export class ObjectsDialog extends Dialog {
     } else if (d) {
       controls.push(
         h('div.row', {}, h('span.label', {}, 'Rotação'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); })),
-        toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); } }));
+        slider({ label: 'Rotação livre', min: 0, max: 360, step: 1, value: d.rot, format: (v) => `${v}°`, oninput: (v) => { d.rot = v; this.updatePreview(); }, onchange: () => this.render() }),
+        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.updatePreview(); }, onchange: () => this.render() }),
+        toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); } }),
+        this.colorControl(d));
     }
     if (d && d.src.length > 1) controls.push(slider({ label: 'Velocidade', min: 0.25, max: 3, step: 0.25, value: d.speed, format: (v) => `${v}×`, oninput: (v) => (d.speed = v) }));
     const has = !!app.skins?.objects[id];
