@@ -1641,8 +1641,9 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
 
 /* O modal de lore nefasto (cartucho preto / cristal negro). */
 .lore-overlay {
-  position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center;
+  position: fixed; inset: 0; z-index: 99999; display: grid; place-items: center;
   background: #000; animation: lore-fade-in 0.7s ease both;
+  pointer-events: auto; cursor: pointer;
 }
 @keyframes lore-fade-in { from { opacity: 0; } }
 .lore-box {
@@ -1651,6 +1652,7 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
   box-shadow: 0 0 32px rgba(255, 30, 45, 0.55), 0 0 80px rgba(255, 30, 45, 0.3), inset 0 0 40px rgba(255, 30, 45, 0.18);
   animation: lore-pulse 1.05s ease-in-out infinite;
   overflow: hidden;
+  pointer-events: auto; cursor: pointer;
 }
 @keyframes lore-pulse {
   0%, 100% { box-shadow: 0 0 26px rgba(255, 30, 45, 0.5), 0 0 60px rgba(255, 30, 45, 0.22), inset 0 0 30px rgba(255, 30, 45, 0.15); }
@@ -1660,6 +1662,7 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
   content: ""; position: absolute; left: -10%; right: -10%; height: 9px;
   background: rgba(255, 30, 45, 0.16); mix-blend-mode: screen;
   animation: lore-slice 2.6s steps(2, jump-none) infinite;
+  pointer-events: none;
 }
 .lore-box::before { top: 22%; animation-delay: 0.8s; }
 .lore-box::after { top: 63%; }
@@ -1669,15 +1672,18 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
   96% { transform: translateX(26px); opacity: 1; }
   98% { transform: translateX(-12px); opacity: 1; }
 }
-.lore-glyph { position: relative; font-size: 72px; line-height: 1; margin: 4px auto 18px; width: 84px; height: 84px; display: grid; place-items: center; animation: lore-glyph-pulse 1.3s ease-in-out infinite; }
-.lore-glyph img { width: 84px; height: 84px; image-rendering: pixelated; object-fit: contain; filter: drop-shadow(0 0 18px rgba(255, 30, 45, 0.8)); }
+.lore-glyph { position: relative; font-size: 72px; line-height: 1; margin: 4px auto 18px; width: 84px; height: 84px; display: grid; place-items: center; animation: lore-glyph-pulse 1.3s ease-in-out infinite; pointer-events: none; }
+.lore-glyph img { width: 84px; height: 84px; image-rendering: pixelated; object-fit: contain; filter: drop-shadow(0 0 18px rgba(255, 30, 45, 0.8)); pointer-events: none; }
 @keyframes lore-glyph-pulse { 0%, 100% { transform: scale(1) rotate(-1.2deg); } 50% { transform: scale(1.09) rotate(1.2deg); } }
 .lore-text {
   position: relative; min-height: 3.2em; margin: 0; white-space: pre-wrap;
   font: bold 15px/1.55 PxEmoji, Consolas, monospace; color: #ff3b4a; letter-spacing: 1px;
   text-shadow: 0 0 6px rgba(255, 30, 45, 0.9), 0 0 20px rgba(255, 30, 45, 0.5);
+  pointer-events: none;
 }
-.lore-hint { margin-top: 16px; font: 10px PxEmoji, Consolas, monospace; color: #7a1f26; letter-spacing: 2px; animation: warn-blink 1.2s steps(2, jump-none) infinite; }
+.lore-hint { margin-top: 16px; font: 10px PxEmoji, Consolas, monospace; color: #7a1f26; letter-spacing: 2px; animation: warn-blink 1.2s steps(2, jump-none) infinite; pointer-events: none; }
+.lore-hint.ready { color: #ff3b4a; text-shadow: 0 0 8px rgba(255, 30, 45, 0.85); animation: lore-hint-blink 0.85s steps(2, jump-none) infinite; }
+@keyframes lore-hint-blink { 0%, 40%, 100% { opacity: 1; } 50%, 90% { opacity: 0.25; } }
 
 /* O perfil do Corvo em duas colunas (Habilidades | Combate). */
 .crow-cols { display: flex; gap: 8px; align-items: flex-start; }

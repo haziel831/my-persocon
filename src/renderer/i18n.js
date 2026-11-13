@@ -221,7 +221,7 @@ const EN = {
   'Inclinação': 'Tilt', 'Espelhar': 'Mirror', 'Arraste sobre a imagem para marcar onde fica a tela da TV.': "Drag over the image to mark where the TV's screen is.",
   'Rotação livre': 'Free rotation', 'Cor de transparência': 'Transparency color',
   'Tolerância': 'Tolerance', 'Clique na prévia para pegar a cor de um pixel.': 'Click the preview to pick the color of a pixel.',
-  'Marcar hitbox': 'Mark hitbox', 'Limpar hitbox': 'Clear hitbox',
+  'Marcar hitbox': 'Mark hitbox', 'Limpar hitbox': 'Clear hitbox', '[ Clique para revelar ▼ ]': '[ Click to reveal ▼ ]', '[ Clique para fechar ▼ ]': '[ Click to close ▼ ]',
   'O hitbox é a parte da imagem que responde ao clique (o resto deixa passar).':
     'The hitbox is the part of the image that answers the click (the rest lets it through).',
   '🖼 Imagem / GIF': '🖼 Image / GIF', '🧊 Modelo 3D': '🧊 3D model', '↺ Restaurar padrão': '↺ Restore default', 'Fechar': 'Close', 'Aplicar': 'Apply',

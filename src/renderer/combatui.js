@@ -36,6 +36,7 @@ export class CombatUI {
     this.ringEl = null;
     this.foeEls = new Map();   // id → el da barra de vida pequena
     this.winEl = null;
+    this.modalOpen = false;    // o modal de lore está na tela (o app.uiOpen precisa saber)
   }
 
   // ---------- a fila de turnos ----------
@@ -213,6 +214,9 @@ export class CombatUI {
       // Pausa toda a música e abaixa o mix para deixar o drone tomar conta.
       sound?.pauseMusic?.();
       if (ctx && sound?.master) sound.master.gain.setTargetAtTime(Math.min(wasMaster ?? 1, 0.06), ctx.currentTime, 0.35);
+      // O modal entra no uiOpen do app: a janela deixa de ser click-through e recebe o clique.
+      this.modalOpen = true;
+      this.app.uiChanged?.();
       const overlay = document.createElement('div');
       overlay.className = 'lore-overlay';
       const box = document.createElement('div');
@@ -224,15 +228,17 @@ export class CombatUI {
       img.src = kind === 'crystal'
         ? new URL('./assets/items/black_crystal.png', import.meta.url).href
         : cartridge('#000000', 'unknown', 'gb');
+      img.alt = kind === 'crystal' ? 'Cristal Negro' : 'Cartucho Preto';
       glyph.append(img);
       const text = kind === 'crystal'
         ? ' Esta estranha substancia pulsa com uma energia ruim . . . '
         : 'Este cartucho emite uma aura sombria . . .';
       const p = document.createElement('p');
       p.className = 'lore-text';
+      p.setAttribute('aria-live', 'polite');
       const hint = document.createElement('div');
       hint.className = 'lore-hint';
-      hint.textContent = '— clique para prosseguir —';
+      hint.textContent = '[ Clique para revelar ▼ ]';
       box.append(glyph, p, hint);
       overlay.append(box);
       document.body.append(overlay);
@@ -284,28 +290,63 @@ export class CombatUI {
           } catch {}
         }
       };
-      // O texto em máquina de escrever.
+      // O texto em máquina de escrever (com máquina de estados bem firme).
       let shown = 0;
-      let typing = true;
+      let isTypingComplete = false;
       let interval = null;
+      const render = () => { p.textContent = text.slice(0, shown); };
+      const finishTyping = () => {
+        if (isTypingComplete) return;
+        isTypingComplete = true;
+        clearInterval(interval);
+        interval = null;
+        p.textContent = text;
+        hint.textContent = '[ Clique para fechar ▼ ]';
+        hint.classList.add('ready');
+      };
       const tick = () => {
-        shown += 1;
-        p.textContent = text.slice(0, shown);
-        if (shown >= text.length) { typing = false; clearInterval(interval); p.textContent = text; }
+        shown = Math.min(text.length, shown + 1);
+        render();
+        if (shown >= text.length) finishTyping();
       };
       interval = setInterval(tick, 46);
-      const finish = () => {
-        typing = false;
+      // Fechar: encerra o drone, devolve o áudio normal e some com a janela.
+      const close = () => {
+        if (close.done) return;
+        close.done = true;
         clearInterval(interval);
-        p.textContent = text;
-      };
-      overlay.addEventListener('pointerdown', () => {
-        if (typing) { finish(); return; }
+        interval = null;
         stopDrone();
         overlay.remove();
+        window.removeEventListener('keydown', onKey, true);
         if (!wasMusicPaused) sound?.resumeMusic?.();
         if (ctx && sound?.master && wasMaster != null) sound.master.gain.setTargetAtTime(wasMaster, ctx.currentTime, 0.4);
+        this.modalOpen = false;
+        this.app.uiChanged?.();
         resolve();
+      };
+      const advance = () => {
+        if (!isTypingComplete) finishTyping();
+        else close();
+      };
+      const onKey = (e) => {
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          advance();
+        }
+      };
+      window.addEventListener('keydown', onKey, true);
+      // O clique vale tanto no box quanto no fundo inteiro da tela.
+      overlay.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        advance();
+      });
+      box.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        advance();
       });
     });
   }

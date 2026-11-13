@@ -1503,7 +1503,7 @@ api.onTrayClick?.(() => {
   let press = null;
   let suppressContext = false;
 
-  const uiOpen = () => (menu.open && !config.menuPinned) || quick.open || !!dockMenuEl || dockMoving || bagDockMoving || importDialog.open || !!app.gameOver || !!toys.popup || !!toys.menuEl || !!toys.shelfPopup || !!app.marking || !!app.dialog || !!toys.editing || !!minigames.active || !!minigames.guide || !!doll.brain.betEl;
+  const uiOpen = () => (menu.open && !config.menuPinned) || quick.open || !!dockMenuEl || dockMoving || bagDockMoving || importDialog.open || !!app.gameOver || !!toys.popup || !!toys.menuEl || !!toys.shelfPopup || !!app.marking || !!app.dialog || !!toys.editing || !!minigames.active || !!minigames.guide || !!doll.brain.betEl || !!app.combatUI?.modalOpen;
 
   app.uiOpen = uiOpen;
   startTips(app, () => uiOpen() || !!menu.open || !!pet.toyPlay || pet.mode === 'held');
