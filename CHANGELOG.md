@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.19 — 13/11/2026
+**Log de XP no canto da tela.** Uma caixinha **logo abaixo do Chat** no dock mostra, em tempo real, o que a Persocon está treinando: `+12 XP em Combate Corpo a Corpo`, `+4 XP em Força (Treino Pesado)`, `+8 XP em Constituição`. Tem **botão de recolher** (e uma opção no menu do dock).
+**Cristal Negro garantido.** Se ela derrubar o Unknown, o **1× Cristal Negro** é dela **sempre** — a vitória agora é conferida **antes** da parada de segurança (ela não perde mais o drop por estar com a vida baixa) — e o **save é escrito na hora**, para o cristal não se perder. O item é **invendível** (`unsellable`/`canSell: false`, e o `isSellable` respeita a flag) e mora na aba **Especial** do Inventário, **sem botão de vender**.
+**Banner fixo de combate.** As falas do combate não voam mais soltas por cima dos personagens: agora se empilham numa **caixinha fixa acima das cabeças** (verde `#22c55e` para as ações dela, vermelho `#ef4444` para as do inimigo). Os **números de dano** também sobem acima da cabeça de quem levou, sem cortar no corpo.
+**Carga azul antes do golpe.** Todo golpe ativo e toda manobra especial passaram a ter duas etapas: **1) a carga** (~450 ms; ~550 ms na manobra) — ela brilha em **azul** (`#3b82f6`/`#00d2ff`), as partículas de energia sobem em volta do corpo e o som sobe de tom; **2) a execução** — só então a animação do golpe toca e o VFX de impacto explode no ponto certo.
+Detalhes em `ChangeLogs\v1.9.19.md`.
+
 ## v1.9.18 — 12/11/2026
 **A Força e a Constituição agora se treinam.** Antes, a Força só subia no Treino Pesado e a Constituição só com o gasto de energia. Agora cada atividade treina do seu jeito:
 

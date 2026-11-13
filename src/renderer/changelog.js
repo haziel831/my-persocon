@@ -1,6 +1,15 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.19', [
+    ['Novo log de XP no canto da tela, logo abaixo do Chat: mostra em tempo real o que ela está treinando (+12 XP em Combate Corpo a Corpo, +4 XP em Força (Treino Pesado), +8 XP em Constituição)', 'New XP log in the screen corner, right below the Chat: it shows in real time what she is training (+12 XP in Unarmed Melee, +4 XP in Strength (Heavy Training), +8 XP in Constitution)'],
+    ['O log tem um botão para recolher (e uma opção no menu do dock): some da tela quando você não quer ver', 'The log has a button to collapse it (and an option in the dock menu): it gets out of the way when you do not want to see it'],
+    ['O drop do Cristal Negro agora é garantido: se ela derrubar o Unknown, o cristal é dela mesmo com a vida baixa — e o save é escrito na hora', 'The Black Crystal drop is now guaranteed: if she takes the Unknown down, the crystal is hers even with low Health — and the save is written right away'],
+    ['O Cristal Negro é invendível e descartável: fica na aba Especial do Inventário, sem botão de vender', 'The Black Crystal cannot be sold or discarded: it stays in the Special tab of the Inventory, with no sell button'],
+    ['As falas do combate agora ficam numa caixinha fixa acima das cabeças (verde para ela, vermelho para o inimigo): nada mais passa por cima dos personagens', 'The combat lines now sit in a fixed box above the heads (green for her, red for the enemy): nothing floats over the characters anymore'],
+    ['Os números de dano sobem acima da cabeça de quem levou o golpe', 'The damage numbers pop above the head of whoever took the hit'],
+    ['Antes de cada golpe ativo e de cada manobra especial, ela carrega: brilha em azul, as partículas de energia sobem e o som sobe de tom — o golpe só sai depois da carga', 'Before every active strike and every special maneuver, she charges: she glows blue, the energy particles rise and the sound pitches up — the strike only comes after the charge'],
+  ]],
   ['1.9.18', [
     ['A Força e a Constituição agora têm métodos de treino: escalar as janelas, arremessar a Bola de Queimada e acertar golpes no Boneco de Treino treinam a Força', 'Strength and Constitution now have training methods: climbing the windows, throwing the Dodgeball and landing hits on the Training Dummy train Strength'],
     ['No Treino Pesado (e na luta contra o Unknown) cada golpe acertado treina a Força bem mais, e terminar a sessão dá um bônus de Força', 'In the Heavy Training (and in the fight against the Unknown) every landed hit trains Strength a lot more, and finishing the session gives a Strength bonus'],
