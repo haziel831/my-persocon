@@ -1749,3 +1749,9 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
 /* A vignette escura que cobre a tela inteira enquanto o banner de DERROTA está no ar. */
 .defeat-vignette { position: fixed; inset: 0; z-index: 9995; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 45%, rgba(10,0,0,0.55) 75%, rgba(0,0,0,0.85) 100%); animation: defeat-vignette-in 0.9s ease both; }
 @keyframes defeat-vignette-in { from { opacity: 0; } }
+/* Pixel art importado: máquinas (assets/alts) e as conquistas (assets/achievements/). */
+.toy img[src*="assets/alts/"] { image-rendering: pixelated; }
+.ach-ico img, .ach-trophy img, .ach img { image-rendering: pixelated; object-fit: contain; }
+.ach-ico img { width: 26px; height: 26px; image-rendering: pixelated; vertical-align: middle; }
+.ach-trophy img { width: 44px; height: 44px; image-rendering: pixelated; }
+.ach-pop.small .ach-trophy img { width: 32px; height: 32px; }

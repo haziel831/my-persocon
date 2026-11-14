@@ -8,7 +8,7 @@ import { RARITIES } from './lootitems.js';
 import { dollReact } from './watch.js';
 import {
   GACHA_PRICE, GACHA_ORDER, rollGacha, luckOf, FIGURES, figureById, SLOT_SYMBOLS, SLOT_STRIPS, rollSlot, slotPayout,
-  gachaFrame, slotFrame, capsuleIcon, SLOT_WINDOW, SLOT_TRAY, SLOT_COIN, GACHA_CHUTE, STYLES, pickStyle,
+  capsuleIcon, SLOT_WINDOW, SLOT_TRAY, SLOT_COIN, GACHA_CHUTE, STYLES, pickStyle,
 } from './casinoitems.js';
 import { Vending } from './vending.js';
 
@@ -117,12 +117,12 @@ export class Casino {
     return t.x + (this.app.pet.x < t.x ? -1 : 1) * this.P * 0.42;
   }
 
+  // As máquinas usam o pixel art novo (alts/): PNG parado, GIF animado enquanto ela opera.
   art(id) {
     if (this.vend.owns(id)) return this.vend.art(id);
-    const m = this.m[id];
     const up = !!this.app.game.toys[id]?.up;
-    if (id === 'gacha') return gachaFrame(m.knob, m.shake, m.lit % 2, m.glow, m.chute, up);
-    return slotFrame(m.lever, m.mode === 'spin' ? m.lit % (up ? 5 : 3) : m.mode === 'off' ? 0 : m.lit % 2, m.mode, up);
+    const working = this.cur?.id === id;
+    return `assets/alts/${id}_alt${up ? 2 : 1}.${working ? 'gif' : 'png'}`;
   }
 
   // Screen point of a spot of the machine's picture (fractions), following its mirroring.

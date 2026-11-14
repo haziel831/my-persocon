@@ -212,6 +212,35 @@ const ACHIEVEMENTS = [
   ['arcade10', '🔫', 'Atiradora de Elite', 'Ela jogar 10 partidas no Arcade de Tiro', (a) => ev(a, 'arcadePlay'), 10, 'caixa_rara'],
 ].map(([id, emoji, name, desc, value, goal, box]) => ({ id, emoji, name, desc, value, goal, box }));
 
+// ---------- ícones GTORAVERSE 32x32 (assets/achievements/) ----------
+// Tema + tier: caixa_comum → Bronze, caixa_rara → Silver, caixa_lendaria → Gold (Gift boxes e Diamonds são fixos).
+const ACH_ICONS = {
+  carinho1: 'Bronze-Heart', carinho50: 'Silver-Heart', carinho300: 'Gold-Heart',
+  comilona: 'Bronze-Medal', gourmet: 'Silver-Medal', paladar: 'Silver-Star',
+  pegapega: 'Bronze-Star', fuga: 'Silver-Pin', gamer: 'Bronze-Trophy', proplayer: 'Silver-Trophy',
+  colecao: 'Silver-Pin', otaku: 'Silver-Medal',
+  mini5: 'Bronze-Star', mini25: 'Silver-Medal', mininv5: 'Silver-Pin', mininv10: 'Gold-Trophy', minibonus: 'Bronze-Coin',
+  afeto100: 'Bronze-Heart', afeto400: 'Silver-Heart', afeto1000: 'Gold-Heart', todosmini: 'Gold-Crown',
+  moedas1k: 'Bronze-Coin', moedas10k: 'Silver-Coin',
+  pedidos: 'Silver-Star', caixas10: 'Gift-Box-Red', lendario: 'Diamond-Crystal',
+  missoes: 'Silver-Star', semana: 'Silver-Pin', mes: 'Gold-Trophy',
+  compras: 'Bronze-Star', mesada: 'Bronze-Coin',
+  gacha10: 'Bronze-Star', epico: 'Diamond', bonecos8: 'Silver-Pin', bonecos16: 'Gold-Crown',
+  trinca: 'Silver-Medal', jackpot: 'Gold-Coin', gacha50: 'Silver-Star', slot50: 'Bronze-Medal',
+  vend10: 'Bronze-Pin', vend50: 'Silver-Pin', vend7777: 'Diamond-Crystal',
+  favoritas: 'Silver-Heart', paladar40: 'Gold-Medal',
+  ioio5: 'Bronze-Star', ioio10: 'Silver-Medal', bambole40: 'Silver-Medal', cubo40: 'Silver-Medal',
+  album: 'Silver-Pin', aquario: 'Bronze-Star', tama: 'Silver-Heart',
+  skate: 'Bronze-Star', manobra: 'Silver-Medal', pulapula: 'Silver-Star',
+  diversao: 'Gold-Crown',
+  doll10: 'Silver-Heart', dollwin: 'Bronze-Trophy', bolada: 'Gold-Coin',
+  corvo: 'Gift-Box-Green', corvoaula: 'Bronze-Pin', corvogenio: 'Gold-Crown', corvotreino: 'Silver-Medal', corvopresente: 'Gift-Box-Blue',
+  corvobrilho: 'Diamond', corvotruque: 'Silver-Medal', corvodoll: 'Silver-Heart', corvomoveis: 'Silver-Pin', corvocabeca: 'Bronze-Pin',
+  upgrade1: 'Bronze-Medal', upgrade5: 'Silver-Medal', upgradeall: 'Gold-Crown',
+  bonecosneon: 'Gold-Crown', dj: 'Silver-Medal', arcade10: 'Silver-Medal',
+};
+const achIcon = (a) => `assets/achievements/Achievement-Pack-32x32_${ACH_ICONS[a.id] || (a.box === 'caixa_lendaria' ? 'Gold-Star' : a.box === 'caixa_rara' ? 'Silver-Star' : 'Bronze-Star')}.png`;
+
 // ---------- daily missions ----------
 
 const MISSIONS = {
@@ -652,7 +681,7 @@ export class Rewards {
       if (got[a.id] || (a.value(this.app) || 0) < a.goal) continue;
       got[a.id] = Date.now();
       this.app.game.inventory[a.box] = this.app.game.count(a.box) + 1;
-      this.celebrate({ kind: 'ach', emoji: a.emoji, title: 'CONQUISTA DESBLOQUEADA', name: a.name, desc: a.desc, box: a.box });
+      this.celebrate({ kind: 'ach', icon: achIcon(a), title: 'CONQUISTA DESBLOQUEADA', name: a.name, desc: a.desc, box: a.box });
       any = true;
     }
     const first = !p.mgSeen;
@@ -668,7 +697,7 @@ export class Rewards {
 
   achievements() {
     const got = this.profile.achievements || {};
-    return ACHIEVEMENTS.map((a) => ({ ...a, done: !!got[a.id], at: got[a.id], n: Math.min(a.goal, Math.floor(a.value(this.app) || 0)) }));
+    return ACHIEVEMENTS.map((a) => ({ ...a, icon: achIcon(a), done: !!got[a.id], at: got[a.id], n: Math.min(a.goal, Math.floor(a.value(this.app) || 0)) }));
   }
 
   // ---------- missions ----------
@@ -741,7 +770,7 @@ export class Rewards {
     const box = c.box && itemById(c.box);
     const pop = el(`ach-pop ${big ? 'big' : 'small'}`, document.body, `
       ${big ? '<div class="ach-rays"></div>' : ''}
-      <div class="ach-trophy"><span>${c.emoji}</span></div>
+      <div class="ach-trophy">${c.icon ? `<img src="${c.icon}" alt="">` : `<span>${c.emoji}</span>`}</div>
       <div class="ach-text">
         <div class="ach-title">${c.title}</div>
         <div class="ach-name">${c.name}</div>

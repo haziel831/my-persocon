@@ -719,7 +719,7 @@ export class Menu {
       ].filter(Boolean);
     }
     return [tabs, h('div.achs', {}, r.achievements().map((a) => h(`div.ach${a.done ? '.done' : ''}`, { title: a.done ? `Conquistada em ${new Date(a.at).toLocaleDateString()}` : '' },
-      h('span.ach-ico', {}, a.emoji),
+      h('span.ach-ico', {}, h('img', { src: a.icon, draggable: 'false', alt: '' })),
       h('div.quest-body', {}, h('b', {}, a.name), h('small', {}, a.desc), a.done ? null : bar(a.n, a.goal), a.done ? null : h('small', {}, `${a.n} / ${a.goal}`)),
       boxImg(a.box))))];
   }
