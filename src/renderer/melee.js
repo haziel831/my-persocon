@@ -187,6 +187,7 @@ export class Melee {
     this.crowFight = false;  // o Corvo entrou na luta
     this.xpGained = 0;       // XP de combate ganho na luta (para o resumo)
     this.attrGained = { str: 0, con: 0, agi: 0 };
+    this.fightStats = { strikes: 0, hits: 0, damage: 0 };
     this.blockBoost = 0;     // bônus temporário de bloqueio (Grito de Alerta)
     this.dodgeBoost = 0;     // bônus temporário de desvio (Grito de Alerta)
     this.itemPopT = 0;       // o ícone do item fica acima dela por um instante
@@ -324,6 +325,20 @@ export class Melee {
     if (!opp || opp.hp <= 0) return;
     opp.hp = Math.max(0, opp.hp - dmg);
     this.hits++;
+    this.fightStats.damage += dmg;
+    // Glitch Surge (ondas 5+): gosma estoura ao morrer — abalo + dano em área (nunca derruba ela).
+    if (this.kind === 'unknown' && opp.unknown && opp.hp === 0 && (this.wave ?? 1) >= 5) {
+      try {
+        this.app.fx?.explosion?.('fire', this.oppX(), this.oppY() - 10, 1.35);
+        this.app.fx?.shake?.(0.8);
+        this.app.sound?.play?.('explode', { volume: 0.4 });
+        const surge = 4 + (this.wave ?? 5);
+        const pet = this.pet;
+        const safe = Math.min(surge, Math.max(0, Math.floor((pet.stats?.health ?? 1)) - 1));
+        if (safe > 0) pet.adjust?.({ health: -safe });
+        this.say(pet.x, pet.y - pet.P * 1.5, 'Glitch Surge!', 'bad');
+      } catch { /* suprimentos visuais */ }
+    }
     // O flash vermelho no alvo (e a animação de machucado) — com proteção total.
     const foe = opp.enemy;
     if (foe) {
@@ -377,6 +392,7 @@ export class Melee {
     if (this.attrGained.agi > 0) lines.push(['Agilidade', this.attrGained.agi]);
     if (this.attrGained.con > 0) lines.push(['Constituição', this.attrGained.con]);
     this.ui?.victoryBanner(lines);
+    this.ui?.fightSummary?.({ ...this.fightStats, xp: this.game?._xpFight || {} });
   }
 
   // The energy a strike costs: the better she is, the less it costs.
@@ -407,6 +423,9 @@ export class Melee {
     this.crowFight = false;
     this.xpGained = 0;
     this.attrGained = { str: 0, con: 0, agi: 0 };
+    this.fightStats = { strikes: 0, hits: 0, damage: 0 };
+    // Ledger de XP da luta (para o resumo pós-batalha).
+    if (this.game) this.game._xpFight = {};
     this.blockBoost = 0;
     this.dodgeBoost = 0;
     this.hitStop = 0;
@@ -463,6 +482,7 @@ export class Melee {
     this.music?.stop();
     this.music = null;
     this.app.sound?.resumeMusic?.();
+    if (this.game) this.game._xpFight = null;
     this.removeHpBar();
     this.removeDizzy();
     this.removeFuryAura();
@@ -489,6 +509,7 @@ export class Melee {
     this.opp = { hp: 100, max: 100, level: 1, defense: 0.22, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     this.xpGained = 0;
     this.attrGained = { str: 0, con: 0, agi: 0 };
+    this.fightStats = { strikes: 0, hits: 0, damage: 0 };
     this.formation('dummy');
     if (!this.enter('dummy')) return false;
     this.phase = 'intro';
@@ -515,13 +536,17 @@ export class Melee {
     // The Scrap Dummy is one level below hers (at level 1 and 2 it is her equal).
     const lvl = this.level;
     const oppLvl = lvl <= 2 ? lvl : lvl - 1;
+    // O Sucataoxidado escolhe uma postura de combate a cada sessão.
+    const posture = pick(['certeiro', 'defensivo', 'brutal']);
     this.foes = [];
     this.opp = {
-      hp: 100, max: 100, level: oppLvl, defense: 0.16 + oppLvl * 0.03,
-      dummy: false, scrap: true, stunned: 0, name: 'Sucataoxidado',
+      hp: 100, max: 100, level: oppLvl,
+      defense: 0.16 + oppLvl * 0.03 + (posture === 'defensivo' ? 0.15 : 0),
+      dummy: false, scrap: true, stunned: 0, name: 'Sucataoxidado', posture,
     };
     this.xpGained = 0;
     this.attrGained = { str: 0, con: 0, agi: 0 };
+    this.fightStats = { strikes: 0, hits: 0, damage: 0 };
     this.formation('fight');
     this.petHp = pet.stats.health;
     this.petHpMax = pet.maxHealth?.() ?? 100;   // her health never goes over the maximum
@@ -529,6 +554,7 @@ export class Melee {
     this.phase = 'intro';
     this.t = 0;
     this.introT = 0;
+    this.say(pet.x, pet.y - pet.P * 1.35, posture === 'certeiro' ? 'Certeiro: ele dita o ritmo.' : posture === 'defensivo' ? 'Defensivo: ele se fecha num casulo de aço.' : 'Brutal: ele vai com tudo.', 'bad');
     this.showHpBar();
     return true;
   }
@@ -543,9 +569,11 @@ export class Melee {
       unknown: true, enemy: e, scrap: false, stunned: 0,
       baseAtk: e.atk, acc: e.acc, stun: e.stun, bleed: null, defDown: 0, defTurns: 0, accPen: 0, accTurns: 0,
     }));
+    this.wave = wave;
     this.foeIdx = 0;
     this.xpGained = 0;
     this.attrGained = { str: 0, con: 0, agi: 0 };
+    this.fightStats = { strikes: 0, hits: 0, damage: 0 };
     this.petHp = this.pet.stats.health;
     this.petHpMax = this.pet.maxHealth?.() ?? 100;
     this.formation('unknown');
@@ -774,8 +802,9 @@ export class Melee {
     }
     // A rolagem: precisão dele contra o bloqueio/desvio dela (o Corvo cobre com o Grito).
     const lvl = this.level;
-    const block = clamp(0.06 + lvl * 0.035 + this.blockBoost, 0.02, 0.6);
-    const dodge = clamp(0.04 + lvl * 0.02 + this.dodgeBoost, 0.02, 0.5);
+    const dex = this.game?.attrLevel?.('dex') ?? 1;
+    const block = clamp(0.06 + lvl * 0.035 + dex * 0.015 + this.blockBoost, 0.02, 0.6);
+    const dodge = clamp(0.04 + lvl * 0.02 + dex * 0.02 + this.dodgeBoost, 0.02, 0.5);
     const stunned = (foe?.stunned || 0) > 0;
     const accBase = this.opp?.acc ?? 0.62;
     const acc = clamp(accBase - (foe?.accPen || 0) - (stunned ? 0.45 : 0), 0.05, 0.95);
@@ -808,8 +837,8 @@ export class Melee {
     if (reason === 'win') {
       this.app.sound?.play?.('ok', { volume: 0.5 });
       const wave = game.profile.blackCartridgeWave || 1;
-      // A onda foi vencida: +1 (até a trava do Wave 10).
-      if (wave < 10) game.profile.blackCartridgeWave = wave + 1;
+      // A onda foi vencida: +1 — ao limpar a Wave 9 as waves RECOMEÇAM na Wave 1 (o Wave 10 é para o boss futuro).
+      game.profile.blackCartridgeWave = wave >= 9 ? 1 : wave + 1;
       // O Cristal Negro cai SÓ na primeira vitória de sempre.
       if (!game.profile.cristalAwarded) {
         game.profile.cristalAwarded = true;
@@ -845,6 +874,7 @@ export class Melee {
       this.say(pet.x, pet.y - pet.P * 1.25, '...', 'bad');
       // Ela desaba no chão: INCONSCIENTE (trava total; acorda com 50%+ de HP e Energia).
       this.pet.lieUnconscious?.();
+      this.app.combatUI?.fightSummary?.({ ...this.fightStats, xp: game._xpFight || {} });
     }
     // A luta contra a horda também é um treino de verdade: bônus de Força e Agilidade da sessão.
     if (this.turns >= 3) {
@@ -1157,18 +1187,28 @@ export class Melee {
   scrapTurn() {
     const pet = this.pet;
     this.next = TURN.PERSOCON;
-    this.move = { id: 'scrap', name: 'Golpe de Sucata', kind: 'attack', clip: 'attack_jab', dmg: 4 + this.opp.level * 2.2 };
+    // A postura do Sucataoxidado muda o golpe dele: Certeiro acerta mais e bate de leve,
+    // Defensivo apanha pouco (e fecha o corpo), Brutal erra mais mas esmaga.
+    const posture = this.opp?.posture || 'certeiro';
+    const dex = this.game?.attrLevel?.('dex') ?? 1;
+    let dmgMul = 1;
+    let accBase = 0.38 + this.opp.level * 0.05;
+    let callout = 'Golpe de Sucata';
+    if (posture === 'certeiro') { dmgMul = 0.8; accBase = 0.55 + this.opp.level * 0.06; callout = 'Golpe Certeiro'; }
+    else if (posture === 'brutal') { dmgMul = 1.5; accBase = 0.28 + this.opp.level * 0.045; callout = 'Golpe Brutal'; }
+    else { dmgMul = 0.7; accBase = 0.3 + this.opp.level * 0.04; callout = 'Golpe Defensivo'; }
+    this.move = { id: 'scrap', name: callout, kind: 'attack', clip: 'attack_jab', dmg: Math.round((4 + this.opp.level * 2.2) * dmgMul) };
     this.moveDur = 0.5;
-    this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, 'Golpe de Sucata', 'bad');
-    this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
+    this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, callout, 'bad');
+    this.app.sound?.tone8?.(posture === 'brutal' ? 110 : 150, 90, 0.12, 'square', 0.07);
     // The rolls: its accuracy against her defense.
     const lvl = this.level;
-    let acc = clamp(0.38 + this.opp.level * 0.05, 0.2, 0.9);
+    let acc = clamp(accBase, 0.2, 0.9);
     // Atordoado: the enemy hits far less often.
     const stunned = this.opp.stunned > 0;
     if (stunned) acc = clamp(acc - 0.45, 0.05, 0.9);
-    const block = clamp(0.06 + lvl * 0.035, 0.02, 0.4);
-    const dodge = clamp(0.04 + lvl * 0.02, 0.02, 0.3);
+    const block = clamp(0.06 + lvl * 0.035 + dex * 0.015, 0.02, 0.45);
+    const dodge = clamp(0.04 + lvl * 0.02 + dex * 0.02, 0.02, 0.35);
     const r = Math.random();
     this.hitResolved = true;
     if (r < block) {
@@ -1197,8 +1237,9 @@ export class Melee {
     this.app.sound?.tone8?.(kind === 'dodge' ? 700 : 520, 220, 0.1, 'square', 0.07);
     // Blocking or dodging breaks the streak of hits: no Fúria.
     this.hitStreak = 0;
-    // Esquivar/bloquear treina a Agilidade (read mais fraco: bloquear rende metade).
-    this.game.attrGain?.('agi', ATTR_XP.agi[kind === 'dodge' ? 'dodge' : 'block'], 'dodge');
+    // Esquivar/bloquear treina a Destreza (bloquear rende metade).
+    this.game.attrGain?.('dex', ATTR_XP.dex[kind === 'dodge' ? 'dodge' : 'block'], 'dodge');
+    this.pet.emit?.('defence', { kind });
     this.phase = 'impact';
     this.t = 0;
   }
@@ -1206,7 +1247,8 @@ export class Melee {
   // The Scrap Dummy's blow lands: real health damage and the stagger animation.
   resolvePlayerHit() {
     const pet = this.pet;
-    const crit = Math.random() < 0.15;
+    // Brutal postura: o Sucataoxidado acerta crits com mais frequência.
+    const crit = Math.random() < (this.opp?.posture === 'brutal' ? 0.25 : 0.15);
     const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1));
     pet.adjust({ health: -dmg });
     // Levar dano de verdade treina a Constituição (é o jeito mais forte de ganhá-la).
@@ -1361,15 +1403,16 @@ export class Melee {
   rollStrike(man, mult = 1) {
     const lvl = this.level;
     const str = this.strength;
+    const dex = this.game?.attrLevel?.('dex') ?? 1;
     const opp = this.opp;
     // Atordoada: ela erra muitos golpes.
     const stunned = this.stunTurns > 0;
     // A Provocação Aérea do Corvo derruba a defesa do inimigo.
     const oppDef = Math.max(0, (opp?.defense ?? 0) - (opp?.defDown || 0));
-    let hitChance = clamp(0.52 + lvl * 0.04 - oppDef, 0.2, 0.95);
-    if (man?.ignoreDefense) hitChance = clamp(0.6 + lvl * 0.03, 0.2, 0.95);
+    let hitChance = clamp(0.52 + lvl * 0.04 + dex * 0.015 - oppDef, 0.2, 0.95);
+    if (man?.ignoreDefense) hitChance = clamp(0.6 + lvl * 0.03 + dex * 0.015, 0.2, 0.95);
     if (stunned) hitChance = clamp(hitChance - STUN_PENALTY, 0.02, 0.95);
-    const critChance = clamp(0.06 + lvl * 0.025, 0.06, 0.4);
+    const critChance = clamp(0.06 + lvl * 0.025 + dex * 0.01, 0.06, 0.45);
     const blockChance = clamp(0.1 + oppDef * 0.5 - lvl * 0.015, 0.02, 0.45);
     const r = Math.random();
     if (r < blockChance) return { result: 'block' };
@@ -1388,7 +1431,9 @@ export class Melee {
     const chance = (agi - 3) * 0.08;
     if (chance <= 0 || Math.random() >= chance) return;
     const roll = this.rollStrike(null, 0.85);
+    this.fightStats.strikes += 1;
     if (roll.result !== 'hit') return;
+    this.fightStats.hits += 1;
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.6, 'Golpe Rápido!', 'good');
     this.app.sound?.swish?.();
     this.damageFoe(roll.dmg, { crit: roll.crit });
@@ -1412,8 +1457,10 @@ export class Melee {
     let blocked = false;
     for (let h = 0; h < hits; h++) {
       const roll = this.rollStrike(man);
+      this.fightStats.strikes += 1;
       if (roll.result === 'block') { blocked = true; break; }
       if (roll.result === 'miss') { missed = true; continue; }
+      this.fightStats.hits += 1;
       landed = true;
       // Cada golpe acertado treina a Força (o treino pesado paga bem mais).
       this.damageFoe(roll.dmg, { crit: roll.crit });

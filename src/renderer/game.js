@@ -587,6 +587,11 @@ export class Game {
   // Ganho de XP que chega aos poucos (escalada, energia): fica acumulado e entra de uma vez.
   attrGain(id, amount, source = '') {
     if (!(amount > 0)) return;
+    // Ledger de XP da luta (melee.enter/leave) — usado pelo resumo pós-batalha.
+    if (this._xpFight) {
+      const key = `${id}|${source || 'outros'}`;
+      this._xpFight[key] = (this._xpFight[key] || 0) + amount;
+    }
     const acc = (this._attrAcc ||= {});
     const keys = (this._attrAccKeys ||= {});
     const key = `${id}|${source}`;

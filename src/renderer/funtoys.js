@@ -1973,6 +1973,7 @@ export class FunToys {
     if (j.h <= 0) {
       j.h = 0;
       j.n++;
+      this.app.pet?.emit?.('trampJump');
       let target = Math.min(P * (0.6 + j.n * 0.35), P * (1 + 2.5 * pet.stats.energy / 100));
       // A Agilidade amplia o alcance do pulo (e o up do pula-pula ainda mais).
       target *= (1 + (agiLvl - 1) * 0.09) * (up ? 1.15 : 1);
@@ -2004,7 +2005,9 @@ export class FunToys {
       j.flip = j.trick === 'flip';
       j.v = Math.sqrt(2 * g * target);
       // Cada pulo treina a Agilidade (o pula-pula Synthwave rende 1,5x); flip/twist dão bônus.
-      this.app.game?.attrGain?.('agi', up ? ATTR_XP.agi.tramp * 1.5 : ATTR_XP.agi.tramp, 'tramp');
+      // Combo com a Doll (elas lançam uma à outra): +0,1 extra por pulo.
+      const combo = this.withDoll(tp) ? 0.1 : 0;
+      this.app.game?.attrGain?.('agi', (up ? ATTR_XP.agi.tramp * 1.5 : ATTR_XP.agi.tramp) + combo, 'tramp');
       if (j.trick === 'flip' || j.trick === 'twist') this.app.game?.attrGain?.('agi', ATTR_XP.agi.flip, 'tramp');
       j.air = (2 * j.v) / g;
       j.at = 0;

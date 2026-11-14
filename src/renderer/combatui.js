@@ -274,14 +274,67 @@ export class CombatUI {
     sub.className = 'defeat-sub';
     sub.textContent = 'A horda recuou... mas você não aguentou.';
     el.append(sub);
+    // Barra de recuperação (mostrada enquanto ela está INCONSCIENTE).
+    const prog = document.createElement('div');
+    prog.className = 'defeat-progress';
+    prog.innerHTML = '<i></i><span>0%</span>';
+    el.append(prog);
+    this.defeatProgEl = prog;
     document.body.append(el);
     this.defeatEl = el;
     return el;
   }
 
+  // Atualiza a barra de recuperação da INCONSCIENTE (HP/Energia até 50%).
+  updateDefeatProgress(health, maxHealth, energy) {
+    const prog = this.defeatProgEl;
+    if (!prog) return;
+    const hpPct = Math.max(0, Math.min(100, (health / Math.max(1, maxHealth)) * 100));
+    const enPct = Math.max(0, Math.min(100, energy));
+    const pct = Math.min(hpPct, enPct);
+    const fill = prog.querySelector('i');
+    const label = prog.querySelector('span');
+    if (fill) fill.style.width = `${pct.toFixed(0)}%`;
+    if (label) label.textContent = `${pct.toFixed(0)}% · acorda com 50%`;
+    if (pct >= 50) this.hideDefeat();
+  }
+
   hideDefeat() {
     this.defeatEl?.remove();
     this.defeatEl = null;
+    this.defeatProgEl = null;
+  }
+
+  // ---------- o resumo de estatísticas pós-luta ----------
+
+  fightSummary({ strikes = 0, hits = 0, damage = 0, xp = {} } = {}) {
+    this.hideFightSummary();
+    const ATTR_LBL = { str: 'Força', agi: 'Agilidade', con: 'Constituição', dex: 'Destreza' };
+    const acc = strikes > 0 ? Math.round((hits / strikes) * 100) : 0;
+    const rows = [`Golpes ${strikes} · ${hits} acertos (${acc}%)`, `Dano total ${Math.round(damage)}`];
+    const xpParts = Object.entries(xp || {})
+      .reduce((acc2, [key, v]) => {
+        const [id] = key.split('|');
+        acc2[id] = (acc2[id] || 0) + v;
+        return acc2;
+      }, {});
+    const xpText = Object.entries(ATTR_LBL)
+      .filter(([id]) => (xpParts[id] || 0) >= 0.5)
+      .map(([id, label]) => `${label} +${xpParts[id].toFixed(1)}`)
+      .join(' · ');
+    if (xpText) rows.push(`XP: ${xpText}`);
+    const el = document.createElement('div');
+    el.className = 'fight-summary';
+    el.innerHTML = rows.map((r) => `<div>${r}</div>`).join('');
+    document.body.append(el);
+    this.fightSummaryEl = el;
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, 9000);
+    return el;
+  }
+
+  hideFightSummary() {
+    this.fightSummaryEl?.remove();
+    this.fightSummaryEl = null;
   }
 
   // Uma explosão de fumaça escura onde o inimigo estava (ele some na penumbra).
@@ -460,6 +513,7 @@ export class CombatUI {
     this.hideRing();
     this.hideFoeBars();
     this.hideVictory();
-    this.hideDefeat();
+    // O banner de DERROTA persiste até ela acordar (reviveUnconscious limpa via updateDefeatProgress).
+    this.hideFightSummary();
   }
 }

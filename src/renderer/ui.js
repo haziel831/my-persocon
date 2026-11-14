@@ -28,14 +28,14 @@ const DEFAULT_MODEL_DIR = 'models/MyPersocon';
 const AGHATA_MODEL_DIR = 'models/Aghata';
 // O que cada atributo faz (a caixinha que abre quando ela clica no atributo).
 const ATTR_DESC = {
-  str: 'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos. Treina escalando as janelas, arremessando a Bola de Queimada, acertando golpes no Boneco de Treino e ainda mais no Treino Pesado.',
-  con: 'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos. Treina gastando energia todo dia, levando dano de verdade em combate e treinando no Boneco de Treino.',
-  dex: 'Aumenta a esquiva dos golpes e a precisão dos ataques rápidos. Por enquanto ela ainda não muda o jogo.',
-  agi: 'Aumenta a velocidade de corrida, a altura dos pulos no pula-pula e a chance de um golpe extra gratuito no mesmo turno (Nv 4+: +8% por nível). Treina jogando no pula-pula (flips rendem bônus), correndo de verdade (pega-pega/perseguição), arremessando e pegando a Bola de Queimada, com o gancho, rodando no bambolê, de skate, esquivando ou bloqueando no combate e ao terminar sessões de treino.',
-  will: 'Resiste aos status negativos e segura o Humor mais alto. Por enquanto ela ainda não muda o jogo.',
-  per: 'Melhora a atenção no que acontece ao redor. Por enquanto ela ainda não muda o jogo.',
-  cha: 'Ajuda a ganhar Afeição e a negociar as trocas. Por enquanto ela ainda não muda o jogo.',
-  int: 'Ajuda a aprender mais rápido (golpes, truques e minijogos). Por enquanto ela ainda não muda o jogo.',
+  str: { pt: 'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos. Treina escalando as janelas, arremessando a Bola de Queimada, acertando golpes no Boneco de Treino e ainda mais no Treino Pesado.', en: 'Raises the damage of melee strikes, maneuvers and throws. Also boosts maximum Health. Trained by climbing windows, throwing the Dodgeball, landing hits on the Training Dummy and even more in Heavy Training.' },
+  con: { pt: 'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos. Treina gastando energia todo dia, levando dano de verdade em combate e treinando no Boneco de Treino.', en: 'Reduces the energy cost of every action and strike. Raises maximum Health significantly. Trained by spending energy every day, taking real damage in combat and training on the Training Dummy.' },
+  dex: { pt: 'Aumenta a precisão e o crítico dos golpes e a esquiva/bloqueio no combate. Treina esquivando e bloqueando golpes durante as lutas.', en: 'Raises accuracy and critical chance of strikes, and your evade/block in combat. Trained by dodging and blocking attacks during fights.' },
+  agi: { pt: 'Aumenta a velocidade de corrida, a altura dos pulos no pula-pula e a chance de um golpe extra gratuito no mesmo turno (Nv 4+: +8% por nível). Treina jogando no pula-pula (flips rendem bônus), correndo de verdade (pega-pega/perseguição), arremessando e pegando a Bola de Queimada, com o gancho, rodando no bambolê, de skate, pegando ou escapando no pega-pega e ao terminar sessões de treino.', en: 'Raises movement speed, how high she jumps on the trampoline and the chance of a free extra strike in the same turn (Nv 4+: +8% per level). Trained by playing on the trampoline (flips give a bonus), real running (tag/chase), throwing and catching the Dodgeball, the hookshot, the hula hoop, skating, catching or escaping in tag, and finishing training sessions.' },
+  will: { pt: 'Resiste aos status negativos e segura o Humor mais alto. Por enquanto ela ainda não muda o jogo.', en: 'Resists negative statuses and keeps Mood higher. For now it does not change the game.' },
+  per: { pt: 'Melhora a atenção no que acontece ao redor. Por enquanto ela ainda não muda o jogo.', en: 'Improves attention to what happens around her. For now it does not change the game.' },
+  cha: { pt: 'Ajuda a ganhar Afeição e a negociar as trocas. Por enquanto ela ainda não muda o jogo.', en: 'Helps earn Affection and negotiate trades. For now it does not change the game.' },
+  int: { pt: 'Ajuda a aprender mais rápido (golpes, truques e minijogos). Por enquanto ela ainda não muda o jogo.', en: 'Helps learn faster (moves, tricks and minigames). For now it does not change the game.' },
 };
 // Promo codes (Opções › Outros), case-insensitive. once: redeemed a single time per save.
 const PROMOS = {
@@ -802,7 +802,7 @@ export class Menu {
         h('div.track', {}, h('div.fill.attr', { style: { width: `${(lvl / 10) * 100}%` } })),
         h('div.track.xp', {}, h('div.fill.xp', { style: { width: `${pr.done ? 100 : (pr.cur / pr.max) * 100}%` } })),
         h('small.muted.attr-xp', {}, pr.done ? 'nível máximo' : `${Math.floor(pr.cur)} / ${pr.need} XP`),
-        shown ? h('p.attr-desc', {}, ATTR_DESC[k] || '') : null);
+        shown ? h('p.attr-desc', {}, (ATTR_DESC[k]?.[this.app.config?.lang === 'en' ? 'en' : 'pt']) || '') : null);
     }));
     const attrsBody = h('div', {},
       attrBox,
@@ -947,6 +947,18 @@ export class Menu {
               game.pending(item.id) ? h('span.count', {}, game.queued(item.id) ? 'na fila da impressora' : 'impresso, a guardar') : null,
               game.toys[item.id]?.broken ? h('span.count.warn', {}, 'quebrado') : null),
             h('span.item-fx', {}, effectText(item)),
+            item.id === 'boneco_treino' || item.id === 'pula_pula'
+              ? h('button.buy', {
+                  disabled: !(game.toys[item.id]?.placed && !game.toys[item.id]?.broken),
+                  title: game.toys[item.id]?.placed && !game.toys[item.id]?.broken
+                    ? (item.id === 'boneco_treino' ? 'Mandar ela treinar no Boneco (Força)' : 'Mandar ela treinar no pula-pula (Agilidade)')
+                    : 'Compre e coloque na área de trabalho primeiro',
+                  onclick: () => {
+                    this.app.sound?.play?.('blip', { volume: 0.4 });
+                    this.app.toys?.callFurn?.(item.id);
+                  },
+                }, item.id === 'boneco_treino' ? '🏋 Treinar Força' : '🤸 Treinar Agilidade')
+              : null,
             demoLocked(item.id)
               ? h('button.buy', { disabled: true }, '🔒 Versão completa')
               : h('button.buy', { onclick: () => { this.flashItem(item.id); game.buy(item.id, n); }, disabled: !game.canBuy(item, n) }, `${price(item)}${n > 1 ? ` (×${n})` : ''}`))))

@@ -1601,6 +1601,7 @@ export class Pet {
     this.action = 'idle';
     this.timer = rand(1.5, 3);
     this.anim('idle', { facing: 'front', restart: true });
+    try { this.app?.combatUI?.updateDefeatProgress?.(1, 1, 100); } catch { /* HUD */ }   // some no pct ≥ 50
     this.emit('wake', { startled: false });
     this.chooseNext();
   }
@@ -1730,7 +1731,11 @@ export class Pet {
     this.chase = null;
     this.hideRect = null;
     this.love(1.5);
-    if (caught) this.adjust({ mood: 20 });
+    if (caught) {
+      this.adjust({ mood: 20 });
+      // Ela pegar o cursor treina a Agilidade (tempo de reação).
+      this.app?.game?.attrGain?.('agi', ATTR_XP.agi.catch, 'catch');
+    }
     if (this.mode === 'ground' && (this.action === 'chase' || this.action === 'qte')) {
       if (caught && this.emotes.length) this.startGround('emote');
       else this.startGround('idle');
@@ -1768,6 +1773,8 @@ export class Pet {
     ch.qte = null;
     ch.grace = 2;
     ch.escapes++;
+    // O jogador escapar também treina a Agilidade dela (leitura de movimento).
+    this.app?.game?.attrGain?.('agi', ATTR_XP.agi.escape, 'escape');
     if (this.mode === 'ground') {
       this.action = 'dizzy';
       this.timer = 1.1;
@@ -2576,6 +2583,13 @@ export class Pet {
       s.health = Math.min(maxHP, s.health + 3.2 * dt);
       s.mood = Math.min(100, s.mood + 1.2 * dt);
       if (s.energy >= 50 && s.health >= maxHP / 2) this.reviveUnconscious();
+      else {
+        this._koUiT = (this._koUiT || 0) + dt;
+        if (this._koUiT >= 0.5) {
+          this._koUiT = 0;
+          try { this.app?.combatUI?.updateDefeatProgress?.(s.health, maxHP, s.energy); } catch { /* HUD */ }
+        }
+      }
       for (const k of Object.keys(s)) s[k] = clamp(s[k], 0, 100);
       this.updateDebuffs(dt);
       return;

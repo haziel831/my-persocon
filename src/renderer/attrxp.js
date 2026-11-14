@@ -24,8 +24,12 @@
 //   hook    — um disparo bem-sucedido do gancho
 //   hoop    — por segundo rodando o bambolê
 //   skate   — por segundo de skate
-//   dodge   — esquivar ou bloquear no combate
 //   session — terminar uma sessão de Treino Pesado
+//   catch   — ela pegar o cursor no pega-pega
+//   escape  — o jogador escapar do QTE do pega-pega
+// Destreza (dex)
+//   dodge   — esquivar no combate
+//   block   — bloquear no combate
 export const ATTR_XP = {
   str: {
     dummy: 1.5,
@@ -48,9 +52,13 @@ export const ATTR_XP = {
     hook: 0.8,
     hoop: 0.15,
     skate: 0.4,
+    session: 10,
+    catch: 2,
+    escape: 2,
+  },
+  dex: {
     dodge: 0.4,
     block: 0.2,
-    session: 10,
   },
 };
 
@@ -68,6 +76,8 @@ export const ATTR_SOURCES = {
   hoop: 'Bambolê',
   skate: 'Skate',
   dodge: 'Esquiva',
+  catch: 'Pega-pega',
+  escape: 'Pega-pega',
 };
 
 // O XP em que o nível começa.

@@ -1,6 +1,6 @@
 // Rewards: loot boxes (the pet opens them, then a CS-style roulette picks the prize), achievements
 // and daily missions (both pay in boxes), and the effects of the single-use prizes.
-import { ITEMS, itemById, BUFF_LABELS, BUFF_ICONS } from './game.js';
+import { ITEMS, itemById, BUFF_LABELS, BUFF_ICONS, attrLevelOf } from './game.js';
 import { translate } from './i18n.js';
 import { UPGRADES } from './upgrades.js';
 import { BOXES, RARITIES, RARITY_ORDER, LOOT_ITEMS } from './lootitems.js';
@@ -210,6 +210,13 @@ const ACHIEVEMENTS = [
   ['bonecosneon', '🤖', 'Coleção Neon', 'Ter todos os bonecos da Gacha Neon', (a) => (a.game.figures || []).filter((id) => figureById(id)?.up).length, FIGURES.filter((f) => f.up).length, 'caixa_lendaria'],
   ['dj', '🎹', 'DJ Persocon', 'Ela tocar 3 músicas no Sintetizador Neon', (a) => ev(a, 'songImport') + ev(a, 'pianoStart'), 3, 'caixa_rara'],
   ['arcade10', '🔫', 'Atiradora de Elite', 'Ela jogar 10 partidas no Arcade de Tiro', (a) => ev(a, 'arcadePlay'), 10, 'caixa_rara'],
+  // Atributos: Força / Constituição / Agilidade (uma conquista por marco de nível).
+  ['attr_str5', '💪', 'Braços Fortes', 'Força no Nv 5', (a) => attrLevelOf(a.game.attrXp('str')), 5, 'caixa_rara'],
+  ['attr_str10', '🦾', 'Corpo de Aço', 'Força no Nv 10', (a) => attrLevelOf(a.game.attrXp('str')), 10, 'caixa_lendaria'],
+  ['attr_con5', '🛡️', 'Saúde de Ferro', 'Constituição no Nv 5', (a) => attrLevelOf(a.game.attrXp('con')), 5, 'caixa_rara'],
+  ['attr_con10', '🏰', 'Muralha Viva', 'Constituição no Nv 10', (a) => attrLevelOf(a.game.attrXp('con')), 10, 'caixa_lendaria'],
+  ['attr_agi5', '🌀', 'Passos Leves', 'Agilidade no Nv 5', (a) => attrLevelOf(a.game.attrXp('agi')), 5, 'caixa_rara'],
+  ['attr_agi10', '⚡', 'Velocidade da Luz', 'Agilidade no Nv 10', (a) => attrLevelOf(a.game.attrXp('agi')), 10, 'caixa_lendaria'],
 ].map(([id, emoji, name, desc, value, goal, box]) => ({ id, emoji, name, desc, value, goal, box }));
 
 // ---------- ícones GTORAVERSE 32x32 (assets/achievements/) ----------
@@ -238,6 +245,7 @@ const ACH_ICONS = {
   corvobrilho: 'Diamond', corvotruque: 'Silver-Medal', corvodoll: 'Silver-Heart', corvomoveis: 'Silver-Pin', corvocabeca: 'Bronze-Pin',
   upgrade1: 'Bronze-Medal', upgrade5: 'Silver-Medal', upgradeall: 'Gold-Crown',
   bonecosneon: 'Gold-Crown', dj: 'Silver-Medal', arcade10: 'Silver-Medal',
+  attr_str5: 'Silver-Medal', attr_str10: 'Gold-Medal', attr_con5: 'Silver-Shield', attr_con10: 'Gold-Shield', attr_agi5: 'Silver-Star', attr_agi10: 'Gold-Star',
 };
 const achIcon = (a) => `assets/achievements/Achievement-Pack-32x32_${ACH_ICONS[a.id] || (a.box === 'caixa_lendaria' ? 'Gold-Star' : a.box === 'caixa_rara' ? 'Silver-Star' : 'Bronze-Star')}.png`;
 
@@ -265,6 +273,8 @@ const MISSIONS = {
   peixes: { text: (n) => `Ela alimentar os peixes ${n}×`, goal: [1, 2], ev: 'fun', test: (d) => d.kind === 'fishFeed', can: placed('aquario') },
   foto: { text: (n) => `Ela tirar ${n} foto${n > 1 ? 's' : ''}`, goal: [1, 3], ev: 'fun', test: (d) => d.kind === 'photo', can: placed('camera') },
   doll: { text: () => 'Ela brincar com o Doll', goal: [1, 1], ev: 'dollPlay', can: (app) => !!app.game.gear?.cristal && placed('pelucia')(app) },
+  pular: { text: (n) => `Ela pular no pula-pula ${n}×`, goal: [5, 10], ev: 'trampJump', can: placed('pula_pula') },
+  esquive: { text: (n) => `Esquivar ou bloquear ${n}× no combate`, goal: [2, 5], ev: 'defence' },
 };
 const today = () => new Date().toDateString();
 
@@ -289,6 +299,10 @@ export class Rewards {
     document.body.append(this.crownEl);
     app.game.onOpenBox = (id) => this.open(id);
     app.pet.on((type, data) => this.onEvent(type, data));
+    // Mini pop-up quando um atributo sobe de nível (no estilo da missão concluída).
+    app.pet.on((type, data) => {
+      if (type === 'attrXp' && data?.up && (data.level ?? 0) >= 2) this.attrToast(data);
+    });
     this.daily();
     this.repeatRemaining = 0;
     this.repeatId = null;
@@ -755,6 +769,15 @@ export class Rewards {
   }
 
   // ---------- celebration popups ----------
+
+  // Mini pop-up quando um atributo sobe de nível.
+  attrToast({ id, level }) {
+    const ATTR_LBL = { str: 'Força', con: 'Constituição', agi: 'Agilidade', dex: 'Destreza' };
+    const shape = { str: 'Medal', con: 'Shield', agi: 'Star', dex: 'Pin' }[id];
+    if (!shape) return;   // só os atributos treináveis de combate disparam
+    const tier = level >= 10 ? 'Gold' : level >= 5 ? 'Silver' : 'Bronze';
+    this.celebrate({ kind: 'mission', icon: `assets/achievements/Achievement-Pack-32x32_${tier}-${shape}.png`, title: 'NÍVEL DE ATRIBUTO', name: `${ATTR_LBL[id]} Nv ${level}` });
+  }
 
   celebrate(c) {
     this.popups.push(c);
