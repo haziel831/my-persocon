@@ -253,10 +253,10 @@ export class Melee {
   // Os atores da fila para o topo da tela.
   queueActors() {
     const pet = this.pet;
-    const name = this.app.config?.name || 'Persocon';
-    const modelDir = this.app.config?.modelDir || 'models/MyPersocon';
+    const name = this.app.config?.name || this.pet?.cfg?.name || 'Persocon';
+    const dir = this.app.config?.modelDir || 'models/MyPersocon';
     const hpPct = pet.maxHealth?.() ? Math.max(0, pet.stats.health / pet.maxHealth()) : 1;
-    const list = [{ id: 'persocon', name, face: persoconPortrait(modelDir, hpPct), glyph: null, side: 'ally', hp: hpPct }];
+    const list = [{ id: 'persocon', name, face: persoconPortrait(dir, hpPct, name), glyph: null, side: 'ally', hp: hpPct }];
     if (this.crowFight) list.push({ id: 'corvo', name: 'Corvo', face: icon('crow'), glyph: null, side: 'ally', hp: null });
     if (this.kind === 'unknown') {
       this.foes.forEach((f, i) => list.push({

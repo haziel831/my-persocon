@@ -11,8 +11,8 @@ const PORTRAITS = {
   ninna: { normal: 'ninna_normal', mid: 'ninna_sad', low: 'ninna_shy' },
 };
 const _persoCache = new Map();
-export function persoconPortrait(modelDir, hpPct = 1) {
-  const dir = String(modelDir || '').toLowerCase();
+export function persoconPortrait(modelDir, hpPct = 1, petName = '') {
+  const dir = `${modelDir || ''} ${petName || ''}`.toLowerCase();
   const set = dir.includes('aghta') ? PORTRAITS.aghata : PORTRAITS.ninna;
   const key = hpPct >= 0.66 ? set.normal : hpPct >= 0.33 ? set.mid : set.low;
   if (!_persoCache.has(key)) _persoCache.set(key, new URL(`./assets/emoticons/${key}.png`, import.meta.url).href);

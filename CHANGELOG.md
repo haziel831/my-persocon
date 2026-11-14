@@ -23,6 +23,7 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 **A fila de turnos** ficou no meio da tela e agora usa os **emotes recortados das Persocons**: Aghata (NORMAL/ANXIOSA/SAD) e Ninna (NORMAL/SAD/SHY) pela faixa de HP dela, mudando a cada golpe. Os inimigos usam o **retrato estático da gosma** (o frame 0 convertido do sprite original: corpo preto, olhos vermelhos).
 Detalhes em `ChangeLogs\v1.9.23.md`.
 **Correção definitiva: a Wave do cartucho preto.** A inserção derruba a Persocon do estado livre na hora (hard override): o combate começa **assim que a erupção termina** — ela vai para a esquerda, a horda aparece à direita, e o loop JRPG começa sem esperar o contato nem andar para o boneco. A luta com a horda nunca mira o boneco de treino; o dano e o flash vermelho só acontecem nos inimigos da onda; as ondas 1–9 usam a tabela oficial (100→135→175→220→270→330→400→480→580 HP).
+**Correção: gosma dessincronizada + fim prematuro.** O sprite da gosma segue sempre o `enemy.x/y` real (uma fonte de verdade só, a mesma das barras de HP e do alvo). A luta não cai mais sozinha (a horda não usa o toy de treino e o duplo clique não cancela a Wave); só termina por vitória, recuo ou exaustão. A fila de turnos mostra o retrato certo (detectado pelo modelDir e pelo nome do personagem).
 Detalhes em `ChangeLogs\v1.9.23.md`.
 
 ## v1.9.22 — 13/11/2026

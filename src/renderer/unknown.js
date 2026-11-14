@@ -238,7 +238,9 @@ export class Slime {
       this.frameT -= delay;
       this.frame = (this.frame + 1) % def.frames;
     }
-    // A perseguição (só antes da luta).
+    // Posiciona SEMPRE (durante a perseguição E durante a luta): a tela desenha o
+    // sprite onde o inimigo está, nunca na TV antiga.
+    this.place();
     if (this.state === 'chase' && pet) {
       const dx = pet.x - this.x;
       this.dir = dx < 0 ? -1 : 1;
@@ -470,8 +472,7 @@ export class Unknown {
 
   // ---------- a perseguição ----------
 
-  // Elas encostaram nela: larga o que estava fazendo e encara a horda.
-  // A erupção acabou e a horda saiu: ela larga TUDO e encara a horda imediatamente.
+  // A erupção acabou: ela larga TUDO e encara a horda imediatamente.
   startFight() {
     if (this.state !== 'chase') return;
     this.state = 'fight';
@@ -485,15 +486,14 @@ export class Unknown {
     if (app.melee?.active) app.melee.leave('interrupted');
     if (!melee) { this.fleeAll(); return; }
     pet.playToy({
-      id: 'unknown', train: true, dummy: true, combatKind: 'combat', dur: 3600, gain: {},
+      id: 'unknown', dummy: true, combatKind: 'black_cartridge_wave', dur: 3600, gain: {},
       anim: pet.pickClip?.(['combat_idle'], ['melee_idle', 'idle']) || 'idle',
       facing: 'front', effort: 0.5,
       onEnd: (interrupted) => { melee.leave(interrupted ? 'interrupted' : 'done'); },
       tick: (dt) => melee.update(dt),
     });
     melee.startUnknown(this.slimes, this.wave);
-    // O marcador de modo que o jogo usa internamente para saber que é a batalha do cartucho.
-    pet.combatKind = 'black_cartridge_wave';
+    pet.setCombat?.(true, 'black_cartridge_wave');
     for (const s of this.slimes) s.play('attack');
     app.sound?.play?.('explode', { volume: 0.35 });
     if (!melee.active) this.fleeAll();

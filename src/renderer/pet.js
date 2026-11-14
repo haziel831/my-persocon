@@ -1659,8 +1659,9 @@ api.onTrayClick?.(() => {
     const dbl = !!lastClick && now - lastClick.t < 350 && Math.hypot(press.x - lastClick.x, press.y - lastClick.y) < 12;
     if (dbl) lastClick = null;
     // COMBAT_MODE: two clicks cancel the fight (the way out if it gets stuck).
+    // (A batalha do cartucho NÃO cancela no duplo clique — acidentes de clique não derrubam ela.)
     if (pet.combatMode) {
-      if (dbl) app.melee?.stop?.('cancelled');
+      if (dbl && app.melee?.kind !== 'unknown') app.melee?.stop?.('cancelled');
       else lastClick = { t: now, x: press.x, y: press.y };
       return;
     }
