@@ -30,6 +30,8 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 **Causa raiz do crash "opp.enemy.flash is not a function":** a classe `Slime` criava `this.flash = 0` no construtor (temporizador do flash) e `flash()` no protótipo — a propriedade de instância **sombreava o método**, então `slime.flash` era `0` e `0?.()` lançava `TypeError`. Agora o temporizador se chama `flashT`, `flash()` é o método, e a Wave avança de verdade (Wave 1 vencida ⇒ `blackCartridgeWave` = 2).
 **Fonte de verdade única para o inimigo.** O sprite da gosma, a barra de HP sobre ele e o alvo do golpe leem o mesmo objeto (`foes[i]` + `foe.x`/`foe.y`); a formação teleporta os três juntos e a Wave 1 vencida incrementa `blackCartridgeWave` (→ 2; segunda vitória → 3).
 Detalhes em `ChangeLogs\v1.9.23.md`.
+**Correção: a Persocon fica travada após o combate do cartucho.** A IA estava sendo pausada pela `interruptPet()` e nunca mais destravada — no fim da luta ela parava em `idle` para sempre. Agora a IA fica livre quando o combate começa (e `melee.stop()` garante `resume()` mesmo em saídas de emergência).
+**Correção: Aghata exibia o retrato de Ninna.** A detecção do modelo usava a substring errada ("aghta", inexistente em "aghata") — agora usa "aghata" (funciona para `models/Aghata` e pelo nome configurado).
 
 ## v1.9.22 — 13/11/2026
 **Visual dos objetos: ajuste ao vivo no objeto de verdade.** A prévia pequena do import continua **fixa (100%)** — ela é só a referência estática para o conta-gotas de transparência e para marcar o hitbox. Tudo o que o modal muda agora aparece **na hora, no objeto real na área de trabalho** (ex.: o boneco de treino do lado da Persocon):

@@ -485,6 +485,7 @@ export class Unknown {
     pet.resume?.();
     pet.endToy?.(true);
     this.interruptPet();               // nada escapa: toy, comer, dormir, assistir…
+    pet.resume?.();                    // a pausa era só para o cartucho; a IA fica livre para o combate e para depois
     app.toys?.screen?.stop?.();
     if (app.melee?.active) app.melee.leave('interrupted');
     if (!melee) { this.fleeAll(); return; }

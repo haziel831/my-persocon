@@ -1462,6 +1462,7 @@ export class Melee {
     if (!this.active) return false;
     this.leave(reason);
     this.pet.endToy?.(true);
+    this.pet.resume?.();          // segurança: nunca devolve a Persocon paralisada
     this.pet.chooseNext?.();
     return true;
   }
