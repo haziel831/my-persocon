@@ -453,12 +453,20 @@ export class Pet {
     return e < 15 ? 0.55 : e < 30 ? 0.75 : 1;
   }
 
+  // A Agilidade deixa a corrida mais rápida (Nv 1 = normal, Nv 10 ≈ +63%).
+  updateAgiSpeed() {
+    const base = this.baseRunSpeed ?? this.runSpeed;
+    const lvl = this.app?.game?.attrLevel?.('agi') ?? 1;
+    this.runSpeed = base * (1 + (lvl - 1) * 0.07);
+  }
+
   setSize(P) {
     const cfg = this.cfg;
     const k = cfg.speedScale ?? 1;
     this.P = P;
     this.walkSpeed = cfg.walkSpeed * P * k;
-    this.runSpeed = cfg.runSpeed * P * k;
+    this.baseRunSpeed = cfg.runSpeed * P * k;
+    this.updateAgiSpeed();
     this.climbSpeed = cfg.climbSpeed * P * k;
     this.gravity = cfg.gravity * P;
     this.jumpReach = cfg.jumpReach * P;
@@ -1077,6 +1085,8 @@ export class Pet {
       this.app?.game?.skillAdd?.('queimada', 0.9);
       // Arremessar a bola treina a Força.
       this.app?.game?.attrGain?.('str', ATTR_XP.str.throw, 'ball');
+      // Arremessar a bola treina a Agilidade (tempo de reação).
+      this.app?.game?.attrGain?.('agi', ATTR_XP.agi.ball, 'ball');
       const doll = this.app?.doll;
       const dummy = this.app?.dummy;
       const playNice = this.toyPlay?.id === 'pelucia' || !!this.app?.crow?.playing;
@@ -1146,8 +1156,9 @@ export class Pet {
         bp.cool = 0.55;
         b.set(this.x + fwd * P * 0.25, this.y - P * 0.55);
         this.anim(this.pickClip(['pegar'], ['use_mainhand', 'idle']), { facing: fwd > 0 ? 'right' : 'left', restart: true });
-        // Pegar a bola também treina a Força.
+        // Pegar a bola também treina a Força e a Agilidade.
         this.app?.game?.attrGain?.('str', ATTR_XP.str.catch, 'ball');
+        this.app?.game?.attrGain?.('agi', ATTR_XP.agi.ball, 'ball');
         return;
       }
       if (chance(0.2)) {
@@ -1213,6 +1224,8 @@ export class Pet {
     }
     this.anim(this.pickClip(['gancho'], ['use_mainhand', 'swing_hand', 'idle']), { facing: this.side(), restart: true });
     this.emit('hookFire', { kind });
+    // Disparar o gancho treina a Agilidade (tempo de reação).
+    if (this.app?.game) this.app.game.attrGain?.('agi', ATTR_XP.agi.hook, 'hook');
     return true;
   }
 
@@ -2115,7 +2128,7 @@ export class Pet {
       w.sit *= 3;
       w.idle *= 2;
     }
-    if (!focus && this.gear.gancho && this.surfaceId === 'floor' && e > 30 && chance(0.12) && this.hookSomewhere()) return;
+    if (!focus && this.gear.gancho && e > 30 && chance(0.25) && this.hookSomewhere()) return;
     if (!focus && this.gear.microfone && e > 25 && chance(0.05 * this.prefMul('mic')) && this.trySing?.()) return;
     if (!focus && this.surfaceId === 'floor' && e > 25 && chance(0.04) && this.tryDoll?.()) return;
     if (!focus && this.surfaceId === 'floor' && e > 20 && chance(0.05) && this.tryCrow?.()) return;
@@ -2687,6 +2700,10 @@ export class Pet {
     // Escalar a janela treina a Força aos poucos (o tempo lá em cima conta).
     if ((this.mode === 'wall' || this.mode === 'scale') && (this.action === 'climbUp' || this.action === 'climbDown')) {
       this.app?.game?.attrGain?.('str', ATTR_XP.str.climb * dt, 'climb');
+    }
+    // Correr de verdade treina a Agilidade (andar não conta — só pega-pega/perseguição/correr).
+    if (this.action === 'run') {
+      this.app?.game?.attrGain?.('agi', ATTR_XP.agi.run * dt, 'run');
     }
     if (this.mode !== 'held') this.tilt *= Math.exp(-8 * dt);
     if (this.eating && this.action !== 'eat') this.finishEating();

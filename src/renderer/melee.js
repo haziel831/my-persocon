@@ -186,7 +186,7 @@ export class Melee {
     this.oppRef = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     this.crowFight = false;  // o Corvo entrou na luta
     this.xpGained = 0;       // XP de combate ganho na luta (para o resumo)
-    this.attrGained = { str: 0, con: 0 };
+    this.attrGained = { str: 0, con: 0, agi: 0 };
     this.blockBoost = 0;     // bônus temporário de bloqueio (Grito de Alerta)
     this.dodgeBoost = 0;     // bônus temporário de desvio (Grito de Alerta)
     this.itemPopT = 0;       // o ícone do item fica acima dela por um instante
@@ -374,6 +374,7 @@ export class Melee {
     const lines = [];
     if (this.xpGained > 0) lines.push(['Combate Corpo a Corpo', this.xpGained]);
     if (this.attrGained.str > 0) lines.push(['Força', this.attrGained.str]);
+    if (this.attrGained.agi > 0) lines.push(['Agilidade', this.attrGained.agi]);
     if (this.attrGained.con > 0) lines.push(['Constituição', this.attrGained.con]);
     this.ui?.victoryBanner(lines);
   }
@@ -405,7 +406,7 @@ export class Melee {
     this.foeIdx = 0;
     this.crowFight = false;
     this.xpGained = 0;
-    this.attrGained = { str: 0, con: 0 };
+    this.attrGained = { str: 0, con: 0, agi: 0 };
     this.blockBoost = 0;
     this.dodgeBoost = 0;
     this.hitStop = 0;
@@ -487,7 +488,7 @@ export class Melee {
     this.foes = [];
     this.opp = { hp: 100, max: 100, level: 1, defense: 0.22, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     this.xpGained = 0;
-    this.attrGained = { str: 0, con: 0 };
+    this.attrGained = { str: 0, con: 0, agi: 0 };
     this.formation('dummy');
     if (!this.enter('dummy')) return false;
     this.phase = 'intro';
@@ -520,7 +521,7 @@ export class Melee {
       dummy: false, scrap: true, stunned: 0, name: 'Sucataoxidado',
     };
     this.xpGained = 0;
-    this.attrGained = { str: 0, con: 0 };
+    this.attrGained = { str: 0, con: 0, agi: 0 };
     this.formation('fight');
     this.petHp = pet.stats.health;
     this.petHpMax = pet.maxHealth?.() ?? 100;   // her health never goes over the maximum
@@ -544,7 +545,7 @@ export class Melee {
     }));
     this.foeIdx = 0;
     this.xpGained = 0;
-    this.attrGained = { str: 0, con: 0 };
+    this.attrGained = { str: 0, con: 0, agi: 0 };
     this.petHp = this.pet.stats.health;
     this.petHpMax = this.pet.maxHealth?.() ?? 100;
     this.formation('unknown');
@@ -845,8 +846,13 @@ export class Melee {
       // Ela desaba no chão: INCONSCIENTE (trava total; acorda com 50%+ de HP e Energia).
       this.pet.lieUnconscious?.();
     }
-    // A luta contra a horda também é um treino de verdade: bônus de Força da sessão.
-    if (this.turns >= 3) { game.attrGain?.('str', ATTR_XP.str.session); this.attrGained.str += ATTR_XP.str.session; }
+    // A luta contra a horda também é um treino de verdade: bônus de Força e Agilidade da sessão.
+    if (this.turns >= 3) {
+      game.attrGain?.('str', ATTR_XP.str.session, 'heavy');
+      game.attrGain?.('agi', ATTR_XP.agi.session, 'heavy');
+      this.attrGained.str += ATTR_XP.str.session;
+      this.attrGained.agi += ATTR_XP.agi.session;
+    }
     this.stop(reason);
   }
 
@@ -1191,6 +1197,8 @@ export class Melee {
     this.app.sound?.tone8?.(kind === 'dodge' ? 700 : 520, 220, 0.1, 'square', 0.07);
     // Blocking or dodging breaks the streak of hits: no Fúria.
     this.hitStreak = 0;
+    // Esquivar/bloquear treina a Agilidade (read mais fraco: bloquear rende metade).
+    this.game.attrGain?.('agi', ATTR_XP.agi[kind === 'dodge' ? 'dodge' : 'block'], 'dodge');
     this.phase = 'impact';
     this.t = 0;
   }
@@ -1373,6 +1381,19 @@ export class Melee {
     return { result: 'hit', dmg, crit };
   }
 
+  // AGI (Nv 4+): cada nível acima de 3 dá +8% de chance de um golpe extra gratuito
+  // no mesmo turno (Nv4 = 8% … Nv10 = 56%). O golpe extra é um pouco mais fraco que o normal.
+  agiBonusStrike() {
+    const agi = this.game?.attrLevel?.('agi') ?? 1;
+    const chance = (agi - 3) * 0.08;
+    if (chance <= 0 || Math.random() >= chance) return;
+    const roll = this.rollStrike(null, 0.85);
+    if (roll.result !== 'hit') return;
+    this.say(this.oppX(), this.oppY() - this.pet.P * 1.6, 'Golpe Rápido!', 'good');
+    this.app.sound?.swish?.();
+    this.damageFoe(roll.dmg, { crit: roll.crit });
+  }
+
   resolveHit() {
     if (this.hitResolved) return;
     this.hitResolved = true;
@@ -1402,7 +1423,8 @@ export class Melee {
       if (this.kind === 'unknown' && !this.foes.some((f) => f.hp > 0)) break;
     }
     if (landed) {
-      // The critical is announced on top of the damage.
+      // AGI (Nv 4+): chance de um golpe extra gratuito no mesmo turno.
+      this.agiBonusStrike();
       // The special effects of the maneuver.
       this.applyManeuverFx(man, x, y);
     } else if (blocked) {
@@ -1484,8 +1506,11 @@ export class Melee {
     }
     // The Scrap Dummy is reset for the next round.
     this.opp.hp = this.opp.max;
-    // Terminar a sessão de Treino Pesado dá o bônus de Força da sessão.
-    if (this.turns >= 3) this.game.attrGain?.('str', ATTR_XP.str.session);
+    // Terminar a sessão de Treino Pesado dá o bônus de Força e Agilidade da sessão.
+    if (this.turns >= 3) {
+      this.game.attrGain?.('str', ATTR_XP.str.session, 'heavy');
+      this.game.attrGain?.('agi', ATTR_XP.agi.session, 'heavy');
+    }
     this.stop(reason);
   }
 

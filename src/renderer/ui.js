@@ -31,7 +31,7 @@ const ATTR_DESC = {
   str: 'Aumenta o dano físico dos golpes corpo a corpo, manobras especiais e arremessos. Contribui para os Pontos de Vida (HP) máximos. Treina escalando as janelas, arremessando a Bola de Queimada, acertando golpes no Boneco de Treino e ainda mais no Treino Pesado.',
   con: 'Reduz o gasto de energia em todas as ações e golpes. Aumenta significativamente os Pontos de Vida (HP) máximos. Treina gastando energia todo dia, levando dano de verdade em combate e treinando no Boneco de Treino.',
   dex: 'Aumenta a esquiva dos golpes e a precisão dos ataques rápidos. Por enquanto ela ainda não muda o jogo.',
-  agi: 'Deixa os movimentos mais rápidos: ela se mexe e ataca antes do adversário. Por enquanto ela ainda não muda o jogo.',
+  agi: 'Aumenta a velocidade de corrida, a altura dos pulos no pula-pula e a chance de um golpe extra gratuito no mesmo turno (Nv 4+: +8% por nível). Treina jogando no pula-pula (flips rendem bônus), correndo de verdade (pega-pega/perseguição), arremessando e pegando a Bola de Queimada, com o gancho, rodando no bambolê, de skate, esquivando ou bloqueando no combate e ao terminar sessões de treino.',
   will: 'Resiste aos status negativos e segura o Humor mais alto. Por enquanto ela ainda não muda o jogo.',
   per: 'Melhora a atenção no que acontece ao redor. Por enquanto ela ainda não muda o jogo.',
   cha: 'Ajuda a ganhar Afeição e a negociar as trocas. Por enquanto ela ainda não muda o jogo.',

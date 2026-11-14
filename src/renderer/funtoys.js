@@ -3,6 +3,7 @@
 // one; Toys hands them over through owns()/play(). Their progress lives in profile.fun.
 import { icon, defineIcons } from './pixel.js';
 import { FURN, baseId } from './furniture.js';
+import { ATTR_XP } from './attrxp.js';
 import { KOI } from './upgrades.js';
 import { dollReact } from './watch.js';
 import { VOICES, MonoVoice, echoBus, parseMidi, songLength, SynthPlayer } from './synth.js';
@@ -1063,6 +1064,7 @@ export class FunToys {
       tick: (dt, tp) => {
         const on = tp.t < tp.spin;
         const P = this.P;
+        if (on) this.app.game?.attrGain?.('agi', ATTR_XP.agi.hoop * dt, 'hoop');
         tp.phase = (tp.phase || 0) + dt * (on ? (style === 'braco' ? 13 : style === 'pescoco' ? 12 : 11) : 0);
         if (style === 'braco') {
           tp.reach = on ? 0.8 : 0.3;
@@ -1436,6 +1438,7 @@ export class FunToys {
     const board = P * 0.07;
     const sound = this.app.sound;
     const s = (tp.sk ||= { mode: 'roll', lift: board, v: 0, jv: 0, flip: 0 });
+    if (s.mode !== 'fall') this.app.game?.attrGain?.('agi', ATTR_XP.agi.skate * dt, 'skate');
     if (s.mode === 'fall') {
       s.ft += dt;
       s.jv += g * dt;
@@ -1959,6 +1962,8 @@ export class FunToys {
     const P = this.P;
     const floor = this.toys.floorY();
     const base = this.toys.size(id) * this.toys.ratio(id) * 0.7;
+    const agiLvl = this.app.game?.attrLevel?.('agi') ?? 1;
+    const up = !!this.app.game?.toys?.[id]?.up;
     const j = (tp.j ||= { h: 0, v: 0, n: 0, air: 1 });
     const g = pet.gravity * 0.8;
     j.v -= g * dt;
@@ -1969,6 +1974,8 @@ export class FunToys {
       j.h = 0;
       j.n++;
       let target = Math.min(P * (0.6 + j.n * 0.35), P * (1 + 2.5 * pet.stats.energy / 100));
+      // A Agilidade amplia o alcance do pulo (e o up do pula-pula ainda mais).
+      target *= (1 + (agiLvl - 1) * 0.09) * (up ? 1.15 : 1);
       // Bouncing with the Doll: each one launches the other a bit higher.
       if (this.withDoll(tp)) target += P * 0.3;
       if (!tp.tried && j.n >= 4) {
@@ -1996,6 +2003,9 @@ export class FunToys {
       }
       j.flip = j.trick === 'flip';
       j.v = Math.sqrt(2 * g * target);
+      // Cada pulo treina a Agilidade (o pula-pula Synthwave rende 1,5x); flip/twist dão bônus.
+      this.app.game?.attrGain?.('agi', up ? ATTR_XP.agi.tramp * 1.5 : ATTR_XP.agi.tramp, 'tramp');
+      if (j.trick === 'flip' || j.trick === 'twist') this.app.game?.attrGain?.('agi', ATTR_XP.agi.flip, 'tramp');
       j.air = (2 * j.v) / g;
       j.at = 0;
       this.sfx('tramp', 1.2);

@@ -22,6 +22,7 @@ export const UPGRADES = {
   venda_bebida: { name: 'Máquina de Bebida Neon', note: 'Visual synthwave, compras com holograma e teleporte e bebidas exclusivas com buff' },
   alvo: { name: 'Arcade de Tiro', note: 'Vira uma máquina de arcade de tiro (maior): ela joga com a pistola de luz', pix: 'arcade_up', size: 1.45, ratio: 46 / 26 },
   boneco_treino: { price: 1200, name: 'Boneco Sucataoxidado', note: 'Robusto: chapas de metal enferrujado, engrenagens e juntas mecânicas · libera o Treino Pesado (luta de verdade)', pix: 'dummy_scrap' },
+  pula_pula: { price: 570, name: 'Pula-pula Synthwave', note: 'Visual synthwave, pulos mais altos e XP de Agilidade x1,5 no pula-pula', pix: 'pula_pula_up' },
 };
 
 export const upgradeCost = (id, item) => UPGRADES[id]?.price ?? Math.ceil((item?.price || 0) * 1.5);
@@ -63,6 +64,26 @@ defineIcons({
     rect(3, 24, 9, 3, '#12141a'); rect(4, 25, 2, 1, NEON.pink); rect(6, 25, 2, 1, NEON.sun); rect(8, 25, 3, 1, NEON.cyan);
     rect(20, 24, 2, 2, NEON.cyan); rect(23, 24, 2, 2, NEON.pink); px(14, 25, NEON.gold); px(16, 25, NEON.gold);
     rect(1, 27, 26, 1, NEON.violet);
+  }),
+  // Synthwave trampoline: chrome springs, neon grid mat and a half-sun rising over the frame.
+  pula_pula_up: (sprite) => sprite(32, 12, ({ rect, px, circle }) => {
+    // half-sun (rising) centered on the mat
+    rect(13, 0, 6, 1, NEON.sun); rect(11, 1, 10, 1, '#ffb85c'); rect(11, 2, 10, 1, NEON.gold);
+    px(13, 1, NEON.sun); px(18, 1, NEON.sun);
+    // legs: dark chrome with neon edges
+    rect(3, 7, 2, 5, NEON.deep); rect(15, 7, 2, 5, NEON.deep); rect(27, 7, 2, 5, NEON.deep);
+    px(3, 7, NEON.cyan); px(15, 7, NEON.cyan); px(27, 7, NEON.cyan);
+    px(4, 11, NEON.pink); px(16, 11, NEON.pink); px(28, 11, NEON.pink);
+    // frame body: deep purple with cyan rail on top and magenta rail below
+    rect(0, 4, 32, 3, '#241533'); rect(0, 4, 32, 1, NEON.cyan); rect(0, 6, 32, 1, NEON.pink);
+    // mat: perspective grid (vertical neon bars over a near-black field)
+    rect(2, 2, 28, 2, NEON.deep);
+    rect(4, 2, 1, 2, NEON.violet); rect(10, 2, 1, 2, NEON.violet); rect(16, 2, 1, 2, NEON.violet); rect(22, 2, 1, 2, NEON.violet); rect(28, 2, 1, 2, NEON.violet);
+    rect(2, 3, 28, 1, '#150b26');
+    // springs: gold dots along the body
+    for (const x of [2, 7, 12, 17, 22, 27]) px(x, 5, NEON.gold);
+    // side bolts
+    px(0, 5, NEON.cyan); px(31, 5, NEON.pink);
   }),
   // Modern platform bed: graphite frame, upholstered tufted headboard, white sheets, slate duvet
   // folded at the top and a single cyan LED strip glowing under the base.

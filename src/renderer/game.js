@@ -577,6 +577,7 @@ export class Game {
     xp[id] = Math.max(0, (xp[id] || 0) + amount);
     const lvl = attrLevelOf(xp[id]);
     this.profile.attrs[id] = lvl;
+    if (id === 'agi') this.pet?.updateAgiSpeed?.();
     this.dirty = true;
     // O indicador pequeno: quanto de XP ela acabou de ganhar neste atributo.
     if (amount > 0) this.pet?.emit?.('attrXp', { id, amount, xp: xp[id], level: lvl, up: lvl > before, source });

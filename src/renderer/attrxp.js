@@ -15,6 +15,17 @@
 //   energy  — por Energia gasta (de leve, o gasto do dia a dia)
 //   turn    — um turno de treino no boneco
 //   hurt    — por ponto de Saúde perdido numa luta de verdade (a parte forte)
+//
+// Agilidade (agi)
+//   tramp   — um pulo no pula-pula (o up do Synthwave rende mais)
+//   flip    — um flip/twist no ar do pula-pula
+//   run     — por segundo correndo de verdade (pega-pega, perseguição)
+//   ball    — arremessar/pegar a Bola de Queimada
+//   hook    — um disparo bem-sucedido do gancho
+//   hoop    — por segundo rodando o bambolê
+//   skate   — por segundo de skate
+//   dodge   — esquivar ou bloquear no combate
+//   session — terminar uma sessão de Treino Pesado
 export const ATTR_XP = {
   str: {
     dummy: 1.5,
@@ -29,6 +40,18 @@ export const ATTR_XP = {
     turn: 1,
     hurt: 0.5,
   },
+  agi: {
+    tramp: 0.5,
+    flip: 0.3,
+    run: 0.2,
+    ball: 0.6,
+    hook: 0.8,
+    hoop: 0.15,
+    skate: 0.4,
+    dodge: 0.4,
+    block: 0.2,
+    session: 10,
+  },
 };
 
 // De onde veio o XP (o log mostra: "+4 XP em Força (Treino Pesado)").
@@ -39,6 +62,12 @@ export const ATTR_SOURCES = {
   heavy: 'Treino Pesado',
   unknown: 'Unknown',
   energy: 'Energia',
+  tramp: 'Pula-pula',
+  run: 'Correr',
+  hook: 'Gancho',
+  hoop: 'Bambolê',
+  skate: 'Skate',
+  dodge: 'Esquiva',
 };
 
 // O XP em que o nível começa.
