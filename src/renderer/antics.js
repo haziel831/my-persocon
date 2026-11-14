@@ -68,6 +68,8 @@ export class Antics {
 
   tryStart(kind) {
     const { pet, minigames } = this.app;
+    // INCONSCIENTE: nenhuma travessura, antic ou interação autônoma — ela está apagada fora.
+    if (pet.unconscious) return false;
     if (this.cur || pet.mode !== 'ground' || pet.dead || pet.action === 'sleep' || pet.toyPlay || pet.activity || pet.mini || pet.chase || pet.eating || minigames?.active) return false;
     // COMBAT_MODE: no random antics during a fight.
     if (pet.combatMode) return false;

@@ -120,8 +120,8 @@ export class Fx {
     const size = Math.max(13, Math.min(40, 13 + n * 1.25)) * (opts.crit ? 1.15 : 1);
     el.style.fontSize = `${Math.round(size)}px`;
     el.style.left = `${Math.round(x + (Math.random() - 0.5) * 14)}px`;
-    el.style.top = `${Math.round(y)}px`;
-    el.style.setProperty('--rise', `${Math.round(-46 - n * 0.9)}px`);
+    el.style.top = `${Math.round(y - 58)}px`;   // bem mais alto acima do lutador
+    el.style.setProperty('--rise', `${Math.round(-48 - n * 0.9)}px`);
     el.style.setProperty('--drop', `${Math.round(26 + n * 0.35)}px`);
     document.body.append(el);
     setTimeout(() => el.remove(), 1250);

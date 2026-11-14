@@ -52,7 +52,7 @@ export class DesktopWatch {
     if (this.app.config.desktopReactions === false || this.app.config.focus) return false;
     if (kind !== 'winRide' && this.cool > 0) return false;
     if (now - (this.last[kind] ?? -1e9) < (GAP[kind] ?? 60)) return false;
-    if (this.pet.dead || this.pet.mode === 'held') return false;
+    if (this.pet.dead || this.pet.unconscious || this.pet.mode === 'held') return false;
     this.last[kind] = now;
     this.cool = rand(18, 30);
     this.pet.emit(kind, data);

@@ -129,6 +129,8 @@ export class Pet {
     this.combatAnim = new Combat(this);
     this.chase = null;
     this.dead = false;
+    // INCONSCIENTE: estado pós-derrota (ela cai no chão e não responde a nada até recuperar 50%+ de HP/Energia).
+    this.unconscious = false;
     this.cursor = null;
     this.meals = [];
     this.eating = null;
@@ -1558,6 +1560,38 @@ export class Pet {
     this.anim(this.view.animator.has('death') ? 'death' : 'sleep', { pose: this.view.animator.has('death') ? 'stand' : 'lie', facing: 'front' });
   }
 
+  // INCONSCIENTE — fora de ação depois de uma derrota: deitada, fora de combate
+  // e sem responder a nada até HP e Energia recuperarem 50% do máximo.
+  lieUnconscious() {
+    if (this.dead || this.offstage) return;
+    this.chase = null;
+    this.eating = null;
+    this.meals = [];
+    this.unconscious = true;
+    this.paused = true;   // a IA não decide nada enquanto ela está fora
+    this.action = 'sleep';   // o motor já sabe tratar o sleep (timer Infinity, regen de energia no chão)
+    this.timer = Infinity;
+    this.onCushion = false;
+    this.onBed = false;
+    const has = (n) => this.view?.animator?.has(n);
+    const clip = has('sleep') ? 'sleep' : has('death') ? 'death' : 'idle';
+    this.anim(clip, { pose: 'lie', facing: 'front' });
+    this.emit('ko');
+  }
+
+  // Acorda automaticamente quando HP e Energia ≥ 50% do máximo.
+  reviveUnconscious() {
+    if (!this.unconscious || this.dead) return;
+    this.unconscious = false;
+    this.paused = false;
+    this.slept = 0;
+    this.action = 'idle';
+    this.timer = rand(1.5, 3);
+    this.anim('idle', { facing: 'front', restart: true });
+    this.emit('wake', { startled: false });
+    this.chooseNext();
+  }
+
   // Switched off on the floor (first run): the bundled model has "off"; others reuse death/sleep.
   lieOff() {
     this.action = 'off';
@@ -2034,6 +2068,8 @@ export class Pet {
   }
 
   chooseNext() {
+    // INCONSCIENTE (pós-derrota): nenhuma ação é escolhida; ela é destravada só quando acorda.
+    if (this.unconscious) return;
     if (this.leaving) return this.startLeave();
     if (this.dead) return this.lieDead();
     if (this.powerOff) return this.lieOff();
@@ -2211,7 +2247,8 @@ export class Pet {
     if (this.action === 'dead') return;
     if (this.action === 'sleep') {
       this.slept = (this.slept || 0) + dt;
-      if (this.stats.energy >= 98 && this.slept > 20) this.timer = 0;
+      if (this.unconscious) this.timer = Infinity;           // inconsciente: acorda só pela regen própria
+      else if (this.stats.energy >= 98 && this.slept > 20) this.timer = 0;
       else this.timer = Infinity;
     }
     this.timer -= dt;
@@ -2519,6 +2556,17 @@ export class Pet {
     const d = DIFFICULTIES[this.cfg.difficulty] ?? 1;
     const s = this.stats;
     const sleeping = this.mode === 'ground' && this.action === 'sleep';
+    // INCONSCIENTE (pós-derrota): deitada, regen passiva, sem punição e sem drain — acorda sozinha com 50%+.
+    if (this.unconscious) {
+      const maxHP = this.maxHealth?.() ?? 100;
+      s.energy = Math.min(100, s.energy + 5.5 * dt);
+      s.health = Math.min(maxHP, s.health + 3.2 * dt);
+      s.mood = Math.min(100, s.mood + 1.2 * dt);
+      if (s.energy >= 50 && s.health >= maxHP / 2) this.reviveUnconscious();
+      for (const k of Object.keys(s)) s[k] = clamp(s[k], 0, 100);
+      this.updateDebuffs(dt);
+      return;
+    }
     const noHunger = this.buff('noHunger');
     const noTired = this.buff('noTired');
     if (this.action !== 'sleep' && this.action !== 'goto') this.onBed = false;

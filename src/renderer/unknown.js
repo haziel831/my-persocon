@@ -182,6 +182,11 @@ export class Slime {
   draw() {
     if (!this.view) return;
     const g = this.view;
+    // A gosma ENCARA a Persocon: espelha o sprite na horizontal quando ela estiver à esquerda.
+    const petX = this.app?.pet?.x ?? this.x;
+    const flip = petX < this.x;
+    g.save();
+    if (flip) { g.translate(SPR, 0); g.scale(-1, 1); }
     g.clearRect(0, 0, SPR, SPR);
     g.imageSmoothingEnabled = false;
     if (this.glitch > 0) {
@@ -212,6 +217,8 @@ export class Slime {
     } else {
       g.drawImage(this.raw, 0, 0);
     }
+    g.restore();
+    // O flash de dano continua ocupando a área inteira do sprite.
     if (this.flashT > 0) {
       const k = this.flashI * (this.flashT / 0.3);
       g.globalCompositeOperation = 'source-atop';

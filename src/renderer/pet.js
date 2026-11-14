@@ -1655,6 +1655,7 @@ api.onTrayClick?.(() => {
   let lastClick = null;
   const click = () => {
     if (app.intro?.onPetClick()) return;
+    if (pet.unconscious) return;   // INCONSCIENTE: nenhum clique toca ela
     const now = performance.now();
     const dbl = !!lastClick && now - lastClick.t < 350 && Math.hypot(press.x - lastClick.x, press.y - lastClick.y) < 12;
     if (dbl) lastClick = null;
@@ -1686,6 +1687,7 @@ api.onTrayClick?.(() => {
       suppressContext = false;
       return;
     }
+    if (pet.unconscious) return;   // INCONSCIENTE: nada de menu na pós-derrota
     if (!uiOpen() && !press && !app.intro?.busy && !pet.closeup && hitPet(e.clientX, e.clientY)) {
       // COMBAT_MODE: the menu (manual commands) is locked during the fight.
       if (pet.combatMode) return;
@@ -1713,6 +1715,8 @@ api.onTrayClick?.(() => {
     }
     if (startScreenDrag(e)) return;
     if (e.target.closest?.('.hitzone')) return;
+    // INCONSCIENTE: ela não responde a clique, arraste ou tapa — nem durante a recuperação.
+    if (pet.unconscious) return;
     if (pet.closeup || !hitPet(e.clientX, e.clientY)) return;
     // COMBAT_MODE: the fight is not interrupted by petting, slapping or dragging.
     // Only the press is registered, so two clicks can cancel the fight.

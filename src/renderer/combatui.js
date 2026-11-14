@@ -226,6 +226,19 @@ export class CombatUI {
     const h = document.createElement('h1');
     h.textContent = 'VITÓRIA!';
     el.append(h);
+    // Chispas de celebração explodindo do centro do banner.
+    const sparks = ['#ffd75e', '#fff7a0', '#ffd23f', '#a5ffb0', '#ffffff'];
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('div');
+      s.className = 'victory-spark';
+      const ang = (i / 22) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 60 + Math.random() * 80;
+      s.style.setProperty('--dx', `${Math.round(Math.cos(ang) * dist)}px`);
+      s.style.setProperty('--dy', `${Math.round(Math.sin(ang) * dist)}px`);
+      s.style.background = sparks[i % sparks.length];
+      s.style.animationDelay = `${(Math.random() * 0.4).toFixed(2)}s`;
+      el.append(s);
+    }
     if (xpLines.length) {
       const box = document.createElement('div');
       box.className = 'victory-xp';
@@ -246,6 +259,49 @@ export class CombatUI {
   hideVictory() {
     this.winEl?.remove();
     this.winEl = null;
+  }
+
+  // ---------- o banner de DERROTA ----------
+
+  defeatBanner() {
+    this.hideDefeat();
+    const el = document.createElement('div');
+    el.className = 'defeat-banner';
+    const h = document.createElement('h1');
+    h.textContent = 'DERROTA...';
+    el.append(h);
+    const sub = document.createElement('div');
+    sub.className = 'defeat-sub';
+    sub.textContent = 'A horda recuou... mas você não aguentou.';
+    el.append(sub);
+    document.body.append(el);
+    this.defeatEl = el;
+    return el;
+  }
+
+  hideDefeat() {
+    this.defeatEl?.remove();
+    this.defeatEl = null;
+  }
+
+  // Uma explosão de fumaça escura onde o inimigo estava (ele some na penumbra).
+  smokePoof(x, y) {
+    const SMOKE = ['#0a0a10', '#141420', '#1d1d2a', '#242436', '#2e2e42'];
+    for (let i = 0; i < 18; i++) {
+      const el = document.createElement('div');
+      el.className = 'defeat-smoke';
+      const s = 14 + Math.random() * 26;
+      el.style.width = `${s}px`;
+      el.style.height = `${s}px`;
+      el.style.left = `${Math.round(x - s / 2 + (Math.random() - 0.5) * 40)}px`;
+      el.style.top = `${Math.round(y - s / 2 + (Math.random() - 0.5) * 30)}px`;
+      el.style.background = SMOKE[Math.floor(Math.random() * SMOKE.length)];
+      el.style.setProperty('--rise', `${Math.round(-(30 + Math.random() * 70))}px`);
+      el.style.setProperty('--drift', `${Math.round((Math.random() - 0.5) * 90)}px`);
+      el.style.setProperty('--delay', `${(Math.random() * 0.6).toFixed(2)}s`);
+      document.body.append(el);
+      setTimeout(() => el.remove(), 3200);
+    }
   }
 
   // ---------- os modais de lore sombrios ----------
@@ -404,5 +460,6 @@ export class CombatUI {
     this.hideRing();
     this.hideFoeBars();
     this.hideVictory();
+    this.hideDefeat();
   }
 }

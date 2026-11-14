@@ -485,7 +485,7 @@ export class Menu {
   acoes() {
     const { app } = this;
     const pet = app.pet;
-    const dead = pet.dead;
+    const dead = pet.dead || pet.unconscious;
     const food = app.game.items(isEdible);
     const total = food.reduce((n, e) => n + e.count, 0);
     const placed = app.toys?.editable().length || 0;

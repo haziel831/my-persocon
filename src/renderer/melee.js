@@ -431,14 +431,16 @@ export class Melee {
     return ['rasante', 'penas', 'bicada', 'grito', 'busca', 'provocacao'].some((id) => crow.learned?.(id));
   }
 
-  // O Corvo entra no lado dela (flutuando ao lado/acima).
+  // O Corvo entra NO CENTRO da arena com a Persocon (um pouco atrás/acima dela).
   joinCrow() {
     const crow = this.app.crow;
     const pet = this.pet;
     this.crowFight = true;
     const W = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
-    // A formação: lado a lado, ele um pouco acima e atrás dela.
-    crow.x = Math.max(pet.P * 0.3, Math.min(W - pet.P * 0.3, pet.x + pet.P * 1.05));
+    const P = pet.P;
+    const centerX = Math.round(W / 2);
+    // A Persocon fica à direita do centro (+160); o Corvo atrás dela (+210), flutuando.
+    crow.x = clamp(centerX + 210, P * 0.3, W - P * 0.3);
     crow.y = (this.app.toys?.floorY?.() ?? pet.y) - pet.P * 1.9;
     crow.lift = 0;
     crow.perch = 'combat';
@@ -548,8 +550,10 @@ export class Melee {
     this.formation('unknown');
     if (!this.enter('unknown')) return false;
     if (this.kind === 'unknown') {
-      // A horda já está na arena: o combate começa agora, sem a fase de deslocamento.
-      this.beginTurn({ turn: TURN.PERSOCON, foeIdx: 0 });
+      // O "beat" clássico: os dois times se olham na arena antes do turno 1 (o turno começa depois).
+      this.phase = 'align';
+      this.t = 0;
+      this.say(this.pet.x, this.pet.y - this.pet.P * 1.35, '⚔', 'good', { big: true });
     } else {
       this.phase = 'intro';
       this.t = 0;
@@ -558,14 +562,15 @@ export class Melee {
     return true;
   }
 
-  // A formação lado a lado: a Persocon (e o Corvo) à esquerda, os inimigos à direita.
+  // A formação clássica de JRPG: os dois times se encontram no centro da tela, de lados opostos.
+  // (O Boneco de Treino é móvel estática: a Persocon só anda até ele, sem formação central.)
   formation(kind = 'unknown') {
     const { pet, game } = this.app;
     const W = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
     const P = pet.P;
     const floor = this.app.toys?.floorY?.() ?? pet.y;
     const dummy = game?.toys?.boneco_treino;
-    pet.x = Math.max(P * 0.25, Math.min(W - P * 0.25, Math.round(W * 0.2)));
+    const centerX = Math.round(W / 2);
     // A arena é o chão: ela desce do móvel (e solta o colchão/cama) antes da luta começar.
     pet.mode = 'ground';
     pet.surfaceId = 'floor';
@@ -576,23 +581,30 @@ export class Melee {
     if (kind !== 'unknown' && dummy) {
       // O Boneco de Treino fica onde está (é mobília colocada); ela só entra pela esquerda.
       pet.x = Math.max(P * 0.25, Math.min(W - P * 0.25, dummy.x - Math.round(P * 1.7)));
+    } else if (kind === 'unknown') {
+      // A Persocon (e o Corvo) entram pela direita, encarando a esquerda (a horda à esquerda do centro).
+      pet.x = clamp(centerX + Math.round(P * 1.15), P * 0.25, W - P * 0.25);
+      pet.dir = -1;
+    } else {
+      pet.x = Math.max(P * 0.25, Math.min(W - P * 0.25, Math.round(W * 0.2)));
     }
     if (kind === 'unknown' && this.foes.length) {
-      const W0 = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
-      const base = Math.round(W0 * 0.82);
-      // Fonte de verdade única: x/y do inimigo (o sprite, o alvo e a barra de HP leem os mesmos números).
+      // Os inimigos se enfileiram à esquerda, escalonados (um leve zig-zag no eixo X e no Y),
+      // todos de frente para a Persocon (à sua direita).
+      const base = centerX - Math.round(P * 1.05);
+      const n = this.foes.length;
       this.foes.forEach((f, i) => {
         if (f.enemy) {
-          f.x = Math.max(P * 0.5, base - i * 75);
-          f.y = this.app.toys?.floorY?.() ?? pet.y;
+          f.x = Math.max(P * 0.5, base - Math.round(i * 70));
+          f.y = floor;
           f.enemy.x = f.x;
           f.enemy.y = f.y;
-          f.enemy.dir = -1;
+          f.enemy.dir = 1;   // de frente para a Persocon (ela está à direita deles)
           try { f.enemy.place?.(); } catch { /* o desenho usa x/y direto */ }
         }
       });
       // Para o fallback de oppX() (caso todos morram numa mesma frame): a última posição conhecida.
-      this._foeFallbackX = Math.round(W0 * 0.82);
+      this._foeFallbackX = base;
     }
     // O Corvo entra pela joinCrow() (chamada no enter), já na posição final dela.
   }
@@ -812,10 +824,26 @@ export class Melee {
       game.profile.unknownDone = true;
       game.changed();
       game.persist?.();
-    } else if (reason === 'safety') {
-      this.say(pet.x, pet.y - pet.P * 1.25, 'Treino interrompido (segurança)', 'bad');
-    } else {
-      this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia — a horda recuou', 'bad');
+    } else if (reason === 'safety' || reason === 'tired') {
+      // DERROTA: os inimigos recuam na fumaça, e ela cai no chão (Inconsciente até 50%).
+      this.app.combatUI?.defeatBanner?.();
+      // Uma vignette escura engole a tela por alguns segundos.
+      const vignette = document.createElement('div');
+      vignette.className = 'defeat-vignette';
+      document.body.append(vignette);
+      setTimeout(() => vignette.remove(), 2600);
+      // Cada inimigo vira fumaça escura e desaparece.
+      for (const f of this.foes) {
+        if (f.enemy) this.app.combatUI?.smokePoof?.(f.enemy.x, f.enemy.y - this.pet.P * 0.5);
+        f.hp = 0;
+      }
+      // A horda recua: toca a animação de espera e some para dentro da TV.
+      this.app.unknown?.onDefeat?.('lose');
+      this.app.sound?.play?.('gameover', { volume: 0.5 }) ?? this.app.sound?.tone8?.(80, 40, 0.8, 'sawtooth', 0.08);
+      this.app.combatUI?.hideFoeBars?.();
+      this.say(pet.x, pet.y - pet.P * 1.25, '...', 'bad');
+      // Ela desaba no chão: INCONSCIENTE (trava total; acorda com 50%+ de HP e Energia).
+      this.pet.lieUnconscious?.();
     }
     // A luta contra a horda também é um treino de verdade: bônus de Força da sessão.
     if (this.turns >= 3) { game.attrGain?.('str', ATTR_XP.str.session); this.attrGained.str += ATTR_XP.str.session; }
@@ -847,6 +875,10 @@ export class Melee {
         if (Math.abs(want - pet.x) <= 3 || this.introT > 1.4) this.beginTurn({ turn: TURN.PERSOCON, foeIdx: this.kind === 'unknown' ? this.firstAliveFoe() : this.foeIdx });
         break;
       }
+      case 'align':
+        // O "beat" clássico de JRPG: os dois times se medem no centro da arena.
+        if (this.t >= 0.9) this.beginTurn({ turn: TURN.PERSOCON, foeIdx: this.firstAliveFoe() });
+        break;
       case 'announce':
         // JRPG pace: the actor is named, then the wind-up starts.
         if (this.t >= PACE.announce) this.startTurn();
@@ -1545,7 +1577,7 @@ export class Melee {
     el.className = `combat-line ${kind}${opts.big ? ' big' : ''}`;
     el.textContent = text;
     el.style.left = `${Math.round(x)}px`;
-    el.style.top = `${Math.round(y)}px`;
+    el.style.top = `${Math.round(y - 62)}px`;   // bem mais alto acima da cabeça (JRPG clássico)
     document.body.append(el);
     setTimeout(() => {
       el.classList.add('out');
