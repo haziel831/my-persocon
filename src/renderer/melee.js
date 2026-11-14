@@ -295,7 +295,8 @@ export class Melee {
     if (this.turn === TURN.PERSOCON) return this.ui?.ring(pet.x, pet.y + 6);
     if (this.turn === TURN.CROW) {
       const c = this.app.crow;
-      return this.ui?.ring(c?.x ?? pet.x, (c?.y ?? pet.y) + 8);
+      const floor = this.app.toys?.floorY?.() ?? pet.y;
+      return this.ui?.ring(c?.x ?? pet.x, floor + 6);
     }
     const f = this.foes[this.foeIdx];
     if (this.kind === 'unknown' && f) {
@@ -451,19 +452,25 @@ export class Melee {
     return ['rasante', 'penas', 'bicada', 'grito', 'busca', 'provocacao'].some((id) => crow.learned?.(id));
   }
 
-  // O Corvo entra NO CENTRO da arena com a Persocon (um pouco atrás/acima dela).
+  // O Corvo entra NO CENTRO, sempre ATRÁS da Persocon (lado oposto para onde ela encara).
   joinCrow() {
     const crow = this.app.crow;
     const pet = this.pet;
+    const { game } = this.app;
     this.crowFight = true;
     const W = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
     const P = pet.P;
-    const centerX = Math.round(W / 2);
-    // A Persocon fica à direita do centro (+160); o Corvo atrás dela (+210), flutuando.
-    crow.x = clamp(centerX + 210, P * 0.3, W - P * 0.3);
-    crow.y = (this.app.toys?.floorY?.() ?? pet.y) - pet.P * 1.9;
+    // Direção para onde ela está encarando o oponente (+1 = encara a direita, -1 = encara a esquerda).
+    const oppX = this.kind === 'unknown'
+      ? (this.foes[0]?.x ?? W / 2 - P * 2)
+      : (game?.toys?.boneco_treino?.x ?? W * 0.7);
+    const facingDir = Math.sign(oppX - pet.x) || 1;
+    const floor = this.app.toys?.floorY?.() ?? pet.y;
+    crow.x = clamp(pet.x - facingDir * 60, P * 0.3, W - P * 0.3);
+    crow.y = floor - 45;         // flutuando na altura do ombro, atrás dela
     crow.lift = 0;
     crow.perch = 'combat';
+    crow.dir = facingDir;        // olhando para o mesmo lado que a Persocon
     crow.idle?.(9999, 'idle');
     this.sayCrow('🪶', 'Comigo não passa!');
   }
@@ -477,6 +484,13 @@ export class Melee {
     this.foes = [];
     this.foeIdx = 0;
     this.crowFight = false;
+    // O Corvo sai da formação de combate e volta à vida normal.
+    const crow = this.app.crow;
+    if (crow) {
+      crow.perch = 'floor';
+      crow.lift = 0;
+      crow.idle?.(1, 'idle');
+    }
     this.pet.combatMode = false;
     document.body.classList.remove('combat-mode');
     this.music?.stop();
@@ -659,6 +673,7 @@ export class Melee {
   }
 
   // O turno do Corvo: escolhe a melhor Skill de Combate que ele aprendeu.
+  // NUNCA derruba a luta: qualquer erro cai no catch, loga e avança o turno.
   crowTurn() {
     const pet = this.pet;
     const crow = this.app.crow;
@@ -667,11 +682,25 @@ export class Melee {
     this.t = 0;
     this.move = { id: 'crow', name: 'Corvo', kind: 'attack', clip: 'combat_idle', dmg: 0 };
     this.moveDur = 0.5;
+    // O Corvo não passa pelo resolveHit da Persocon (o dano dele é aplicado aqui mesmo).
+    this.hitResolved = true;
     this.next = TURN.PERSOCON;
-    // Se a horda já está caída (vitoria em andamento), o Corvo não age.
-    if (this.kind === 'unknown' && !this.foes.some((f) => f.hp > 0)) { this.phase = 'impact'; this.t = 0; return; }
+    try {
+      this.crowAct(crow, pet, P);
+    } catch (err) {
+      console.error('[CrowTurn Error]', err);
+      this.finishCrowTurn();
+    }
+  }
+
+  crowAct(crow, pet, P) {
+    // Se a horda já está caída (vitória em andamento), o Corvo não age.
+    if (this.kind === 'unknown' && !this.foes?.some((f) => f.hp > 0)) { this.phase = 'impact'; this.t = 0; return; }
+    // O alvo, tanto no treino (Boneco/Sucataoxidado) quanto no Unknown (primeira gosma viva).
+    const foeTarget = this.kind === 'unknown'
+      ? (this.foes?.find((f) => f.hp > 0) ?? null)
+      : (this.opp ?? { hp: 1, x: this.oppX() ?? (pet.x + P), y: this.oppY() ?? pet.y });
     const learned = (id) => crow?.learned?.(id);
-    const foeTarget = this.kind === 'unknown' ? this.foes[this.foeIdx] : null;
     const maxHp = this.petHpMax || 100;
     // Meds de cura no Inventário (para a Busca de Emergência).
     const meds = [];
@@ -683,76 +712,117 @@ export class Melee {
     }
     meds.sort((a, b) => (b.effects?.health || 0) - (a.effects?.health || 0));
     // As prioridades: socorrer ela ferida > enfraquecer > atacar > proteger.
+    // No treino contra o Boneco ele nunca ataca: debuff/proteção não servem, então
+    // o Corvo parte direto para os golpes (senão ele "não faz nada" na sessão).
+    const training = this.kind === 'dummy';
     let skill = null;
-    if (pet.stats.health < maxHp * 0.6 && meds.length && learned('busca')) skill = 'busca';
-    else if (foeTarget && foeTarget.defDown <= 0 && learned('provocacao')) skill = 'provocacao';
+    if (!training && pet.stats.health < maxHp * 0.6 && meds.length && learned('busca')) skill = 'busca';
+    else if (!training && foeTarget && (foeTarget.defDown ?? 0) <= 0 && learned('provocacao')) skill = 'provocacao';
     else if (foeTarget && !foeTarget.bleed && learned('penas')) skill = 'penas';
-    else if (this.blockBoost <= 0 && learned('grito')) skill = 'grito';
+    else if (!training && this.blockBoost <= 0 && learned('grito')) skill = 'grito';
     else if (learned('rasante')) skill = 'rasante';
     else if (learned('penas')) skill = 'penas';
     else if (learned('bicada')) skill = 'bicada';
     else if (learned('provocacao')) skill = 'provocacao';
     else if (learned('grito')) skill = 'grito';
-    else skill = 'grito'; // fallback (algum aprendizado de combate existe sempre)
+    else skill = 'grito'; // fallback: sempre há algo (foi por isso que entrou na luta)
+    // O Corvo encara o alvo e mergulha até ele quando é um ataque; caso contrário, voa aqui mesmo.
+    const tx = this.oppX() ?? (foeTarget?.x ?? pet.x);
+    const ty = this.oppY() ?? pet.y;
+    const floor = this.app.toys?.floorY?.() ?? pet.y;
+    crow.dir = Math.sign(tx - crow.x) || 1;
     crow?.play?.('fly', 1.6);
     this.app.sound?.crow?.('flap', 0.7);
-    const face = 1;
-    crow.dir = face;
+    const home = { x: crow.x, y: crow.y };
+    // Depois do voo: volta para a formação de combate (ou para o chão se a luta acabou).
+    const settle = () => {
+      const mm = this.app.melee;
+      if (mm?.active && mm.crowFight) { crow.perch = 'combat'; crow.idle?.(9999, 'idle'); }
+      else { crow.perch = 'floor'; crow.idle?.(1, 'idle'); }
+    };
+    // Skills de apoio: um voo curto no lugar (sobe e volta) para ele "agir" na tela.
+    const cheer = () => {
+      try {
+        crow.flyTo?.(() => ({ x: home.x + crow.dir * 12, y: home.y - P * 0.22 }), () => {
+          try {
+            crow.flyTo?.(() => ({ ...home }), settle);
+          } catch { /* visual */ }
+        });
+      } catch { /* visual */ }
+    };
+    const dash = () => {
+      try {
+        crow.flyTo?.(() => ({ x: tx - crow.dir * 14, y: floor - P * 0.9 }), () => {
+          try {
+            crow.dir = -Math.sign(tx - home.x) || 1;
+            crow.flyTo?.(() => ({ ...home }), () => {
+              crow.dir = Math.sign(tx - home.x) || 1;
+              settle();
+            });
+          } catch (err) { console.error('[CrowTurn dash]', err); crow.x = home.x; crow.y = home.y; settle(); }
+        });
+      } catch (err) { console.error('[CrowTurn fly]', err); settle(); }
+    };
     if (skill === 'busca') {
       const item = meds[0];
       pet.adjust(item.effects || {});
       this.game.take(item.id);
       this.game.changed();
       this.ui?.itemPop(crow.x, crow.y - P * 1.2, item.img);
-      this.sayCrow('🎒', `Usou ${item.name}!`);
+      this.sayCrow('🎒', `Corvo usa ${item.name}!`);
       this.app.sound?.play?.('puff', { volume: 0.4 });
       this.app.fx?.impact?.('dust', pet.x, pet.y - P * 0.6, 0.4);
       this.crowGain('busca');
+      cheer();
       this.finishCrowTurn();
       return;
     }
     if (skill === 'grito') {
       this.blockBoost = Math.max(this.blockBoost, 0.25);
       this.dodgeBoost = Math.max(this.dodgeBoost, 0.2);
-      this.sayCrow('📢', 'Grito de Alerta!');
+      this.sayCrow('📢', 'Corvo usa Grito de Alerta!');
       this.app.sound?.crow?.('caw', 0.9);
       this.crowGain('grito');
+      cheer();
       this.finishCrowTurn();
       return;
     }
     if (skill === 'provocacao') {
-      if (foeTarget) {        foeTarget.defDown = 0.25;
+      if (foeTarget) { foeTarget.defDown = 0.25;
         foeTarget.defTurns = 2;
-        this.sayCrow('💨', 'Provocação Aérea!');
+        this.sayCrow('💨', 'Corvo usa Provocação Aérea!');
         this.crowGain('provocacao');
       }
+      cheer();
       this.finishCrowTurn();
       return;
     }
     if (skill === 'penas') {
       const dmg = 2 + Math.floor(Math.random() * 2) + Math.floor(this.level / 2);
-      foeTarget.bleed = { dmg: 2 + Math.floor(Math.random() * 2), turns: 4 };
-      this.sayCrow('🗡', 'Penas Cortantes!');
+      if (foeTarget) foeTarget.bleed = { dmg: 2 + Math.floor(Math.random() * 2), turns: 4 };
+      this.sayCrow('🗡', 'Corvo usa Penas Cortantes!');
       this.crowGain('penas');
       this.damageFoe(dmg, { crit: false });
+      dash();
       this.finishCrowTurn(true);
       return;
     }
     if (skill === 'bicada') {
       const dmg = 1 + Math.floor(Math.random() * 3);
-      foeTarget.accPen = 0.3;
-      foeTarget.accTurns = 2;
-      this.sayCrow('👁', 'Bicada nos Olhos!');
+      if (foeTarget) { foeTarget.accPen = 0.3; foeTarget.accTurns = 2; }
+      this.sayCrow('👁', 'Corvo usa Bicada nos Olhos!');
       this.crowGain('bicada');
       this.damageFoe(dmg, { crit: false });
+      dash();
       this.finishCrowTurn(true);
       return;
     }
     // Rasante Sombrio: o ataque leve e rápido.
     const dmg = 5 + Math.floor(Math.random() * 3) + Math.floor(this.level / 2);
-    this.sayCrow('🪶', 'Rasante Sombrio!');
+    this.sayCrow('🪶', 'Corvo usa Rasante Sombrio!');
     this.crowGain('rasante');
     this.damageFoe(dmg, { crit: false });
+    dash();
     this.finishCrowTurn(true);
   }
 

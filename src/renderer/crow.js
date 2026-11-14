@@ -396,6 +396,14 @@ export class Crow {
       const s = world.surfaces.find((s) => String(s.id) === id && this.x >= s.x1 && this.x <= s.x2);
       return s ? { x: this.x, y: s.y } : null;
     }
+    if (this.perch === 'combat') {
+      // Atrás da Persocon, sempre no lado oposto para onde ela encara o oponente.
+      const m = this.app.melee;
+      const oppX = (m && m.active) ? (m.oppX?.() ?? null) : null;
+      const back = oppX != null ? Math.sign(oppX - pet.x) || 1 : (pet.dir || 1);
+      this.dir = back;
+      return { x: clamp(pet.x - back * 60, this.P * 0.3, world.width - this.P * 0.3), y: this.floorY() - 45 };
+    }
     return { x: this.x, y: this.floorY() };
   }
 
@@ -1675,8 +1683,15 @@ export class Crow {
     if (d.away) {
       if (Date.now() >= d.away.back) this.comeBack();
     } else if (pet.combatMode) {
-      // COMBAT_MODE: the crow keeps quiet and does not interrupt the fight.
-      if (this.act?.kind !== 'idle') this.idle();
+      // COMBAT_MODE: o Corvo fica atrás da Persocon e só voa quando o combate manda
+      // (o move roda para animar a ida/volta dele e o parado mantém a posição de apoio).
+      const m = this.app.melee;
+      if (m?.active && m.crowFight) {
+        this.move(dt);
+        // O Corvo encara sempre o mesmo lado que a Persocon (o do inimigo).
+        const oppX = m.oppX?.() ?? null;
+        if (oppX != null) this.dir = Math.sign(oppX - pet.x) || this.dir;
+      } else if (this.act?.kind !== 'idle') this.idle();
     } else {
       if (this.duo) this.duoTick(dt);
       if (this.duo?.flutter > 0) {
