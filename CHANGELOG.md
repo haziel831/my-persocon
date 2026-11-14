@@ -32,9 +32,13 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 Detalhes em `ChangeLogs\v1.9.23.md`.
 **Correção: a Persocon fica travada após o combate do cartucho.** A IA estava sendo pausada pela `interruptPet()` e nunca mais destravada — no fim da luta ela parava em `idle` para sempre. Agora a IA fica livre quando o combate começa (e `melee.stop()` garante `resume()` mesmo em saídas de emergência).
 **Correção: Aghata exibia o retrato de Ninna.** A detecção do modelo usava a substring errada ("aghta", inexistente em "aghata") — agora usa "aghata" (funciona para `models/Aghata` e pelo nome configurado).
+Detalhes em `ChangeLogs\v1.9.23.md`.
+
+## v1.9.24 — 14/11/2026
 **Formação clássica no centro (estilo SNES).** A luta contra a horda agora acontece no CENTRO da tela: a Persocon entra pela direita e o Corvo (se aliado) flutua logo atrás/acima dela; a horda se enfileira à esquerda em zigue-zague. Só o primeiro turno começa depois do "beat" clássico (0,9s de encarada). O Boneco de Treino continua móvel estática (ela apenas caminha até ele). O sprite da gosma agora é espelhado para encarar a Persocon.
 **Textos de combate mais altos e sobem.** As caixas de ação e o número de dano nascem mais acima e sobem continuamente enquanto somem.
 **Derrota = Banner sombrio + INCONSCIENTE.** Na derrota contra a horda: banner vinho-sangue, vignette escura na tela inteira, fumaça escura engolindo os inimigos (que recuam para dentro da TV), som grave — e a Persocon desaba INCONSCIENTE no chão: trava total de interação (clique, arraste, tapa, comandos, antics) e regen passiva até 50%+ de HP e Energia, quando ela acorda sozinha. A vitória ganhou faíscas douradas no banner.
+Detalhes em `ChangeLogs\v1.9.24.md`.
 
 ## v1.9.22 — 13/11/2026
 **Visual dos objetos: ajuste ao vivo no objeto de verdade.** A prévia pequena do import continua **fixa (100%)** — ela é só a referência estática para o conta-gotas de transparência e para marcar o hitbox. Tudo o que o modal muda agora aparece **na hora, no objeto real na área de trabalho** (ex.: o boneco de treino do lado da Persocon):
