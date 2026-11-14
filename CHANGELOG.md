@@ -35,6 +35,11 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 Detalhes em `ChangeLogs\v1.9.23.md`.
 
 ## v1.9.24 — 14/11/2026
+**Máquinas com pixel art (Gacha e Slot).** As duas máquinas ganharam arte nova (`assets/alts/`): **PNG parada** quando ociosa e **GIF animada** enquanto a Persocon (ou você) opera — cada uma com a versão normal e a Neon atualizada.
+**Conquistas com ícones GTORAVERSE (32x32).** Todas as conquistas usam ícones do pack (tema + tier: comum=Bronze, rara=Silver, lendaria=Gold), na aba Conquistas e no popup de desbloqueio.
+**Novo atributo: Agilidade.** Corre **mais rápido** (+7% por nível), **pula mais alto** no pula-pula (+9% por nível) e, a partir do **Nv 4**, tem chance de um **golpe extra gratuito no mesmo turno** (+8% por nível; Nv10 = 56%). Treina **jogando no pula-pula** (0,5 XP por pulo, flips/twists dão bônus), **correndo**, com a **Bola de Queimada**, o **gancho**, o **bambolê**, o **skate**, **esquivando/bloqueando** no combate e ao **terminar sessões de treino** (+10 XP).
+**Pula-pula Synthwave.** Novo upgrade (570 moedas): arte synthwave neon (sol em gradê, grade ciano/magenta), **pulos +15%** e **XP de Agilidade ×1,5** no pula-pula.
+**O gancho voltou.** Ela usa o gancho sozinha de novo (chance 25%, em qualquer superfície) e cada disparo treina a Agilidade.
 **Formação clássica no centro (estilo SNES).** A luta contra a horda agora acontece no CENTRO da tela: a Persocon entra pela direita e o Corvo (se aliado) flutua logo atrás/acima dela; a horda se enfileira à esquerda em zigue-zague. Só o primeiro turno começa depois do "beat" clássico (0,9s de encarada). O Boneco de Treino continua móvel estática (ela apenas caminha até ele). O sprite da gosma agora é espelhado para encarar a Persocon.
 **Textos de combate mais altos e sobem.** As caixas de ação e o número de dano nascem mais acima e sobem continuamente enquanto somem.
 **Derrota = Banner sombrio + INCONSCIENTE.** Na derrota contra a horda: banner vinho-sangue, vignette escura na tela inteira, fumaça escura engolindo os inimigos (que recuam para dentro da TV), som grave — e a Persocon desaba INCONSCIENTE no chão: trava total de interação (clique, arraste, tapa, comandos, antics) e regen passiva até 50%+ de HP e Energia, quando ela acorda sozinha. A vitória ganhou faíscas douradas no banner.
