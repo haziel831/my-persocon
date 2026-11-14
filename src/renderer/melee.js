@@ -185,6 +185,12 @@ export class Melee {
     this.oppDizzyEl = null;  // the stars above the stunned enemy
     this.oppRef = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     this.crowFight = false;  // o Corvo entrou na luta
+    this.crowActing = false; // o Corvo está executando a ação do turno dele
+    this.crowTurnT = 0;      // o relógio do turno do Corvo (cão de guarda de 2,5 s)
+    this.pendingCrow = false; // a skill do Corvo espera a carga vermelha terminar
+    this.pendingFoe = false;  // o golpe do inimigo espera a carga vermelha terminar
+    this.chargeSpot = null;   // onde a carga está acontecendo (para o clarão de liberação)
+    this._crowTurnStamp = -1; // em qual turno o Corvo já agiu (1 ação por ciclo)
     this.xpGained = 0;       // XP de combate ganho na luta (para o resumo)
     this.attrGained = { str: 0, con: 0, agi: 0 };
     this.fightStats = { strikes: 0, hits: 0, damage: 0 };
@@ -230,8 +236,14 @@ export class Melee {
   nextEntry() {
     const seq = this.sequence();
     if (!seq.length) return { turn: TURN.PERSOCON, foeIdx: -1 };
-    const i = seq.findIndex((s) => s.turn === this.turn && s.foeIdx === this.foeIdx);
-    return seq[(Math.max(0, i) + 1) % seq.length];
+    // Persocon e Corvo não têm foeIdx; só o inimigo é identificado pelo índice na onda.
+    const same = (s) => s.turn === this.turn && (s.turn !== TURN.FOE || s.foeIdx === this.foeIdx);
+    let i = seq.findIndex(same);
+    // O ator saiu da fila (inimigo morreu): pula para o próximo inimigo à frente dele.
+    if (i < 0) i = seq.findIndex((s) => s.turn === TURN.FOE && s.foeIdx > (this.foeIdx ?? -1));
+    if (i < 0) i = seq.findIndex((s) => s.turn === this.turn);
+    if (i < 0) return seq[0];
+    return seq[(i + 1) % seq.length];
   }
 
   firstAliveFoe() {
@@ -673,20 +685,40 @@ export class Melee {
   }
 
   // O turno do Corvo: escolhe a melhor Skill de Combate que ele aprendeu.
-  // NUNCA derruba a luta: qualquer erro cai no catch, loga e avança o turno.
+  // NUNCA derruba a luta e NUNCA repete: uma única ação por ciclo (carga → skill).
   crowTurn() {
+    // Já está executando? Ignora (nunca re-executa por frame).
+    if (this.crowActing) return;
+    // Já agiu neste mesmo turno? Só fecha a fase e deixa a fila seguir.
+    if (this._crowTurnStamp === this.turns) { this.finishCrowTurn(); return; }
     const pet = this.pet;
     const crow = this.app.crow;
     const P = pet.P;
-    this.phase = 'windup';
+    this._crowTurnStamp = this.turns;
+    this.crowActing = true;
+    this.crowTurnT = 0;
     this.t = 0;
     this.move = { id: 'crow', name: 'Corvo', kind: 'attack', clip: 'combat_idle', dmg: 0 };
     this.moveDur = 0.5;
-    // O Corvo não passa pelo resolveHit da Persocon (o dano dele é aplicado aqui mesmo).
+    // O Corvo não passa pelo resolveHit da Persocon (o dano dele é aplicado na skill).
     this.hitResolved = true;
     this.next = TURN.PERSOCON;
+    // A carga vermelha antes da skill: ele junta energia pairando e só depois solta.
+    this.phase = 'charge';
+    this.chargeT = CHARGE_TIME;
+    this.pendingCrow = true;
+    this.chargeSpot = { x: crow?.x ?? pet.x, y: (crow?.y ?? pet.y) - P * 0.35, size: P * 0.8 };
+    this.ui?.glowRed?.(crow?.canvas, CHARGE_TIME * 1000);
+    this.app.fx?.charge?.(this.chargeSpot.x, this.chargeSpot.y, this.chargeSpot.size, CHARGE_TIME * 1000);
+    this.app.sound?.tone8?.(200, 940, CHARGE_TIME, 'sawtooth', 0.045);
+    crow?.play?.('fly', 1.9);
+  }
+
+  // Roda a skill do Corvo UMA vez (depois da carga). Qualquer erro fecha o turno.
+  runCrowAct() {
+    const pet = this.pet;
     try {
-      this.crowAct(crow, pet, P);
+      this.crowAct(this.app.crow, pet, pet.P);
     } catch (err) {
       console.error('[CrowTurn Error]', err);
       this.finishCrowTurn();
@@ -695,7 +727,7 @@ export class Melee {
 
   crowAct(crow, pet, P) {
     // Se a horda já está caída (vitória em andamento), o Corvo não age.
-    if (this.kind === 'unknown' && !this.foes?.some((f) => f.hp > 0)) { this.phase = 'impact'; this.t = 0; return; }
+    if (this.kind === 'unknown' && !this.foes?.some((f) => f.hp > 0)) { this.finishCrowTurn(); return; }
     // O alvo, tanto no treino (Boneco/Sucataoxidado) quanto no Unknown (primeira gosma viva).
     const foeTarget = this.kind === 'unknown'
       ? (this.foes?.find((f) => f.hp > 0) ?? null)
@@ -870,6 +902,9 @@ export class Melee {
 
   // Fecha o turno do Corvo (depois do efeito principal).
   finishCrowTurn(attacked = false) {
+    this.crowActing = false;
+    this.crowTurnT = 0;
+    this.pendingCrow = false;
     if (attacked) {
       // O canto do Corvo pode derrubar a horda: a vitória começa aqui.
       if (!this.checkVictory()) { this.phase = 'impact'; this.t = 0; }
@@ -879,8 +914,8 @@ export class Melee {
     this.t = 0;
   }
   // O turno de um inimigo da horda: Investida Viscosa ou Pulso de Glitch (só na Persocon).
+  // Aqui ele só se prepara e CARREGA EM VERMELHO; o golpe sai em foeStrike(), no fim da carga.
   foeTurn() {
-    const pet = this.pet;
     const foe = this.opp;
     // Se a horda morreu antes do turno (ex.: sangramento), o turno não acontece.
     if (this.kind === 'unknown' && !foe) { this.phase = 'impact'; this.t = 0; return; }
@@ -895,10 +930,32 @@ export class Melee {
       glitch, stunChance: glitch ? (foe?.stun || 0) : 0,
     };
     this.moveDur = 0.5;
-    foe?.enemy?.play?.('attack');
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, this.move.name, 'bad');
     this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
     if (glitch) this.app.sound?.tone8?.(900, 200, 0.18, 'sawtooth', 0.05);
+    this.startFoeCharge(foe);
+  }
+
+  // A carga vermelha do inimigo (ele para, acende e junta energia antes do bote).
+  startFoeCharge(foe) {
+    const pet = this.pet;
+    this.phase = 'charge';
+    this.t = 0;
+    this.chargeT = CHARGE_TIME;
+    this.pendingFoe = true;
+    const spot = { x: this.oppX() ?? pet.x, y: (this.oppY() ?? pet.y) - pet.P * 0.5, size: pet.P * 0.9 };
+    this.chargeSpot = spot;
+    this.ui?.glowRed?.(foe?.enemy?.el, CHARGE_TIME * 1000);
+    this.app.fx?.charge?.(spot.x, spot.y, spot.size, CHARGE_TIME * 1000);
+    this.app.sound?.tone8?.(210, 900, CHARGE_TIME, 'sawtooth', 0.04);
+  }
+
+  // O bote do inimigo (roda uma única vez, quando a carga termina).
+  foeStrike() {
+    const pet = this.pet;
+    const foe = this.opp;
+    if (this.kind === 'unknown' && !foe) { this.phase = 'impact'; this.t = 0; return; }
+    foe?.enemy?.play?.('attack');
     // Se ela estiver longe, o golpe passa e ele avança.
     const dist = Math.abs((this.oppX() ?? pet.x) - pet.x);
     if (dist > pet.P * 0.85) {
@@ -1005,6 +1062,20 @@ export class Melee {
     const pet = this.pet;
     // Todos encaram o alvo vivo a cada frame (Persocon, Corvo e inimigos).
     this.faceCombatants();
+    // Cão de guarda do Corvo: no máximo UMA ação por ciclo e nada de travar a fila.
+    // (O turno normal dele: anúncio 0,9 s + carga 0,45 s + impacto 0,7 s = 2,05 s.)
+    if (this.turn === TURN.CROW) {
+      this.crowTurnT = (this.crowTurnT || 0) + dt;
+      if (this.crowTurnT > 2.5 && this.phase !== 'recover' && this.phase !== 'victory') {
+        console.warn('[CrowTurn] watchdog: turno preso por mais de 2,5 s — avançando a fila');
+        this.crowTurnT = 0;
+        this.crowActing = false;
+        this.pendingCrow = false;
+        this.hitResolved = true;
+        this.beginTurn(this.nextEntry());
+        return;
+      }
+    } else this.crowTurnT = 0;
     // O hit-stop: no impacto tudo congela por um instante.
     if (this.hitStop > 0) {
       this.hitStop -= dt;
@@ -1042,9 +1113,17 @@ export class Melee {
         // The charge ends and the strike begins (the animation only starts now).
         if (this.t >= (this.chargeT || CHARGE_TIME)) {
           this.chargeT = 0;
+          const crow = this.pendingCrow;
+          const foe = this.pendingFoe;
+          this.pendingCrow = false;
+          this.pendingFoe = false;
           this.phase = 'windup';
           this.t = 0;
-          this.startMoveAnim();
+          // O clarão vermelho da liberação (antes do golpe sair).
+          this.releaseCharge();
+          if (crow) this.runCrowAct();
+          else if (foe) { if (this.opp?.scrap) this.scrapStrike(); else this.foeStrike(); }
+          else this.startMoveAnim();
         }
         break;
       case 'windup': {
@@ -1107,6 +1186,12 @@ export class Melee {
     this.hitResolved = false;
     this.move = null;
     this.phase = 'announce';
+    // Zera o estado do Corvo a cada turno novo (ele age uma única vez por ciclo).
+    this.crowTurnT = 0;
+    this.crowActing = false;
+    this.pendingCrow = false;
+    this.pendingFoe = false;
+    this.chargeSpot = null;
     // A fila reconhece os dois formatos: a entrada da fila ou a string simples.
     const entry = typeof next === 'string' ? { turn: next, foeIdx: this.kind === 'unknown' ? this.firstAliveFoe() : this.foeIdx } : next || { turn: TURN.PERSOCON, foeIdx: this.foeIdx };
     this.turn = entry.turn;
@@ -1196,7 +1281,7 @@ export class Melee {
     this.startCharge(move.kind === 'attack' ? CHARGE_TIME : 0);
   }
 
-  // A carga antes do golpe: ela brilha em azul e junta energia (0 = sem carga).
+  // A carga antes do golpe: ela brilha em VERMELHO e junta energia (0 = sem carga).
   startCharge(dur = 0) {
     const pet = this.pet;
     if (!(dur > 0)) {
@@ -1209,11 +1294,21 @@ export class Melee {
     // A pose de espera enquanto a energia junta.
     const facing = this.facing();
     pet.playAnimation?.('combat_idle', { facing: facing > 0 ? 'right' : 'left', restart: false });
-    // A aura azul em volta dela e as partículas de energia subindo.
-    this.app.fx?.charge?.(pet.x, pet.y - pet.P * 0.45, pet.P, dur);
-    pet.view?.flash?.(1, 'blue', dur);
+    // A aura vermelha em volta dela, o brilho no modelo e as partículas de energia.
+    const spot = { x: pet.x, y: pet.y - pet.P * 0.45, size: pet.P };
+    this.chargeSpot = spot;
+    this.ui?.glowRed?.(pet.view?.canvas, dur * 1000);
+    this.app.fx?.charge?.(spot.x, spot.y, spot.size, dur * 1000);
+    pet.view?.flash?.(1, 'red', dur);
     // O som de juntar energia (sobe de tom).
     this.app.sound?.tone8?.(180, 920, dur, 'sawtooth', 0.045);
+  }
+
+  // O clarão rápido quando a carga estoura e o golpe sai.
+  releaseCharge() {
+    const s = this.chargeSpot;
+    this.chargeSpot = null;
+    if (s) this.ui?.chargeBurst?.(s.x, s.y, s.size);
   }
 
   // A animação do golpe escolhido (depois da carga).
@@ -1298,13 +1393,12 @@ export class Melee {
   }
 
   // The Scrap Dummy attacks: it rolls against her block/dodge and really hurts.
+  // Primeiro ele carrega em vermelho; o golpe sai em scrapStrike().
   scrapTurn() {
-    const pet = this.pet;
     this.next = TURN.PERSOCON;
     // A postura do Sucataoxidado muda o golpe dele: Certeiro acerta mais e bate de leve,
     // Defensivo apanha pouco (e fecha o corpo), Brutal erra mais mas esmaga.
     const posture = this.opp?.posture || 'certeiro';
-    const dex = this.game?.attrLevel?.('dex') ?? 1;
     let dmgMul = 1;
     let accBase = 0.38 + this.opp.level * 0.05;
     let callout = 'Golpe de Sucata';
@@ -1313,11 +1407,18 @@ export class Melee {
     else { dmgMul = 0.7; accBase = 0.3 + this.opp.level * 0.04; callout = 'Golpe Defensivo'; }
     this.move = { id: 'scrap', name: callout, kind: 'attack', clip: 'attack_jab', dmg: Math.round((4 + this.opp.level * 2.2) * dmgMul) };
     this.moveDur = 0.5;
+    this._scrapAcc = accBase;
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, callout, 'bad');
     this.app.sound?.tone8?.(posture === 'brutal' ? 110 : 150, 90, 0.12, 'square', 0.07);
+    this.startFoeCharge(this.opp);
+  }
+
+  // O golpe do Sucataoxidado, no fim da carga vermelha.
+  scrapStrike() {
+    const dex = this.game?.attrLevel?.('dex') ?? 1;
     // The rolls: its accuracy against her defense.
     const lvl = this.level;
-    let acc = clamp(accBase, 0.2, 0.9);
+    let acc = clamp(this._scrapAcc ?? (0.38 + this.opp.level * 0.05), 0.2, 0.9);
     // Atordoado: the enemy hits far less often.
     const stunned = this.opp.stunned > 0;
     if (stunned) acc = clamp(acc - 0.45, 0.05, 0.9);
@@ -1492,8 +1593,8 @@ export class Melee {
     if (!this.stunTurns && this.dizzyEl) this.removeDizzy();
     if (this.fury && !this.furyAura) this.showFury();
     if (!this.fury && this.furyAura) this.removeFuryAura();
-    if (this.opp.stunned > 0 && !this.oppDizzyEl) this.showOppDizzy();
-    if (!this.opp.stunned && this.oppDizzyEl) this.removeOppDizzy();
+    if ((this.opp?.stunned || 0) > 0 && !this.oppDizzyEl) this.showOppDizzy();
+    if (!(this.opp?.stunned || 0) && this.oppDizzyEl) this.removeOppDizzy();
   }
 
   // The Scrap Dummy misses.

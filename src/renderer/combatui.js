@@ -506,6 +506,32 @@ export class CombatUI {
     });
   }
 
+  // ---------- a carga vermelha antes de qualquer golpe ----------
+
+  // Acende o modelo do atacante em vermelho (Persocon, Corvo ou inimigo) por `ms`.
+  glowRed(el, ms = 450) {
+    if (!el?.classList) return;
+    el.classList.remove('charge-red');
+    // Reinicia a animação (mesmo atacante em turnos seguidos).
+    void el.offsetWidth;
+    el.classList.add('charge-red');
+    clearTimeout(el._chargeRedT);
+    el._chargeRedT = setTimeout(() => el.classList.remove('charge-red'), Math.max(120, ms | 0));
+  }
+
+  // O clarão rápido quando a carga estoura e o golpe sai.
+  chargeBurst(x, y, size = 120) {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.className = 'rage-burst';
+    const s = Math.round(size * 0.9);
+    el.style.width = el.style.height = `${s}px`;
+    el.style.left = `${Math.round(x)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    document.body.append(el);
+    setTimeout(() => el.remove(), 320);
+  }
+
   // ---------- os efeitos do Corvo em combate ----------
 
   // Rajada de penas pretas do Corvo até o alvo: o dano é aplicado no impacto (`onHit`).
