@@ -134,9 +134,11 @@ export class Slime {
   }
 
   // O flash vermelho quando ele leva dano: quanto maior o dano, mais forte acende.
-  flash(intensity = 1) {
-    this.flash = 0.3;
-    this.flashI = Math.min(1, Math.max(0.25, intensity));
+  // Assinatura completa (intensity, duration) — usada tanto pelo combate quanto por testes.
+  flash(intensity = 1, duration = 0.3) {
+    this.flash = Math.max(0.01, duration);
+    this.flashI = Math.min(1, Math.max(0.25, intensity || 0.25));
+    this.hitFlash = this.flashI;   // fallback lido pelo desenho se algo falhar
   }
 
   // Converte o quadro do slime: corpo todo preto e os olhos (e a boca) vermelhos e brilhando.

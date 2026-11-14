@@ -26,6 +26,10 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 **Correção: gosma dessincronizada + fim prematuro.** O sprite da gosma segue sempre o `enemy.x/y` real (uma fonte de verdade só, a mesma das barras de HP e do alvo). A luta não cai mais sozinha (a horda não usa o toy de treino e o duplo clique não cancela a Wave); só termina por vitória, recuo ou exaustão. A fila de turnos mostra o retrato certo (detectado pelo modelDir e pelo nome do personagem).
 Detalhes em `ChangeLogs\v1.9.23.md`.
 
+**Correção: crash no damageFoe (a luta nunca mais cai sozinha).** O `damageFoe()` agora aplica o dano em `opp.hp` ANTES de qualquer chamada externa visual/XP; cada efeito (flash, VFX, shake, som, XP, cabeças de HP, fila) tem seu próprio `try/catch` — nada mais derruba a luta no meio de um golpe.
+**Fonte de verdade única para o inimigo.** O sprite da gosma, a barra de HP sobre ele e o alvo do golpe leem o mesmo objeto (`foes[i]` + `foe.x`/`foe.y`); a formação teleporta os três juntos e a Wave 1 vencida incrementa `blackCartridgeWave` (→ 2; segunda vitória → 3).
+Detalhes em `ChangeLogs\v1.9.23.md`.
+
 ## v1.9.22 — 13/11/2026
 **Visual dos objetos: ajuste ao vivo no objeto de verdade.** A prévia pequena do import continua **fixa (100%)** — ela é só a referência estática para o conta-gotas de transparência e para marcar o hitbox. Tudo o que o modal muda agora aparece **na hora, no objeto real na área de trabalho** (ex.: o boneco de treino do lado da Persocon):
 - **imagem/GIF/modelo 3D novo**, **tamanho**, **rotação livre**, **espelho**, **velocidade** e a **transparência** (assada no `bake()`, com *debounce* de ~140 ms);

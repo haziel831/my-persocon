@@ -279,12 +279,12 @@ export class Melee {
   }
 
   // As barras de vida pequenas acima de cada inimigo.
+  // Uma fonte de verdade só: x/y do inimigo (o mesmo que posiciona o sprite e o alvo dela).
   updateFoeBars() {
     if (this.kind !== 'unknown') return;
     const floor = this.app.toys?.floorY?.() ?? this.pet.y;
     const foes = this.foes
-      .map((f, i) => ({ id: `foe${i}`, x: f.enemy?.x ?? 0, y: f.enemy?.y ?? floor, pct: f.max ? Math.max(0, f.hp / f.max) : 0 }))
-      .filter((f) => f.pct > 0 || true);
+      .map((f, i) => ({ id: `foe${i}`, x: f.x ?? f.enemy?.x ?? 0, y: f.y ?? f.enemy?.y ?? floor, pct: f.max ? Math.max(0, f.hp / f.max) : 0 }));
     this.ui?.foeBars(foes);
   }
 
@@ -297,7 +297,9 @@ export class Melee {
       return this.ui?.ring(c?.x ?? pet.x, (c?.y ?? pet.y) + 8);
     }
     const f = this.foes[this.foeIdx];
-    if (this.kind === 'unknown' && f?.enemy) return this.ui?.ring(f.enemy.x, (f.enemy.y ?? this.pet.y) + 6);
+    if (this.kind === 'unknown' && f) {
+      return this.ui?.ring(f.x ?? f.enemy?.x ?? pet.x, (f.y ?? f.enemy?.y ?? pet.y) + 6);
+    }
     return this.ui?.ring(this.oppX() ?? pet.x, this.oppY() + 6);
   }
 
@@ -316,27 +318,33 @@ export class Melee {
   }
 
   // O dano que ela causa num inimigo (qualquer um: boneco, sucata, gosmas).
+  // NUNCA derruba a luta: qualquer erro nos visuais do inimigo é engolido com log.
   damageFoe(dmg, opts = {}) {
     const opp = this.opp;
     if (!opp || opp.hp <= 0) return;
     opp.hp = Math.max(0, opp.hp - dmg);
     this.hits++;
-    if (opp.enemy) opp.enemy.play?.('hurt');
-    if (opp.enemy) opp.enemy.flash?.(flashIntensity(dmg));
+    // O flash vermelho no alvo (e a animação de machucado) — com proteção total.
+    const foe = opp.enemy;
+    if (foe) {
+      try { foe.play?.('hurt'); } catch { /* sprite removido */ }
+      try { foe.flash?.(flashIntensity(dmg), 0.3); } catch { /* sprite falhou */ try { opp.hitFlash = 1; } catch {} }
+      try { opp.hitFlash = flashIntensity(dmg); } catch {}
+    }
     const x = this.oppX();
     const y = this.oppY() - 24;
     const heavy = dmg >= 12 || opts.crit;
-    this.app.fx?.damage?.(x, y - 24, dmg, { crit: opts.crit });
-    this.app.fx?.seq?.(heavy ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, x, y, { scale: heavy ? 2.5 : 1.7 });
-    this.app.fx?.shake?.(heavy ? 0.9 : 0.45);
-    this.app.sound?.tone8?.(180 + dmg * 9, 70, 0.12, 'square', 0.1);
-    if (opp.scrap) this.app.fx?.impact?.('rust', x, y - 6, 0.5);
-    this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy,
-      this.kind === 'dummy' ? 'dummy' : (opp.unknown ? 'unknown' : 'heavy'));
+    try { this.app.fx?.damage?.(x, y - 24, dmg, { crit: opts.crit }); } catch { /* HUD de dano */ }
+    try { this.app.fx?.seq?.(heavy ? VFX_FOLDERS.heavy : VFX_FOLDERS.light, x, y, { scale: heavy ? 2.5 : 1.7 }); } catch { /* VFX */ }
+    try { this.app.fx?.shake?.(heavy ? 0.9 : 0.45); } catch { /* shake */ }
+    try { this.app.sound?.tone8?.(180 + dmg * 9, 70, 0.12, 'square', 0.1); } catch { /* sfx */ }
+    try { if (opp.scrap) this.app.fx?.impact?.('rust', x, y - 6, 0.5); } catch { /* rust */ }
+    try { this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy,
+      this.kind === 'dummy' ? 'dummy' : (opp.unknown ? 'unknown' : 'heavy')); } catch { /* XP */ }
     this.attrGained.str += this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy;
     this.hitStop = HIT_STOP;
-    if (opp.enemy) this.updateFoeBars();
-    this.updateQueueHud();
+    try { if (opp.enemy) this.updateFoeBars(); } catch { /* barras */ }
+    try { this.updateQueueHud(); } catch { /* fila */ }
   }
 
   checkVictory() {
@@ -572,11 +580,15 @@ export class Melee {
     if (kind === 'unknown' && this.foes.length) {
       const W0 = this.app.world?.width || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
       const base = Math.round(W0 * 0.82);
+      // Fonte de verdade única: x/y do inimigo (o sprite, o alvo e a barra de HP leem os mesmos números).
       this.foes.forEach((f, i) => {
         if (f.enemy) {
-          f.enemy.x = Math.max(P * 0.5, base - i * 75);
-          f.enemy.y = this.app.toys?.floorY?.() ?? pet.y;
+          f.x = Math.max(P * 0.5, base - i * 75);
+          f.y = this.app.toys?.floorY?.() ?? pet.y;
+          f.enemy.x = f.x;
+          f.enemy.y = f.y;
           f.enemy.dir = -1;
+          try { f.enemy.place?.(); } catch { /* o desenho usa x/y direto */ }
         }
       });
       // Para o fallback de oppX() (caso todos morram numa mesma frame): a última posição conhecida.
@@ -738,7 +750,7 @@ export class Melee {
     const dist = Math.abs((this.oppX() ?? pet.x) - pet.x);
     if (dist > pet.P * 0.85) {
       const dir = Math.sign(pet.x - (this.oppX() ?? pet.x)) || 1;
-      if (foe?.enemy) foe.enemy.x += dir * pet.P * 0.5;
+      if (foe) { foe.x = (foe.x ?? foe.enemy?.x ?? 0) + dir * pet.P * 0.5; if (foe.enemy) foe.enemy.x = foe.x; }
       this.say(this.oppX(), this.oppY() - this.pet.P * 1.25, 'Ele não alcançou!', 'good');
       this.app.fx?.impact?.('dust', this.oppX(), this.oppY() - 8, 0.5);
       this.hitResolved = true;
@@ -878,7 +890,13 @@ export class Melee {
         break;
     }
     if (this.opp?.scrap) this.updateHpBar();
-    if (this.kind === 'unknown') this.updateFoeBars();
+    if (this.kind === 'unknown') {
+      // Sincroniza a posição do inimigo com o sprite a cada frame (o mesmo objeto, sempre).
+      try {
+        for (const f of this.foes) { if (f.enemy && f.x != null) { f.enemy.x = f.x; f.enemy.y = f.y; } }
+        this.updateFoeBars();
+      } catch { /* nunca derruba a luta */ }
+    }
     this.updateAuras();
     // The training ends when she is too tired (or the dummy is gone).
     if (this.active && this.kind === 'dummy') {
@@ -1496,7 +1514,7 @@ export class Melee {
     // A luta com a horda NUNCA mira o Boneco de Treino: só os inimigos da onda.
     if (this.kind === 'unknown') {
       const foe = this.opp ?? this.foes.find((f) => f.hp > 0);
-      return foe?.enemy?.x ?? this._foeFallbackX ?? null;
+      return foe?.x ?? foe?.enemy?.x ?? this._foeFallbackX ?? null;
     }
     if (this.opp?.enemy) return this.opp.enemy.x;
     if (this.opp?.x != null) return this.opp.x;
@@ -1508,7 +1526,7 @@ export class Melee {
     // O chão da arena (a horda fica sempre embaixo).
     if (this.kind === 'unknown') {
       const foe = this.opp ?? this.foes.find((f) => f.hp > 0);
-      return foe?.enemy?.y ?? this.app.toys?.floorY?.() ?? this.pet.y;
+      return foe?.y ?? foe?.enemy?.y ?? this.app.toys?.floorY?.() ?? this.pet.y;
     }
     if (this.opp?.y != null) return this.opp.y;
     return this.app.toys?.floorY?.() ?? this.pet.y;
