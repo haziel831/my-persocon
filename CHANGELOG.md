@@ -27,6 +27,7 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 Detalhes em `ChangeLogs\v1.9.23.md`.
 
 **Correção: crash no damageFoe (a luta nunca mais cai sozinha).** O `damageFoe()` agora aplica o dano em `opp.hp` ANTES de qualquer chamada externa visual/XP; cada efeito (flash, VFX, shake, som, XP, cabeças de HP, fila) tem seu próprio `try/catch` — nada mais derruba a luta no meio de um golpe.
+**Causa raiz do crash "opp.enemy.flash is not a function":** a classe `Slime` criava `this.flash = 0` no construtor (temporizador do flash) e `flash()` no protótipo — a propriedade de instância **sombreava o método**, então `slime.flash` era `0` e `0?.()` lançava `TypeError`. Agora o temporizador se chama `flashT`, `flash()` é o método, e a Wave avança de verdade (Wave 1 vencida ⇒ `blackCartridgeWave` = 2).
 **Fonte de verdade única para o inimigo.** O sprite da gosma, a barra de HP sobre ele e o alvo do golpe leem o mesmo objeto (`foes[i]` + `foe.x`/`foe.y`); a formação teleporta os três juntos e a Wave 1 vencida incrementa `blackCartridgeWave` (→ 2; segunda vitória → 3).
 Detalhes em `ChangeLogs\v1.9.23.md`.
 

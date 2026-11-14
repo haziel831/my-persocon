@@ -58,7 +58,8 @@ export class Slime {
     this.glitch = 0;
     this.glitchT = 0;
     this.jitter = 0;
-    this.flash = 0;
+    // Temporizador do flash vermelho (o método flash() é do protótipo; a propriedade se chama flashT).
+    this.flashT = 0;
     this.flashI = 0;
     this.sheets = new Map();
     this.el = null;
@@ -136,7 +137,7 @@ export class Slime {
   // O flash vermelho quando ele leva dano: quanto maior o dano, mais forte acende.
   // Assinatura completa (intensity, duration) — usada tanto pelo combate quanto por testes.
   flash(intensity = 1, duration = 0.3) {
-    this.flash = Math.max(0.01, duration);
+    this.flashT = Math.max(0.01, duration);
     this.flashI = Math.min(1, Math.max(0.25, intensity || 0.25));
     this.hitFlash = this.flashI;   // fallback lido pelo desenho se algo falhar
   }
@@ -211,8 +212,8 @@ export class Slime {
     } else {
       g.drawImage(this.raw, 0, 0);
     }
-    if (this.flash > 0) {
-      const k = this.flashI * (this.flash / 0.3);
+    if (this.flashT > 0) {
+      const k = this.flashI * (this.flashT / 0.3);
       g.globalCompositeOperation = 'source-atop';
       g.fillStyle = `rgba(255, 24, 48, ${(k * 0.85).toFixed(3)})`;
       g.fillRect(0, 0, SPR, SPR);
@@ -223,7 +224,7 @@ export class Slime {
   // A perseguição e o desenho.
   update(dt, pet) {
     this.t += dt;
-    this.flash = Math.max(0, this.flash - dt);
+    this.flashT = Math.max(0, this.flashT - dt);
     this.glitchT = (this.glitchT ?? 0) - dt;
     if (this.glitchT <= 0) {
       this.glitchT = 1.6 + Math.random() * 3.4;
