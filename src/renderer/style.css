@@ -1762,3 +1762,32 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
 /* O resumo de estatísticas pós-luta. */
 .fight-summary { position: fixed; z-index: 9997; bottom: 90px; left: 50%; transform: translateX(-50%); pointer-events: none; user-select: none; text-align: center; padding: 8px 18px; border-radius: 6px; background: rgba(10, 10, 18, 0.82); border: 2px solid rgba(255, 215, 94, 0.5); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); font: 12px PxEmoji, Consolas, monospace; color: #ffe9a8; line-height: 1.7; }
 .fight-summary.out { opacity: 0; transition: opacity 0.45s ease; }
+/* Penas pretas do Corvo (Penas Cortantes): do ponto dele até o centro do inimigo. */
+.crow-feather {
+  position: fixed; z-index: 9996; pointer-events: none; user-select: none;
+  width: 16px; height: 6px; margin: -3px 0 0 -8px;
+  background: linear-gradient(90deg, #07070c 0%, #191922 55%, #3a2030 82%, #b6536a 100%);
+  clip-path: polygon(0% 50%, 16% 0%, 84% 10%, 100% 50%, 84% 90%, 16% 100%);
+  filter: drop-shadow(0 0 2px rgba(180, 60, 90, 0.45));
+  will-change: transform, opacity;
+}
+/* O rastro escuro da investida (Rasante/Bicada). */
+.crow-streak {
+  position: fixed; z-index: 9994; height: 7px; margin-top: -3px; border-radius: 4px;
+  transform-origin: 0 50%; pointer-events: none; user-select: none;
+  background: linear-gradient(90deg, rgba(18, 14, 24, 0), rgba(26, 22, 34, 0.78) 40%, rgba(150, 50, 74, 0.5) 100%);
+  filter: blur(1px);
+  animation: crow-streak 0.42s ease-out forwards;
+}
+@keyframes crow-streak { from { opacity: 0.95; } to { opacity: 0; } }
+/* Partículas escuras de buff/provocação. */
+.crow-spark {
+  position: fixed; z-index: 9995; width: 5px; height: 5px; margin: -2px 0 0 -2px; border-radius: 50%;
+  background: #2a2130; box-shadow: 0 0 6px rgba(190, 70, 100, 0.7);
+  pointer-events: none; user-select: none;
+  animation: crow-spark 0.6s ease-out forwards;
+}
+@keyframes crow-spark {
+  from { transform: translate(0, 0) scale(1); opacity: 1; }
+  to { transform: translate(var(--dx), var(--dy)) scale(0.35); opacity: 0; }
+}

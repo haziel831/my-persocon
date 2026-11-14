@@ -506,6 +506,75 @@ export class CombatUI {
     });
   }
 
+  // ---------- os efeitos do Corvo em combate ----------
+
+  // Rajada de penas pretas do Corvo até o alvo: o dano é aplicado no impacto (`onHit`).
+  crowFeathers(x1, y1, x2, y2, { count = 10, ms = 380, spread = 22, onHit = null } = {}) {
+    if (typeof document === 'undefined') return;
+    const n = Math.max(8, Math.min(14, count));
+    const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('div');
+      el.className = 'crow-feather';
+      const sx = x1 + (Math.random() - 0.5) * spread;
+      const sy = y1 + (Math.random() - 0.5) * spread;
+      const dx = x2 - sx + (Math.random() - 0.5) * 18;
+      const dy = y2 - sy + (Math.random() - 0.5) * 18;
+      const del = Math.round(Math.random() * 90);
+      el.style.left = `${Math.round(sx)}px`;
+      el.style.top = `${Math.round(sy)}px`;
+      el.style.transform = `rotate(${(ang + (Math.random() - 0.5) * 16).toFixed(1)}deg)`;
+      el.style.opacity = '0';
+      document.body.append(el);
+      requestAnimationFrame(() => {
+        // Um respiro de 30ms: a transição só começa depois que o navegador pintou a origem.
+        setTimeout(() => {
+          el.style.transitionDelay = `${del}ms`;
+          el.style.transition = `transform ${ms}ms cubic-bezier(.2,.65,.3,1), opacity 90ms linear`;
+          el.style.opacity = '1';
+          el.style.transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px) rotate(${ang}deg)`;
+        }, 16);
+      });
+      setTimeout(() => el.remove(), ms + del + 220);
+    }
+    this.app.sound?.swish?.();
+    if (onHit) setTimeout(onHit, ms + 40);
+  }
+
+  // O rastro escuro da investida do Corvo.
+  crowStreak(x1, y1, x2, y2) {
+    if (typeof document === 'undefined') return;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 12) return;
+    const el = document.createElement('div');
+    el.className = 'crow-streak';
+    el.style.left = `${Math.round(x1)}px`;
+    el.style.top = `${Math.round(y1)}px`;
+    el.style.width = `${Math.round(len)}px`;
+    el.style.transform = `rotate(${(Math.atan2(dy, dx) * 180 / Math.PI).toFixed(1)}deg)`;
+    document.body.append(el);
+    setTimeout(() => el.remove(), 420);
+  }
+
+  // Faíscas/partículas escuras em volta de um ponto (buffs e provocações).
+  crowSparkle(x, y) {
+    if (typeof document === 'undefined') return;
+    for (let i = 0; i < 9; i++) {
+      const el = document.createElement('div');
+      el.className = 'crow-spark';
+      const a = (i / 9) * Math.PI * 2;
+      const r = 16 + Math.random() * 20;
+      el.style.left = `${Math.round(x)}px`;
+      el.style.top = `${Math.round(y)}px`;
+      el.style.setProperty('--dx', `${(Math.cos(a) * r).toFixed(1)}px`);
+      el.style.setProperty('--dy', `${(Math.sin(a) * r - 18).toFixed(1)}px`);
+      document.body.append(el);
+      setTimeout(() => el.remove(), 620);
+    }
+  }
+
   // ---------- limpar tudo ----------
 
   clear() {

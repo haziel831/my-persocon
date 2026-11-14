@@ -305,6 +305,10 @@ export class Crow {
     this.size();
     const show = !hidden && !this.away;
     this.canvas.style.display = this.hitEl.style.display = show ? 'block' : 'none';
+    // Em combate ele fica pairando atrás da Persocon: asa batendo o tempo todo (nunca a pose parada).
+    // Compara o clipe atual (e não uma flag): assim o voo das skills nunca é cortado.
+    const hover = !!(this.app.melee?.active && this.app.melee.crowFight && this.perch === 'combat' && this.act?.kind !== 'fly');
+    if (hover && this.animator?.current?.name !== 'fly') this.play('fly', 1.7);
     const yawTo = (this.dir < 0 ? 1 : -1) * (Math.PI / 2 + 0.4);
     let d = yawTo - this.yawNow;
     d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -321,7 +325,9 @@ export class Crow {
     }
     this.animator?.update(dt);
     const H = this.H;
-    const top = this.y - this.lift;
+    // Pairando no combate: a flutuação sobe e desce suavemente (só visual).
+    const bob = hover ? Math.sin(performance.now() * 0.008) * 6 : 0;
+    const top = this.y - this.lift + bob;
     if (show) {
       this.seenAt = performance.now();
       this.renderer.render(this.scene, this.camera);
@@ -402,7 +408,7 @@ export class Crow {
       const oppX = (m && m.active) ? (m.oppX?.() ?? null) : null;
       const back = oppX != null ? Math.sign(oppX - pet.x) || 1 : (pet.dir || 1);
       this.dir = back;
-      return { x: clamp(pet.x - back * 60, this.P * 0.3, world.width - this.P * 0.3), y: this.floorY() - 45 };
+      return { x: clamp(pet.x - back * 65, this.P * 0.3, world.width - this.P * 0.3), y: (pet.y ?? this.floorY()) - 85 };
     }
     return { x: this.x, y: this.floorY() };
   }
