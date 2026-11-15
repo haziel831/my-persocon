@@ -35,11 +35,17 @@ export const HIT_STOP = 0.12;
 // The charge before the strike: she glows blue and gathers energy (the hit waits for it).
 export const CHARGE_TIME = 0.45;
 export const CHARGE_MANEUVER = 0.55;
-// Melee range: she has to be in contact to hit (no throwing yet). The distance is measured in
-// "pet widths": 0.85 is the distance of a real punch.
-export const MELEE_RANGE = 0.85;
+// A distância de golpe (em "larguras da Persocon"): longe o bastante para os dois sprites não
+// se encostarem (o corpo do slime tem quase uma largura dela) e perto o bastante para o soco.
+export const STRIKE_GAP = 1.0;
+// Melee range: she has to be in contact to hit (no throwing yet). Um pouco maior que a distância
+// de golpe, para ela não ficar indo e voltando a cada turno.
+export const MELEE_RANGE = 1.05;
+// Abaixo disto ela está encostada/sobreposta (os sprites se cobrem a partir de ~0,87P) e recua.
+export const MIN_GAP = 0.92;
 // How far the enemy's blow pushes her back (always past the contact distance).
-export const KNOCKBACK = 0.95;
+// O inimigo fecha só o excedente em foeStrike(): a briga não sai andando pelo chão.
+export const KNOCKBACK = 0.4;
 // O avanço até o alvo tem tempo máximo: se ela não chegar (parede, chão ruim), o golpe sai
 // mesmo assim, com ela colada no alvo.
 export const CLOSE_MAX = 1.6;
@@ -962,11 +968,18 @@ export class Melee {
     const foe = this.opp;
     if (this.kind === 'unknown' && !foe) { this.phase = 'impact'; this.t = 0; return; }
     foe?.enemy?.play?.('attack');
-    // Se ela estiver longe, o golpe passa e ele avança.
-    const dist = Math.abs((this.oppX() ?? pet.x) - pet.x);
-    if (dist > pet.P * 0.85) {
-      const dir = Math.sign(pet.x - (this.oppX() ?? pet.x)) || 1;
-      if (foe) { foe.x = (foe.x ?? foe.enemy?.x ?? 0) + dir * pet.P * 0.5; if (foe.enemy) foe.enemy.x = foe.x; }
+    // Se ela estiver longe, o golpe passa e ele avança — só o excedente, até a distância de golpe.
+    const dist = this.distance();
+    if (this.outOfRange()) {
+      const ox = this.oppX() ?? pet.x;
+      const dir = Math.sign(pet.x - ox) || 1;
+      const step = Math.min(dist - pet.P * STRIKE_GAP, pet.P * 0.6);
+      if (foe && step > 0) {
+        const w = this.app.world?.width || 0;
+        const nx = (foe.x ?? foe.enemy?.x ?? 0) + dir * step;
+        foe.x = w ? Math.max(pet.P * 0.3, Math.min(w - pet.P * 0.3, nx)) : nx;
+        if (foe.enemy) foe.enemy.x = foe.x;
+      }
       this.say(this.oppX(), this.oppY() - this.pet.P * 1.25, 'Ele não alcançou!', 'good');
       this.app.fx?.impact?.('dust', this.oppX(), this.oppY() - 8, 0.5);
       this.hitResolved = true;
@@ -1114,7 +1127,7 @@ export class Melee {
         // She steps into the strike range (the toy play owns her position) and squares up.
         this.introT += dt;
         const side = Math.sign((this.oppX() ?? pet.x) - pet.x) || pet.dir || 1;
-        const want = (this.oppX() ?? pet.x) - side * pet.P * 0.8;
+        const want = (this.oppX() ?? pet.x) - side * pet.P * STRIKE_GAP;
         const d = want - pet.x;
         pet.dir = side;
         if (Math.abs(d) > 2) pet.x += Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 1.1 * dt);
@@ -1123,7 +1136,9 @@ export class Melee {
       }
       case 'align':
         // O "beat" clássico de JRPG: os dois times se medem no centro da arena.
-        if (this.t >= 0.9) this.beginTurn({ turn: TURN.PERSOCON, foeIdx: this.firstAliveFoe() });
+        // Se já começarem encostados, ela recua enquanto se medem.
+        if (this.tooClose()) this.walkToSpot(dt);
+        if (this.t >= 0.9) this.closeIn();
         break;
       case 'announce':
         // JRPG pace: the actor is named, then the wind-up starts.
@@ -1132,10 +1147,10 @@ export class Melee {
       case 'close':
         // She dashes back into contact; the strike only happens when she arrives.
         this.closeT = (this.closeT || 0) + dt;
-        if (this.outOfRange() && this.closeT < CLOSE_MAX) this.closeIn();
+        if (this.wrongSpot() && this.closeT < CLOSE_MAX) this.closeIn();
         else {
           // Estourou o tempo e ela ainda não chegou: cola no alvo e golpeia de qualquer jeito.
-          if (this.outOfRange()) this.snapToRange();
+          if (this.wrongSpot()) this.snapToRange();
           this.closeT = 0;
           this.phase = 'windup';
           this.t = 0;
@@ -1252,8 +1267,8 @@ export class Melee {
   // The turn itself: the move, the item or the maneuver.
   startTurn() {
     if (this.turn === TURN.PERSOCON) {
-      // Out of contact? She dashes back in first: a melee hit has to physically connect.
-      if (this.outOfRange()) { this.closeIn(); return; }
+      // Out of the strike spot (too far or glued to him)? She fixes it before attacking.
+      if (this.wrongSpot()) { this.closeIn(); return; }
       this.persoconTurn();
     } else if (this.turn === TURN.CROW) this.crowTurn();
     else this.opponentTurn();
@@ -1269,24 +1284,49 @@ export class Melee {
     return this.distance() > this.pet.P * MELEE_RANGE;
   }
 
-  // She dashes back into contact (the attack only happens when she arrives).
-  closeIn() {
+  // Encostada demais (o corpo do inimigo é largo: os sprites já se cobrem).
+  tooClose() {
+    return this.distance() < this.pet.P * MIN_GAP;
+  }
+
+  // Fora do ponto de golpe, para longe ou para perto.
+  wrongSpot() {
+    return this.outOfRange() || this.tooClose();
+  }
+
+  // Ponto onde ela deve ficar para golpear (do lado dela em relação ao alvo).
+  spotX() {
     const pet = this.pet;
     const ox = this.oppX() ?? pet.x;
     const side = Math.sign(ox - pet.x) || pet.dir || 1;
-    const want = ox - side * pet.P * 0.8;
+    return { side, want: ox - side * pet.P * STRIKE_GAP, ox };
+  }
+
+  // Dá um passo na direção do ponto de golpe (para frente ou para trás).
+  walkToSpot(dt) {
+    const pet = this.pet;
+    const { side, want } = this.spotX();
     const d = want - pet.x;
     pet.dir = side;
+    const step = Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 2.8 * dt);
+    pet.x += step;
+    pet.anim('walk', { facing: side > 0 ? 'right' : 'left', restart: true });
+    return d;
+  }
+
+  // Ela se acerta na distância de golpe (o ataque só sai quando chega).
+  closeIn() {
+    const pet = this.pet;
     const first = this.phase !== 'close';
     this.phase = 'close';
     this.t = 0;
     if (first) {
-      this.say(pet.x, pet.y - pet.P * 1.05, 'Avança!', 'good');
+      const { want, ox } = this.spotX();
+      const back = Math.abs(want - pet.x) > Math.abs(ox - pet.x);
+      this.say(pet.x, pet.y - pet.P * 1.05, back ? 'Recua!' : 'Avança!', 'good');
       this.app.sound?.tone8?.(300, 420, 0.05, 'square', 0.04);
     }
-    const step = Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 2.8 * (this.dt || 0.016));
-    pet.x += step;
-    pet.anim('walk', { facing: side > 0 ? 'right' : 'left', restart: true });
+    this.walkToSpot(this.dt || 0.016);
   }
 
   // Cola ela na distância de golpe (usado quando o avanço estoura o tempo).
@@ -1295,7 +1335,7 @@ export class Melee {
     const ox = this.oppX() ?? pet.x;
     const side = Math.sign(ox - pet.x) || pet.dir || 1;
     pet.dir = side;
-    pet.x = ox - side * pet.P * 0.8;
+    pet.x = ox - side * pet.P * STRIKE_GAP;
   }
 
   // The Persocon's turn: she uses a medicine when hurt, or fights with a maneuver/normal move.

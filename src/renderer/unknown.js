@@ -7,7 +7,7 @@
 //
 // O `blackCartridgeWave` (game.profile) diz em que onda o jogador está:
 //   1-9 → lutável (escala de inimigos e atributos);  10 → trava (o Boss aguarda).
-import { BLACK_WAVES } from './melee.js';
+import { BLACK_WAVES, STRIKE_GAP } from './melee.js';
 import { cartridge } from './pixel.js';
 
 const SHEET_DIR = './assets/enemies/unknown_slime/';
@@ -255,7 +255,9 @@ export class Slime {
       const dx = pet.x - this.x;
       this.dir = dx < 0 ? -1 : 1;
       const speed = this.P * 0.75;
-      const step = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
+      // Ele para na distância de golpe: não entra dentro dela.
+      const room = Math.abs(dx) - this.P * STRIKE_GAP;
+      const step = Math.sign(dx) * Math.max(0, Math.min(room, speed * dt));
       if (step) this.x += step;
       this.play(Math.abs(step) > 0.4 ? 'hop' : 'idle');
       this.place();
@@ -523,9 +525,9 @@ export class Unknown {
     // O flash vermelho do dano se apaga em cada slime.
     for (const s of this.slimes) s.update(dt, this.state === 'chase' ? pet : null);
     if (this.state === 'chase') {
-      // Alguém encostou: a luta começa.
+      // Ele chegou na distância de golpe: a luta começa.
       const dx = pet && this.slimes.length ? pet.x - this.slimes[0].x : 9999;
-      if (pet && Math.abs(dx) < pet.P * 0.8) this.startFight();
+      if (pet && Math.abs(dx) < pet.P * (STRIKE_GAP + 0.1)) this.startFight();
     } else if (this.state === 'fight') {
       // A luta acabou sem a derrota delas (interrompida): elas somem.
       if (!this.app.melee?.active) this.fleeAll();
