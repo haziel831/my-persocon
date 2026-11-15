@@ -55,15 +55,15 @@ export const BLACK_WAVES = [null,
 ];
 // The special maneuvers: one per Melee Combat Level, only with the Fúria status.
 export const MANEUVERS = [
-  { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'attack_uppercut', mult: 1.5, ignoreDefense: true,
+  { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'attack_hook', mult: 1.5, ignoreDefense: true,
     pt: 'Smash que ignora a defesa do alvo (1,5× a Força)', en: 'A smash that ignores the target defense (1.5× Strength)' },
   { lvl: 2, id: 'punho_relampago', name: 'Punho Relâmpago', clip: 'attack_jab', mult: 1.1, hits: 3,
     pt: 'Combo de 3 socos rápidos num turno só', en: 'A 3-hit flurry of fast punches in one turn' },
-  { lvl: 3, id: 'chute_meteoro', name: 'Chute Meteoro', clip: 'attack_roundhouse_kick', mult: 1.8, stun: 0.45,
+  { lvl: 3, id: 'chute_meteoro', name: 'Chute Meteoro', clip: 'attack_dropkick', mult: 1.8, stun: 0.45,
     pt: 'Chute aéreo que pode atordoar o alvo (1,8×)', en: 'A leaping kick that can stun the target (1.8×)' },
   { lvl: 4, id: 'contra_impacto', name: 'Contra-Impacto Sísmico', clip: 'attack_uppercut', mult: 2.2, energy: 6, shock: true,
     pt: 'Uppercut devastador com onda de choque (2,2×) e devolve energia', en: 'A devastating uppercut with a shockwave (2.2×) that gives energy back' },
-  { lvl: 5, id: 'explosao_carmesim', name: 'Explosão Carmesim', clip: 'attack_uppercut', mult: 3, explosion: true,
+  { lvl: 5, id: 'explosao_carmesim', name: 'Explosão Carmesim', clip: 'cast_special', mult: 3, explosion: true,
     pt: 'Explosão carmesim devastadora (3×)', en: 'A devastating crimson explosion (3×)' },
 ];
 // The maneuver she can use at her current Melee Combat Level (the best one).
@@ -186,6 +186,7 @@ export class Melee {
     this.oppRef = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     this.crowFight = false;  // o Corvo entrou na luta
     this.crowActing = false; // o Corvo está executando a ação do turno dele
+    this.petDown = false;    // ela está no chão (nocaute): o turno espera ela levantar
     this.crowTurnT = 0;      // o relógio do turno do Corvo (cão de guarda de 2,5 s)
     this.pendingCrow = false; // a skill do Corvo espera a carga vermelha terminar
     this.pendingFoe = false;  // o golpe do inimigo espera a carga vermelha terminar
@@ -1066,7 +1067,7 @@ export class Melee {
     // (O turno normal dele: anúncio 0,9 s + carga 0,45 s + impacto 0,7 s = 2,05 s.)
     if (this.turn === TURN.CROW) {
       this.crowTurnT = (this.crowTurnT || 0) + dt;
-      if (this.crowTurnT > 2.5 && this.phase !== 'recover' && this.phase !== 'victory') {
+      if (this.crowTurnT > 2.5 && !this.petDown && this.phase !== 'recover' && this.phase !== 'victory') {
         console.warn('[CrowTurn] watchdog: turno preso por mais de 2,5 s — avançando a fila');
         this.crowTurnT = 0;
         this.crowActing = false;
@@ -1079,6 +1080,12 @@ export class Melee {
     // O hit-stop: no impacto tudo congela por um instante.
     if (this.hitStop > 0) {
       this.hitStop -= dt;
+      this.updateAuras();
+      return;
+    }
+    // Ela foi nocauteada e está no chão: a luta espera ela se levantar.
+    if (this.petDown) {
+      this.t = 0;
       this.updateAuras();
       return;
     }
@@ -1293,7 +1300,12 @@ export class Melee {
     this.chargeT = dur;
     // A pose de espera enquanto a energia junta.
     const facing = this.facing();
-    pet.playAnimation?.('combat_idle', { facing: facing > 0 ? 'right' : 'left', restart: false });
+    // A Fúria tem a própria carga dentro do clipe (cast_special): ela já entra vibrando.
+    if (this.metaOf(this.move)?.charge) {
+      pet.playAnimation?.('cast_special', { facing: facing > 0 ? 'right' : 'left', restart: true });
+    } else {
+      pet.playAnimation?.('combat_idle', { facing: facing > 0 ? 'right' : 'left', restart: false });
+    }
     // A aura vermelha em volta dela, o brilho no modelo e as partículas de energia.
     const spot = { x: pet.x, y: pet.y - pet.P * 0.45, size: pet.P };
     this.chargeSpot = spot;
@@ -1316,6 +1328,8 @@ export class Melee {
     const pet = this.pet;
     if (!this.move) return;
     const facing = this.facing();
+    // O clipe já está tocando (a carga faz parte dele): não recomeça.
+    if (pet.combatAnim?.name === this.move.clip) return;
     if (!pet.playAnimation(this.move.clip, { facing: facing > 0 ? 'right' : 'left' })) {
       // The model has no such clip: fall back to the stance.
       pet.playAnimation('combat_idle', { facing: facing > 0 ? 'right' : 'left' });
@@ -1360,15 +1374,17 @@ export class Melee {
     game.take(item.id);
     game.changed();
     pet.emit('ate', { item });
-    this.move = { id: 'item', name: item.name, kind: 'item', clip: 'combat_idle', dmg: 0 };
+    this.move = { id: 'item', name: item.name, kind: 'item', clip: 'use_item', dmg: 0 };
     this.next = TURN.OPPONENT;
     this.hitResolved = true;          // no strike this turn
     this.say(pet.x, pet.y - pet.P * 1.05, `Usou ${item.name}`, 'good');
+    // A animação de uso: ela leva o item à boca e segura (~450 ms) com o ícone em cima.
+    pet.playAnimation?.('use_item', { facing: this.facing() > 0 ? 'right' : 'left', restart: true });
     this.ui?.itemPop(pet.x, pet.y - pet.P * 1.6, item.img);
     this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.6, 0.4);
     this.app.sound?.play?.('puff', { volume: 0.4 });
     this.phase = 'impact';
-    this.t = 0;
+    this.t = -0.45;                   // o tempo extra de segurar o item
     return true;
   }
 
@@ -1479,6 +1495,14 @@ export class Melee {
     const w = this.app.world?.width || 0;
     const back = pet.x - this.facing() * pet.P * KNOCKBACK;
     pet.x = w ? Math.max(pet.P * 0.25, Math.min(w - pet.P * 0.25, back)) : back;
+    // A heavy blow (critical ou assim) joga ela no ar: ela voa, cai e se levanta.
+    // A luta espera ela ficar em pé de novo (petDown).
+    const heavy = crit || dmg >= 10 || (this.opp?.level >= 2 && dmg >= 8);
+    if (heavy && pet.launchKnockback) {
+      pet.launchKnockback(-this.facing() * pet.P * 1.5, -pet.P * 2.4);
+      this.petDown = true;
+      this.say(pet.x, pet.y - pet.P * 1.3, 'Arremessada!', 'bad');
+    }
     this.app.fx?.impact?.('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
     this.app.fx?.shake?.(0.55);
     this.app.sound?.tone8?.(140, 60, 0.14, 'square', 0.11);
@@ -1609,6 +1633,13 @@ export class Melee {
 
   // The hit frame of the current move: the rolls happen here.
   onEvent(type, data) {
+    // Ela levantou do chão: a luta volta a andar (o turno esperou ela).
+    if (type === 'getUp') {
+      this.petDown = false;
+      this.crowTurnT = 0;      // o Corvo recomeça a contagem: nada de watchdog na cara
+      this.updateQueueHud();
+      return;
+    }
     if (!this.active || type !== 'combatHit') return;
     if (!this.move || data?.name !== this.move.clip) return;
     this.resolveHit();
