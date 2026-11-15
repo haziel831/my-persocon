@@ -43,6 +43,7 @@ function rig(boneNames) {
     lShin: find('LeftLowerLeg', 'LeftShin', 'LeftCalf'),
   };
 }
+export { rig };
 
 // ---------------------------------------------------------------- channels
 
@@ -52,6 +53,7 @@ const cr = (pts) => Object.fromEntries(pts.map(([t, v]) => {
   const a = v.map((n) => Math.round(n * 100) / 100);
   return [t.toFixed(3), { pre: a, post: a, lerp_mode: 'catmullrom' }];
 }));
+export { cr };
 
 // A channel sampled from a function of the time (the looping idle: the ends must match).
 const fn = (len, f, steps = 48) => Object.fromEntries(Array.from({ length: steps + 1 }, (_, i) => {
@@ -225,6 +227,91 @@ export const COMBAT_CLIPS = {
     },
   },
 
+  // Heavy hook: a wide wind-up (the torso rotates away, the shoulder drops) and then an
+  // explosive hook across the body. Hit at 0.34 s.
+  attack_hook: {
+    loop: false,
+    length: 0.72,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.16, [0, -0.55, -0.3]], [0.34, [0, -0.45, -1.9]], [0.42, [0, -0.55, -1.5]], [0.72, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.16, [0, 18, 0]], [0.34, [0, -22, 0]], [0.42, [0, -12, 0]], [0.72, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.16, [14, 22, 0]], [0.34, [18, -36, 0]], [0.42, [15, -24, 0]], [0.72, STANCE.body]],
+      head: [[0, STANCE.head], [0.16, [-4, 22, 0]], [0.34, [-12, 2, 0]], [0.42, [-8, 6, 0]], [0.72, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.16, [-18, -62, 34]], [0.34, [-98, -10, 4]], [0.42, [-92, -14, 6]], [0.72, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.16, [-122, 28, 0]], [0.34, [-10, 6, 0]], [0.42, [-18, 8, 0]], [0.72, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.16, [-52, 46, -16]], [0.34, [-64, 32, -10]], [0.72, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.16, [-106, -18, 0]], [0.34, [-76, -12, 0]], [0.72, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.16, [-6, 0, 12]], [0.34, [-20, 0, 14]], [0.72, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.16, [42, 0, 0]], [0.34, [24, 0, 0]], [0.72, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.16, [-28, 0, -10]], [0.34, [-12, 0, -12]], [0.72, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.16, [60, 0, 0]], [0.34, [36, 0, 0]], [0.72, STANCE.lShin]],
+    },
+  },
+
+  // High kick: she pivots on one leg, leans the torso back for balance and extends the
+  // kicking leg high toward the target's head. Hit at 0.3 s.
+  attack_high_kick: {
+    loop: false,
+    length: 0.66,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.12, [0, -0.85, -0.3]], [0.3, [0, -0.3, -1.3]], [0.38, [0, -0.5, -0.9]], [0.66, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.12, [0, -20, 0]], [0.3, [0, 26, 0]], [0.38, [0, 14, 0]], [0.66, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.12, [6, -36, 0]], [0.3, [-30, -2, 0]], [0.38, [-22, -8, 0]], [0.66, STANCE.body]],
+      head: [[0, STANCE.head], [0.12, [-2, 20, 0]], [0.3, [-22, 2, 0]], [0.38, [-16, 6, 0]], [0.66, STANCE.head]],
+      hip: [[0, [0, 0, 0]], [0.12, [0, -18, 0]], [0.3, [0, 30, 0]], [0.38, [0, 16, 0]], [0.66, [0, 0, 0]]],
+      rArm: [[0, STANCE.rArm], [0.12, [-40, -36, 26]], [0.3, [24, -14, 58]], [0.38, [10, -20, 44]], [0.66, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.12, [-100, 16, 0]], [0.3, [-40, 8, 0]], [0.66, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.12, [-72, 34, -14]], [0.3, [-44, 46, -50]], [0.38, [-52, 40, -38]], [0.66, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.12, [-110, -16, 0]], [0.3, [-62, -6, 0]], [0.66, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.12, [-44, 0, 16]], [0.3, [-88, -10, 22]], [0.38, [-70, -8, 20]], [0.66, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.12, [92, 0, 0]], [0.3, [2, 0, 0]], [0.38, [18, 0, 0]], [0.66, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.12, [-8, 0, -12]], [0.3, [-2, 0, -16]], [0.38, [-6, 0, -14]], [0.66, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.12, [14, 0, 0]], [0.3, [6, 0, 0]], [0.66, STANCE.lShin]],
+    },
+  },
+
+  // Dropkick / meteoro: she crouches, jumps, extends both legs forward in the air and
+  // lands on the feet. Hit at 0.52 s.
+  attack_dropkick: {
+    loop: false,
+    length: 0.9,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.14, [0, -2.6, -0.4]], [0.3, [0, 2.2, -1.6]], [0.52, [0, 1.6, -3.4]], [0.66, [0, -1.4, -2.0]], [0.9, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.14, [0, 12, 0]], [0.3, [0, 4, 0]], [0.52, [0, -8, 0]], [0.66, [0, 0, 0]], [0.9, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.14, [24, 0, 0]], [0.3, [-10, 0, 0]], [0.52, [-16, 0, 0]], [0.66, [22, 0, 0]], [0.9, STANCE.body]],
+      head: [[0, STANCE.head], [0.14, [12, 0, 0]], [0.3, [-14, 0, 0]], [0.52, [-18, 0, 0]], [0.66, [14, 0, 0]], [0.9, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.14, [-30, -30, 40]], [0.3, [-40, -24, 52]], [0.52, [-30, -20, 60]], [0.66, [-20, -14, 30]], [0.9, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.14, [-100, 10, 0]], [0.3, [-70, 8, 0]], [0.52, [-50, 6, 0]], [0.9, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.14, [-30, 30, -40]], [0.3, [-40, 24, -52]], [0.52, [-30, 20, -60]], [0.66, [-20, 14, -30]], [0.9, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.14, [-100, -10, 0]], [0.3, [-70, -8, 0]], [0.52, [-50, -6, 0]], [0.9, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.14, [-40, 0, 14]], [0.3, [-86, 0, 10]], [0.52, [-98, 0, 12]], [0.66, [-46, 0, 12]], [0.9, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.14, [88, 0, 0]], [0.3, [10, 0, 0]], [0.52, [-8, 0, 0]], [0.66, [64, 0, 0]], [0.9, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.14, [-46, 0, -14]], [0.3, [-86, 0, -10]], [0.52, [-98, 0, -12]], [0.66, [-46, 0, -12]], [0.9, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.14, [92, 0, 0]], [0.3, [10, 0, 0]], [0.52, [-8, 0, 0]], [0.66, [64, 0, 0]], [0.9, STANCE.lShin]],
+    },
+  },
+
+  // Fury special: a wide stance with both arms pulled back, vibrating with energy, and
+  // then a two-handed forward thrust. Hit at 0.62 s.
+  cast_special: {
+    loop: false,
+    length: 0.85,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.18, [0, -1.4, 0]], [0.45, [0, -1.5, 0]], [0.62, [0, -0.4, -1.4]], [0.85, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.18, [0, 8, 0]], [0.45, [0, 6, 0]], [0.62, [0, -8, 0]], [0.85, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.18, [6, 6, 0]], [0.3, [9, 4, 0]], [0.45, [8, 5, 0]], [0.62, [14, -14, 0]], [0.85, STANCE.body]],
+      head: [[0, STANCE.head], [0.18, [-10, 14, 0]], [0.3, [-13, 12, 0]], [0.45, [-12, 13, 0]], [0.62, [-6, 2, 0]], [0.85, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.18, [-6, -46, 34]], [0.3, [-150, -34, 42]], [0.38, [-154, -30, 46]], [0.45, [-150, -34, 42]], [0.62, [-98, -16, 8]], [0.85, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.18, [-64, 18, 0]], [0.3, [-38, 14, 0]], [0.45, [-38, 14, 0]], [0.62, [-10, 6, 0]], [0.85, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.18, [-6, 46, -34]], [0.3, [-150, 34, -42]], [0.38, [-154, 30, -46]], [0.45, [-150, 34, -42]], [0.62, [-98, 16, -8]], [0.85, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.18, [-64, -18, 0]], [0.3, [-38, -14, 0]], [0.45, [-38, -14, 0]], [0.62, [-10, -6, 0]], [0.85, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.18, [-24, 0, 20]], [0.45, [-24, 0, 20]], [0.62, [-8, 0, 14]], [0.85, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.18, [62, 0, 0]], [0.45, [62, 0, 0]], [0.62, [30, 0, 0]], [0.85, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.18, [-24, 0, -20]], [0.45, [-24, 0, -20]], [0.62, [-8, 0, -14]], [0.85, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.18, [68, 0, 0]], [0.45, [68, 0, 0]], [0.62, [34, 0, 0]], [0.85, STANCE.lShin]],
+    },
+  },
+
   // Hit reaction: the head and torso snap back, the arms flail, then she settles.
   combat_hit_stagger: {
     loop: false,
@@ -257,6 +344,11 @@ export const COMBAT_META = {
   attack_cross: { kind: 'attack', durationMs: 450, hitFrameMs: 180, comboWindowMs: { from: 200, to: 430 }, next: 'attack_uppercut' },
   attack_uppercut: { kind: 'attack', durationMs: 650, hitFrameMs: 280, comboWindowMs: { from: 300, to: 620 }, next: null },
   attack_roundhouse_kick: { kind: 'attack', durationMs: 600, hitFrameMs: 250, comboWindowMs: null, next: null },
+  attack_hook: { kind: 'attack', durationMs: 720, hitFrameMs: 340, comboWindowMs: null, next: null },
+  attack_high_kick: { kind: 'attack', durationMs: 660, hitFrameMs: 300, comboWindowMs: null, next: null },
+  attack_dropkick: { kind: 'attack', durationMs: 900, hitFrameMs: 520, comboWindowMs: null, next: null },
+  // cast_special already brings its own charge inside the clip (see melee.startCharge).
+  cast_special: { kind: 'attack', durationMs: 850, hitFrameMs: 620, comboWindowMs: null, next: null, charge: true },
   combat_block: { kind: 'defense', durationMs: 160, hitFrameMs: null, comboWindowMs: null },
   combat_dodge_step: { kind: 'defense', durationMs: 400, hitFrameMs: null, comboWindowMs: null },
   combat_hit_stagger: { kind: 'stagger', durationMs: 450, hitFrameMs: null, comboWindowMs: null },
@@ -310,6 +402,7 @@ function buildClip(def, r) {
 
 // Adds the combat clips to the animator (overriding a clip with the same name).
 // Returns the names registered.
+export { buildClip };
 export function addCombatClips(boneNames, clips) {
   const r = rig(boneNames);
   if (!r.rArm && !r.lArm) return [];

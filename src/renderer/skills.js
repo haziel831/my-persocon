@@ -49,13 +49,18 @@ export const SKILL_DEFS = {
 export const COMBAT_ARTS = ['unarmed', 'espada', 'queimada', 'syntoyo'];
 
 // The unarmed moves of the melee system. Each one unlocks with the Combat Skill Level:
-//   1 → jab + guarda · 3 → cross · 5 → passo evasivo · 7 → uppercut · 10 → chute circular
+//   1 → jab + guarda · 3 → cross · 5 → passo evasivo · 7 → uppercut · 8 → gancho pesado
+//   9 → chute alto · 10 → chute circular
+// Every strike has its OWN clip (combatanims.js): jab, cross, uppercut, hook, high kick,
+// roundhouse and the dropkick of the maneuvers.
 export const COMBAT_MOVES = [
   { id: 'jab', name: 'Jab direto', lvl: 1, dmg: 4, clip: 'attack_jab', kind: 'attack' },
   { id: 'guard', name: 'Guarda básica', lvl: 1, dmg: 0, clip: 'combat_block', kind: 'defend' },
   { id: 'cross', name: 'Cross da direita', lvl: 3, dmg: 8, clip: 'attack_cross', kind: 'attack' },
   { id: 'step', name: 'Passo evasivo', lvl: 5, dmg: 0, clip: 'combat_dodge_step', kind: 'dodge' },
   { id: 'upper', name: 'Uppercut pesado', lvl: 7, dmg: 13, clip: 'attack_uppercut', kind: 'attack' },
+  { id: 'hook', name: 'Gancho pesado', lvl: 8, dmg: 15, clip: 'attack_hook', kind: 'attack' },
+  { id: 'kick', name: 'Chute alto', lvl: 9, dmg: 16, clip: 'attack_high_kick', kind: 'attack' },
   { id: 'round', name: 'Chute circular', lvl: 10, dmg: 18, clip: 'attack_roundhouse_kick', kind: 'attack' },
 ];
 SKILL_DEFS.unarmed.moves = COMBAT_MOVES;
