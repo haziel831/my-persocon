@@ -386,6 +386,8 @@ export class Speech {
 
   react(type, data) {
     if (this.app.config.speech === false) return;
+    // Em combate só o combate fala: nada de comentários da área de trabalho no meio da luta.
+    if (this.app.melee?.active) return;
     // Asleep she stays completely quiet (wake lines only fire after she is up).
     if (this.app.pet.action === 'sleep') return;
     const entry = LINES[type];
@@ -414,6 +416,8 @@ export class Speech {
   idle(dt) {
     const { pet } = this.app;
     if (this.app.config.speech === false || this.freq <= 0 || pet.dead || this.text) return;
+    // Nada de conversa fiada de desktop durante a luta.
+    if (this.app.melee?.active || pet.combatMode) return;
     this.chatter -= dt * this.freq;
     if (this.chatter > 0 || pet.mode !== 'ground' || !['idle', 'walk', 'sit'].includes(pet.action)) return;
     this.chatter = 50 + Math.random() * 70;

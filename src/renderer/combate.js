@@ -83,8 +83,9 @@ export async function startArena(app) {
     app.uiChanged?.();
     if (pet.dead) return pet.revive();
     pet.stats = { ...FULL_STATS };
-    pet.endToy?.(true);
-    pet.resume?.();
+    // Curar NÃO mexe na luta: encerrar o toy matava a horda e deixava ela na guarda.
+    if (pet.unconscious) return pet.reviveUnconscious?.();
+    if (!fighting()) pet.resume?.();
   }
 
   function kill() {
@@ -114,7 +115,7 @@ export async function startArena(app) {
     if (pet.x === null) pet.spawn(app.world.width * 0.3);
   }, 400);
 
-  setInterval(() => {
+  const timer = setInterval(() => {
     const alive = unknown.slimes.filter((s) => s.hp > 0);
     const hp = Math.max(0, Math.round(pet.stats.health));
     const foesHp = unknown.slimes.reduce((sum, s) => sum + Math.max(0, s.hp), 0);
@@ -127,6 +128,9 @@ export async function startArena(app) {
     ].join('\n');
     startBtn.disabled = fighting();
   }, 250);
+  timer.unref?.();
 
   app.uiChanged?.();
+  // Os controles voltam para quem chamou (útil nos testes da arena).
+  return { startWave, stopFight, heal, kill, swapModel };
 }

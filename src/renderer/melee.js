@@ -516,6 +516,12 @@ export class Melee {
       crow.idle?.(1, 'idle');
     }
     this.pet.combatMode = false;
+    // Fim da luta: ela larga a guarda (antes o `combat` ficava ligado e o idle era o clipe de combate).
+    const stance = this.pet.combatKind;
+    if (this.pet.combat && (stance === 'black_cartridge_wave' || stance === 'combat')) {
+      this.pet.setCombat?.(false);
+      this.pet.view?.setFacing?.('front');
+    }
     document.body.classList.remove('combat-mode');
     this.music?.stop();
     this.music = null;

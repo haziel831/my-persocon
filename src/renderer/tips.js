@@ -109,6 +109,8 @@ export function startTips(app, busy) {
   const timer = setInterval(() => {
     if (off() || expired()) { if (!card) clearInterval(timer); return; }
     if (pet.offstage || app.intro || pet.dead || pet.powerOff || game.profile.booted === false) return;
+    // Dica é coisa da área de trabalho: em combate ela fica quieta.
+    if (app.melee?.active || pet.combatMode) return;
     t += 2;
     if (card || t < quietUntil || busy()) return;
     const ctx = {

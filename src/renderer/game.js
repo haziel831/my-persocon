@@ -35,7 +35,8 @@ export const SHOP_CATEGORIES = [
   ['specials', '💎', 'Specials'],
 ];
 
-export const INFINITE_MONEY = false;
+// A arena de teste (My Persocon Combate.exe) compra de tudo sem gastar moeda nenhuma.
+export const INFINITE_MONEY = !!(typeof window !== 'undefined' && window.__PET_COMBATE__);
 
 const pix = (id, cat, name, price, pixName, extra = {}) => ({
   id, cat, name, price, pix: pixName, effects: {}, ...extra,
