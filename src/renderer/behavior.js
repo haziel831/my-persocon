@@ -92,6 +92,11 @@ const SEAT_TOYS = new Set(['cama', 'almofada', 'banheira', 'videogame', 'pelucia
 export const FULL_STATS = { health: 100, hunger: 80, mood: 70, energy: 100, thirst: 80, hygiene: 100 };
 export const AFFECTION_MAX = 1000;
 export const AFFECTION_LEAVE = -100;
+// The crouch before every jump (the vertical velocity only comes after it).
+export const JUMP_PREP = 0.22;
+// The knockback sequence: the flight, the fall on the floor and the get-up.
+export const KNOCK_DOWN_TIME = 0.4;
+export const KNOCK_GETUP_TIME = 0.75;
 
 export class Pet {
   constructor(view, world, cfg, stats) {
@@ -113,6 +118,10 @@ export class Pet {
     this.timer = 0;
     this.awake = 0;
     this.jump = null;
+    // A agachada antes do pulo: o vy só entra quando a animação acaba.
+    this.jumpPrep = null;
+    // O golpe pesado que a joga no ar: voo → queda → levantar.
+    this.knock = null;
     this.hold = null;
     this.thrown = false;
     this.paused = false;
@@ -813,7 +822,8 @@ export class Pet {
     if (this.mode === 'ground') {
       this.action = 'react';
       this.timer = this.dosing + 0.5;
-      this.anim('idle', { facing: 'front' });
+      // A animação de uso: a mão desce até a bolsa e sobe com o item.
+      this.anim('use_item', { facing: 'front', restart: true });
     }
     this.emit('medicine', { item });
   }
@@ -1412,7 +1422,8 @@ export class Pet {
       : { item, drink, bites: 4, done: 0, t: 0, beat: 1.05 * slow, lead: 0.6, raise: 0, applied: 0 };
     // While watching it eats sitting, still turned to the video.
     if (this.activity === 'watch') this.anim('sit', { pose: 'sit', facing: this.watchFacing ?? Math.PI / 4 });
-    else this.anim('idle', { facing: 'front' });
+    // A mão vai até a bolsa e traz o item para a boca (a animação de uso).
+    else this.anim('use_item', { facing: 'front', restart: true });
     this.fulfill(drink ? 'drink' : 'food', item.id);
     if (item.cat === 'sobremesas') this.fulfill('dessert', item.id);
     if (wasSleeping) this.emit('wake', { startled: false });
@@ -1967,7 +1978,89 @@ export class Pet {
 
   // ---------- ground ----------
 
+  // A heavy blow launches her: she flies in a real arc (gravity), hits the floor and
+  // gets up. Her turn waits until she is standing again (the melee listens to 'getUp').
+  launchKnockback(vx, vy) {
+    if (this.dead) return;
+    this.knock = { stage: 'air', t: 0 };
+    this.scaling = null;
+    this.mode = 'air';
+    this.surfaceId = null;
+    this.wall = null;
+    this.jump = null;
+    this.vx = vx;
+    this.vy = vy;
+    this.action = 'fall';
+    this.anim('knockup', { facing: Math.abs(vx) > this.P ? this.side() : 'front', restart: true });
+    this.emit('knockup');
+  }
+
+  // The landing of a knockback: the impact, the dust and then she stays on the floor.
+  knockLand(s) {
+    const k = this.knock;
+    this.mode = 'ground';
+    this.surfaceId = s.id;
+    this.y = s.y;
+    this.vx = this.vy = 0;
+    k.stage = 'impact';
+    k.t = 0;
+    this.action = 'land';
+    this.app?.fx?.impact?.('dust', this.x, this.y - 6, 0.8);
+    this.app?.fx?.shake?.(0.45);
+    this.emit('knockdown');
+    // Nocauteada (derrota): ela já estava caindo; não tem levantar, fica deitada inconsciente.
+    if (this.unconscious) {
+      this.knock = null;
+      this.action = 'sleep';
+      this.timer = Infinity;
+      this.anim(this.view.animator.has('sleep') ? 'sleep' : 'idle', { pose: 'lie', facing: 'front' });
+      return;
+    }
+    this.anim('fall_hit', { facing: this.side(), restart: true });
+  }
+
+  // The get-up sequence: on the floor → lying → pushing herself up → standing.
+  updateKnock(dt) {
+    const k = this.knock;
+    if (!k) return;
+    // Ficou inconsciente no meio da queda: fica deitada, sem levantar.
+    if (this.unconscious) {
+      this.knock = null;
+      this.action = 'sleep';
+      this.timer = Infinity;
+      this.anim(this.view.animator.has('sleep') ? 'sleep' : 'idle', { pose: 'lie', facing: 'front' });
+      return;
+    }
+    k.t += dt;
+    if (k.stage === 'impact') {
+      if (k.t < 0.12) return;
+      k.stage = 'down';
+      k.t = 0;
+      this.action = 'knockdown';
+      this.anim('knockdown', { pose: 'lie', facing: 'front', restart: true });
+      return;
+    }
+    if (k.stage === 'down') {
+      if (k.t < KNOCK_DOWN_TIME) return;
+      k.stage = 'up';
+      k.t = 0;
+      this.action = 'getup';
+      this.anim('get_up', { facing: this.side(), restart: true });
+      return;
+    }
+    if (k.stage === 'up') {
+      if (k.t < KNOCK_GETUP_TIME) return;
+      this.knock = null;
+      this.action = 'land';
+      this.timer = 0.2;
+      this.anim('idle', { facing: this.side() });
+      this.emit('getUp');
+    }
+  }
+
   land(s, impact = 0) {
+    // A knockback has its own landing (the floor impact and the get-up).
+    if (this.knock?.stage === 'air') return this.knockLand(s);
     const thrown = this.thrown;
     this.mode = 'ground';
     this.surfaceId = s.id;
@@ -2473,7 +2566,31 @@ export class Pet {
 
   // ---------- air ----------
 
-  fall(vx, vy) {
+  // Todo salto passa por aqui: ela AGACHA (~220 ms) e só depois recebe o vy.
+  // (A exaustão/sono cancelam a agachada: nada de ficar agachada para sempre.)
+  startJumpPrep(vx, vy) {
+    this.jumpPrep = { vx, vy, t: 0 };
+    this.anim('jump_prep', { facing: this.side(), restart: true });
+    this.emit('jumpPrep');
+  }
+
+  updateJumpPrep(dt) {
+    const p = this.jumpPrep;
+    if (!p) return;
+    p.t += dt;
+    if (this.dead || this.paused || this.mode !== 'ground') { this.jumpPrep = null; return; }
+    if (p.t < JUMP_PREP) return;
+    const { vx, vy } = p;
+    this.jumpPrep = null;
+    this.fall(vx, vy, true);
+  }
+
+  fall(vx, vy, skipPrep = false) {
+    // Um salto para cima começa com a agachada (o vy só entra depois dela).
+    if (!skipPrep && vy < 0 && !this.jumpPrep && this.mode === 'ground' && !this.dead && !this.paused) {
+      this.startJumpPrep(vx, vy);
+      return;
+    }
     this.scaling = null;
     this.mode = 'air';
     this.surfaceId = null;
@@ -2690,6 +2807,10 @@ export class Pet {
     this.clock += dt;
     // Combat clips: the hit frame and the return to the fighting stance.
     this.combatAnim?.update(dt);
+    // A agachada antes do pulo: o vy só entra quando ela acaba de levantar.
+    if (this.jumpPrep) { this.updateJumpPrep(dt); return; }
+    // No chão depois de um nocaute: ela fica deitada e só se levanta depois.
+    if (this.knock && this.mode === 'ground') { this.updateKnock(dt); return; }
     if (this.dosing > 0) {
       this.dosing -= dt;
       if (this.dosing <= 0) {
