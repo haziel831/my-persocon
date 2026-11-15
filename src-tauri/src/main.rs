@@ -74,6 +74,8 @@ static ON_TOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::ne
 // the full-monitor overlay; the world is the window's client area.
 static STREAMER: AtomicBool = AtomicBool::new(false);
 static STREAMER_OPAQUE: AtomicBool = AtomicBool::new(true);
+// Combat arena: an isolated, interactive window that only runs fights (own player folder).
+static COMBATE: AtomicBool = AtomicBool::new(false);
 
 fn default_config() -> Value {
     json!({
@@ -124,6 +126,8 @@ fn default_config() -> Value {
 const DEFAULT_MODEL: &str = "models/MyPersocon";
 const AGHATA_MODEL: &str = "models/Aghata";
 const APP_NAME: &str = "My Persocon";
+// The arena build ("My Persocon Combate.exe") keeps its own player folder.
+const COMBATE_APP_NAME: &str = "My Persocon Combate";
 
 // The bundled models live next to the .exe; in development they are a few levels up.
 fn find_root() -> PathBuf {
@@ -142,7 +146,13 @@ fn find_root() -> PathBuf {
 }
 
 // Development builds and folders holding "portable.txt" keep the player files next to the app.
-fn find_data(root: &Path) -> PathBuf {
+// The combat arena always gets a folder of its own so it never touches the shared save.
+fn find_data(root: &Path, combate: bool) -> PathBuf {
+    if combate {
+        let dir = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(|| root.to_path_buf()).join(COMBATE_APP_NAME);
+        let _ = fs::create_dir_all(&dir);
+        return dir;
+    }
     if cfg!(debug_assertions) || root.join("portable.txt").exists() {
         return root.to_path_buf();
     }
@@ -747,11 +757,13 @@ fn streamer_css_bg(config: &Value) -> &'static str {
 
 // The overlay ("main") or the Streamer Mode window ("stream"). Switching modes builds a fresh
 // window: OBS keeps its yellow capture border on a window for as long as it captures it.
-fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, config: &Value) -> tauri::Result<WebviewWindow> {
+fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, combate: bool, config: &Value) -> tauri::Result<WebviewWindow> {
     let opaque = streamer && streamer_opaque(config);
     let bg = streamer_css_bg(config);
     let init = if preview {
         "window.__PET_PREVIEW__ = true;".to_string()
+    } else if combate {
+        "window.__PET_COMBATE__ = true;".to_string()
     } else if streamer {
         format!(
             "document.documentElement.style.background='{bg}';document.body&&(document.body.style.background='{bg}');"
@@ -778,6 +790,14 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
             // A game in fullscreen keeps the focus: don't steal it when this window opens.
             .focused(!win32::foreground_fullscreen())
             .build()?
+    } else if combate {
+        // The arena is a plain, interactive window: the buttons need clicks and the taskbar.
+        builder
+            .title("My Persocon - Combate")
+            .inner_size(1280.0, 800.0)
+            .center()
+            .focused(true)
+            .build()?
     } else {
         builder
             .title(APP_NAME)
@@ -799,7 +819,7 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
                 let _ = w.emit("streamer", false);
             }
         });
-    } else if !preview {
+    } else if !preview && !combate {
         win.set_ignore_cursor_events(true)?;
         if let Ok(h) = win.hwnd() {
             win32::set_tool_window(h.0 as _);
@@ -831,7 +851,7 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                         let _ = w.destroy();
                     }
                 }
-                match build_window(&handle, value, false, &config) {
+                match build_window(&handle, value, false, false, &config) {
                     Ok(_) => {
                         if !(was && value) {
                             if let Some(w) = handle.get_webview_window(window_label(!value)) {
@@ -1025,7 +1045,8 @@ fn start_world_polling(app: AppHandle) {
                 .map(|m| (m.work.left, m.work.top, m.work.right - m.work.left, m.work.bottom - m.work.top, m.primary))
                 .collect();
 
-            if STREAMER.load(Ordering::Relaxed) {
+            // Streamer Mode and the combat arena both use the window's client area as the world.
+            if STREAMER.load(Ordering::Relaxed) || COMBATE.load(Ordering::Relaxed) {
                 last_work = None;
                 if win.is_minimized().unwrap_or(false) {
                     continue;
@@ -1126,11 +1147,18 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let preview = args.iter().any(|a| a == "--preview");
     let shots = args.iter().find_map(|a| a.strip_prefix("--shots=")).map(parse_shots);
+    // The arena build runs isolated fights: same engine, own player folder, no overlay.
+    let exe_name = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_lowercase()))
+        .unwrap_or_default();
+    let combate = !preview && (args.iter().any(|a| a == "--combate") || exe_name.contains("combate"));
+    COMBATE.store(combate, Ordering::Relaxed);
     let root = find_root();
-    let data = find_data(&root);
+    let data = find_data(&root, combate);
     let config = load_config(&data);
     DISPLAY.store(config["display"].as_u64().unwrap_or(0) as usize, Ordering::Relaxed);
-    let streamer = !preview && config["streamer"].as_bool() == Some(true);
+    let streamer = !preview && !combate && config["streamer"].as_bool() == Some(true);
     STREAMER.store(streamer, Ordering::Relaxed);
     STREAMER_OPAQUE.store(streamer && streamer_opaque(&config), Ordering::Relaxed);
     let lang_en = config["lang"].as_str() == Some("en");
@@ -1144,7 +1172,7 @@ fn main() {
     }
 
     let mut builder = tauri::Builder::default();
-    if !preview {
+    if !preview && !combate {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(win) = app.get_webview_window(window_label(STREAMER.load(Ordering::Relaxed))) {
                 let _ = win.show();
@@ -1207,8 +1235,8 @@ fn main() {
         ])
         .setup(move |app| {
             let _ = APP.set(app.handle().clone());
-            build_window(app, STREAMER.load(Ordering::Relaxed), preview, &config)?;
-            if !preview {
+            build_window(app, STREAMER.load(Ordering::Relaxed), preview, combate, &config)?;
+            if !preview && !combate {
                 let menu = tray_menu(app, lang_en)?;
                 let mut tray = TrayIconBuilder::with_id("main").tooltip(APP_NAME).menu(&menu).on_menu_event(
                     |app, event| {
@@ -1234,6 +1262,8 @@ fn main() {
                     }
                 });
                 tray.build(app)?;
+            }
+            if !preview {
                 start_world_polling(app.handle().clone());
             }
             Ok(())

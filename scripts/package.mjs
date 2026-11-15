@@ -24,6 +24,8 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const targetDir = process.env.CARGO_TARGET_DIR || join(root, 'src-tauri', 'target');
 copyFileSync(join(targetDir, 'release', 'persocon.exe'), exe);
+// A copy named "… Combate.exe" boots the arena: isolated fights, own player folder, no overlay.
+copyFileSync(exe, join(out, `${name} Combate.exe`));
 for (const item of ['models/MyPersocon', 'models/Aghata', 'THIRD_PARTY_LICENSES.txt', 'LEIA-ME.txt']) {
   if (existsSync(join(root, item))) cpSync(join(root, item), join(out, item), { recursive: true });
   else console.warn(`Missing: ${item}`);

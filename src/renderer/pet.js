@@ -110,8 +110,8 @@ export async function startPet(files, config) {
   const world = new World(config.petHeight);
   const saved = await Game.load();
   const pet = new Pet(view, world, config, saved?.stats);
-  // Off the desktop until the title screen (or the intro) lets it in.
-  pet.offstage = !window.__PET_TEST__ || /[?&]title=1/.test(location.search);
+  // Off the desktop until the title screen (or the intro) lets it in. The arena has no front end.
+  pet.offstage = window.__PET_COMBATE__ ? false : (!window.__PET_TEST__ || /[?&]title=1/.test(location.search));
   const game = new Game(pet, saved);
   const emoticons = new Emoticons(config, () => (pet.dead ? null : pet.stats));
   emoticons.setSize(config.petHeight);
@@ -208,7 +208,7 @@ export async function startPet(files, config) {
     hitPet: (x, y) => hitPet(x, y),
     // The window lets go of the mouse and the press is re-sent to whatever is underneath.
     passClick() {
-      if (config.streamer || !api.passClick) return false;
+      if (config.streamer || window.__PET_COMBATE__ || !api.passClick) return false;
       interactive = false;
       api.passClick().catch?.(() => {});
       return true;
@@ -1530,6 +1530,11 @@ api.onTrayClick?.(() => {
   };
 
   function refreshInteractive() {
+    // A arena é uma janela normal: tudo nela precisa aceitar clique o tempo todo.
+    if (window.__PET_COMBATE__) {
+      document.body.classList.remove('hover');
+      return setInteractive(true);
+    }
     if (uiOpen() || press) {
       document.body.classList.remove('hover');
       return setInteractive(true);
@@ -2136,10 +2141,14 @@ api.onTrayClick?.(() => {
     safeStep(now);
   };
   requestAnimationFrame(frame);
-  startFlow().catch((err) => {
-    logError('title', String(err?.stack || err));
+  if (window.__PET_COMBATE__) {
     pet.offstage = false;
-  });
+  } else {
+    startFlow().catch((err) => {
+      logError('title', String(err?.stack || err));
+      pet.offstage = false;
+    });
+  }
   // Debug already on from a previous session: open the console (it stays until closed by hand).
   if (config.debug) setTimeout(() => app.debugConsole.show(), 0);
   // Minimized (Streamer Mode) the page gets no animation frames: keeps the pet living on a timer,
@@ -2155,4 +2164,5 @@ api.onTrayClick?.(() => {
       left -= d;
     }
   }, 250);
+  return app;
 }

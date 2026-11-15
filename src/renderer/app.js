@@ -15,5 +15,10 @@ if (window.__PET_PREVIEW__) {
   await runPreview(files, config);
 } else {
   const { startPet } = await import('./pet.js');
-  await startPet(files, config);
+  const app = await startPet(files, config);
+  // The arena build opens straight into a fight panel, no title screen.
+  if (window.__PET_COMBATE__ && app) {
+    const { startArena } = await import('./combate.js');
+    await startArena(app);
+  }
 }
