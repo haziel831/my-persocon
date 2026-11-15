@@ -68,6 +68,7 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 **Energia 0 não encerra mais a luta.** Ela segue lutando **EXAUSTA**, levando **1,5× de dano**, com aviso na energia baixa e outro ao zerar.
 **Inconsciência com tempo fixo (~5 min).** A derrota não é mais instantânea: o banner mostra a contagem e ela só acorda com o tempo cumprido **e** HP/Energia em 50%.
 **Batalha real vai até o fim (NOCAUTE).** A horda só para quando ela cai: com HP em 0 o banner é **NOCAUTE**, a horda recua na fumaça e ela desmaia. O corte na metade da vida passou a ser só do **treino contra o Boneco**. A batalha real paga XP de verdade (Força/Agilidade pelos golpes, Constituição pelo dano levado).
+**Nível de combate ajustável na mão.** No Perfil › Combate, cada arte (inclusive **Combate Corpo a Corpo**) e o próprio nível de Combate ganharam **−1/+1** — o nível muda exatamente um por clique, de 1 a 10.
 Detalhes em `ChangeLogs\v1.9.24.md`.
 
 ## v1.9.22 — 13/11/2026

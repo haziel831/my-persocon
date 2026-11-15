@@ -11,7 +11,7 @@ import './medicons.js';
 import { DEMO } from './edition.js';
 import { BAG_ITEMS as BAGGABLE } from './skills.js';
 import { attrProgress as attrProg } from './attrxp.js';
-import { skillLevel } from './skills.js';
+import { skillLevel, skillXpFor } from './skills.js';
 
 export { ATTR_XP } from './attrxp.js';
 
@@ -633,6 +633,20 @@ export class Game {
     const con = this.attrLevel('con');
     const str = this.attrLevel('str');
     return MAX_HP_BASE + (con - 1) * HP_PER_CON + (str - 1) * HP_PER_STR;
+  }
+
+  // Ajuste manual do nível de uma arte (os botões +1/−1 do perfil). O XP vai para o
+  // piso do nível pedido, então o nível muda exatamente 1 por clique.
+  skillSetLevel(id, lvl) {
+    const s = (this.profile.skills ||= {});
+    const before = skillLevel(s[id] || 0);
+    const target = Math.min(10, Math.max(1, Math.round(lvl)));
+    s[id] = skillXpFor(target);
+    this.changed();
+    if (target !== before) {
+      this.pet?.emit?.('skillXp', { id, amount: 0, xp: s[id], level: target, up: target > before });
+    }
+    return target;
   }
 
   skillAdd(id, amount) {

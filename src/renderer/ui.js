@@ -741,6 +741,16 @@ export class Menu {
     };
     const combatLvl = skillLevel(g.skillXp('unarmed'));
     const combatNext = skillXpFor(Math.min(10, combatLvl + 1));
+    // Botões −1/+1 do nível de uma arte (Combate / Combate Corpo a Corpo).
+    const stepBtns = (id, lvl) => h('span.step',
+      h('button.mini.step-down', {
+        title: 'Baixar 1 nível', disabled: lvl <= 1,
+        onclick: (ev) => { ev.stopPropagation(); g.skillSetLevel(id, lvl - 1); this.render(); },
+      }, '−'),
+      h('button.mini.step-up', {
+        title: 'Subir 1 nível', disabled: lvl >= 10,
+        onclick: (ev) => { ev.stopPropagation(); g.skillSetLevel(id, lvl + 1); this.render(); },
+      }, '+'));
     const geral = [
       ['Nome', app.config.name || 'Ninna'],
       ['Idade', age(p.born)],
@@ -819,7 +829,7 @@ export class Menu {
       if (!skillStarted(id, xp) || !moves.length) return null;   // arte ainda não aprendida: nem aparece
       const lvl = skillLevel(xp);
       return h('div.combat-art', {},
-        h('div.combat-art-head', {}, `${def.icon} ${def.art}`, h('span.muted', {}, `Nv ${lvl}`)),
+        h('div.combat-art-head', {}, `${def.icon} ${def.art}`, h('span.muted', {}, `Nv ${lvl}`), stepBtns(id, lvl)),
         h('ul.skill-moves', {}, moves.map((m) => h('li', {}, `${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : m.kind === 'defend' ? 'defesa' : 'esquiva'}`))));
     }).filter(Boolean);
     const manList = MANEUVERS.filter((m) => combatLvl >= m.lvl);
@@ -831,7 +841,7 @@ export class Menu {
       : null;
     const combatBody = h('div.combat', {},
       h('dl.facts.profile', {}, [
-        h('dt', {}, 'Combate'), h('dd', {}, `Nv ${combatLvl} · ${Math.floor(g.skillXp('unarmed'))}/${combatNext} XP`),
+        h('dt', {}, 'Combate'), h('dd', {}, `Nv ${combatLvl} · ${Math.floor(g.skillXp('unarmed'))}/${combatNext} XP`, stepBtns('unarmed', combatLvl)),
       ]),
       ...arts,
       manBox);
