@@ -433,7 +433,8 @@ export class Melee {
     this.hits++;
     this.fightStats.damage += dmg;
     // Glitch Surge (ondas 5+): gosma estoura ao morrer — abalo + dano em área (nunca derruba ela).
-    if (this.kind === 'unknown' && opp.unknown && opp.hp === 0 && (this.wave ?? 1) >= 5) {
+    // O Grim não estoura: ele simplesmente tomba.
+    if (this.kind === 'unknown' && opp.unknown && !opp.grim && opp.hp === 0 && (this.wave ?? 1) >= 5) {
       try {
         this.app.fx?.explosion?.('fire', this.oppX(), this.oppY() - 10, 1.35);
         this.app.fx?.shake?.(0.8);
@@ -712,7 +713,7 @@ export class Melee {
   startUnknown(foes, wave = 1) {
     this.foes = (foes || []).map((e) => ({
       hp: e.hp, max: e.hp, level: e.level, defense: e.defense ?? e.def, atk: e.atk, name: e.name || 'Unknown',
-      unknown: true, enemy: e, scrap: false, stunned: 0,
+      unknown: true, grim: e.kind === 'grim', enemy: e, scrap: false, stunned: 0,
       baseAtk: e.atk, acc: e.acc, stun: e.stun, bleed: null, defDown: 0, defTurns: 0, accPen: 0, accTurns: 0,
     }));
     this.wave = wave;
@@ -1043,14 +1044,21 @@ export class Melee {
     // Se a horda morreu antes do turno (ex.: sangramento), o turno não acontece.
     if (this.kind === 'unknown' && !foe) { this.phase = 'impact'; this.t = 0; return; }
     this.next = TURN.PERSOCON;
-    const glitch = Math.random() < 0.38;
+    const grim = !!foe?.grim;
+    const glitch = !grim && Math.random() < 0.38;
     const baseAtk = foe?.atk ?? 3;
+    // O Grim alterna o golpe corpo a corpo com o Projétil da Peste (que acerta de longe).
+    const plague = grim && Math.random() < 0.45;
+    const id = grim ? (plague ? 'plague' : 'claw') : (glitch ? 'glitch' : 'tackle');
+    const name = id === 'plague' ? 'Projétil da Peste'
+      : id === 'claw' ? 'Golpe da Peste'
+        : glitch ? 'Pulso de Glitch' : 'Investida Viscosa';
     this.move = {
-      id: glitch ? 'glitch' : 'tackle',
-      name: glitch ? 'Pulso de Glitch' : 'Investida Viscosa',
-      kind: 'attack', clip: 'attack_jab',
-      dmg: (glitch ? baseAtk * 1.6 : baseAtk) * (0.85 + (foe?.level || 1) * 0.03) * (0.9 + Math.random() * 0.2),
-      glitch, stunChance: glitch ? (foe?.stun || 0) : 0,
+      id,
+      name,
+      kind: 'attack', clip: 'attack_jab', ranged: plague,
+      dmg: (glitch || plague ? baseAtk * 1.6 : baseAtk) * (0.85 + (foe?.level || 1) * 0.03) * (0.9 + Math.random() * 0.2),
+      glitch, stunChance: glitch || plague ? (foe?.stun || 0) : 0,
     };
     this.moveDur = 0.5;
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, this.move.name, 'bad');
@@ -1074,7 +1082,8 @@ export class Melee {
     // Ela fecha a guarda ENQUANTO o golpe vem: o bloqueio aparece antes do dano.
     this.guardUp();
     // Se ela recuou para a formação, ele se aproxima durante a carga (nada de teleporte).
-    this.foeStep = this.foeApproach(foe);
+    // O Grim que vai soltar projétil não anda: ele atira de onde está.
+    this.foeStep = this.move?.ranged ? null : this.foeApproach(foe);
   }
 
   // Ela levanta a guarda (o clipe cruza os braços e abaixa a cabeça) antes do impacto.
@@ -1117,9 +1126,15 @@ export class Melee {
     const foe = this.opp;
     if (this.kind === 'unknown' && !foe) { this.phase = 'impact'; this.t = 0; return; }
     foe?.enemy?.play?.('attack');
+    // O Projétil da Peste sai dele e voa até ela (o Grim acerta de longe).
+    if (this.move?.ranged) {
+      foe?.enemy?.projectile?.(pet.x, pet.y - pet.P * 0.6);
+      this.app.sound?.tone8?.(320, 120, 0.2, 'triangle', 0.05);
+    }
     // Se ela estiver longe, o golpe passa e ele avança — só o excedente, até a distância de golpe.
+    // (O projétil não perde alcance: ele voa.)
     const dist = this.distance();
-    if (this.outOfRange()) {
+    if (this.outOfRange() && !this.move?.ranged) {
       const ox = this.oppX() ?? pet.x;
       const dir = Math.sign(pet.x - ox) || 1;
       const step = Math.min(dist - pet.P * STRIKE_GAP, pet.P * 0.6);
