@@ -3,6 +3,7 @@ import { buildModel } from './model.js';
 import { loadClips, Animator } from './animation.js';
 import { addGenerated, GEN_ROLES } from './genanims.js';
 import { addCombatClips } from './combatanims.js';
+import { addActionClips } from './actanims.js';
 import { HairPhysics } from './hairphys.js';
 
 // Model faces -Z; the camera looks at it from +Z.
@@ -44,9 +45,12 @@ export class PetView {
     const generated = addGenerated(model.bones.keys(), clips);
     // Close-combat clips (melee system): they replace a clip with the same name.
     const combatClips = addCombatClips(model.bones.keys(), clips);
+    // Action clips (use_item, jump_prep, knockup, fall_hit, knockdown, get_up): same idea.
+    const actionClips = addActionClips(model.bones.keys(), clips);
     const view = new PetView(model, clips, petHeight, canvas);
     view.generated = [...generated, ...combatClips];
     view.combatClips = combatClips;
+    view.actionClips = actionClips;
     view.genRoles = Object.fromEntries(generated.filter((n) => GEN_ROLES[n]).map((n) => [n, GEN_ROLES[n]]));
     if (files.mc) view.defaultRoles = (await import('./mcmodel.js')).MC_ROLES;
     return view;
