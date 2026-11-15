@@ -795,7 +795,8 @@ export class Pet {
     if (this.dead) return false;
     // Dormindo: fica na fila para depois (ela não acorda por causa disso).
     if (this.action === 'sleep') return this.queueForWakeUp(item);
-    if (this.eating || this.dosing > 0 || this.doseGap > 0 || this.meals.length) {
+    // COMBAT_MODE: o remédio é aplicado na hora (a luta continua rodando).
+    if (!this.combatMode && (this.eating || this.dosing > 0 || this.doseGap > 0 || this.meals.length)) {
       if (this.meals.length >= 8) return false;
       this.meals.push(item);
       return true;
@@ -820,10 +821,13 @@ export class Pet {
     else this.dosing = 1.0;
     this.doseGap = 0;
     if (this.mode === 'ground') {
-      this.action = 'react';
-      this.timer = this.dosing + 0.5;
       // A animação de uso: a mão desce até a bolsa e sobe com o item.
       this.anim('use_item', { facing: 'front', restart: true });
+      // Em combate quem manda no `action`/`timer` é a luta (o tick do toy): a pose é só visual.
+      if (!this.combatMode) {
+        this.action = 'react';
+        this.timer = this.dosing + 0.5;
+      }
     }
     this.emit('medicine', { item });
   }
@@ -2190,7 +2194,20 @@ export class Pet {
     if (this.dead) return this.lieDead();
     if (this.powerOff) return this.lieOff();
     // COMBAT_MODE: the fight owns her; nothing else starts.
-    if (this.combatMode) { this.action = 'idle'; this.timer = Infinity; return; }
+    if (this.combatMode) {
+      // A luta roda no tick do toy: se uma ação por baixo tirou o `action` de 'toy',
+      // devolve a ação para ele (senão o updateToy para e a luta congela em pé).
+      const tp = this.toyPlay;
+      if (tp) {
+        this.action = 'toy';
+        this.timer = Math.max(1, (tp.dur || 3600) - (tp.t || 0));
+        if (tp.picked) this.anim(tp.anim || 'idle', { pose: tp.pose || 'stand', facing: tp.facing || 'front' });
+        return;
+      }
+      this.action = 'idle';
+      this.timer = Infinity;
+      return;
+    }
     if (this.runQueued()) return;
     if (this.app?.game?.flushAfterPlay?.()) return;
     if (this.pending) {
@@ -2903,6 +2920,12 @@ export class Pet {
       this.updateScale(dt);
     } else {
       this.updateAir(dt);
+    }
+    // Resgate do combate: o motor da luta só é ticado pelo toy do combate. Se alguma coisa
+    // por baixo troca o `action` (remédio, reação, queda), o updateToy para e a luta
+    // congelaria em pé — em combate o motor continua sendo ticado aqui.
+    if (this.combatMode && this.mode === 'ground' && this.action !== 'toy' && this.app?.melee?.active) {
+      this.app.melee.update(dt);
     }
   }
 }

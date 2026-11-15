@@ -520,7 +520,9 @@ export class Game {
     const i = bag.indexOf(id);
     const item = itemById(id);
     if (i < 0 || !item || !isConsumable(item)) return false;
-    if (this.pet.busyForQueue?.() && !this.pet.dead) {
+    // Em combate remédio/power-up vale na hora (mesma regra do use()).
+    const inFight = !!this.pet.combatMode && (item.cat === 'medicina' || item.consumable);
+    if (this.pet.busyForQueue?.() && !this.pet.dead && !inFight) {
       (this.pet.afterPlay ||= []).push(`bag:${id}`);
       return true;
     }
@@ -827,8 +829,10 @@ export class Game {
     const item = itemById(id);
     if (!item || !this.count(id) || !isConsumable(item)) return false;
     if (item.box) return !!this.onOpenBox?.(id);
+    // Em combate remédio/power-up vale na hora: a luta não para para esvaziar a fila.
+    const inFight = !!this.pet.combatMode && (item.cat === 'medicina' || item.consumable);
     // Busy: queue consumables (loot boxes use actionQueue via open()).
-    if (this.pet.busyForQueue?.() && !this.pet.dead) {
+    if (this.pet.busyForQueue?.() && !this.pet.dead && !inFight) {
       (this.pet.afterPlay ||= []).push(id);
       return true;
     }
