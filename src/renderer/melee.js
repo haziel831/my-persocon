@@ -1191,9 +1191,12 @@ export class Melee {
       game.profile.unknownDone = true;
       game.changed();
       game.persist?.();
-    } else if (reason === 'safety' || reason === 'tired') {
-      // DERROTA: os inimigos recuam na fumaça, e ela cai no chão (Inconsciente até 50%).
-      this.app.combatUI?.defeatBanner?.();
+    } else if (reason === 'safety' || reason === 'tired' || reason === 'ko') {
+      // DERROTA: os inimigos recuam na fumaça, e ela cai no chão (Inconsciente alguns minutos).
+      this.app.combatUI?.defeatBanner?.(
+        reason === 'ko' ? 'NOCAUTE' : undefined,
+        reason === 'ko' ? 'A horda te derrubou... e recuou.' : undefined,
+      );
       // Uma vignette escura engole a tela por alguns segundos.
       const vignette = document.createElement('div');
       vignette.className = 'defeat-vignette';
@@ -1208,7 +1211,7 @@ export class Melee {
       this.app.unknown?.onDefeat?.('lose');
       this.app.sound?.play?.('gameover', { volume: 0.5 }) ?? this.app.sound?.tone8?.(80, 40, 0.8, 'sawtooth', 0.08);
       this.app.combatUI?.hideFoeBars?.();
-      this.say(pet.x, pet.y - pet.P * 1.25, '...', 'bad');
+      this.say(pet.x, pet.y - pet.P * 1.25, reason === 'ko' ? 'Nocaute...' : '...', 'bad');
       // Ela desaba no chão: INCONSCIENTE (trava total; acorda com 50%+ de HP e Energia).
       this.pet.lieUnconscious?.();
       this.app.combatUI?.fightSummary?.({ ...this.fightStats, xp: game._xpFight || {} });
@@ -1403,17 +1406,16 @@ export class Melee {
       const d = this.game?.toys?.boneco_treino;
       if (!d?.placed || d.broken) this.finishTraining('dummy-gone');
     }
-    // The sparring: non-lethal. She stops at half of her health.
+    // O treino (sparring) é sem risco: ela para na metade da saúde.
     if (this.active && this.kind === 'fight') {
       const hp = pet.stats.health;
       const hpMax = this.petHpMax ?? 100;
       // A vitória é conferida em checkVictory (fase victory); aqui é só a parada de segurança.
       if (hp <= hpMax * SAFETY_HP && this.phase !== 'victory') this.finishSparring('safety');
     }
-    // A luta com o Unknown: mesma parada de segurança, e o drop quando ele cai.
-    if (this.active && this.kind === 'unknown') {
-      const hp = pet.stats.health;
-      if (hp <= (this.petHpMax ?? 100) * SAFETY_HP && this.phase !== 'victory') this.finishUnknown('safety');
+    // A BATALHA de verdade vai até o fim: só acaba quando a saúde zera (nocaute) — ou na vitória.
+    if (this.active && this.kind === 'unknown' && this.phase !== 'victory' && pet.stats.health <= 0) {
+      this.finishUnknown('ko');
     }
     // Energia baixa / zerada: avisa uma vez; sem energia ela continua lutando (e apanha mais).
     if (this.active && this.phase !== 'victory') {
@@ -2148,7 +2150,7 @@ export class Melee {
     }
     // Every turn trains her: a little XP, a little energy spent.
     const before = lvl;
-    const gain = skillGain(this.kind === 'fight' ? 'sparring' : 'dummy');
+    const gain = skillGain(this.kind === 'fight' ? 'sparring' : this.kind === 'unknown' ? 'battle' : 'dummy');
     this.xpGained += gain;
     this.game.skillAdd('unarmed', gain);
     // Treinar no boneco também dá Constituição (de leve, um turno por vez).

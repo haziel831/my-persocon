@@ -263,16 +263,16 @@ export class CombatUI {
 
   // ---------- o banner de DERROTA ----------
 
-  defeatBanner() {
+  defeatBanner(title, subtitle) {
     this.hideDefeat();
     const el = document.createElement('div');
     el.className = 'defeat-banner';
     const h = document.createElement('h1');
-    h.textContent = 'DERROTA...';
+    h.textContent = title || 'DERROTA...';
     el.append(h);
     const sub = document.createElement('div');
     sub.className = 'defeat-sub';
-    sub.textContent = 'A horda recuou... mas você não aguentou.';
+    sub.textContent = subtitle || 'A horda recuou... mas você não aguentou.';
     el.append(sub);
     // Barra de recuperação (mostrada enquanto ela está INCONSCIENTE).
     const prog = document.createElement('div');

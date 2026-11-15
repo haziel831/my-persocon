@@ -110,6 +110,8 @@ export async function startArena(app) {
       return;
     }
     if (type !== 'death') return;
+    // Nocaute: nada de reviver na hora — ela fica inconsciente o tempo do KO (o combate já cuidou).
+    if (pet.unconscious) return;
     setTimeout(() => {
       const button = app.gameOver?.querySelector('.modal-foot .primary, .retry');
       if (button) button.click();

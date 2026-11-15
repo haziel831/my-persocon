@@ -237,7 +237,11 @@ export class Game {
     }
     pet.on((type, data) => {
       const p = this.profile;
-      if (type === 'death') return this.reset();
+      // Em combate a derrota não zera o progresso: ela só desmaia e volta sozinha.
+      if (type === 'death') {
+        if (this.pet.unconscious) return;
+        return this.reset();
+      }
       if (type === 'pet') p.pats++;
       if (type === 'slap') p.slaps++;
       if (type === 'chaseStart') p.chases++;

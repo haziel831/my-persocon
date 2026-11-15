@@ -1576,8 +1576,11 @@ export class Pet {
   }
 
   checkDeath() {
-    if (this.dead || this.stats.health > 0) return;
-    this.dead = true;
+    if (this.dead || this.unconscious || this.stats.health > 0) return;
+    // EM COMBATE a derrota não mata: ela desmaia (INCONSCIENTE por alguns minutos) e a
+    // luta termina; no resto do jogo continua sendo a morte de sempre.
+    const ko = !!this.combatMode;
+    if (!ko) this.dead = true;
     this.chase = null;
     this.eating = null;
     this.meals = [];
@@ -1588,7 +1591,8 @@ export class Pet {
       this.view.setHold(false);
       this.hold = null;
     }
-    if (this.mode === 'ground') this.lieDead();
+    if (ko) this.lieUnconscious();
+    else if (this.mode === 'ground') this.lieDead();
     else if (this.mode !== 'air') this.fall(0, 0);
     this.emit('death');
   }
@@ -1606,10 +1610,13 @@ export class Pet {
     this.chase = null;
     this.eating = null;
     this.meals = [];
-    this.unconscious = true;
-    // O relógio do nocaute: ela só acorda quando ele zera (nada de clique, nada de IA).
-    this.koTotal = KO_TIME + rand(-KO_TIME_JITTER, KO_TIME_JITTER);
-    this.koT = this.koTotal;
+    // Só arma o relógio e avisa uma vez: reaplicar a pose não reinicia o nocaute.
+    if (!this.unconscious) {
+      this.unconscious = true;
+      this.koTotal = KO_TIME + rand(-KO_TIME_JITTER, KO_TIME_JITTER);
+      this.koT = this.koTotal;
+      this.emit('ko');
+    }
     this.paused = true;   // a IA não decide nada enquanto ela está fora
     this.action = 'sleep';   // o motor já sabe tratar o sleep (timer Infinity, regen de energia no chão)
     this.timer = Infinity;
@@ -1618,7 +1625,6 @@ export class Pet {
     const has = (n) => this.view?.animator?.has(n);
     const clip = has('sleep') ? 'sleep' : has('death') ? 'death' : 'idle';
     this.anim(clip, { pose: 'lie', facing: 'front' });
-    this.emit('ko');
   }
 
   // Acorda sozinha quando o tempo de nocaute acaba (e com pelo menos metade de HP e Energia).
@@ -2094,6 +2100,8 @@ export class Pet {
     this.thrown = false;
     if (this.leaving) return this.startLeave();
     if (this.dead) return this.lieDead();
+    // Nocaute no ar: aterrissa e já fica deitada, sem levantar.
+    if (this.unconscious) return this.lieUnconscious();
     if (impact > this.P * (thrown ? 9 : 20)) {
       this.action = 'dizzy';
       this.timer = this.paused ? Infinity : rand(2.2, 3.2);

@@ -697,7 +697,8 @@ export async function startPet(files, config) {
       importDialog.close();
       modes.stop();
     }
-    if (type === 'death') setTimeout(() => showGameOver(app, () => pet.revive()), 2500);
+    // Nocaute em combate: quem cuida é o combate (ela desmaia e acorda sozinha depois).
+    if (type === 'death' && !pet.unconscious) setTimeout(() => { if (!pet.unconscious) showGameOver(app, () => pet.revive()); }, 2500);
     if (type === 'left') setTimeout(() => showGameOver(app, () => app.deleteSave(), 'leave'), 800);
   });
 

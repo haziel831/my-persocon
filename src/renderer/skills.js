@@ -106,8 +106,10 @@ export function skillPick(id, xp) {
   return list[Math.floor(Math.random() * list.length)] || null;
 }
 
-// Solo practice is slow; the training dummy gives more XP and the heavy training much more.
+// Solo practice is slow; the training dummy gives more XP, the sparring more still and a
+// real fight (the horde) the most — a real battle teaches what no dummy can.
 export function skillGain(kind = 'solo') {
+  if (kind === 'battle') return 2.4 + Math.random() * 1.4;
   if (kind === 'sparring') return 1.6 + Math.random() * 1.2;
   return kind === 'dummy' ? 0.8 + Math.random() * 0.6 : 0.12 + Math.random() * 0.12;
 }
