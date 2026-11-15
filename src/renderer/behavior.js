@@ -2014,6 +2014,8 @@ export class Pet {
       this.action = 'sleep';
       this.timer = Infinity;
       this.anim(this.view.animator.has('sleep') ? 'sleep' : 'idle', { pose: 'lie', facing: 'front' });
+      // Sem queda em andamento a luta não espera mais nada (o turno destrava).
+      this.emit('getUp');
       return;
     }
     this.anim('fall_hit', { facing: this.side(), restart: true });
@@ -2029,6 +2031,7 @@ export class Pet {
       this.action = 'sleep';
       this.timer = Infinity;
       this.anim(this.view.animator.has('sleep') ? 'sleep' : 'idle', { pose: 'lie', facing: 'front' });
+      this.emit('getUp');
       return;
     }
     k.t += dt;

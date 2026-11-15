@@ -40,6 +40,11 @@ export const CHARGE_MANEUVER = 0.55;
 export const MELEE_RANGE = 0.85;
 // How far the enemy's blow pushes her back (always past the contact distance).
 export const KNOCKBACK = 0.95;
+// O avanço até o alvo tem tempo máximo: se ela não chegar (parede, chão ruim), o golpe sai
+// mesmo assim, com ela colada no alvo.
+export const CLOSE_MAX = 1.6;
+// Ela não pode ficar presa no chão: se o 'getUp' não vier, a luta destrava sozinha.
+export const PET_DOWN_MAX = 2.6;
 // As ondas do Cartucho Preto (o índice é a onda). 1 a 9 são lutáveis; 10 é a trava do Boss.
 // Cada onda lança mais inimigos e mais fortes (vida/ataque/defesa/precisão/atordoamento).
 export const BLACK_WAVES = [null,
@@ -1086,9 +1091,22 @@ export class Melee {
     // Ela foi nocauteada e está no chão: a luta espera ela se levantar.
     if (this.petDown) {
       this.t = 0;
+      // Rede de segurança: o 'getUp' é a única saída normal, então ela nunca pode depender
+      // só dele. Sem queda em andamento (nocaute de derrota, animação perdida) ou passando
+      // do tempo máximo, a luta destrava na mão.
+      this.downT = (this.downT || 0) + dt;
+      if (!this.pet.knock || this.downT > PET_DOWN_MAX) {
+        console.warn('[PetDown] destravando o turno sem o getUp');
+        this.petDown = false;
+        this.downT = 0;
+        this.pet.knock = null;
+        this.pet.jumpPrep = null;
+        this.t = 0;
+      }
       this.updateAuras();
       return;
     }
+    this.downT = 0;
     this.t += dt;
     this.dt = dt;
     switch (this.phase) {
@@ -1113,8 +1131,16 @@ export class Melee {
         break;
       case 'close':
         // She dashes back into contact; the strike only happens when she arrives.
-        if (this.outOfRange()) this.closeIn();
-        else { this.phase = 'windup'; this.t = 0; this.persoconTurn(); }
+        this.closeT = (this.closeT || 0) + dt;
+        if (this.outOfRange() && this.closeT < CLOSE_MAX) this.closeIn();
+        else {
+          // Estourou o tempo e ela ainda não chegou: cola no alvo e golpeia de qualquer jeito.
+          if (this.outOfRange()) this.snapToRange();
+          this.closeT = 0;
+          this.phase = 'windup';
+          this.t = 0;
+          this.persoconTurn();
+        }
         break;
       case 'charge':
         // The charge ends and the strike begins (the animation only starts now).
@@ -1190,6 +1216,8 @@ export class Melee {
 
   beginTurn(next) {
     this.t = 0;
+    this.closeT = 0;
+    this.downT = 0;
     this.hitResolved = false;
     this.move = null;
     this.phase = 'announce';
@@ -1259,6 +1287,15 @@ export class Melee {
     const step = Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 2.8 * (this.dt || 0.016));
     pet.x += step;
     pet.anim('walk', { facing: side > 0 ? 'right' : 'left', restart: true });
+  }
+
+  // Cola ela na distância de golpe (usado quando o avanço estoura o tempo).
+  snapToRange() {
+    const pet = this.pet;
+    const ox = this.oppX() ?? pet.x;
+    const side = Math.sign(ox - pet.x) || pet.dir || 1;
+    pet.dir = side;
+    pet.x = ox - side * pet.P * 0.8;
   }
 
   // The Persocon's turn: she uses a medicine when hurt, or fights with a maneuver/normal move.
@@ -1501,6 +1538,7 @@ export class Melee {
     if (heavy && pet.launchKnockback) {
       pet.launchKnockback(-this.facing() * pet.P * 1.5, -pet.P * 2.4);
       this.petDown = true;
+      this.downT = 0;
       this.say(pet.x, pet.y - pet.P * 1.3, 'Arremessada!', 'bad');
     }
     this.app.fx?.impact?.('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
@@ -1810,6 +1848,14 @@ export class Melee {
   // Stops the fight (the escape hatch: two clicks on her cancel it).
   stop(reason = 'cancelled') {
     if (!this.active) return false;
+    // Nada de estado de nocaute atravessando a luta: a próxima começa limpa.
+    this.petDown = false;
+    this.downT = 0;
+    this.closeT = 0;
+    if (this.pet) {
+      this.pet.knock = null;
+      this.pet.jumpPrep = null;
+    }
     this.leave(reason);
     this.pet.endToy?.(true);
     this.pet.resume?.();          // segurança: nunca devolve a Persocon paralisada
