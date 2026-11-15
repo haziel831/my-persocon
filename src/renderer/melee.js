@@ -101,15 +101,65 @@ export const STUN_PENALTY = 0.45;
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 
-// ---------- the combat track (a small 8-bit battle loop) ----------
-// A driving riff in D minor with a bass pulse and a snare: it loops until the fight ends.
-const STEP = 0.125;
-const BASS = [38, 38, 41, 38, 36, 36, 33, 36];
-const LEAD = [62, 65, 69, 65, 62, 60, 57, 60, 62, 69, 72, 69, 65, 62, 60, 57];
+// ---------- the combat tracks (small 8-bit battle loops) ----------
+// Five different themes; each fight picks one at random (melee.enter). Every track is a
+// 16-step loop: the bass walks one note per bar, the lead plays on the step list and the
+// drums mark the beat. `step` is the 16th length, so it also sets the tempo.
+export const COMBAT_TRACKS = [
+  {
+    id: 'drive',                       // D minor, urgent (the old theme)
+    step: 0.125,
+    bassType: 'triangle', leadType: 'square',
+    bass: [38, 38, 41, 38, 36, 36, 33, 36],
+    lead: [62, 65, 69, 65, 62, 60, 57, 60, 62, 69, 72, 69, 65, 62, 60, 57],
+    kick: [0, 4, 8, 12], snare: [4, 12], hat: [2, 6, 10, 14],
+    vol: { bass: 0.09, lead: 0.045, kick: 0.35, snare: 0.11, hat: 0.045 },
+  },
+  {
+    id: 'sprint',                      // E minor, fast and nervous
+    step: 0.112,
+    bassType: 'square', leadType: 'sawtooth',
+    bass: [40, 40, 43, 40, 38, 38, 35, 38],
+    lead: [64, 67, 71, 67, 64, 62, 59, 62, 64, 71, 74, 71, 67, 64, 62, 59],
+    kick: [0, 6, 8, 14], snare: [4, 12], hat: [2, 5, 10, 13],
+    vol: { bass: 0.075, lead: 0.038, kick: 0.34, snare: 0.1, hat: 0.04 },
+  },
+  {
+    id: 'heavy',                       // A minor, slow and heavy
+    step: 0.145,
+    bassType: 'triangle', leadType: 'triangle',
+    bass: [33, 33, 36, 33, 31, 31, 28, 33],
+    lead: [57, 60, 64, 60, 57, 55, 52, 55, 57, 64, 67, 64, 60, 57, 55, 52],
+    kick: [0, 7, 8], snare: [4, 12, 15], hat: [2, 6, 10, 14],
+    leadSteps: [0, 2, 4, 6, 8, 10, 12, 14],
+    vol: { bass: 0.11, lead: 0.05, kick: 0.4, snare: 0.13, hat: 0.04 },
+  },
+  {
+    id: 'stabs',                       // C minor, short brass-like stabs
+    step: 0.118,
+    bassType: 'square', leadType: 'square',
+    bass: [36, 36, 36, 39, 34, 34, 34, 31],
+    lead: [60, 63, 67, 63, 60, 58, 55, 58, 60, 67, 70, 67, 63, 60, 58, 55],
+    kick: [0, 4, 8, 12], snare: [6, 14], hat: [1, 3, 9, 11],
+    leadSteps: [0, 3, 6, 8, 11, 14],
+    leadDur: 0.55,
+    vol: { bass: 0.08, lead: 0.05, kick: 0.33, snare: 0.12, hat: 0.04 },
+  },
+  {
+    id: 'glitch',                      // F# minor, the black cartridge feel
+    step: 0.102,
+    bassType: 'sawtooth', leadType: 'square',
+    bass: [30, 30, 33, 30, 35, 33, 30, 28],
+    lead: [66, 70, 73, 70, 66, 63, 61, 63, 66, 73, 78, 73, 70, 66, 63, 61],
+    kick: [0, 3, 8, 11], snare: [4, 10, 12, 15], hat: [1, 2, 5, 6, 9, 13, 14],
+    vol: { bass: 0.075, lead: 0.042, kick: 0.32, snare: 0.09, hat: 0.035 },
+  },
+];
 
 class CombatMusic {
-  constructor(sound) {
+  constructor(sound, track = COMBAT_TRACKS[0]) {
     this.sound = sound;
+    this.track = track;
     const c = sound.ctx;
     if (!c) return;
     this.out = c.createGain();
@@ -141,31 +191,43 @@ class CombatMusic {
     const g = c.createGain();
     o.frequency.setValueAtTime(150, t);
     o.frequency.exponentialRampToValueAtTime(45, t + 0.1);
-    g.gain.setValueAtTime(0.35, t);
+    g.gain.setValueAtTime(this.track?.vol?.kick ?? 0.35, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
     o.connect(g).connect(this.out);
     o.start(t);
     o.stop(t + 0.16);
   }
 
+  // The snare and the hats are the same noise burst, only shorter/brighter.
+  drum(t, dur, vol, freq) {
+    this.sound.noise?.(t, dur, vol, freq);
+  }
+
   pump() {
     const s = this.sound;
     if (!s?.ctx) return;
+    const step = this.track?.step || 0.125;
     while (this.t < s.ctx.currentTime + 0.3) {
       if (s.enabled) this.step(this.k, this.t);
       this.k++;
-      this.t += STEP;
+      this.t += step;
     }
   }
 
   step(k, t) {
+    const tr = this.track;
+    if (!tr) return;
+    const v = tr.vol || {};
     const i = k % 16;
-    const bar = Math.floor(k / 16) % BASS.length;
-    const root = BASS[bar];
-    this.note(t, root - 12, STEP * 1.6, 0.09, 'triangle');
-    if (i % 2 === 0) this.note(t, LEAD[(k + bar) % LEAD.length], STEP * 0.8, 0.045);
-    if (i % 4 === 0) this.kick(t);
-    if (i === 4 || i === 12) this.sound.noise?.(t, 0.07, 0.11, 2400);
+    const bar = Math.floor(k / 16) % tr.bass.length;
+    // The bass walks a note per bar (an octave down, so it does not fight the lead).
+    this.note(t, tr.bass[bar] - 12, tr.step * 1.6, v.bass, tr.bassType);
+    // The lead: on every even step, or only on the `leadSteps` list (the stab theme).
+    const onLead = tr.leadSteps ? tr.leadSteps.includes(i) : i % 2 === 0;
+    if (onLead) this.note(t, tr.lead[(k + bar) % tr.lead.length], tr.step * (tr.leadDur ?? 0.8), v.lead, tr.leadType);
+    if (tr.kick?.includes(i)) this.kick(t);
+    if (tr.snare?.includes(i)) this.drum(t, 0.07, v.snare, 2400);
+    if (tr.hat?.includes(i)) this.drum(t, 0.03, v.hat, 6200);
   }
 
   stop() {
@@ -478,10 +540,21 @@ export class Melee {
     if (kind !== 'dummy') {
       document.body.classList.add('combat-mode');
       this.app.sound?.pauseMusic?.();
-      if (this.app.sound?.enabled) this.music = new CombatMusic(this.app.sound);
+      if (this.app.sound?.enabled) this.music = new CombatMusic(this.app.sound, this.pickTrack());
     }
     this.pet.emit?.('combatStart', { kind });
     return true;
+  }
+
+  // Sorteia a trilha do combate (nunca repete a da luta anterior).
+  pickTrack() {
+    const tracks = COMBAT_TRACKS;
+    let pick = tracks[Math.floor(Math.random() * tracks.length)] || tracks[0];
+    if (tracks.length > 1 && pick === this.lastTrack) {
+      pick = tracks[(tracks.indexOf(pick) + 1) % tracks.length];
+    }
+    this.lastTrack = pick;
+    return pick;
   }
 
   // O Corvo está pronto para lutar ao lado dela? (na área de trabalho, livre, com ≥1 Skill de Combate)
