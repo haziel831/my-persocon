@@ -282,6 +282,8 @@ export class Game {
     this.profile.skills ||= {};
     // A progressão do Cartucho Preto (as ondas) — começa no Wave 1; o 10 é a trava do Boss.
     this.profile.blackCartridgeWave ??= 1;
+    // Quem ela encara no cartucho preto: 'slime' | 'grim' | 'mixed' (padrão).
+    this.profile.blackEnemy ??= 'mixed';
     this.profile.cristalAwarded ??= !!this.profile.unknownDone;
     this.profile.blackCartLore ??= false;
     // toys: { id: { uses, maxUses, broken, placed, x } }

@@ -9,6 +9,7 @@
 //   1-9 → lutável (escala de inimigos e atributos);  10 → trava (o Boss aguarda).
 import { BLACK_WAVES, STRIKE_GAP } from './melee.js';
 import { cartridge } from './pixel.js';
+import { Grim } from './grim.js';
 
 const SHEET_DIR = './assets/enemies/unknown_slime/';
 
@@ -361,6 +362,17 @@ export class Unknown {
 
   // ---------- a erupção da TV ----------
 
+  // Quantos Grim entram na horda: `blackEnemy` ('slime' | 'grim' | 'mixed') manda.
+  // No misto eles só aparecem da onda 4 em diante (e em maior número nas ondas altas).
+  grimCount(count) {
+    const pref = this.app.game?.profile?.blackEnemy || 'mixed';
+    if (pref === 'grim') return count;
+    if (pref === 'slime') return 0;
+    const wave = this.wave || 1;
+    if (wave < 4) return 0;
+    return Math.min(Math.max(0, count - 1), wave >= 7 ? 2 : 1);
+  }
+
   erupt(wave = null) {
     if (this.state !== 'idle' && this.state !== 'gone' && this.state !== 'erupt') return;
     this.state = 'erupt';
@@ -374,9 +386,25 @@ export class Unknown {
     // A horda nasce dentro da TV e cai no chão.
     const baseX = tv?.x ?? w / 2;
     this.slimes = [];
+    const grimN = this.grimCount(plan.count);
     for (let i = 0; i < plan.count; i++) {
       const hp = Math.round(plan.hp * (0.9 + Math.random() * 0.25));
-      const s = new Slime(app, baseX + (i - (plan.count - 1) / 2) * 18, floor, {
+      const at = baseX + (i - (plan.count - 1) / 2) * 18;
+      let s;
+      if (i < grimN) {
+        // O Grim é mais duro: mais vida, mais ataque, mais defesa e um nível acima.
+        s = new Grim(app, at, floor, {
+          hp: Math.round(hp * 1.6), atk: Math.round(plan.atk * 1.3 * 10) / 10, def: Math.min(0.5, plan.def + 0.04),
+          level: plan.level + 1, acc: Math.min(0.95, plan.acc + 0.03), stun: plan.stun, name: 'Grim',
+        });
+        s.makeSprite();
+        s.place();
+        s.play('spawn');
+        s.state = 'chase';
+        this.slimes.push(s);
+        continue;
+      }
+      s = new Slime(app, at, floor, {
         hp, atk: plan.atk, def: plan.def, level: plan.level, acc: plan.acc, stun: plan.stun, name: 'Unknown',
       });
       s.makeSprite();

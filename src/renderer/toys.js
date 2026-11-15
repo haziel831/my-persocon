@@ -328,6 +328,7 @@ export class Toys {
         btn(game.profile.unknownDone ? '🕹 Inserir o cartucho preto de novo' : '🕹 Inserir o cartucho preto', () => {
           if (!this.app.unknown?.insert?.()) this.app.sound.play('cancel', { volume: 0.4 });
         });
+        btn('👹 Escolher o inimigo do cartucho…', () => setTimeout(() => this.enemyMenu(x, y), 0));
       }
     }
     if (baseId(id) === 'estante' && t) btn('📚 Ver conteúdo da estante', () => this.showShelfContents(id));
@@ -387,6 +388,37 @@ export class Toys {
     if (id === 'impressora') this.printerInfo(el);
     if (t && !t.broken && this.fun.owns(id)) this.fun.menu(baseId(id), btn, el);
     if (t && !itemById(baseId(id))?.fixed && baseId(id) !== 'gameboy_verde') btn('📦 Guardar no inventário', () => game.pickUpToy(id));
+    this.openMenu(el, x, y);
+  }
+
+  // Quem sai do cartucho preto: gosmas, Grim ou os dois. Fica no menu da TV.
+  enemyMenu(x, y) {
+    const { game } = this.app;
+    const el = document.createElement('div');
+    el.className = 'toy-menu hitzone';
+    const btn = (label, fn) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.onclick = (e) => { e.stopPropagation(); this.closeMenu(); fn(); };
+      el.append(b);
+      return b;
+    };
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = 'Inimigo do cartucho preto';
+    el.append(title);
+    const cur = game.profile.blackEnemy || 'mixed';
+    const opt = (id, label, hint) => {
+      const b = btn(`${cur === id ? '▸ ' : ''}${label}`, () => {
+        if (cur === id) return;
+        game.profile.blackEnemy = id;
+        game.changed();
+      });
+      b.title = hint;
+    };
+    opt('mixed', 'Misturado', 'Gosmas e Grim (o Grim só aparece da onda 4 em diante)');
+    opt('slime', 'Só gosmas', 'A horda original do Unknown');
+    opt('grim', 'Só Grim', 'A horda inteira de Grim (mais duro)');
     this.openMenu(el, x, y);
   }
 
