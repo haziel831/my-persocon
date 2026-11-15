@@ -1913,10 +1913,12 @@ export class Melee {
     if (!(this.opp?.stunned || 0) && this.oppDizzyEl) this.removeOppDizzy();
   }
 
-  // The Scrap Dummy misses.
+  // O inimigo errou o golpe (o Sucataoxidado tem fala própria; a horda é genérica).
   resolveMiss(stunned = false) {
     const pet = this.pet;
-    this.say(pet.x, pet.y - pet.P * 1.05, stunned ? 'O Sucataoxidado está tonto!' : 'O Sucataoxidado errou!', 'bad');
+    const scrap = this.kind !== 'unknown' && this.opp?.scrap;
+    const msg = stunned ? 'Atordoado!' : (scrap ? 'O Sucataoxidado errou!' : 'Errou!');
+    this.say(pet.x, pet.y - pet.P * 1.05, msg, 'bad');
     this.app.fx?.impact?.('dust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.7, 0.4);
     this.app.sound?.tone8?.(520, 300, 0.08, 'triangle', 0.04);
     this.phase = 'impact';
@@ -2122,8 +2124,10 @@ export class Melee {
       this.app.sound?.play?.('ok', { volume: 0.5 });
     } else if (reason === 'safety') {
       this.say(pet.x, pet.y - pet.P * 1.25, 'Treino interrompido (segurança)', 'bad');
+      this.ui?.warnBanner?.('Treino interrompido — segurança (HP abaixo de 50%)', 2600);
     } else {
       this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia — fim do treino', 'bad');
+      this.ui?.warnBanner?.('Fim do treino — sem energia', 2600);
     }
     // The Scrap Dummy is reset for the next round.
     this.opp.hp = this.opp.max;
