@@ -16,10 +16,13 @@ import { icon } from './pixel.js';
 import { enemyPortrait, persoconPortrait } from './combatui.js';
 
 export const TURN = { PERSOCON: 'persocon', CROW: 'corvo', FOE: 'foe' };
-// Energy below this ends the training: she is too tired to keep going.
+// Energy below this raises the low-energy warning (she can still fight).
 export const EXHAUST_ENERGY = 15;
-// Base energy spent on a turn; a higher Combat Skill Level makes every strike cheaper.
-export const BASE_TURN_ENERGY = 3;
+// At zero energy she is exhausted: she does NOT lose on the spot, but every blow hurts more.
+export const EXHAUST_DAMAGE = 1.5;
+// Base energy spent on a strike (a turn = a strike in this turn-based fight); a higher Combat
+// Skill Level makes every strike cheaper, and the Constitution makes everything cheaper still.
+export const BASE_TURN_ENERGY = 2;
 export const MIN_TURN_ENERGY = 0.8;
 // The sparring is non-lethal: she stops at half of her health.
 export const SAFETY_HP = 0.5;
@@ -510,6 +513,8 @@ export class Melee {
   // Strength: how hard she hits (and how far she can throw).
   get strength() { return this.game?.attrLevel?.('str') ?? 1; }
   get constitution() { return this.game?.attrLevel?.('con') ?? 1; }
+  // Exhausted: no energy left. The fight goes on, but the blows hit harder.
+  get exhausted() { return (this.pet?.stats?.energy ?? 100) <= 0; }
 
   // ---------------- COMBAT_MODE ----------------
 
@@ -531,6 +536,8 @@ export class Melee {
     if (this.game) this.game._xpFight = {};
     this.blockBoost = 0;
     this.dodgeBoost = 0;
+    this.lowWarned = false;
+    this.exhaustWarned = false;
     this.hitStop = 0;
     this.itemPopT = 0;
     this.pet.combatMode = true;
@@ -1391,11 +1398,10 @@ export class Melee {
       } catch { /* nunca derruba a luta */ }
     }
     this.updateAuras();
-    // The training ends when she is too tired (or the dummy is gone).
+    // The training ends when the dummy is gone (energy no longer ends it by itself).
     if (this.active && this.kind === 'dummy') {
       const d = this.game?.toys?.boneco_treino;
       if (!d?.placed || d.broken) this.finishTraining('dummy-gone');
-      else if (pet.stats.energy <= EXHAUST_ENERGY) this.finishTraining('tired');
     }
     // The sparring: non-lethal. She stops at half of her health.
     if (this.active && this.kind === 'fight') {
@@ -1403,13 +1409,26 @@ export class Melee {
       const hpMax = this.petHpMax ?? 100;
       // A vitória é conferida em checkVictory (fase victory); aqui é só a parada de segurança.
       if (hp <= hpMax * SAFETY_HP && this.phase !== 'victory') this.finishSparring('safety');
-      else if (pet.stats.energy <= EXHAUST_ENERGY && this.phase !== 'victory') this.finishSparring('tired');
     }
     // A luta com o Unknown: mesma parada de segurança, e o drop quando ele cai.
     if (this.active && this.kind === 'unknown') {
       const hp = pet.stats.health;
       if (hp <= (this.petHpMax ?? 100) * SAFETY_HP && this.phase !== 'victory') this.finishUnknown('safety');
-      else if (pet.stats.energy <= EXHAUST_ENERGY && this.phase !== 'victory') this.finishUnknown('tired');
+    }
+    // Energia baixa / zerada: avisa uma vez; sem energia ela continua lutando (e apanha mais).
+    if (this.active && this.phase !== 'victory') {
+      const en = pet.stats.energy;
+      if (en > EXHAUST_ENERGY) { this.lowWarned = false; this.exhaustWarned = false; }
+      if (en <= 0 && !this.exhaustWarned) {
+        this.exhaustWarned = true;
+        this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia!', 'bad');
+        this.ui?.warnBanner?.('Sem energia — cada golpe dói mais (a luta continua)', 2800);
+        this.app.sound?.tone8?.(230, 110, 0.18, 'sawtooth', 0.07);
+      } else if (en > 0 && en <= EXHAUST_ENERGY && !this.lowWarned) {
+        this.lowWarned = true;
+        this.say(pet.x, pet.y - pet.P * 1.25, 'Cansada...', 'bad');
+        this.ui?.warnBanner?.('Energia baixa', 2200);
+      }
     }
   }
 
@@ -1844,7 +1863,7 @@ export class Melee {
     const pet = this.pet;
     // Brutal postura: o Sucataoxidado acerta crits com mais frequência.
     const crit = Math.random() < (this.opp?.posture === 'brutal' ? 0.25 : 0.15);
-    const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1));
+    const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1) * (this.exhausted ? EXHAUST_DAMAGE : 1));
     pet.adjust({ health: -dmg });
     // Levar dano de verdade treina a Constituição (é o jeito mais forte de ganhá-la).
     this.game.attrGain?.('con', dmg * ATTR_XP.con.hurt, this.kind === 'unknown' ? 'unknown' : 'heavy');

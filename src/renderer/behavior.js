@@ -97,6 +97,9 @@ export const JUMP_PREP = 0.22;
 // The knockback sequence: the flight, the fall on the floor and the get-up.
 export const KNOCK_DOWN_TIME = 0.4;
 export const KNOCK_GETUP_TIME = 0.75;
+// INCONSCIENTE: how long she lies knocked out after a defeat (about five minutes).
+export const KO_TIME = 300;
+export const KO_TIME_JITTER = 30;
 
 export class Pet {
   constructor(view, world, cfg, stats) {
@@ -1597,13 +1600,16 @@ export class Pet {
   }
 
   // INCONSCIENTE — fora de ação depois de uma derrota: deitada, fora de combate
-  // e sem responder a nada até HP e Energia recuperarem 50% do máximo.
+  // e sem responder a nada por cerca de cinco minutos (KO_TIME, com variação).
   lieUnconscious() {
     if (this.dead || this.offstage) return;
     this.chase = null;
     this.eating = null;
     this.meals = [];
     this.unconscious = true;
+    // O relógio do nocaute: ela só acorda quando ele zera (nada de clique, nada de IA).
+    this.koTotal = KO_TIME + rand(-KO_TIME_JITTER, KO_TIME_JITTER);
+    this.koT = this.koTotal;
     this.paused = true;   // a IA não decide nada enquanto ela está fora
     this.action = 'sleep';   // o motor já sabe tratar o sleep (timer Infinity, regen de energia no chão)
     this.timer = Infinity;
@@ -1615,16 +1621,20 @@ export class Pet {
     this.emit('ko');
   }
 
-  // Acorda automaticamente quando HP e Energia ≥ 50% do máximo.
+  // Acorda sozinha quando o tempo de nocaute acaba (e com pelo menos metade de HP e Energia).
   reviveUnconscious() {
     if (!this.unconscious || this.dead) return;
     this.unconscious = false;
+    this.koT = 0;
+    const maxHP = this.maxHealth?.() ?? 100;
+    this.stats.health = Math.max(this.stats.health, maxHP * 0.5);
+    this.stats.energy = Math.max(this.stats.energy, 50);
     this.paused = false;
     this.slept = 0;
     this.action = 'idle';
     this.timer = rand(1.5, 3);
     this.anim('idle', { facing: 'front', restart: true });
-    try { this.app?.combatUI?.updateDefeatProgress?.(1, 1, 100); } catch { /* HUD */ }   // some no pct ≥ 50
+    try { this.app?.combatUI?.updateDefeatProgress?.(1, 0); } catch { /* HUD */ }
     this.emit('wake', { startled: false });
     this.chooseNext();
   }
@@ -2721,18 +2731,20 @@ export class Pet {
     const d = DIFFICULTIES[this.cfg.difficulty] ?? 1;
     const s = this.stats;
     const sleeping = this.mode === 'ground' && this.action === 'sleep';
-    // INCONSCIENTE (pós-derrota): deitada, regen passiva, sem punição e sem drain — acorda sozinha com 50%+.
+    // INCONSCIENTE (pós-derrota): deitada, regen passiva, sem punição e sem drain — acorda no fim do tempo.
     if (this.unconscious) {
       const maxHP = this.maxHealth?.() ?? 100;
       s.energy = Math.min(100, s.energy + 5.5 * dt);
       s.health = Math.min(maxHP, s.health + 3.2 * dt);
       s.mood = Math.min(100, s.mood + 1.2 * dt);
-      if (s.energy >= 50 && s.health >= maxHP / 2) this.reviveUnconscious();
+      this.koT = Math.max(0, (this.koT ?? 0) - dt);
+      if (this.koT <= 0) this.reviveUnconscious();
       else {
         this._koUiT = (this._koUiT || 0) + dt;
         if (this._koUiT >= 0.5) {
           this._koUiT = 0;
-          try { this.app?.combatUI?.updateDefeatProgress?.(s.health, maxHP, s.energy); } catch { /* HUD */ }
+          const total = Math.max(1, this.koTotal ?? KO_TIME);
+          try { this.app?.combatUI?.updateDefeatProgress?.(1 - this.koT / total, this.koT); } catch { /* HUD */ }
         }
       }
       for (const k of Object.keys(s)) s[k] = clamp(s[k], 0, 100);

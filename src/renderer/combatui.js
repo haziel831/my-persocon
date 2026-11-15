@@ -285,18 +285,19 @@ export class CombatUI {
     return el;
   }
 
-  // Atualiza a barra de recuperação da INCONSCIENTE (HP/Energia até 50%).
-  updateDefeatProgress(health, maxHealth, energy) {
+  // Atualiza a barra do nocaute (progresso pelo tempo até ela acordar).
+  updateDefeatProgress(pct = 0, secs = 0) {
     const prog = this.defeatProgEl;
     if (!prog) return;
-    const hpPct = Math.max(0, Math.min(100, (health / Math.max(1, maxHealth)) * 100));
-    const enPct = Math.max(0, Math.min(100, energy));
-    const pct = Math.min(hpPct, enPct);
+    const p = Math.max(0, Math.min(1, pct));
     const fill = prog.querySelector('i');
     const label = prog.querySelector('span');
-    if (fill) fill.style.width = `${pct.toFixed(0)}%`;
-    if (label) label.textContent = `${pct.toFixed(0)}% · acorda com 50%`;
-    if (pct >= 50) this.hideDefeat();
+    if (fill) fill.style.width = `${(p * 100).toFixed(0)}%`;
+    if (label) {
+      const s = Math.max(0, Math.ceil(secs));
+      label.textContent = s > 0 ? `acorda em ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : 'acordando...';
+    }
+    if (p >= 1) this.hideDefeat();
   }
 
   hideDefeat() {
