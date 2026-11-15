@@ -51,6 +51,15 @@ export const KNOCKBACK = 0.4;
 export const CLOSE_MAX = 1.6;
 // Ela não pode ficar presa no chão: se o 'getUp' não vier, a luta destrava sozinha.
 export const PET_DOWN_MAX = 2.6;
+// O avanço até o alvo e o recuo até a formação são DASH: 3× a velocidade do andar.
+export const DASH_SPEED = 3;
+// O recuo é um tico mais rápido (a pausa do turno é curta e ela tem de chegar em casa).
+export const RETREAT_SPEED = 4.2;
+// Teto de tempo por fase: nenhuma fase pode segurar a fila de turnos para sempre (se o
+// clipe/evento se perder, a luta avança na mão em vez de congelar).
+export const PHASE_MAX = {
+  intro: 2.4, align: 2.4, announce: 3, close: 3.4, charge: 3.6, windup: 5, impact: 4.2, recover: 4.2,
+};
 // As ondas do Cartucho Preto (o índice é a onda). 1 a 9 são lutáveis; 10 é a trava do Boss.
 // Cada onda lança mais inimigos e mais fortes (vida/ataque/defesa/precisão/atordoamento).
 export const BLACK_WAVES = [null,
@@ -65,16 +74,18 @@ export const BLACK_WAVES = [null,
   { count: 4, hp: 580, atk: 48, def: 0.25, level: 9, acc: 0.9, stun: 0.3 },
 ];
 // The special maneuvers: one per Melee Combat Level, only with the Fúria status.
+// color: a cor da aura da carga (vermelho normal, azul/dourado nos especiais).
+// ranged: o golpe sai à distância (projétil) em vez de encostar nela.
 export const MANEUVERS = [
-  { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'attack_hook', mult: 1.5, ignoreDefense: true,
+  { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'attack_hook', mult: 1.5, ignoreDefense: true, color: 'red',
     pt: 'Smash que ignora a defesa do alvo (1,5× a Força)', en: 'A smash that ignores the target defense (1.5× Strength)' },
-  { lvl: 2, id: 'punho_relampago', name: 'Punho Relâmpago', clip: 'attack_jab', mult: 1.1, hits: 3,
+  { lvl: 2, id: 'punho_relampago', name: 'Punho Relâmpago', clip: 'attack_jab', mult: 1.1, hits: 3, color: 'blue',
     pt: 'Combo de 3 socos rápidos num turno só', en: 'A 3-hit flurry of fast punches in one turn' },
-  { lvl: 3, id: 'chute_meteoro', name: 'Chute Meteoro', clip: 'attack_dropkick', mult: 1.8, stun: 0.45,
+  { lvl: 3, id: 'chute_meteoro', name: 'Chute Meteoro', clip: 'attack_dropkick', mult: 1.8, stun: 0.45, color: 'gold',
     pt: 'Chute aéreo que pode atordoar o alvo (1,8×)', en: 'A leaping kick that can stun the target (1.8×)' },
-  { lvl: 4, id: 'contra_impacto', name: 'Contra-Impacto Sísmico', clip: 'attack_uppercut', mult: 2.2, energy: 6, shock: true,
+  { lvl: 4, id: 'contra_impacto', name: 'Contra-Impacto Sísmico', clip: 'attack_uppercut', mult: 2.2, energy: 6, shock: true, color: 'gold',
     pt: 'Uppercut devastador com onda de choque (2,2×) e devolve energia', en: 'A devastating uppercut with a shockwave (2.2×) that gives energy back' },
-  { lvl: 5, id: 'explosao_carmesim', name: 'Explosão Carmesim', clip: 'cast_special', mult: 3, explosion: true,
+  { lvl: 5, id: 'explosao_carmesim', name: 'Explosão Carmesim', clip: 'cast_special', mult: 3, explosion: true, color: 'red', ranged: true,
     pt: 'Explosão carmesim devastadora (3×)', en: 'A devastating crimson explosion (3×)' },
 ];
 // The maneuver she can use at her current Melee Combat Level (the best one).
@@ -198,6 +209,11 @@ export class Melee {
     this.crowFight = false;  // o Corvo entrou na luta
     this.crowActing = false; // o Corvo está executando a ação do turno dele
     this.petDown = false;    // ela está no chão (nocaute): o turno espera ela levantar
+    this.homeX = null;       // a formação dela (para onde ela volta depois do golpe)
+    this.returnTo = null;    // o retorno do desvio (x inicial + tempo)
+    this.ghostT = 0;         // a opacidade 0,7 do desvio
+    this.trailT = 0;         // o intervalo do rastro do dash
+    this._seen = null;       // relógio de fase (fase presa = a fila avança)
     this.crowTurnT = 0;      // o relógio do turno do Corvo (cão de guarda de 2,5 s)
     this.pendingCrow = false; // a skill do Corvo espera a carga vermelha terminar
     this.pendingFoe = false;  // o golpe do inimigo espera a carga vermelha terminar
@@ -535,6 +551,12 @@ export class Melee {
     // The Atordoado is a combat status: it goes away with the fight.
     this.stunTurns = 0;
     this.pet.cureDebuff?.('atordoado');
+    // Nada de sobra do combate: a opacidade do desvio, o retorno pendente e o petDown.
+    this.clearGhost();
+    this.returnTo = null;
+    this.foeStep = null;
+    this.petDown = false;
+    this.downT = 0;
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
   }
 
@@ -670,6 +692,7 @@ export class Melee {
         if (f.enemy) {
           f.x = Math.max(P * 0.5, base - Math.round(i * 70));
           f.y = floor;
+          f.slotX = f.x;         // o lugar dele na formação (ele volta para lá)
           f.enemy.x = f.x;
           f.enemy.y = f.y;
           f.enemy.dir = 1;   // de frente para a Persocon (ela está à direita deles)
@@ -679,6 +702,8 @@ export class Melee {
       // Para o fallback de oppX() (caso todos morram numa mesma frame): a última posição conhecida.
       this._foeFallbackX = base;
     }
+    // A formação DELA: o lugar para onde ela volta depois de cada golpe (o lado direito).
+    this.homeX = pet.x;
     // O Corvo entra pela joinCrow() (chamada no enter), já na posição final dela.
   }
 
@@ -966,6 +991,44 @@ export class Melee {
     this.ui?.glowRed?.(foe?.enemy?.el, CHARGE_TIME * 1000);
     this.app.fx?.charge?.(spot.x, spot.y, spot.size, CHARGE_TIME * 1000);
     this.app.sound?.tone8?.(210, 900, CHARGE_TIME, 'sawtooth', 0.04);
+    // Ela fecha a guarda ENQUANTO o golpe vem: o bloqueio aparece antes do dano.
+    this.guardUp();
+    // Se ela recuou para a formação, ele se aproxima durante a carga (nada de teleporte).
+    this.foeStep = this.foeApproach(foe);
+  }
+
+  // Ela levanta a guarda (o clipe cruza os braços e abaixa a cabeça) antes do impacto.
+  guardUp() {
+    const pet = this.pet;
+    if (!pet?.playAnimation) return;
+    if (pet.combatAnim?.name === 'combat_block') return;
+    pet.playAnimation('combat_block', { facing: this.facing() > 0 ? 'right' : 'left', restart: false });
+  }
+
+  // O inimigo fora de alcance anda até a distância de golpe durante a carga dele.
+  foeApproach(foe) {
+    const pet = this.pet;
+    const from = foe?.x ?? foe?.enemy?.x;
+    if (!Number.isFinite(from)) return null;
+    const dist = Math.abs(pet.x - from);
+    if (dist <= pet.P * MELEE_RANGE) return null;
+    const side = Math.sign(pet.x - from) || 1;
+    return { foe, from, to: this.edgeX(pet.x - side * pet.P * STRIKE_GAP), t: 0, dur: CHARGE_TIME };
+  }
+
+  // O passo do inimigo (suavizado, sincronizado com o sprite a cada frame).
+  stepFoe(dt) {
+    const s = this.foeStep;
+    if (!s?.foe) { this.foeStep = null; return; }
+    s.t += dt;
+    const k = Math.min(1, s.t / (s.dur || CHARGE_TIME));
+    const e = 1 - (1 - k) * (1 - k);
+    const x = this.edgeX(s.from + (s.to - s.from) * e);
+    if (Number.isFinite(x)) {
+      s.foe.x = x;
+      if (s.foe.enemy) s.foe.enemy.x = x;
+    }
+    if (k >= 1) this.foeStep = null;
   }
 
   // O bote do inimigo (roda uma única vez, quando a carga termina).
@@ -1085,8 +1148,13 @@ export class Melee {
   update(dt) {
     if (!this.active) return;
     const pet = this.pet;
+    // Marca o frame: o resgate do combat (behavior.update) não pode ticar duas vezes.
+    this.frame = this.app?.pet?.frame ?? -1;
     // Todos encaram o alvo vivo a cada frame (Persocon, Corvo e inimigos).
     this.faceCombatants();
+    // Relógio de fase: nenhuma fase pode segurar a fila de turnos para sempre.
+    if (this._seen !== this.phase) { this._seen = this.phase; this._seenT = 0; }
+    else this._seenT = (this._seenT || 0) + dt;
     // Cão de guarda do Corvo: no máximo UMA ação por ciclo e nada de travar a fila.
     // (O turno normal dele: anúncio 0,9 s + carga 0,45 s + impacto 0,7 s = 2,05 s.)
     if (this.turn === TURN.CROW) {
@@ -1126,17 +1194,50 @@ export class Melee {
       return;
     }
     this.downT = 0;
+    // O retorno do desvio: ela volta para a guarda num piscar.
+    if (this.returnTo) {
+      const r = this.returnTo;
+      r.t += dt;
+      const k = Math.min(1, r.t / 0.16);
+      if (Number.isFinite(r.x)) pet.x = r.from + (r.x - r.from) * k;
+      if (k >= 1) { if (Number.isFinite(r.x)) pet.x = r.x; this.returnTo = null; }
+    }
+    // A opacidade 0,7 do desvio volta ao normal.
+    if (this.ghostT > 0) {
+      this.ghostT -= dt;
+      if (this.ghostT <= 0) this.clearGhost();
+    }
+    // Fase presa (clipe perdido no modelo, evento que não veio, queda sem getUp): a fila
+    // AVANÇA na mão — a luta nunca fica parada num turno.
+    const cap = PHASE_MAX[this.phase];
+    if (cap && this._seenT > cap && this.phase !== 'victory') {
+      console.warn(`[Melee] fase "${this.phase}" presa por ${this._seenT.toFixed(1)}s — avançando a fila`);
+      this._seenT = 0;
+      this.hitResolved = true;
+      this.chargeT = 0;
+      this.chargeSpot = null;
+      this.pendingCrow = false;
+      this.pendingFoe = false;
+      this.closeT = 0;
+      this.beginTurn(this.nextEntry());
+      return;
+    }
     this.t += dt;
     this.dt = dt;
     switch (this.phase) {
       case 'intro': {
         // She steps into the strike range (the toy play owns her position) and squares up.
         this.introT += dt;
+        // A formação dela é o lugar de onde ela entra na luta.
+        if (this.homeX == null) this.homeX = pet.x;
         const side = Math.sign((this.oppX() ?? pet.x) - pet.x) || pet.dir || 1;
         const want = (this.oppX() ?? pet.x) - side * pet.P * STRIKE_GAP;
         const d = want - pet.x;
         pet.dir = side;
-        if (Math.abs(d) > 2) pet.x += Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 1.1 * dt);
+        if (Math.abs(d) > 2) {
+          pet.x = this.edgeX(pet.x + Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 1.1 * dt));
+          this.dashPose('dash_forward', side, dt);
+        }
         if (Math.abs(want - pet.x) <= 3 || this.introT > 1.4) this.beginTurn({ turn: TURN.PERSOCON, foeIdx: this.kind === 'unknown' ? this.firstAliveFoe() : this.foeIdx });
         break;
       }
@@ -1164,6 +1265,8 @@ export class Melee {
         }
         break;
       case 'charge':
+        // O inimigo se aproxima enquanto carrega (se ela estava na formação, longe).
+        if (this.foeStep) this.stepFoe(dt);
         // The charge ends and the strike begins (the animation only starts now).
         if (this.t >= (this.chargeT || CHARGE_TIME)) {
           this.chargeT = 0;
@@ -1191,6 +1294,8 @@ export class Melee {
         if (this.t >= PACE.impact) { this.phase = 'recover'; this.t = 0; }
         break;
       case 'recover':
+        // De volta à formação: ela recua num dash (e o inimigo da vez volta ao lugar dele).
+        this.returnToFormation(dt);
         if (this.t >= PACE.recover) this.beginTurn(this.nextEntry());
         break;
       case 'victory':
@@ -1248,6 +1353,8 @@ export class Melee {
     this.pendingCrow = false;
     this.pendingFoe = false;
     this.chargeSpot = null;
+    this.foeStep = null;
+    this.returnTo = null;
     // A fila reconhece os dois formatos: a entrada da fila ou a string simples.
     const entry = typeof next === 'string' ? { turn: next, foeIdx: this.kind === 'unknown' ? this.firstAliveFoe() : this.foeIdx } : next || { turn: TURN.PERSOCON, foeIdx: this.foeIdx };
     this.turn = entry.turn;
@@ -1308,16 +1415,79 @@ export class Melee {
     return { side, want: ox - side * pet.P * STRIKE_GAP, ox };
   }
 
-  // Dá um passo na direção do ponto de golpe (para frente ou para trás).
+  // O mundo: ela nunca sai da tela pelo dash.
+  edgeX(x) {
+    const w = this.app.world?.width || 0;
+    const P = this.pet.P;
+    return w ? Math.min(w - P * 0.25, Math.max(P * 0.25, x)) : x;
+  }
+
+  // A formação dela: é para lá que ela volta depois de golpear (o lado direito da arena).
+  homeSpot() {
+    return Number.isFinite(this.homeX) ? this.homeX : this.pet.x;
+  }
+
+  // A pose do dash + o rastro. A animação é só visual: quem anda é o x.
+  dashPose(clip, side, dt = this.dt || 0.016) {
+    const pet = this.pet;
+    if (pet.combatAnim?.name !== clip) {
+      pet.playAnimation?.(clip, { facing: side > 0 ? 'right' : 'left', restart: true });
+    }
+    this.trailT = (this.trailT || 0) - dt;
+    if (this.trailT <= 0) {
+      this.trailT = 0.07;
+      this.app.fx?.dashTrail?.(pet.x - side * pet.P * 0.1, pet.y - pet.P * 0.5, pet.P * 0.85, side);
+    }
+  }
+
+  // Dá um passo na direção do ponto de golpe (para frente ou para trás) NO DASH: 3× o andar.
   walkToSpot(dt) {
     const pet = this.pet;
     const { side, want } = this.spotX();
     const d = want - pet.x;
     pet.dir = side;
-    const step = Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * 2.8 * dt);
-    pet.x += step;
-    pet.anim('walk', { facing: side > 0 ? 'right' : 'left', restart: true });
+    const step = Math.sign(d) * Math.min(Math.abs(d), (pet.walkSpeed || 60) * DASH_SPEED * dt);
+    pet.x = this.edgeX(pet.x + step);
+    // Indo para o alvo é o dash de ataque; recuando é o dash de volta (nunca o walk lento).
+    const forward = Math.sign(d) === side;
+    this.dashPose(forward ? 'dash_forward' : 'dash_backward', side, dt);
     return d;
+  }
+
+  // Depois do golpe: ela volta num dash para a formação e o inimigo volta para o lugar dele.
+  returnToFormation(dt) {
+    const pet = this.pet;
+    const P = pet.P;
+    const speed = (pet.walkSpeed || 60) * RETREAT_SPEED;
+    const d = this.homeSpot() - pet.x;
+    if (Math.abs(d) > 2) {
+      const side = Math.sign(d);
+      pet.x = this.edgeX(pet.x + Math.sign(d) * Math.min(Math.abs(d), speed * dt));
+      this.dashPose('dash_backward', side, dt);
+    }
+    // O inimigo da vez também volta ao slot da formação (ninguém sai andando pelo chão).
+    const f = this.kind === 'unknown' ? this.foes[this.foeIdx] : null;
+    if (f && Number.isFinite(f.slotX) && Number.isFinite(f.x)) {
+      const fd = f.slotX - f.x;
+      if (Math.abs(fd) > 2) {
+        f.x = this.edgeX(f.x + Math.sign(fd) * Math.min(Math.abs(fd), speed * dt));
+        if (f.enemy) f.enemy.x = f.x;
+      }
+    }
+  }
+
+  // A opacidade 0,7 do desvio (o "borrão" de quem saiu do golpe).
+  ghost(seconds = 0.3) {
+    const cv = this.pet?.view?.canvas;
+    if (!cv?.style) return;
+    this.ghostT = Math.max(this.ghostT || 0, seconds);
+    cv.style.opacity = '0.7';
+  }
+
+  clearGhost() {
+    this.ghostT = 0;
+    const cv = this.pet?.view?.canvas;
+    if (cv?.style) cv.style.opacity = '';
   }
 
   // Ela se acerta na distância de golpe (o ataque só sai quando chega).
@@ -1389,12 +1559,14 @@ export class Melee {
     } else {
       pet.playAnimation?.('combat_idle', { facing: facing > 0 ? 'right' : 'left', restart: false });
     }
-    // A aura vermelha em volta dela, o brilho no modelo e as partículas de energia.
+    // A aura da carga em volta dela, o brilho no modelo e as partículas de energia.
+    // A cor vem do golpe (vermelho normal, azul/dourado nos especiais).
+    const color = this.move?.maneuver?.color || 'red';
     const spot = { x: pet.x, y: pet.y - pet.P * 0.45, size: pet.P };
     this.chargeSpot = spot;
-    this.ui?.glowRed?.(pet.view?.canvas, dur * 1000);
-    this.app.fx?.charge?.(spot.x, spot.y, spot.size, dur * 1000);
-    pet.view?.flash?.(1, 'red', dur);
+    if (color === 'red') this.ui?.glowRed?.(pet.view?.canvas, dur * 1000);
+    this.app.fx?.charge?.(spot.x, spot.y, spot.size, dur * 1000, color);
+    pet.view?.flash?.(1, color === 'blue' ? 'blue' : 'red', dur);
     // O som de juntar energia (sobe de tom).
     this.app.sound?.tone8?.(180, 920, dur, 'sawtooth', 0.045);
   }
@@ -1404,6 +1576,21 @@ export class Melee {
     const s = this.chargeSpot;
     this.chargeSpot = null;
     if (s) this.ui?.chargeBurst?.(s.x, s.y, s.size);
+    // Especial corpo a corpo: a investida para dentro do golpe (o cast_special já empurra o
+    // tronco; aqui ela dá o passo que junta o dash com a soltura da energia).
+    const man = this.move?.maneuver;
+    if (man && !man.ranged) {
+      const pet = this.pet;
+      const facing = this.facing();
+      const ox = this.oppX();
+      const want = Number.isFinite(ox) ? ox - facing * pet.P * STRIKE_GAP : pet.x + facing * pet.P * 0.2;
+      if (Math.abs(want - pet.x) > 2) {
+        pet.x = this.edgeX(pet.x + Math.sign(want - pet.x) * Math.min(Math.abs(want - pet.x), pet.P * 0.35));
+        this.app.fx?.dashTrail?.(pet.x - facing * pet.P * 0.15, pet.y - pet.P * 0.5, pet.P * 0.9, facing);
+      }
+      this.app.fx?.impact?.('dust', pet.x - facing * pet.P * 0.25, pet.y - 6, 0.7);
+      this.app.fx?.shake?.(0.55);
+    }
   }
 
   // A animação do golpe escolhido (depois da carga).
@@ -1464,6 +1651,8 @@ export class Melee {
     // A animação de uso: ela leva o item à boca e segura (~450 ms) com o ícone em cima.
     pet.playAnimation?.('use_item', { facing: this.facing() > 0 ? 'right' : 'left', restart: true });
     this.ui?.itemPop(pet.x, pet.y - pet.P * 1.6, item.img);
+    // As partículas verdes (cruzes) e azuis (brilhos) do remédio em volta dela.
+    this.app.fx?.heal?.(pet.x, pet.y - pet.P * 0.7, pet.P);
     this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.6, 0.4);
     this.app.sound?.play?.('puff', { volume: 0.4 });
     this.phase = 'impact';
@@ -1541,14 +1730,33 @@ export class Melee {
     }
   }
 
-  // She blocks: the metallic spark + the guard pose.
+  // Ela bloqueia ou esquiva: a pose vem ANTES do dano (o golpe nem chega).
   resolveDefence(kind) {
     const pet = this.pet;
-    pet.playAnimation(kind === 'dodge' ? 'combat_dodge_step' : 'combat_block', { facing: this.facing() > 0 ? 'right' : 'left' });
-    this.say(pet.x, pet.y - pet.P * 1.05, kind === 'dodge' ? 'Ela desviou!' : 'Ela bloqueou!', 'bad');
-    this.app.fx?.impact?.(kind === 'dodge' ? 'dust' : 'shield', pet.x + this.facing() * pet.P * 0.35, pet.y - pet.P * 0.6, kind === 'dodge' ? 0.45 : 0.5);
+    const facing = this.facing();
+    const face = facing > 0 ? 'right' : 'left';
+    if (kind === 'dodge') {
+      // O passo para trás: opacidade 0,7, "Miss!" e o retorno imediato à guarda.
+      const before = pet.x;
+      const away = this.edgeX(before - facing * pet.P * 0.45);
+      pet.x = away;
+      this.ghost(0.34);
+      this.returnTo = { from: away, x: before, t: 0 };
+      pet.playAnimation?.('dodge', { facing: face, restart: true });
+      this.float(pet.x, pet.y - pet.P * 1.35, 'Miss!');
+      this.say(pet.x, pet.y - pet.P * 1.05, 'Ela desviou!', 'bad');
+      this.app.fx?.impact?.('dust', pet.x, pet.y - pet.P * 0.6, 0.45);
+      this.app.sound?.tone8?.(700, 220, 0.1, 'square', 0.07);
+    } else {
+      // A guarda: braços cruzados na frente do rosto, cabeça baixa, e o corpo desliza
+      // para trás com o impacto (sem cair).
+      pet.playAnimation?.('combat_block', { facing: face, restart: true });
+      this.say(pet.x, pet.y - pet.P * 1.05, 'Ela bloqueou!', 'bad');
+      this.app.fx?.impact?.('shield', pet.x + facing * pet.P * 0.35, pet.y - pet.P * 0.6, 0.5);
+      pet.x = this.edgeX(pet.x - facing * pet.P * 0.14);
+      this.app.sound?.tone8?.(520, 220, 0.1, 'square', 0.07);
+    }
     this.app.fx?.shake?.(0.3);
-    this.app.sound?.tone8?.(kind === 'dodge' ? 700 : 520, 220, 0.1, 'square', 0.07);
     // Blocking or dodging breaks the streak of hits: no Fúria.
     this.hitStreak = 0;
     // Esquivar/bloquear treina a Destreza (bloquear rende metade).
@@ -1715,13 +1923,41 @@ export class Melee {
     this.t = 0;
   }
 
+  // ---------------- o levantar do chão ----------------
+
+  // Depois do get_up ela está DE PÉ: o estado do turno interrompido pela queda é limpo e a
+  // fila volta a andar na hora. (Antes o turno ficava esperando um beat que nunca vinha: ela
+  // andava até o alvo e congelava, sem atacar e sem passar a vez.)
+  afterGetUp() {
+    const pet = this.pet;
+    this.petDown = false;
+    this.downT = 0;
+    this.crowTurnT = 0;      // o Corvo recomeça a contagem: nada de watchdog na cara
+    this.hitStop = 0;
+    this.closeT = 0;
+    this.chargeT = 0;
+    this.chargeSpot = null;
+    this.foeStep = null;
+    this.returnTo = null;
+    this.pendingCrow = false;
+    this.pendingFoe = false;
+    this.trailT = 0;
+    this.clearGhost();
+    // Um nocaute pode jogar ela para fora do chão útil/da tela: volta para a formação.
+    if (!Number.isFinite(pet.x)) pet.x = this.homeSpot();
+    if (!this.active || this.phase === 'victory' || this.phase === 'idle') {
+      this.updateQueueHud();
+      return;
+    }
+    // A fila recomeça pelo próximo ator real (sem pular o turno de ninguém).
+    this.beginTurn(this.nextEntry());
+  }
+
   // The hit frame of the current move: the rolls happen here.
   onEvent(type, data) {
     // Ela levantou do chão: a luta volta a andar (o turno esperou ela).
     if (type === 'getUp') {
-      this.petDown = false;
-      this.crowTurnT = 0;      // o Corvo recomeça a contagem: nada de watchdog na cara
-      this.updateQueueHud();
+      this.afterGetUp();
       return;
     }
     if (!this.active || type !== 'combatHit') return;
@@ -1855,6 +2091,14 @@ export class Melee {
     if (man.energy) this.pet.adjust({ energy: man.energy });
     // The Explosão Carmesim: the big crimson blast.
     if (man.explosion) {
+      // Especial à distância: a energia sai dela como projétil até o alvo e estoura lá.
+      if (man.ranged) {
+        const pet = this.pet;
+        const x1 = pet.x + this.facing() * pet.P * 0.3;
+        const y1 = pet.y - pet.P * 0.6;
+        this.app.fx?.projectile?.(x1, y1, x, y, 240);
+        this.app.sound?.play?.('whoosh', { volume: 0.5 });
+      }
       this.app.fx?.explosion?.('blood', x, y, 1.5);
       this.app.fx?.explosion?.('fire', x, y, 1.9, 1);
       this.app.fx?.shake?.(1.4);

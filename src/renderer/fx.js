@@ -108,6 +108,52 @@ export class Fx {
     setTimeout(() => ring.remove(), 1100);
   }
 
+  // The dash trail: a short motion blur behind her while she runs (few frames, cheap).
+  dashTrail(x, y, size = 90, dir = 1) {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.className = 'dash-trail';
+    const w = Math.round(size * 0.95);
+    const h = Math.round(size * 0.42);
+    el.style.width = `${w}px`;
+    el.style.height = `${h}px`;
+    el.style.left = `${Math.round(x - w / 2)}px`;
+    el.style.top = `${Math.round(y - h / 2)}px`;
+    el.style.setProperty('--dx', `${Math.round(-dir * size * 0.55)}px`);
+    document.body.append(el);
+    setTimeout(() => el.remove(), 280);
+  }
+
+  // The healing particles of a medicine used in combat: green crosses + blue sparkles.
+  heal(x, y, size = 120) {
+    if (typeof document === 'undefined') return;
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('div');
+      el.className = 'heal-spark';
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.5;
+      const r = size * (0.18 + Math.random() * 0.3);
+      el.style.left = `${Math.round(x + Math.cos(a) * r)}px`;
+      el.style.top = `${Math.round(y + Math.sin(a) * r * 0.55)}px`;
+      const green = i % 2 === 0;
+      el.style.background = green ? '#8f8' : '#9cf';
+      el.style.boxShadow = green ? '0 0 6px 2px rgba(90, 240, 120, 0.85)' : '0 0 6px 2px rgba(90, 170, 255, 0.85)';
+      el.style.setProperty('--dy', `${Math.round(-size * (0.5 + Math.random() * 0.45))}px`);
+      el.style.setProperty('--delay', `${(Math.random() * 0.3).toFixed(2)}s`);
+      document.body.append(el);
+      setTimeout(() => el.remove(), 900);
+    }
+    const ring = document.createElement('div');
+    ring.className = 'fx-ring';
+    const s = Math.round(size * 1.1);
+    ring.style.width = ring.style.height = `${s}px`;
+    ring.style.left = `${Math.round(x - s / 2)}px`;
+    ring.style.top = `${Math.round(y - s / 2)}px`;
+    ring.style.borderColor = '#8f8';
+    document.body.append(ring);
+    setTimeout(() => ring.remove(), 900);
+  }
+
   // The damage number that floats up from the hit: red, with a dark pixel outline, and
   // bigger the bigger the hit was.
   damage(x, y, amount, opts = {}) {
@@ -134,18 +180,24 @@ export class Fx {
     return new VfxSequence(f, x, y, opts);
   }
 
-  // The charge before a strike: the blue aura around her + the rising energy particles.
-  charge(x, y, size = 120, ms = 450) {
+  // The charge before a strike: the aura around her + the rising energy particles.
+  // color: 'red' (a normal strike / the crimson blast), 'blue' or 'gold' (a special).
+  charge(x, y, size = 120, ms = 450, color = 'red') {
     if (typeof document === 'undefined') return;
     const el = document.createElement('div');
-    el.className = 'combat-aura charge';
+    el.className = `combat-aura charge${color && color !== 'red' ? ` ${color}` : ''}`;
     const s = Math.round(size * 0.95);
     el.style.width = el.style.height = `${s}px`;
     el.style.left = `${Math.round(x)}px`;
     el.style.top = `${Math.round(y)}px`;
     document.body.append(el);
     setTimeout(() => el.remove(), ms + 150);
-    // The blue particles rising around her.
+    // The particles rising around her, in the color of the charge.
+    const tint = {
+      red: ['#ff8a7a', 'rgba(255, 40, 40, 0.9)'],
+      blue: ['#8cc8ff', 'rgba(60, 150, 255, 0.9)'],
+      gold: ['#ffd98a', 'rgba(255, 195, 60, 0.9)'],
+    }[color] || ['#ff8a7a', 'rgba(255, 40, 40, 0.9)'];
     const n = 16;
     for (let i = 0; i < n; i++) {
       const p = document.createElement('div');
@@ -154,6 +206,8 @@ export class Fx {
       const r = size * (0.16 + Math.random() * 0.24);
       p.style.left = `${Math.round(x + Math.cos(a) * r)}px`;
       p.style.top = `${Math.round(y + Math.sin(a) * r * 0.55)}px`;
+      p.style.background = tint[0];
+      p.style.boxShadow = `0 0 6px 2px ${tint[1]}`;
       p.style.setProperty('--dy', `${Math.round(-size * (0.45 + Math.random() * 0.4))}px`);
       p.style.setProperty('--delay', `${(Math.random() * (ms / 1000) * 0.65).toFixed(2)}s`);
       document.body.append(p);

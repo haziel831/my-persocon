@@ -2831,6 +2831,8 @@ export class Pet {
 
   update(dt) {
     if (this.offstage || this.x === null || !this.world.ready) return;
+    // O número do frame: o motor da luta usa para ser ticado UMA vez por frame.
+    this.frame = (this.frame || 0) + 1;
     this.awake += dt;
     this.clock += dt;
     // Combat clips: the hit frame and the return to the fighting stance.
@@ -2916,7 +2918,9 @@ export class Pet {
             this.chooseNext();
           } else if (this.paused) this.startGround('idle');
           else if (this.powerOff) this.lieOff();
-          else if (this.action === 'land') this.startGround(chance(0.6) ? 'walk' : 'idle');
+          // Em combate a luta manda: nada de passeio aleatório depois do get_up (o
+          // chooseNext devolve a ação ao toy da luta).
+          else if (this.action === 'land' && !this.combatMode) this.startGround(chance(0.6) ? 'walk' : 'idle');
           else this.chooseNext();
         }
       } else {
@@ -2930,10 +2934,9 @@ export class Pet {
       this.updateAir(dt);
     }
     // Resgate do combate: o motor da luta só é ticado pelo toy do combate. Se alguma coisa
-    // por baixo troca o `action` (remédio, reação, queda), o updateToy para e a luta
-    // congelaria em pé — em combate o motor continua sendo ticado aqui.
-    if (this.combatMode && this.mode === 'ground' && this.action !== 'toy' && this.app?.melee?.active) {
-      this.app.melee.update(dt);
-    }
+    // por baixo troca o `action` (remédio, reação, queda) o updateToy não roda e a luta
+    // congelaria em pé. Aqui ele é ticado no máximo UMA vez por frame, seja qual for a ação.
+    const melee = this.app?.melee;
+    if (this.combatMode && melee?.active && melee.frame !== this.frame) melee.update(dt);
   }
 }

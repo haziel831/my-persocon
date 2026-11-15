@@ -227,6 +227,69 @@ export const COMBAT_CLIPS = {
     },
   },
 
+  // Dash to the target: the torso leans forward, the knees bend and the arms trail behind
+  // her. The clip is a glide (the x is moved by melee.js); it loops while she runs.
+  dash_forward: {
+    loop: false,
+    length: 0.3,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.08, [0, -1.15, -0.6]], [0.2, [0, -0.9, -0.9]], [0.3, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.08, [0, -6, 0]], [0.2, [0, -4, 0]], [0.3, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.08, [26, -18, 0]], [0.2, [22, -14, 0]], [0.3, STANCE.body]],
+      head: [[0, STANCE.head], [0.08, [-4, 6, 0]], [0.2, [-2, 8, 0]], [0.3, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.08, [26, -34, 20]], [0.2, [34, -30, 24]], [0.3, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.08, [-46, 10, 0]], [0.2, [-52, 12, 0]], [0.3, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.08, [26, 36, -18]], [0.2, [34, 32, -22]], [0.3, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.08, [-52, -10, 0]], [0.2, [-58, -12, 0]], [0.3, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.08, [-26, 0, 12]], [0.2, [6, 0, 12]], [0.3, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.08, [56, 0, 0]], [0.2, [22, 0, 0]], [0.3, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.08, [16, 0, -10]], [0.2, [-30, 0, -12]], [0.3, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.08, [38, 0, 0]], [0.2, [66, 0, 0]], [0.3, STANCE.lShin]],
+    },
+  },
+
+  // Dash back to the formation: she leans back, the front leg pushes off and the arms
+  // open for balance (never a fall).
+  dash_backward: {
+    loop: false,
+    length: 0.28,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.07, [0, -0.95, 0.5]], [0.18, [0, -0.75, 0.7]], [0.28, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.07, [0, 6, 0]], [0.28, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.07, [-12, -30, 0]], [0.18, [-6, -26, 0]], [0.28, STANCE.body]],
+      head: [[0, STANCE.head], [0.07, [-14, 12, 0]], [0.18, [-8, 12, 0]], [0.28, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.07, [-46, -44, 30]], [0.18, [-38, -40, 26]], [0.28, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.07, [-58, 18, 0]], [0.28, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.07, [-42, 46, -28]], [0.18, [-34, 42, -24]], [0.28, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.07, [-64, -14, 0]], [0.28, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.07, [-30, 0, 12]], [0.18, [-42, 0, 12]], [0.28, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.07, [52, 0, 0]], [0.18, [26, 0, 0]], [0.28, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.07, [-10, 0, -12]], [0.18, [4, 0, -12]], [0.28, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.07, [40, 0, 0]], [0.18, [70, 0, 0]], [0.28, STANCE.lShin]],
+    },
+  },
+
+  // Dodge: a lightning backstep/side sway with a low center of gravity; she snaps back
+  // to the guard right after (melee.js moves the x and fades her to 0.7).
+  dodge: {
+    loop: false,
+    length: 0.34,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.06, [0, -1.6, 0.7]], [0.14, [-2.4, -0.7, 0.5]], [0.24, [-1.2, -1.0, 0.2]], [0.34, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.06, [0, -12, 4]], [0.14, [0, -20, 8]], [0.34, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.06, [14, -6, -10]], [0.14, [4, 2, -16]], [0.34, STANCE.body]],
+      head: [[0, STANCE.head], [0.06, [-6, 4, 6]], [0.14, [-12, 0, 10]], [0.34, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.06, [-40, -40, 26]], [0.14, [-56, -30, 18]], [0.34, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.06, [-96, 12, 0]], [0.34, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.06, [-34, 44, -22]], [0.14, [-50, 36, -14]], [0.34, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.06, [-104, -12, 0]], [0.34, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.06, [-34, 0, 14]], [0.14, [-16, 0, 16]], [0.34, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.06, [72, 0, 0]], [0.14, [40, 0, 0]], [0.34, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.06, [-40, 0, -14]], [0.14, [-24, 0, -16]], [0.34, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.06, [84, 0, 0]], [0.14, [52, 0, 0]], [0.34, STANCE.lShin]],
+    },
+  },
+
   // Heavy hook: a wide wind-up (the torso rotates away, the shoulder drops) and then an
   // explosive hook across the body. Hit at 0.34 s.
   attack_hook: {
@@ -349,8 +412,14 @@ export const COMBAT_META = {
   attack_dropkick: { kind: 'attack', durationMs: 900, hitFrameMs: 520, comboWindowMs: null, next: null },
   // cast_special already brings its own charge inside the clip (see melee.startCharge).
   cast_special: { kind: 'attack', durationMs: 850, hitFrameMs: 620, comboWindowMs: null, next: null, charge: true },
-  combat_block: { kind: 'defense', durationMs: 160, hitFrameMs: null, comboWindowMs: null },
+  // A guarda segura a pose durante a carga do inimigo (o bloqueio vem ANTES do dano).
+  combat_block: { kind: 'defense', durationMs: 450, hitFrameMs: null, comboWindowMs: null },
+  // O passo de esquiva (a opacidade e o "Miss!" ficam no melee.js).
+  dodge: { kind: 'defense', durationMs: 340, hitFrameMs: null, comboWindowMs: null },
   combat_dodge_step: { kind: 'defense', durationMs: 400, hitFrameMs: null, comboWindowMs: null },
+  // Os deslocamentos do combate: só pose (quem anda é o melee.js).
+  dash_forward: { kind: 'move', durationMs: 300, hitFrameMs: null, comboWindowMs: null },
+  dash_backward: { kind: 'move', durationMs: 280, hitFrameMs: null, comboWindowMs: null },
   combat_hit_stagger: { kind: 'stagger', durationMs: 450, hitFrameMs: null, comboWindowMs: null },
 };
 

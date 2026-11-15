@@ -670,6 +670,32 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   from { transform: translate(-50%, -50%) scale(0.82); opacity: 0.65; }
   to { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
 }
+/* A carga azul e a dourada dos especiais (a cor vem do golpe). */
+.combat-aura.charge.blue {
+  background: radial-gradient(circle at 50% 52%, rgba(150, 210, 255, 0.62) 0%, rgba(30, 110, 255, 0.45) 38%, rgba(0, 60, 190, 0.22) 62%, rgba(0, 60, 190, 0) 78%);
+  filter: drop-shadow(0 0 14px rgba(60, 150, 255, 0.9));
+}
+.combat-aura.charge.gold {
+  background: radial-gradient(circle at 50% 52%, rgba(255, 230, 150, 0.62) 0%, rgba(255, 190, 40, 0.45) 38%, rgba(190, 120, 0, 0.22) 62%, rgba(190, 120, 0, 0) 78%);
+  filter: drop-shadow(0 0 14px rgba(255, 200, 60, 0.9));
+}
+/* O rastro do dash: um borrão curto atrás dela enquanto corre. */
+.dash-trail {
+  position: fixed; z-index: 9994; pointer-events: none; border-radius: 50%;
+  background: linear-gradient(to right, rgba(170, 225, 255, 0), rgba(170, 225, 255, 0.5));
+  filter: blur(3px);
+  animation: dash-trail 0.26s ease-out forwards;
+}
+@keyframes dash-trail {
+  from { opacity: 0.85; transform: translateX(0) scaleX(1); }
+  to { opacity: 0; transform: translateX(var(--dx, -40px)) scaleX(1.35); }
+}
+/* As partículas verdes/azuis do remédio usado em combate. */
+.heal-spark {
+  position: fixed; z-index: 9996; pointer-events: none; width: 5px; height: 5px;
+  image-rendering: pixelated;
+  animation: charge-spark 0.7s ease-out var(--delay, 0s) forwards;
+}
 .charge-spark {
   position: fixed; z-index: 9996; pointer-events: none; width: 4px; height: 4px;
   background: #ff8a7a; box-shadow: 0 0 6px 2px rgba(255, 40, 40, 0.9);
