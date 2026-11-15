@@ -101,7 +101,14 @@ export async function startArena(app) {
   }
 
   // A morte aqui não encerra a sessão: ela volta sozinha e a arena segue de pé.
-  pet.on((type) => {
+  // O histórico também registra POR QUE cada luta acabou (é o que se investiga na arena).
+  const ends = [];
+  pet.on((type, data) => {
+    if (type === 'combatEnd') {
+      ends.unshift(`${data.reason} · ${data.turns}t · ${data.hits} golpes · horda ${unknown.slimes.filter((s) => s.hp > 0).length} viva(s)`);
+      if (ends.length > 3) ends.pop();
+      return;
+    }
     if (type !== 'death') return;
     setTimeout(() => {
       const button = app.gameOver?.querySelector('.modal-foot .primary, .retry');
@@ -125,6 +132,7 @@ export async function startArena(app) {
       `horda: ${alive.length} viva(s) · ${Math.round(foesHp)} hp · ${unknown.state}`,
       `distância: ${dist === undefined ? '-' : Math.round(dist)} px (alvo ${Math.round(STRIKE_GAP * pet.P)})`,
       `modelo: ${shortDir(app.config.modelDir)}`,
+      ends[0] ? `último fim: ${ends[0]}` : 'último fim: -',
     ].join('\n');
     startBtn.disabled = fighting();
   }, 250);

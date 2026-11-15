@@ -36,7 +36,10 @@ export const SHOP_CATEGORIES = [
 ];
 
 // A arena de teste (My Persocon Combate.exe) compra de tudo sem gastar moeda nenhuma.
-export const INFINITE_MONEY = !!(typeof window !== 'undefined' && window.__PET_COMBATE__);
+// ESTE É O ÚNICO LUGAR onde o modo de teste muda as regras de dinheiro: no jogo normal a
+// flag é sempre falsa (o `__PET_COMBATE__` só existe no executável de combate).
+export const COMBATE = !!(typeof window !== 'undefined' && window.__PET_COMBATE__);
+export const INFINITE_MONEY = COMBATE;
 
 const pix = (id, cat, name, price, pixName, extra = {}) => ({
   id, cat, name, price, pix: pixName, effects: {}, ...extra,
@@ -701,6 +704,13 @@ export class Game {
     if (!item || !this.canBuy(item, n)) return null;
     this.pay((item.price || 0) * n);
     this.profile.purchases = (this.profile.purchases || 0) + 1;
+    // Arena de teste: sem fila da impressora — o item cai direto no inventário.
+    if (COMBATE) {
+      this.deliveries.push({ id, n, x: null, display: null });
+      const got = this.deliver(id);
+      this.pet.bought(item);
+      return got;
+    }
     if (this.toys.impressora) {
       const waiting = this.queue.find((j, i) => j.id === id && (i > 0 || !j.t));
       if (waiting) {

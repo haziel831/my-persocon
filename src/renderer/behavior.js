@@ -952,6 +952,8 @@ export class Pet {
   // With pickAnim the pet first bends down for the toy (it stays on the floor until holdFrom).
   playToy(opts) {
     if (this.dead || this.action === 'sleep') return;
+    // Em combate ninguém toma o toy da luta (um recado da impressora, por exemplo, parava o motor).
+    if (this.toyPlay?.id === 'unknown' && this.app?.melee?.active && opts.id !== 'unknown') return;
     // Bath is care, not fun — it does not cure Tédio.
     if (!/^banho/.test(String(opts.id))) this.funNow();
     // Toys played sitting down go to the cushion (she takes the toy along).
@@ -988,6 +990,12 @@ export class Pet {
   endToy(interrupted) {
     const tp = this.toyPlay;
     if (!tp) return;
+    // A luta NÃO acaba por tempo: o toy da horda só sai quando o combate acaba de verdade
+    // (melee.stop/fim) ou quando alguém interrompe de propósito.
+    if (tp.id === 'unknown' && this.app?.melee?.active && !interrupted) {
+      this.timer = Infinity;
+      return;
+    }
     this.toyPlay = null;
     if (tp.train || tp.combat) this.setCombat(false);
     if (Math.abs(this.tilt) > 0) this.tilt = 0;
