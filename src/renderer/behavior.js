@@ -896,7 +896,7 @@ export class Pet {
 
   // Something she asks for out of the blue (from pet.js: toys she owns, a bath, music...).
   wish() {
-    if (this.request || this.dead || this.cfg.focus || this.liveWishes().length >= 3) return false;
+    if (this.request || this.dead || this.cfg.focus || this.combatMode || this.liveWishes().length >= 3) return false;
     const w = this.wishPool?.();
     if (!w) return false;
     this.request = { ...w, wish: true, t: 60 };
@@ -908,8 +908,15 @@ export class Pet {
   updateRequest(dt) {
     // Asleep she neither asks nor counts down what she asked.
     if (this.action === 'sleep') return;
-    // COMBAT_MODE: no requests during the fight.
-    if (this.combatMode) return;
+    // COMBAT_MODE: no requests during the fight — and anything asked before is dropped
+    // (the balloon and the "Wants" chips do not follow her into the battle).
+    if (this.combatMode) {
+      if (this.request) {
+        this.request = null;
+        this.emit('requestEnd');
+      }
+      return;
+    }
     if (this.request) {
       this.request.t -= dt;
       if (this.request.t <= 0) {

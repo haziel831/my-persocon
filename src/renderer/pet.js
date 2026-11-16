@@ -1128,6 +1128,8 @@ api.onTrayClick?.(() => {
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
+    // Em combate ela não pede nada: os chips "Quer" somem enquanto a luta acontece.
+    if (pet.combatMode) return '';
     const now = Date.now();
     const list = (pet.wishes || []).filter((w) => w.until > now);
     if (!list.length) return '';
