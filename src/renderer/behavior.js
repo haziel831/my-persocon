@@ -1622,6 +1622,8 @@ export class Pet {
     this.timer = Infinity;
     this.onCushion = false;
     this.onBed = false;
+    // A luta acabou: some a moldura vermelha de combate enquanto ela está apagada.
+    try { document.body.classList.remove('combat-mode'); } catch { /* sem DOM */ }
     const has = (n) => this.view?.animator?.has(n);
     const clip = has('sleep') ? 'sleep' : has('death') ? 'death' : 'idle';
     this.anim(clip, { pose: 'lie', facing: 'front' });

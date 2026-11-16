@@ -3,6 +3,7 @@
 // mundo da área de trabalho. Só o modo `--combate` (ou um .exe com "combate" no nome) cai aqui.
 import { BLACK_WAVES, STRIKE_GAP } from './melee.js';
 import { FULL_STATS } from './behavior.js';
+import { skillLevel } from './skills.js';
 
 const MODELS = ['models/MyPersocon', 'models/Aghata'];
 
@@ -66,6 +67,28 @@ export async function startArena(app) {
   const killBtn = btn('Matar', 'Zera a saúde para testar a derrota', () => kill());
   const modelBtn = btn('Modelo', 'Troca o modelo da Persocon', () => swapModel());
   panel.append(el('div', { display: 'flex', gap: '6px', flexWrap: 'wrap' }, ''), startBtn, stopBtn, healBtn, killBtn, modelBtn);
+
+  // Nível de combate na mão: Combate e Combate Corpo a Corpo são o mesmo dado (`unarmed`).
+  const lvlLabel = el('span', { flex: '1', font: '11px PxEmoji, monospace', color: '#c9c1d8' }, '');
+  const lvlDown = btn('−1', 'Baixa um nível de Combate', () => setCombatLevel(-1));
+  const lvlUp = btn('+1', 'Sobe um nível de Combate', () => setCombatLevel(1));
+  panel.append(el('div', { display: 'flex', gap: '4px', alignItems: 'center' }, ''), lvlLabel, lvlDown, lvlUp);
+
+  function combatLevel() {
+    return skillLevel(app.game.skillXp?.('unarmed') || 0) || 1;
+  }
+
+  function paintLevel() {
+    lvlLabel.textContent = `Combate (corpo a corpo) Nv ${combatLevel()}`;
+  }
+
+  function setCombatLevel(d) {
+    const lvl = Math.min(10, Math.max(1, combatLevel() + d));
+    app.game.skillSetLevel?.('unarmed', lvl);
+    paintLevel();
+  }
+
+  paintLevel();
 
   const status = el('div', { font: '11px PxEmoji, monospace', color: '#9c93ad', whiteSpace: 'pre' });
   panel.append(status);
