@@ -2289,6 +2289,7 @@ export class ObjectsDialog extends Dialog {
     this.liveRatio = null;
     this.liveSeq = 0;
     this.ratioKey = '';
+    if (this.showHb === undefined) this.showHb = true;
     this.captureSnapshot();
     if (preset?.kind === '3d') await this.load3d(preset.data, preset.rot);
     else this.render();
@@ -2360,8 +2361,18 @@ export class ObjectsDialog extends Dialog {
       : (this.baked?.frames?.length ? this.baked.frames : await bake(d.src, d.rot, d.flip, d.transparent));
     const first = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = frames[0]; });
     const hitbox = d.hitbox || old.hitbox || null;
+    // O hitbox também vai em pixels do primeiro quadro (hitboxOffsetX/Y/Width/Height),
+    // ao lado das frações 0..1 usadas no clique do objeto.
+    const hbPx = hitbox
+      ? {
+        hitboxOffsetX: Math.round(hitbox.x * (first.naturalWidth || first.width || 1)),
+        hitboxOffsetY: Math.round(hitbox.y * (first.naturalHeight || first.height || 1)),
+        hitboxWidth: Math.round(hitbox.w * (first.naturalWidth || first.width || 1)),
+        hitboxHeight: Math.round(hitbox.h * (first.naturalHeight || first.height || 1)),
+      }
+      : {};
     this.snapshot = null; // aplicado: o objeto na área de trabalho já é o salvo
-    await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region, hitbox, scale: d.scale || 1 });
+    await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region, hitbox, ...hbPx, scale: d.scale || 1 });
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
     this.draft = null;
     this.baked = null;
@@ -2474,7 +2485,63 @@ export class ObjectsDialog extends Dialog {
         h('label.row.toggle', {}, h('span.label', {}, 'Remover'),
           h('input', { type: 'checkbox', checked: !!t.on, onchange: (e) => { t.on = e.target.checked; this.refreshBake(); } }), h('span.switch'))),
       slider({ label: 'Tolerância', min: 0, max: 120, step: 4, value: t.tolerance ?? 48, format: (v) => `${v}`, oninput: (v) => { t.tolerance = v; this.refreshBake(); } }),
-      h('small.muted', {}, 'Clique na prévia para pegar a cor de um pixel.'));
+      h('small.muted', {}, 'Clique na prévia para pegar a cor de um pixel (conta-gotas).'));
+  }
+
+  // O hitbox atual do objeto: o rascunho (arraste/alças), o do arquivo importado ou o salvo.
+  hbCurrent(id, d) {
+    return this.hitboxDraft || (d && d.hitbox) || this.app.skins.hitbox?.(id) || null;
+  }
+
+  // Aplica um hitbox novo (frações 0..1 da imagem) e repinta a caixa sem refazer o diálogo.
+  setHitbox(patch, d) {
+    const cur = this.hbCurrent(this.sel, d) || { x: 0.2, y: 0.2, w: 0.6, h: 0.6 };
+    const next = { ...cur, ...patch };
+    next.w = Math.min(1, Math.max(0.02, next.w));
+    next.h = Math.min(1, Math.max(0.02, next.h));
+    next.x = Math.min(1 - next.w, Math.max(0, next.x));
+    next.y = Math.min(1 - next.h, Math.max(0, next.y));
+    this.hitboxDraft = next;
+    if (d) d.hitbox = next;
+    if (this.hbBox) Object.assign(this.hbBox.style, {
+      left: `${next.x * 100}%`, top: `${next.y * 100}%`, width: `${next.w * 100}%`, height: `${next.h * 100}%`,
+    });
+  }
+
+  // Arrasta a caixa (modo 'move') ou uma das alças dos cantos (nw/ne/sw/se).
+  dragHitbox(e, d, stage, img, mode = 'move') {
+    if (!d || !img?.getBoundingClientRect) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const start = { ...(this.hbCurrent(this.sel, d) || { x: 0.2, y: 0.2, w: 0.6, h: 0.6 }) };
+    const r = img.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    stage.setPointerCapture?.(e.pointerId);
+    const move = (ev) => {
+      const dx = (ev.clientX - x0) / r.width;
+      const dy = (ev.clientY - y0) / r.height;
+      const next = { ...start };
+      if (mode === 'move') {
+        next.x = start.x + dx;
+        next.y = start.y + dy;
+      } else {
+        if (mode.includes('w')) { next.x = start.x + dx; next.w = start.w - dx; }
+        else if (mode.includes('e')) next.w = start.w + dx;
+        if (mode.includes('n')) { next.y = start.y + dy; next.h = start.h - dy; }
+        else if (mode.includes('s')) next.h = start.h + dy;
+      }
+      this.setHitbox(next, d);
+    };
+    const up = () => {
+      stage.removeEventListener('pointermove', move);
+      stage.removeEventListener('pointerup', up);
+      // Os campos numéricos mostram o resultado do arraste.
+      this.render();
+    };
+    stage.addEventListener('pointermove', move);
+    stage.addEventListener('pointerup', up);
   }
 
   render() {
@@ -2508,10 +2575,24 @@ export class ObjectsDialog extends Dialog {
       setTimeout(tick, 100);
     }
     const stage = h('div.obj-stage', {}, img);
-    // A caixa do hitbox: a parte da imagem que realmente responde ao clique.
-    const hb = this.hitboxDraft || (d && d.hitbox) || app.skins.hitbox?.(id);
-    const hbBox = hb ? h('div.obj-hitbox', { style: { left: `${hb.x * 100}%`, top: `${hb.y * 100}%`, width: `${hb.w * 100}%`, height: `${hb.h * 100}%` } }) : null;
+    // A caixa do hitbox: a parte da imagem que realmente responde ao clique. Com o
+    // "Mostrar hitbox" ligado ela aparece na prévia; nos arquivos importados (imagem/GIF)
+    // dá para arrastar a caixa e as 4 alças para ajustar.
+    const hb = this.hbCurrent(id, d) || (d && d.kind !== '3d' ? { x: 0.2, y: 0.2, w: 0.6, h: 0.6 } : null);
+    const hbEdit = !!(d && d.kind !== '3d' && !this.hitMode);
+    const hbBox = hb && this.showHb !== false
+      ? h('div.obj-hitbox' + (hbEdit ? '.edit' : ''), {
+        style: { left: `${hb.x * 100}%`, top: `${hb.y * 100}%`, width: `${hb.w * 100}%`, height: `${hb.h * 100}%` },
+      })
+      : null;
+    this.hbBox = hbBox;
     if (hbBox) stage.append(hbBox);
+    if (hbBox && hbEdit) {
+      for (const mode of ['nw', 'ne', 'sw', 'se']) {
+        hbBox.append(h('span.hb-handle', { 'data-h': mode }));
+      }
+      hbBox.addEventListener('pointerdown', (e) => this.dragHitbox(e, d, stage, img, e.target?.dataset?.h || 'move'));
+    }
     if (d && this.hitMode) {
       img.style.cursor = 'crosshair';
       stage.addEventListener('pointerdown', (e) => {
@@ -2575,17 +2656,42 @@ export class ObjectsDialog extends Dialog {
         slider({ label: 'Inclinação', min: -60, max: 60, step: 5, value: d.tilt, format: (v) => `${v}°`, onchange: (v) => { d.tilt = v; rerender(); } }),
         toggle({ label: 'Girando (animado)', value: d.spin, onchange: (v) => { d.spin = v; rerender(); } }));
     } else if (d) {
-      const hbDraft = this.hitboxDraft || d.hitbox;
+      const hbDraft = this.hbCurrent(id, d);
+      const hbNow = hbDraft || { x: 0.2, y: 0.2, w: 0.6, h: 0.6 };
+      const numRow = (label, key, patchKey) => h('label.row.hb-num', {},
+        h('span.label', {}, label),
+        h('input', {
+          type: 'number', min: 0, max: 100, step: 1, value: Math.round(hbNow[key] * 100),
+          onchange: (e) => {
+            const v = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0))) / 100;
+            this.setHitbox({ [patchKey]: v }, d);
+          },
+        }));
       controls.push(
-        h('div.row', {}, h('span.label', {}, 'Rotação'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); this.refreshBake(); })),
+        h('div.row', {}, h('span.label', {}, 'Rotação fixa'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); this.refreshBake(); })),
         slider({ label: 'Rotação livre', min: 0, max: 360, step: 1, value: d.rot, format: (v) => `${v}°`, oninput: (v) => { d.rot = v; this.refreshBake(); }, onchange: () => this.render() }),
-        slider({ label: 'Tamanho', min: 25, max: 400, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${v}%`, oninput: (v) => { d.scale = v / 100; this.syncLive(); }, onchange: () => this.render() }),
+        h('label.row.hb-num', {}, h('span.label', {}, 'Rotação (°)'),
+          h('input', {
+            type: 'number', min: 0, max: 360, step: 1, value: Math.round(d.rot),
+            onchange: (e) => {
+              d.rot = Math.min(360, Math.max(0, Math.round(Number(e.target.value) || 0)));
+              this.render();
+              this.refreshBake();
+            },
+          })),
+        slider({ label: 'Escala (0,1× a 3,0×)', min: 10, max: 300, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${(v / 100).toFixed(2)}×`, oninput: (v) => { d.scale = v / 100; this.syncLive(); }, onchange: () => this.render() }),
         toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); this.refreshBake(); } }),
         this.colorControl(d),
+        toggle({ label: 'Mostrar hitbox na prévia', value: this.showHb !== false, onchange: (v) => { this.showHb = v; this.render(); } }),
+        h('div.hb-grid', {},
+          numRow('Hitbox X', 'x', 'x'),
+          numRow('Hitbox Y', 'y', 'y'),
+          numRow('Hitbox Largura', 'w', 'w'),
+          numRow('Hitbox Altura', 'h', 'h')),
         h('div.row', {},
           h('button', { onclick: () => { this.hitMode = true; this.hitboxDraft = null; this.render(); } }, '🎯 Marcar hitbox'),
           hbDraft ? h('button', { onclick: () => { delete d.hitbox; this.hitboxDraft = null; this.render(); } }, '✕ Limpar hitbox') : null),
-        h('small.muted', {}, 'O hitbox é a parte da imagem que responde ao clique (o resto deixa passar).'));
+        h('small.muted', {}, 'Arraste a caixa para mover e as alças dos cantos para redimensionar. Os valores são % da imagem. O hitbox é a parte que responde ao clique (o resto deixa passar).'));
     }
     if (d && d.src.length > 1) controls.push(slider({ label: 'Velocidade', min: 0.25, max: 3, step: 0.25, value: d.speed, format: (v) => `${v}×`, oninput: (v) => { d.speed = v; this.syncLive(); } }));
     const has = !!app.skins?.objects[id];
