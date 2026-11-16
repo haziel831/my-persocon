@@ -1773,7 +1773,7 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
 
 /* O banner de VITÓRIA (JRPG). */
 .victory-banner {
-  position: fixed; z-index: 9997; pointer-events: none; user-select: none;
+  position: fixed; z-index: 9997; pointer-events: auto; cursor: pointer; user-select: none;
   top: 34%; left: 50%; transform: translate(-50%, -50%);
   min-width: 300px; text-align: center; padding: 14px 34px 12px;
   background: linear-gradient(180deg, rgba(28, 22, 44, 0.96), rgba(12, 10, 20, 0.96));
@@ -1861,7 +1861,7 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
 }
 /* O banner de DERROTA (VITÓRIA INVERSA) — escuro, vinho-sangue, fumaça. */
 .defeat-banner {
-  position: fixed; z-index: 9998; pointer-events: none; user-select: none;
+  position: fixed; z-index: 9998; pointer-events: auto; cursor: pointer; user-select: none;
   top: 36%; left: 50%; transform: translate(-50%, -50%);
   min-width: 340px; text-align: center; padding: 22px 40px 18px;
   background: linear-gradient(180deg, rgba(18, 6, 8, 0.98), rgba(6, 2, 4, 0.98));
@@ -1874,6 +1874,8 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
   color: #ff2a2a; text-shadow: 0 0 18px rgba(255, 42, 42, 0.75), 2px 2px 0 #2a0008;
 }
 .defeat-sub { font: 12px PxEmoji, Consolas, monospace; color: #8a707a; letter-spacing: 2px; }
+/* A dica de fechar os banners de fim de luta. */
+.banner-hint { margin-top: 8px; font: 10px PxEmoji, Consolas, monospace; color: #8a8a9a; letter-spacing: 1px; opacity: 0.75; }
 @keyframes defeat-in {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); filter: brightness(0.2); }
   35% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); filter: brightness(0.7); }

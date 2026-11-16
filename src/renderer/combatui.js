@@ -5,6 +5,9 @@ import { icon, cartridge } from './pixel.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Banner de fim de luta (vitória/derrota) nunca fica mais que isso na tela — e o clique dispensa.
+const BANNER_MAX_MS = 30000;
+
 // ---------- os retratos das Persocons (emote pela faixa de HP) ----------
 const PORTRAITS = {
   aghata: { normal: 'agatha_normal', mid: 'agatha_anxious', low: 'agatha_sad' },
@@ -345,11 +348,20 @@ export class CombatUI {
       el.append(box);
     }
     document.body.append(el);
+    const hint = document.createElement('div');
+    hint.className = 'banner-hint';
+    hint.textContent = 'clique para fechar';
+    el.append(hint);
     this.winEl = el;
+    // Clique dispensa na hora; de todo jeito ele some sozinho em 30 s.
+    el.addEventListener('click', () => this.hideVictory());
+    this.winTimer = setTimeout(() => this.hideVictory(), BANNER_MAX_MS);
     return el;
   }
 
   hideVictory() {
+    clearTimeout(this.winTimer);
+    this.winTimer = null;
     this.winEl?.remove();
     this.winEl = null;
   }
@@ -374,7 +386,14 @@ export class CombatUI {
     el.append(prog);
     this.defeatProgEl = prog;
     document.body.append(el);
+    const hint = document.createElement('div');
+    hint.className = 'banner-hint';
+    hint.textContent = 'clique para fechar';
+    el.append(hint);
     this.defeatEl = el;
+    // Clique dispensa na hora; de todo jeito ele some sozinho em 30 s.
+    el.addEventListener('click', () => this.hideDefeat());
+    this.defeatTimer = setTimeout(() => this.hideDefeat(), BANNER_MAX_MS);
     return el;
   }
 
@@ -394,6 +413,8 @@ export class CombatUI {
   }
 
   hideDefeat() {
+    clearTimeout(this.defeatTimer);
+    this.defeatTimer = null;
     this.defeatEl?.remove();
     this.defeatEl = null;
     this.defeatProgEl = null;
