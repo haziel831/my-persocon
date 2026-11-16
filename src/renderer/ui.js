@@ -798,6 +798,8 @@ export class Menu {
     // ---------- Atributos ----------
     // Cada atributo é clicável: abre a explicação dele (e clicar fora fecha).
     const attrs = p.attrs || {};
+    // Atributos com botões −1/+1 (os que a luta usa); os demais são só leitura.
+    const STEP_ATTRS = new Set(['str', 'con', 'agi']);
     const attrBox = h('div.attrs', {}, ATTRS.map(([k, label]) => {
       const lvl = g.attrLevel?.(k) ?? (attrs[k] ?? 0);
       const xp = Math.floor(g.attrXp?.(k) || 0);
@@ -808,7 +810,20 @@ export class Menu {
         title: `${xp} XP no total`,
         onclick: () => this.toggleAttr(k),
       },
-        h('span', {}, label), h('b.attr-lvl', {}, `Nv ${lvl}`),
+        h('span', {}, label),
+        h('span.attr-side', {},
+          STEP_ATTRS.has(k)
+            ? h('span.step',
+              h('button.mini.step-down', {
+                title: 'Baixar 1 nível', disabled: lvl <= 1,
+                onclick: (ev) => { ev.stopPropagation(); g.attrSetLevel?.(k, lvl - 1); this.render(); },
+              }, '−'),
+              h('button.mini.step-up', {
+                title: 'Subir 1 nível', disabled: lvl >= 10,
+                onclick: (ev) => { ev.stopPropagation(); g.attrSetLevel?.(k, lvl + 1); this.render(); },
+              }, '+'))
+            : null,
+          h('b.attr-lvl', {}, `Nv ${lvl}`)),
         h('div.track', {}, h('div.fill.attr', { style: { width: `${(lvl / 10) * 100}%` } })),
         h('div.track.xp', {}, h('div.fill.xp', { style: { width: `${pr.done ? 100 : (pr.cur / pr.max) * 100}%` } })),
         h('small.muted.attr-xp', {}, pr.done ? 'nível máximo' : `${Math.floor(pr.cur)} / ${pr.need} XP`),

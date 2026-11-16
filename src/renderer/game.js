@@ -580,6 +580,22 @@ export class Game {
     return attrLevelOf(this.attrXp(id));
   }
 
+  // Ajuste manual do nível de um atributo (os botões +1/−1 do perfil). O XP vai para o piso do
+  // nível pedido, então o nível muda exatamente 1 por clique.
+  attrSetLevel(id, lvl) {
+    const xp = (this.profile.attrXp ||= {});
+    const before = attrLevelOf(xp[id] || 0);
+    const target = Math.min(10, Math.max(1, Math.round(lvl)));
+    xp[id] = Math.ceil((target - 1) ** 2 * 25);
+    (this.profile.attrs ||= {})[id] = target;
+    if (id === 'agi') this.pet?.updateAgiSpeed?.();
+    this.changed();
+    if (target !== before) {
+      this.pet?.emit?.('attrXp', { id, amount: 0, xp: xp[id], level: target, up: target > before, source: 'perfil' });
+    }
+    return target;
+  }
+
   // Gains attribute XP (the level goes up on its own). The save is marked dirty, not written
   // right away: this is called with every point of Energy spent.
   // source: where the XP came from (the XP log shows it: "Força (Treino Pesado)").
