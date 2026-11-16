@@ -74,6 +74,9 @@ export class Grim {
     document.body.append(el);
     this.el = el;
     this.view = el.getContext('2d');
+    // Pré-carrega as folhas que o combate usa: sem isto o primeiro desenho sai vazio
+    // (canvas limpo, imagem ainda baixando) e ele "desaparece" por um instante.
+    for (const name of ['idle', 'run', 'attack', 'hurt', 'spawn', 'knock']) this.sheet(name);
     return el;
   }
 
@@ -128,9 +131,11 @@ export class Grim {
     const flip = petX < this.x;
     g.save();
     if (flip) { g.translate(SPR, 0); g.scale(-1, 1); }
-    g.clearRect(0, 0, SPR, SPR);
     g.imageSmoothingEnabled = false;
+    // Só limpa quando tem quadro para desenhar: se a imagem ainda não chegou, o último
+    // quadro desenhado continua na tela (em vez de sumir).
     if (img?.complete && img.naturalWidth) {
+      g.clearRect(0, 0, SPR, SPR);
       g.drawImage(img, col * SPR, row * SPR, SPR, SPR, 0, 0, SPR, SPR);
     }
     g.restore();
@@ -202,7 +207,10 @@ export class Grim {
     if (this.frameT >= def.delay) {
       this.frameT -= def.delay;
       if (def.loop) this.frame = (this.frame + 1) % def.frames;
-      else this.frame = Math.min(def.frames - 1, this.frame + 1);
+      else if (this.frame + 1 < def.frames) this.frame += 1;
+      // Animação de uma vez só terminou: volta para o idle. Sem isto ele parava no último
+      // quadro (quase sempre vazio nas folhas) e ficava invisível até o próximo play().
+      else if (this.anim !== 'death' && this.anim !== 'spawn') this.play('idle');
     }
     // Posiciona SEMPRE (na perseguição E na luta).
     this.place();
