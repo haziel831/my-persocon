@@ -1633,8 +1633,8 @@ export class Pet {
     this.unconscious = false;
     this.koT = 0;
     const maxHP = this.maxHealth?.() ?? 100;
-    this.stats.health = Math.max(this.stats.health, maxHP * 0.5);
-    this.stats.energy = Math.max(this.stats.energy, 50);
+    this.stats.health = Math.max(this.stats.health, maxHP * 0.1);
+    this.stats.energy = Math.max(this.stats.energy, 10);
     this.paused = false;
     this.slept = 0;
     this.action = 'idle';

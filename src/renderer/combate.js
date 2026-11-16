@@ -42,7 +42,9 @@ export async function startArena(app) {
   // Quem vem na horda (o mesmo ajuste do menu da TV).
   const foeSel = el('select', { font: '12px PxEmoji, monospace', background: '#1c1824', color: '#e8e2f0', border: '1px solid #43394f' });
   for (const [id, label] of [['mixed', 'Inimigo: misturado'], ['slime', 'Inimigo: só gosmas'], ['grim', 'Inimigo: só Grim']]) {
-    foeSel.append(el('option', {}, label));
+    const opt = el('option', {}, label);
+    opt.value = id;
+    foeSel.append(opt);
   }
   foeSel.value = app.game.profile.blackEnemy || 'mixed';
   foeSel.onchange = () => { app.game.profile.blackEnemy = foeSel.value; app.game.changed?.(); };
