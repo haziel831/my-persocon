@@ -19,60 +19,83 @@ export function persoconPortrait(modelDir, hpPct = 1, petName = '') {
   return _persoCache.get(key);
 }
 
-// O retrato estático de cada inimigo (a gosma convertida da folha Slime_Idle_Angry, quadro 0).
-let _enemyPortrait = null;
-let _enemyPortraitLoading = false;
+// O retrato estático de cada inimigo: a gosma convertida da folha Slime_Idle_Angry (quadro 0)
+// e o Grim direto da folha idle dele (que já é pixel art colorida, sem conversão).
+const _enemyPortraits = new Map();
+const _enemyLoading = new Set();
 const _loadImage = (src) => new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = src; });
 const SPR = 32;
-export function enemyPortrait() {
-  if (_enemyPortrait) return _enemyPortrait;
-  if (_enemyPortraitLoading) return 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';   // 1×1 até carregar
-  _enemyPortraitLoading = true;
-  const url = new URL('./assets/enemies/unknown_slime/Slime_Idle_Angry.png', import.meta.url).href;
-  _loadImage(url).then((img) => {
-    const c = document.createElement('canvas');
-    c.width = SPR;
-    c.height = SPR;
-    const g = c.getContext('2d');
-    g.imageSmoothingEnabled = false;
-    // O quadro é encostado no chão (a folha tem a célula 24×17).
-    g.drawImage(img, 0, 0, 24, 17, 0, SPR - 17, 24, 17);
-    // A mesma conversão das gosmas: corpo quase preto e olhos vermelhos brilhando.
-    const raw = g.getImageData(0, 0, SPR, SPR);
-    const px = raw.data;
-    let bottom = 0;
-    for (let y = SPR - 1; y >= 0; y--) {
-      let any = false;
-      for (let x = 0; x < SPR; x++) if (px[(y * SPR + x) * 4 + 3] > 40) { any = true; break; }
-      if (any) { bottom = y; break; }
-    }
-    const EYE = [255, 46, 58];
-    for (let y = 0; y < SPR; y++) {
-      for (let x = 0; x < SPR; x++) {
-        const i = (y * SPR + x) * 4;
-        if (px[i + 3] < 40) { px[i + 3] = 0; continue; }
-        const lum = px[i] * 0.3 + px[i + 1] * 0.6 + px[i + 2] * 0.1;
-        let n = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (!dx && !dy) continue;
-            const xx = x + dx, yy = y + dy;
-            if (xx < 0 || yy < 0 || xx >= SPR || yy >= SPR) continue;
-            if (px[(yy * SPR + xx) * 4 + 3] > 40) n++;
-          }
-        }
-        if (lum < 90 && n >= 6 && y < bottom - 3) {
-          px[i] = EYE[0]; px[i + 1] = EYE[1]; px[i + 2] = EYE[2]; px[i + 3] = 255;
-        } else {
-          const v = 5 + lum * 0.1;
-          px[i] = v; px[i + 1] = v * 0.92; px[i + 2] = v * 1.4; px[i + 3] = 255;
+const EMPTY_PX = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';   // 1×1 até carregar
+
+// A gosma: quadro 24×17 convertido em silhueta preta com olhos vermelhos.
+const _slimePortrait = (img) => {
+  const c = document.createElement('canvas');
+  c.width = SPR;
+  c.height = SPR;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, 0, 0, 24, 17, 0, SPR - 17, 24, 17);
+  const raw = g.getImageData(0, 0, SPR, SPR);
+  const px = raw.data;
+  let bottom = 0;
+  for (let y = SPR - 1; y >= 0; y--) {
+    let any = false;
+    for (let x = 0; x < SPR; x++) if (px[(y * SPR + x) * 4 + 3] > 40) { any = true; break; }
+    if (any) { bottom = y; break; }
+  }
+  const EYE = [255, 46, 58];
+  for (let y = 0; y < SPR; y++) {
+    for (let x = 0; x < SPR; x++) {
+      const i = (y * SPR + x) * 4;
+      if (px[i + 3] < 40) { px[i + 3] = 0; continue; }
+      const lum = px[i] * 0.3 + px[i + 1] * 0.6 + px[i + 2] * 0.1;
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= SPR || yy >= SPR) continue;
+          if (px[(yy * SPR + xx) * 4 + 3] > 40) n++;
         }
       }
+      if (lum < 90 && n >= 6 && y < bottom - 3) {
+        px[i] = EYE[0]; px[i + 1] = EYE[1]; px[i + 2] = EYE[2]; px[i + 3] = 255;
+      } else {
+        const v = 5 + lum * 0.1;
+        px[i] = v; px[i + 1] = v * 0.92; px[i + 2] = v * 1.4; px[i + 3] = 255;
+      }
     }
-    g.putImageData(raw, 0, 0);
-    _enemyPortrait = c.toDataURL('image/png');
-  }).catch(() => { _enemyPortraitLoading = false; });
-  return 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+  }
+  g.putImageData(raw, 0, 0);
+  return c.toDataURL('image/png');
+};
+
+// O Grim: primeiro quadro da folha idle (tile 64×64) reduzido ao tamanho do retrato.
+const _grimPortrait = (img) => {
+  const c = document.createElement('canvas');
+  c.width = SPR;
+  c.height = SPR;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, 0, 0, 64, 64, 0, 0, SPR, SPR);
+  return c.toDataURL('image/png');
+};
+
+// kind: 'slime' | 'grim' (cada inimigo tem o retrato dele na fila de turnos).
+export function enemyPortrait(kind = 'slime') {
+  const key = kind === 'grim' ? 'grim' : 'slime';
+  const cached = _enemyPortraits.get(key);
+  if (cached) return cached;
+  if (_enemyLoading.has(key)) return EMPTY_PX;
+  _enemyLoading.add(key);
+  const url = key === 'grim'
+    ? new URL('./assets/enemies/grim/idle.png', import.meta.url).href
+    : new URL('./assets/enemies/unknown_slime/Slime_Idle_Angry.png', import.meta.url).href;
+  _loadImage(url).then((img) => {
+    _enemyPortraits.set(key, key === 'grim' ? _grimPortrait(img) : _slimePortrait(img));
+    _enemyLoading.delete(key);
+  }).catch(() => _enemyLoading.delete(key));
+  return EMPTY_PX;
 }
 
 export class CombatUI {

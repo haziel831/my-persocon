@@ -366,7 +366,7 @@ export class Melee {
     if (this.crowFight) list.push({ id: 'corvo', name: 'Corvo', face: icon('crow'), glyph: null, side: 'ally', hp: null });
     if (this.kind === 'unknown') {
       this.foes.forEach((f, i) => list.push({
-        id: `foe${i}`, name: f.name || 'Unknown', face: enemyPortrait(), glyph: null, side: 'enemy',
+        id: `foe${i}`, name: f.name || 'Unknown', face: enemyPortrait(f.enemy?.kind), glyph: null, side: 'enemy',
         hp: f.max ? Math.max(0, f.hp / f.max) : 0, dead: f.hp <= 0,
       }));
     } else if (this.opp) {
