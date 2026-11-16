@@ -18,12 +18,12 @@ import { enemyPortrait, persoconPortrait } from './combatui.js';
 export const TURN = { PERSOCON: 'persocon', CROW: 'corvo', FOE: 'foe' };
 // Energy below this raises the low-energy warning (she can still fight).
 export const EXHAUST_ENERGY = 15;
-// At zero energy she is exhausted: she does NOT lose on the spot, but every blow hurts more.
-export const EXHAUST_DAMAGE = 1.5;
+// At zero energy she is exhausted: she does NOT lose on the spot, but her blows come out weaker.
+export const EXHAUST_DAMAGE = 0.5;
 // Base energy spent on a strike (a turn = a strike in this turn-based fight); a higher Combat
 // Skill Level makes every strike cheaper, and the Constitution makes everything cheaper still.
-export const BASE_TURN_ENERGY = 2;
-export const MIN_TURN_ENERGY = 0.8;
+export const BASE_TURN_ENERGY = 1.2;
+export const MIN_TURN_ENERGY = 0.4;
 // The sparring is non-lethal: she stops at half of her health.
 export const SAFETY_HP = 0.5;
 // JRPG pacing: every phase of a turn waits a little before the next one (slow on purpose).
@@ -1478,9 +1478,12 @@ export class Melee {
       if (en > EXHAUST_ENERGY) { this.lowWarned = false; this.exhaustWarned = false; }
       if (en <= 0 && !this.exhaustWarned) {
         this.exhaustWarned = true;
-        this.say(pet.x, pet.y - pet.P * 1.25, 'Sem energia!', 'bad');
-        this.ui?.warnBanner?.('Sem energia — cada golpe dói mais (a luta continua)', 2800);
+        this.say(pet.x, pet.y - pet.P * 1.25, 'Exausta!', 'bad');
         this.app.sound?.tone8?.(230, 110, 0.18, 'sawtooth', 0.07);
+        // O BONECO de treino não nocauteia: a sessão só para quando ela cansa de vez.
+        if (this.kind === 'dummy') this.finishTraining('tired');
+        else if (this.kind === 'fight') this.finishSparring('tired');
+        else this.ui?.warnBanner?.('Exausta — os golpes saem mais fracos (a luta continua)', 2800);
       } else if (en > 0 && en <= EXHAUST_ENERGY && !this.lowWarned) {
         this.lowWarned = true;
         this.say(pet.x, pet.y - pet.P * 1.25, 'Cansada...', 'bad');
@@ -1997,7 +2000,7 @@ export class Melee {
     const pet = this.pet;
     // Brutal postura: o Sucataoxidado acerta crits com mais frequência.
     const crit = Math.random() < (this.opp?.posture === 'brutal' ? 0.25 : 0.15);
-    const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1) * (this.exhausted ? EXHAUST_DAMAGE : 1));
+    const dmg = Math.round(this.move.dmg * (0.85 + this.opp.level * 0.03) * (crit ? 1.6 : 1));
     pet.adjust({ health: -dmg });
     // Levar dano de verdade treina a Constituição (é o jeito mais forte de ganhá-la).
     this.game.attrGain?.('con', dmg * ATTR_XP.con.hurt, this.kind === 'unknown' ? 'unknown' : 'heavy');
@@ -2221,7 +2224,7 @@ export class Melee {
     const crit = Math.random() < critChance;
     // The Strength decides how hard she hits; a maneuver has its own multiplier.
     const base = man ? man.mult * 6 : (this.move?.dmg ?? 0);
-    const dmg = Math.max(1, Math.round(base * mult * (0.85 + lvl * 0.03) * (0.75 + str * 0.075) * (crit ? 1.7 : 1)));
+    const dmg = Math.max(1, Math.round(base * mult * (0.85 + lvl * 0.03) * (0.75 + str * 0.075) * (crit ? 1.7 : 1) * (this.exhausted ? EXHAUST_DAMAGE : 1)));
     return { result: 'hit', dmg, crit };
   }
 

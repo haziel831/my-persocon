@@ -1585,9 +1585,12 @@ export class Pet {
   checkDeath() {
     if (this.dead || this.unconscious || this.stats.health > 0) return;
     // EM COMBATE a derrota não mata: ela desmaia (INCONSCIENTE por alguns minutos) e a
-    // luta termina; no resto do jogo continua sendo a morte de sempre.
-    const ko = !!this.combatMode;
-    if (!ko) this.dead = true;
+    // luta termina; no resto do jogo continua sendo a morte de sempre. O treino no boneco
+    // não nocauteia: a sessão só para (a luta de verdade é a que derruba).
+    const ko = !!this.combatMode && this.app?.melee?.kind === 'unknown';
+    // No treino ela também não morre: só sai da luta (sem pose de morta).
+    const training = !!this.combatMode && !ko;
+    if (!this.combatMode) this.dead = true;
     this.chase = null;
     this.eating = null;
     this.meals = [];
@@ -1599,6 +1602,7 @@ export class Pet {
       this.hold = null;
     }
     if (ko) this.lieUnconscious();
+    else if (training) this.app?.melee?.stop?.('tired');
     else if (this.mode === 'ground') this.lieDead();
     else if (this.mode !== 'air') this.fall(0, 0);
     this.emit('death');
@@ -1642,8 +1646,9 @@ export class Pet {
     this.unconscious = false;
     this.koT = 0;
     const maxHP = this.maxHealth?.() ?? 100;
-    this.stats.health = Math.max(this.stats.health, maxHP * 0.1);
-    this.stats.energy = Math.max(this.stats.energy, 10);
+    // Acorda com metade da saúde (a regen do nocaute já a levou até aí) e a energia cheia.
+    this.stats.health = Math.max(this.stats.health, maxHP * 0.5);
+    this.stats.energy = Math.max(this.stats.energy, 100);
     this.paused = false;
     this.slept = 0;
     this.action = 'idle';
@@ -2751,8 +2756,10 @@ export class Pet {
     // INCONSCIENTE (pós-derrota): deitada, regen passiva, sem punição e sem drain — acorda no fim do tempo.
     if (this.unconscious) {
       const maxHP = this.maxHealth?.() ?? 100;
-      s.energy = Math.min(100, s.energy + 5.5 * dt);
-      s.health = Math.min(maxHP, s.health + 3.2 * dt);
+      const total = Math.max(1, this.koTotal ?? KO_TIME);
+      // A regen acompanha o relógio do nocaute: energia cheia e saúde até METADE ao acordar.
+      s.energy = Math.min(100, s.energy + (100 / total) * dt);
+      s.health = Math.min(maxHP * 0.5, s.health + (maxHP * 0.5 / total) * dt);
       s.mood = Math.min(100, s.mood + 1.2 * dt);
       this.koT = Math.max(0, (this.koT ?? 0) - dt);
       if (this.koT <= 0) this.reviveUnconscious();
