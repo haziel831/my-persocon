@@ -363,13 +363,12 @@ export class Unknown {
   // ---------- a erupção da TV ----------
 
   // Quantos Grim entram na horda: `blackEnemy` ('slime' | 'grim' | 'mixed') manda.
-  // No misto eles só aparecem da onda 4 em diante (e em maior número nas ondas altas).
+  // No misto entra sempre pelo menos 1 Grim (mais nas ondas altas), sempre deixando uma gosma.
   grimCount(count) {
     const pref = this.app.game?.profile?.blackEnemy || 'mixed';
     if (pref === 'grim') return count;
     if (pref === 'slime') return 0;
     const wave = this.wave || 1;
-    if (wave < 4) return 0;
     return Math.min(Math.max(0, count - 1), wave >= 7 ? 2 : 1);
   }
 
@@ -386,10 +385,14 @@ export class Unknown {
     // A horda nasce dentro da TV e cai no chão.
     const baseX = tv?.x ?? w / 2;
     this.slimes = [];
-    const grimN = this.grimCount(plan.count);
-    for (let i = 0; i < plan.count; i++) {
-      const hp = Math.round(plan.hp * (0.9 + Math.random() * 0.25));
-      const at = baseX + (i - (plan.count - 1) / 2) * 18;
+    // A vida dos inimigos comuns é reduzida pela metade; no modo misto entram sempre 2+
+    // (senão a onda 1, que tem 1 inimigo só, não teria como misturar gosma e Grim).
+    const pref = app.game?.profile?.blackEnemy || 'mixed';
+    const total = pref === 'mixed' ? Math.max(2, plan.count) : plan.count;
+    const grimN = this.grimCount(total);
+    for (let i = 0; i < total; i++) {
+      const hp = Math.round(plan.hp * (0.9 + Math.random() * 0.25) * 0.5);
+      const at = baseX + (i - (total - 1) / 2) * 18;
       let s;
       if (i < grimN) {
         // O Grim é mais duro: mais vida, mais ataque, mais defesa e um nível acima.
