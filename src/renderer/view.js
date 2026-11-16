@@ -413,10 +413,12 @@ export class PetView {
     if (this.flashT > 0) {
       this.flashT = Math.max(0, this.flashT - dt);
       const i = this.flashI * (this.flashT / (this.flashDur || 0.32));
-      // Red when she is hit, blue while she charges the strike.
+      // Red when she is hit, blue while she charges, gold on the special maneuvers.
       const f = this.flashColor === 'blue'
         ? `sepia(${(i * 0.8).toFixed(3)}) saturate(${(1 + i * 5).toFixed(2)}) hue-rotate(170deg) brightness(${(1 + i * 0.5).toFixed(2)})`
-        : `sepia(${(i * 0.9).toFixed(3)}) saturate(${(1 + i * 7).toFixed(2)}) hue-rotate(-40deg) brightness(${(1 + i * 0.4).toFixed(2)})`;
+        : this.flashColor === 'gold'
+          ? `sepia(${i.toFixed(3)}) saturate(${(1 + i * 6).toFixed(2)}) hue-rotate(6deg) brightness(${(1 + i * 0.9).toFixed(2)})`
+          : `sepia(${(i * 0.9).toFixed(3)}) saturate(${(1 + i * 7).toFixed(2)}) hue-rotate(-40deg) brightness(${(1 + i * 0.4).toFixed(2)})`;
       this.canvas.style.filter = f;
       if (this.flashT <= 0) {
         this.canvas.style.filter = '';

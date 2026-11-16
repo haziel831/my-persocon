@@ -215,6 +215,39 @@ export class Fx {
     }
   }
 
+  // A onda de partículas que sai do centro dela (a guarda suprema): um anel dourado
+  // que se abre e faíscas voando para todos os lados.
+  wave(x, y, size = 160, color = 'gold') {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.className = `combat-wave ${color}`;
+    el.style.left = `${Math.round(x)}px`;
+    el.style.top = `${Math.round(y)}px`;
+    el.style.setProperty('--wave', `${Math.max(2, Math.round(size / 10))}`);
+    document.body.append(el);
+    setTimeout(() => el.remove(), 900);
+    const tint = {
+      gold: ['#ffe89a', 'rgba(255, 205, 70, 0.95)'],
+      blue: ['#a8dcff', 'rgba(60, 150, 255, 0.9)'],
+      white: ['#ffffff', 'rgba(220, 240, 255, 0.9)'],
+    }[color] || ['#ffe89a', 'rgba(255, 205, 70, 0.95)'];
+    const n = 18;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('div');
+      p.className = 'wave-spark';
+      const a = (i / n) * Math.PI * 2;
+      p.style.left = `${Math.round(x)}px`;
+      p.style.top = `${Math.round(y)}px`;
+      p.style.background = tint[0];
+      p.style.boxShadow = `0 0 7px 2px ${tint[1]}`;
+      p.style.setProperty('--dx', `${Math.round(Math.cos(a) * size * 0.55)}px`);
+      p.style.setProperty('--dy', `${Math.round(Math.sin(a) * size * 0.32)}px`);
+      p.style.setProperty('--delay', `${(i % 4) * 0.03}s`);
+      document.body.append(p);
+      setTimeout(() => p.remove(), 950);
+    }
+  }
+
   // The melee impact at (x, y): the frames of the 32x32 sheet played one by one.
   impact(kind, x, y, scale = 1) {
     const def = IMPACT[kind];

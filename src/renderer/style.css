@@ -659,18 +659,17 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   image-rendering: pixelated; user-select: none;
 }
 .combat-aura.dizzy { width: 26px; height: 26px; animation: aura-spin 1.6s linear infinite; }
-/* The Fúria: a strong red energy aura around her body (the size comes from the JS). */
+/* The Fúria: a golden energy aura around her body (the pulse comes from the JS sine wave). */
 .combat-aura.fury {
   position: fixed; z-index: 9996; pointer-events: none; user-select: none;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 50% 52%, rgba(255, 120, 90, 0.55) 0%, rgba(226, 42, 58, 0.38) 38%, rgba(150, 8, 30, 0.18) 62%, rgba(120, 0, 20, 0) 78%);
-  filter: drop-shadow(0 0 9px rgba(255, 60, 60, 0.8));
-  animation: aura-fury 0.45s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 50% 52%, rgba(255, 232, 150, 0.6) 0%, rgba(255, 200, 40, 0.42) 36%, rgba(200, 130, 0, 0.2) 62%, rgba(150, 90, 0, 0) 78%);
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.85));
 }
 .combat-aura.fury .fury-mark {
   position: absolute; left: 50%; top: -16px; width: 26px; height: 26px;
   transform: translateX(-50%); image-rendering: pixelated;
-  filter: drop-shadow(0 0 5px rgba(255, 150, 40, 0.9));
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.95));
 }
 @keyframes aura-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 /* A carga antes do golpe: a aura VERMELHA e as partículas subindo. */
@@ -744,10 +743,6 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   25% { opacity: 1; transform: translate(-50%, -60%) scale(1.1); }
   100% { opacity: 0; transform: translate(-50%, var(--dy, -50px)) scale(0.5); }
 }
-@keyframes aura-fury {
-  from { transform: translate(-50%, -50%) scale(0.9); opacity: 0.7; }
-  to { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
-}
 /* O texto da ação: uma caixinha em cima da cabeça de QUEM agiu (verde dela, vermelho do inimigo). */
 .combat-line {
   position: fixed; z-index: 9996; pointer-events: none; transform: translate(-50%, -50%);
@@ -783,6 +778,50 @@ body:is([data-theme="pixel"], [data-theme^="gameboy"], [data-theme="gamegear"]) 
   0%, 20%, 40%, 60%, 80%, 100% { opacity: 1; filter: brightness(1); }
   10%, 30%, 50%, 70%, 90% { opacity: 0.12; filter: brightness(2.8); }
 }
+/* O anúncio DOURADO das manobras especiais: painel, borda e texto #FFD700 com brilho. */
+.combat-special {
+  position: fixed; z-index: 9997; pointer-events: none; transform: translate(-50%, -50%);
+  padding: 7px 18px 8px; border-radius: 8px; white-space: nowrap; text-align: center;
+  background: linear-gradient(180deg, rgba(62, 44, 6, 0.96), rgba(26, 16, 2, 0.96));
+  border: 2px solid #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.75), 0 0 34px rgba(255, 180, 0, 0.35), inset 0 0 16px rgba(255, 215, 0, 0.22);
+  animation: special-pop 0.3s ease-out, special-rise 2.1s ease-out forwards;
+}
+.combat-special small {
+  display: block; font: bold 9px PxEmoji, Consolas, monospace; letter-spacing: 2px;
+  color: #ffe9a8; margin-bottom: 2px; text-shadow: 0 0 8px rgba(255, 200, 60, 0.95);
+}
+.combat-special b {
+  display: block; font: bold 20px PxEmoji, Consolas, monospace; color: #ffd700; letter-spacing: 0.5px;
+  text-shadow: 0 0 4px #ffd700, 0 0 10px rgba(255, 190, 0, 0.95), 0 0 22px rgba(255, 140, 0, 0.8), 1px 1px 0 #5a3b00;
+}
+.combat-special .special-glow {
+  position: absolute; inset: -3px; border-radius: 10px; pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 220, 90, 0.22), rgba(255, 200, 60, 0) 68%);
+  animation: special-glow 0.6s ease-in-out infinite alternate;
+}
+.combat-special.out { opacity: 0; transition: opacity 0.35s ease; }
+@keyframes special-pop { from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); } }
+@keyframes special-rise {
+  0%, 76% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -140%) scale(0.92); }
+}
+@keyframes special-glow { from { opacity: 0.35; } to { opacity: 0.9; } }
+/* A onda de partículas da guarda suprema (Fx.wave): o anel dourado abrindo. */
+.combat-wave {
+  position: fixed; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  border: 3px solid rgba(255, 215, 0, 0.9);
+  box-shadow: 0 0 22px 7px rgba(255, 215, 0, 0.6), inset 0 0 12px rgba(255, 215, 0, 0.45);
+  pointer-events: none; z-index: 9995; animation: combat-wave 0.78s ease-out forwards;
+}
+.combat-wave.blue { border-color: rgba(120, 190, 255, 0.9); box-shadow: 0 0 22px 7px rgba(70, 150, 255, 0.6), inset 0 0 12px rgba(120, 190, 255, 0.45); }
+.wave-spark {
+  position: fixed; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+  pointer-events: none; z-index: 9995; animation: wave-spark 0.72s ease-out forwards;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes combat-wave { 0% { transform: scale(0.2); opacity: 1; } 100% { transform: scale(var(--wave, 16)); opacity: 0; } }
+@keyframes wave-spark { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.2); opacity: 0; } }
 /* O número de dano: vermelho, com a borda pixelada escura, e sobe até sumir. */
 .dmg-num {
   position: fixed; z-index: 9997; pointer-events: none; transform: translate(-50%, -50%);
@@ -1195,6 +1234,22 @@ body.app-hidden .bag-dock { opacity: 1; }
 .obj-region { position: absolute; border: 2px dashed #ff4fd8; background: rgba(255,79,216,0.15); pointer-events: none; }
 /* O hitbox marcado: a parte da imagem que responde ao clique. */
 .obj-hitbox { position: absolute; border: 2px dashed #7dff9b; background: rgba(125,255,155,0.14); pointer-events: none; }
+/* O hitbox editável: arrasta a caixa e as 4 alças dos cantos. */
+.obj-hitbox.edit { pointer-events: auto; cursor: move; touch-action: none; }
+.obj-hitbox.edit .hb-handle {
+  position: absolute; width: 10px; height: 10px; margin: -6px; background: #7dff9b;
+  border: 1px solid #0b2a12; box-shadow: 0 0 4px rgba(125, 255, 155, 0.9);
+}
+.hb-handle[data-h="nw"] { left: 0; top: 0; cursor: nwse-resize; }
+.hb-handle[data-h="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
+.hb-handle[data-h="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
+.hb-handle[data-h="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
+.hb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+.row.hb-num { margin: 0; }
+.row.hb-num input[type="number"] {
+  width: 64px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 5px;
+  background: rgba(0, 0, 0, 0.28); color: inherit; font: 12px PxEmoji, Consolas, monospace;
+}
 /* A cor de transparência da imagem importada. */
 .obj-color { display: grid; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
 .obj-color input[type="color"] { width: 36px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }

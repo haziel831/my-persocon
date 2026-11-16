@@ -79,16 +79,26 @@ export const BLACK_WAVES = [null,
 // The special maneuvers: one per Melee Combat Level, only with the Fúria status.
 // color: a cor da aura da carga (vermelho normal, azul/dourado nos especiais).
 // ranged: o golpe sai à distância (projétil) em vez de encostar nela.
+// Cada manobra tem `isSpecial` (o banner dourado) e a própria coreografia procedural:
+//   special_breaker   – guarda alta e martelo duplo
+//   special_awakening – rugido dourado + rajada de investidas e golpes
+//   special_meteor    – salto altíssimo e queda diagonal em cima do alvo
+//   special_guard     – braços cruzados, joelho no chão e onda de partículas
 export const MANEUVERS = [
-  { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'attack_hook', mult: 1.5, ignoreDefense: true, color: 'red',
+  { lvl: 1, id: 'quebra_guarda', name: 'Golpe Quebra-Guarda', clip: 'special_breaker', mult: 1.5, ignoreDefense: true, color: 'gold',
+    isSpecial: true, category: 'special', breaker: true,
     pt: 'Smash que ignora a defesa do alvo (1,5× a Força)', en: 'A smash that ignores the target defense (1.5× Strength)' },
-  { lvl: 2, id: 'punho_relampago', name: 'Punho Relâmpago', clip: 'attack_jab', mult: 1.1, hits: 3, color: 'blue',
+  { lvl: 2, id: 'punho_relampago', name: 'Punho Relâmpago', clip: 'special_awakening', mult: 1.1, hits: 3, color: 'gold',
+    isSpecial: true, category: 'special', awakening: true,
     pt: 'Combo de 3 socos rápidos num turno só', en: 'A 3-hit flurry of fast punches in one turn' },
-  { lvl: 3, id: 'chute_meteoro', name: 'Chute Meteoro', clip: 'attack_dropkick', mult: 1.8, stun: 0.45, color: 'gold',
+  { lvl: 3, id: 'chute_meteoro', name: 'Chute Meteoro', clip: 'special_meteor', mult: 1.8, stun: 0.45, color: 'gold',
+    isSpecial: true, category: 'special', leap: true, heavyImpact: true,
     pt: 'Chute aéreo que pode atordoar o alvo (1,8×)', en: 'A leaping kick that can stun the target (1.8×)' },
-  { lvl: 4, id: 'contra_impacto', name: 'Contra-Impacto Sísmico', clip: 'attack_uppercut', mult: 2.2, energy: 6, shock: true, color: 'gold',
+  { lvl: 4, id: 'contra_impacto', name: 'Contra-Impacto Sísmico', clip: 'special_guard', mult: 2.2, energy: 6, shock: true, color: 'gold',
+    isSpecial: true, category: 'special', guardWave: true,
     pt: 'Uppercut devastador com onda de choque (2,2×) e devolve energia', en: 'A devastating uppercut with a shockwave (2.2×) that gives energy back' },
   { lvl: 5, id: 'explosao_carmesim', name: 'Explosão Carmesim', clip: 'cast_special', mult: 3, explosion: true, color: 'red', ranged: true,
+    isSpecial: true, category: 'special',
     pt: 'Explosão carmesim devastadora (3×)', en: 'A devastating crimson explosion (3×)' },
 ];
 // The maneuver she can use at her current Melee Combat Level (the best one).
@@ -268,7 +278,10 @@ export class Melee {
     this.fury = false;       // the Fúria status
     this.hitStreak = 0;      // hits taken in a row
     this.dizzyEl = null;     // the stars above her head
-    this.furyAura = null;    // the fire above her head
+    this.furyAura = null;    // the golden aura around her body
+    this.maneuverAuraT = 0;  // quantos segundos a aura dourada continua acesa após a manobra
+    this.maneuverShown = false; // o efeito de entrada da manobra já foi disparado
+    this.leap = null;        // o salto do Chute Meteoro (recuo → salto → queda em cima do alvo)
     this.oppDizzyEl = null;  // the stars above the stunned enemy
     this.oppRef = { hp: 100, max: 100, level: 1, defense: 0.2, dummy: true, scrap: false, stunned: 0, name: 'Boneco' };
     this.crowFight = false;  // o Corvo entrou na luta
@@ -636,6 +649,10 @@ export class Melee {
     this.clearGhost();
     this.returnTo = null;
     this.foeStep = null;
+    this.leap = null;
+    if (this.pet) this.pet.lift = 0;
+    this.maneuverAuraT = 0;
+    this.maneuverShown = false;
     this.petDown = false;
     this.downT = 0;
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
@@ -1322,6 +1339,8 @@ export class Melee {
     }
     this.t += dt;
     this.dt = dt;
+    // O salto do Chute Meteoro (e o agachamento) anda com a posição dela no chão.
+    if (this.leap) this.stepLeap(dt);
     switch (this.phase) {
       case 'intro': {
         // She steps into the strike range (the toy play owns her position) and squares up.
@@ -1382,6 +1401,8 @@ export class Melee {
         }
         break;
       case 'windup': {
+        // O rugido/onda de entrada da manobra (o efeito próprio de cada coreografia).
+        this.updateManeuverShow();
         // The clip is playing: the hit is resolved by the combatHit event. If the clip never
         // fires it (missing clip, interrupted), the turn still resolves.
         if (!this.hitResolved && this.t > (this.moveDur || 1) + 0.7) this.resolveHit();
@@ -1455,6 +1476,9 @@ export class Melee {
     this.downT = 0;
     this.hitResolved = false;
     this.move = null;
+    this.leap = null;
+    if (this.pet) this.pet.lift = 0;
+    this.maneuverShown = false;
     this.phase = 'announce';
     // Zera o estado do Corvo a cada turno novo (ele age uma única vez por ciclo).
     this.crowTurnT = 0;
@@ -1675,7 +1699,7 @@ export class Melee {
     this.chargeSpot = spot;
     if (color === 'red') this.ui?.glowRed?.(pet.view?.canvas, dur * 1000);
     this.app.fx?.charge?.(spot.x, spot.y, spot.size, dur * 1000, color);
-    pet.view?.flash?.(1, color === 'blue' ? 'blue' : 'red', dur);
+    pet.view?.flash?.(1, color === 'blue' ? 'blue' : color === 'gold' ? 'gold' : 'red', dur);
     // O som de juntar energia (sobe de tom).
     this.app.sound?.tone8?.(180, 920, dur, 'sawtooth', 0.045);
   }
@@ -1685,13 +1709,25 @@ export class Melee {
     const s = this.chargeSpot;
     this.chargeSpot = null;
     if (s) this.ui?.chargeBurst?.(s.x, s.y, s.size);
+    const man = this.move?.maneuver;
+    const pet = this.pet;
+    const facing = this.facing();
+    const ox = this.oppX();
+    // Chute Meteoro: recua um passo, salta (o clipe sobe quase até o topo da janela) e
+    // cai na diagonal em cima do alvo — o deslocamento horizontal é este tween.
+    if (man?.leap) {
+      const land = Number.isFinite(ox) ? this.edgeX(ox - facing * pet.P * STRIKE_GAP) : pet.x;
+      const back = this.edgeX(land + facing * pet.P * 0.6);
+      pet.x = back;
+      pet.lift = 0;
+      // O topo do salto: a cabeça dela chega a ~64 px do topo da janela.
+      this.leap = { t: 0, from: back, to: land, landed: false, trail: 0, peak: Math.max(0, pet.y - pet.P - 64) };
+      this.app.fx?.impact?.('dust', pet.x, pet.y - 4, 0.6);
+      return;
+    }
     // Especial corpo a corpo: a investida para dentro do golpe (o cast_special já empurra o
     // tronco; aqui ela dá o passo que junta o dash com a soltura da energia).
-    const man = this.move?.maneuver;
     if (man && !man.ranged) {
-      const pet = this.pet;
-      const facing = this.facing();
-      const ox = this.oppX();
       const want = Number.isFinite(ox) ? ox - facing * pet.P * STRIKE_GAP : pet.x + facing * pet.P * 0.2;
       if (Math.abs(want - pet.x) > 2) {
         pet.x = this.edgeX(pet.x + Math.sign(want - pet.x) * Math.min(Math.abs(want - pet.x), pet.P * 0.35));
@@ -1699,6 +1735,42 @@ export class Melee {
       }
       this.app.fx?.impact?.('dust', pet.x - facing * pet.P * 0.25, pet.y - 6, 0.7);
       this.app.fx?.shake?.(0.55);
+    }
+  }
+
+  // O salto diagonal do Chute Meteoro: agacha, sobe até perto do topo da janela (pet.lift),
+  // flutua no ar e cai em cima do alvo.
+  stepLeap(dt) {
+    const l = this.leap;
+    if (!l) return;
+    const pet = this.pet;
+    l.t += dt;
+    // O deslocamento horizontal (do recuo até o alvo) acompanha a queda.
+    const k = Math.min(1, Math.max(0, (l.t - 0.30) / 0.65));
+    const ease = k * k * (3 - 2 * k);
+    pet.x = this.edgeX(l.from + (l.to - l.from) * ease);
+    // A altura: sobe em 0,25 s, segura no ar ~0,2 s e cai em 0,2 s.
+    const rise = Math.min(1, Math.max(0, (l.t - 0.30) / 0.25));
+    const fall = Math.min(1, Math.max(0, (l.t - 0.75) / 0.20));
+    const sr = rise * rise * (3 - 2 * rise);
+    const sf = fall * fall * (3 - 2 * fall);
+    pet.lift = Math.round((l.peak || 0) * sr * (1 - sf));
+    l.trail -= dt;
+    if (k > 0.04 && k < 1 && l.trail <= 0) {
+      l.trail = 0.05;
+      this.app.fx?.dashTrail?.(pet.x, pet.y - pet.P * 0.55, pet.P * 0.7, this.facing());
+    }
+    if (k >= 1 && !l.landed) {
+      l.landed = true;
+      pet.x = this.edgeX(l.to);
+      pet.lift = 0;
+      // A queda em cima do alvo: tremor forte e poeira.
+      this.app.fx?.shake?.(1.7);
+      this.app.fx?.impact?.('dust', pet.x, pet.y - 6, 1.5);
+    }
+    if (l.t > 1.3) {
+      pet.lift = 0;
+      this.leap = null;
     }
   }
 
@@ -1715,11 +1787,31 @@ export class Melee {
     }
   }
 
+  // O efeito de entrada de cada manobra (o rugido dourado do despertar, a poeira do salto).
+  updateManeuverShow() {
+    const man = this.move?.maneuver;
+    if (!man || this.maneuverShown) return;
+    const pet = this.pet;
+    if (man.awakening && this.t >= 0.30) {
+      this.maneuverShown = true;
+      // O RUGIDO: a aura dourada acende e estoura em partículas antes da rajada.
+      this.maneuverAuraT = Math.max(this.maneuverAuraT || 0, 1.8);
+      this.showFury();
+      this.app.fx?.charge?.(pet.x, pet.y - pet.P * 0.5, pet.P * 1.4, 520, 'gold');
+      this.app.fx?.shake?.(0.8);
+      this.app.sound?.play?.('fury', { volume: 0.6 });
+      this.say(pet.x, pet.y - pet.P * 1.45, '[FÚRIA DOURADA!]', 'good', { special: true, skill: man });
+    }
+  }
+
   // The special maneuver (only with the Fúria): it consumes the status.
   maneuverTurn(man) {
     const pet = this.pet;
-    this.fury = false;                 // the Fúria is spent
-    this.removeFuryAura();
+    this.fury = false;                 // the Fúria is spent (não pode repetir no mesmo turno)
+    // O brilho dourado continua aceso durante a manobra inteira (rugido, salto, onda).
+    this.maneuverAuraT = Math.max(this.maneuverAuraT || 0, (this.metaOf({ clip: man.clip })?.durationMs ?? 900) / 1000 + 0.6);
+    this.maneuverShown = false;
+    this.showFury();
     this.move = {
       id: man.id, name: man.name, kind: 'attack', clip: man.clip,
       dmg: man.mult, maneuver: man, hits: man.hits || 1,
@@ -1728,8 +1820,9 @@ export class Melee {
     const facing = this.facing();
     pet.dir = facing > 0 ? 1 : -1;
     this.moveDur = (this.metaOf(this.move)?.durationMs ?? 500) / 1000;
-    this.say(pet.x, pet.y - pet.P * 1.15, `${man.name}!`, 'good', { big: true });
-    // A manobra carrega mais: a aura azul dura um pouco mais.
+    // A manobra é anunciada no banner DOURADO (não no texto normal de golpe).
+    this.say(pet.x, pet.y - pet.P * 1.15, `${man.name}!`, 'good', { big: true, special: true, skill: man });
+    // A manobra carrega mais: a aura dourada dura um pouco mais.
     this.startCharge(CHARGE_MANEUVER);
   }
 
@@ -1937,8 +2030,9 @@ export class Melee {
   applyFury() {
     this.fury = true;
     this.hitStreak = 0;
-    this.say(this.pet.x, this.pet.y - this.pet.P * 1.3, '[FÚRIA ATIVADA!]', 'good');
-    // O som de ativação: o golpe grave que acompanha a aura vermelha.
+    // A ativação continua no texto normal (só a MANOBRA usa o banner dourado).
+    this.say(this.pet.x, this.pet.y - this.pet.P * 1.3, '[FÚRIA ATIVADA!]', 'good', { special: false });
+    // O som de ativação: o golpe grave que acompanha a aura dourada.
     this.app.sound?.play?.('fury', { volume: 0.6 });
     this.showFury();
   }
@@ -1959,7 +2053,7 @@ export class Melee {
     this.dizzyEl = null;
   }
 
-  // The Fúria: a strong red energy aura around her, with the fire mark over the head.
+  // The Fúria: a pulsing golden energy aura around her, with the fire mark over the head.
   showFury() {
     if (this.furyAura || typeof document === 'undefined') return;
     const el = document.createElement('div');
@@ -1998,17 +2092,22 @@ export class Melee {
   updateAuras() {
     const pet = this.pet;
     const P = pet.P;
+    if (this.maneuverAuraT > 0) this.maneuverAuraT = Math.max(0, this.maneuverAuraT - (this.dt || 0.016));
     if (this.dizzyEl) {
       this.dizzyEl.style.left = `${Math.round(pet.x)}px`;
       this.dizzyEl.style.top = `${Math.round(pet.y - P * 1.12)}px`;
     }
     if (this.furyAura) {
-      // The red energy aura wraps her whole body.
-      const s = Math.round(P * 1.55);
+      // A aura dourada pulsa em seno (a cada 150 ms): o brilho e o tamanho sobem e descem.
+      const phase = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 150;
+      const wave = 0.5 + 0.5 * Math.sin(phase);
+      const s = Math.round(P * (1.5 + wave * 0.12));
       this.furyAura.style.width = `${s}px`;
       this.furyAura.style.height = `${s}px`;
       this.furyAura.style.left = `${Math.round(pet.x)}px`;
       this.furyAura.style.top = `${Math.round(pet.y - P * 0.5)}px`;
+      this.furyAura.style.opacity = (0.5 + wave * 0.5).toFixed(3);
+      this.furyAura.style.filter = `drop-shadow(0 0 ${Math.round(7 + wave * 15)}px rgba(255, 215, 0, ${(0.3 + wave * 0.6).toFixed(2)})) brightness(${(1 + wave * 0.3).toFixed(2)})`;
     }
     if (this.oppDizzyEl) {
       this.oppDizzyEl.style.left = `${Math.round(this.oppX() ?? pet.x)}px`;
@@ -2016,8 +2115,8 @@ export class Melee {
     }
     if (this.stunTurns > 0 && !this.dizzyEl) this.showDizzy();
     if (!this.stunTurns && this.dizzyEl) this.removeDizzy();
-    if (this.fury && !this.furyAura) this.showFury();
-    if (!this.fury && this.furyAura) this.removeFuryAura();
+    if ((this.fury || this.maneuverAuraT > 0) && !this.furyAura) this.showFury();
+    if (!this.fury && !(this.maneuverAuraT > 0) && this.furyAura) this.removeFuryAura();
     if ((this.opp?.stunned || 0) > 0 && !this.oppDizzyEl) this.showOppDizzy();
     if (!(this.opp?.stunned || 0) && this.oppDizzyEl) this.removeOppDizzy();
   }
@@ -2200,6 +2299,34 @@ export class Melee {
       this.app.fx?.shake?.(1.2);
     }
     if (man.energy) this.pet.adjust({ energy: man.energy });
+    // O Quebra-Guarda: o martelo duplo estoura a guarda do alvo.
+    if (man.breaker) {
+      this.app.fx?.impact?.('burst', x, y, 1.3);
+      this.app.fx?.impact?.('dust', x, y + 8, 0.9);
+      this.app.fx?.shake?.(0.9);
+    }
+    // O despertar da Fúria: a explosão dourada da rajada.
+    if (man.awakening) {
+      this.app.fx?.explosion?.('fire', x, y, 1.2, 1);
+      this.app.fx?.shake?.(1.0);
+      this.app.sound?.play?.('whoosh', { volume: 0.45 });
+    }
+    // O Chute Meteoro cai em cima do alvo: tremor forte e a cratera de poeira.
+    if (man.leap) {
+      const pet = this.pet;
+      this.app.fx?.shake?.(1.8);
+      this.app.fx?.impact?.('dust', x, y + pet.P * 0.4, 1.6);
+      this.app.fx?.impact?.('burst', x, y, 1.4);
+      this.app.sound?.play?.('explode', { volume: 0.35 });
+    }
+    // A guarda suprema: a onda de partículas sai do centro dela.
+    if (man.guardWave) {
+      const pet = this.pet;
+      this.app.fx?.wave?.(pet.x, pet.y - pet.P * 0.55, pet.P * 2.2, 'gold');
+      this.app.fx?.heal?.(pet.x, pet.y - pet.P * 0.7, pet.P * 1.2);
+      this.app.fx?.shake?.(0.8);
+      this.app.sound?.play?.('whoosh', { volume: 0.45 });
+    }
     // The Explosão Carmesim: the big crimson blast.
     if (man.explosion) {
       // Especial à distância: a energia sai dela como projétil até o alvo e estoura lá.
@@ -2255,6 +2382,8 @@ export class Melee {
     this.petDown = false;
     this.downT = 0;
     this.closeT = 0;
+    this.leap = null;
+    if (this.pet) this.pet.lift = 0;
     if (this.pet) {
       this.pet.knock = null;
       this.pet.jumpPrep = null;
@@ -2382,8 +2511,17 @@ export class Melee {
 
   // The action text: a small box right above THAT fighter's head (green for her, red for
   // the enemy). The skills and the special maneuvers get a bigger, flashing text.
+  // As MANOBRAS ESPECIAIS (skill.isSpecial / category 'special') não usam o textinho que
+  // sobe: viram o banner DOURADO do combatui (texto #FFD700, brilho e painel dourado).
   say(x, y, text, kind = 'good', opts = {}) {
     if (typeof document === 'undefined') return;
+    const skill = opts.skill || null;
+    const special = opts.special !== false
+      && !!(opts.special || opts.category === 'special' || skill?.isSpecial || skill?.category === 'special');
+    if (special && this.ui?.specialBanner) {
+      this.ui.specialBanner(text, { x, y: y - 62 });
+      return;
+    }
     const el = document.createElement('div');
     el.className = `combat-line ${kind}${opts.big ? ' big' : ''}`;
     el.textContent = text;

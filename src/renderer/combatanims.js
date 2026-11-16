@@ -375,6 +375,93 @@ export const COMBAT_CLIPS = {
     },
   },
 
+  // ---------------------------------------------------------------- manobras especiais
+  // Golpe Quebra-Guarda (Nv1): stance larga, os dois braços sobem (guarda alta) e ela
+  // desce um martelo duplo em cima do alvo. Hit em 0,52 s.
+  special_breaker: {
+    loop: false,
+    length: 0.95,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.14, [0, -0.95, 0.35]], [0.3, [0, -0.8, 0.25]], [0.46, [0, -0.55, -2.5]], [0.58, [0, -0.95, -2.1]], [0.95, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.14, [0, 10, 0]], [0.3, [0, 8, 0]], [0.46, [0, -10, 0]], [0.95, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.14, [-10, -18, 0]], [0.3, [-12, -16, 0]], [0.46, [28, -4, 0]], [0.58, [20, -10, 0]], [0.95, STANCE.body]],
+      head: [[0, STANCE.head], [0.14, [-18, 10, 0]], [0.3, [-20, 8, 0]], [0.46, [16, 2, 0]], [0.58, [10, 6, 0]], [0.95, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.14, [-168, -26, 22]], [0.3, [-172, -24, 24]], [0.46, [-24, -16, 6]], [0.58, [-36, -20, 8]], [0.95, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.14, [-22, 12, 0]], [0.3, [-20, 12, 0]], [0.46, [-8, 8, 0]], [0.95, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.14, [-168, 26, -22]], [0.3, [-172, 24, -24]], [0.46, [-24, 16, -6]], [0.58, [-36, 20, -8]], [0.95, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.14, [-22, -12, 0]], [0.3, [-20, -12, 0]], [0.46, [-8, -8, 0]], [0.95, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.14, [-10, 0, 18]], [0.46, [-6, 0, 16]], [0.95, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.14, [58, 0, 0]], [0.46, [44, 0, 0]], [0.95, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.14, [-20, 0, -18]], [0.46, [-16, 0, -16]], [0.95, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.14, [66, 0, 0]], [0.46, [50, 0, 0]], [0.95, STANCE.lShin]],
+    },
+  },
+
+  // Punho Relâmpago (Nv2) / despertar da Fúria: pés firmes afastados, punhos fechados, os
+  // braços descem e vão para trás, as costas arqueiam e o queixo sobe num RUGIDO dourado.
+  // Em seguida: rajada de investidas curtas com três golpes alternados. Hit em 1,00 s.
+  special_awakening: {
+    loop: false,
+    length: 1.6,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.15, [0, -1.0, 0.1]], [0.32, [0, -0.85, 0.15]], [0.44, [0, -0.9, 0.12]], [0.5, [0, -0.82, 0.1]], [0.6, [0, -0.6, -0.8]], [0.7, [0, -0.55, -1.8]], [0.8, [0, -0.6, -1.0]], [0.9, [0, -0.52, -1.9]], [1.0, [0, -0.6, -1.1]], [1.1, [0, -0.3, -2.0]], [1.24, [0, -0.7, -1.2]], [1.6, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.32, [0, 4, 0]], [0.6, [0, -4, 0]], [0.7, [0, -10, 0]], [0.9, [0, 8, 0]], [1.1, [0, -8, 0]], [1.6, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.15, [12, -18, 0]], [0.32, [-18, -12, 0]], [0.44, [-22, -10, 0]], [0.5, [-18, -12, 0]], [0.6, [18, -16, 0]], [0.7, [20, -38, 0]], [0.8, [14, -20, 0]], [0.9, [16, 8, 0]], [1.0, [12, -18, 0]], [1.1, [6, -32, 0]], [1.24, [14, -22, 0]], [1.6, STANCE.body]],
+      head: [[0, STANCE.head], [0.15, [-4, 8, 0]], [0.32, [-30, 6, 0]], [0.44, [-34, 4, 0]], [0.5, [-28, 6, 0]], [0.6, [-6, 12, 0]], [0.7, [-10, 4, 0]], [0.9, [-8, 16, 0]], [1.1, [-14, 0, 0]], [1.6, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.15, [24, -26, 14]], [0.32, [48, -18, 10]], [0.44, [52, -16, 8]], [0.5, [46, -18, 10]], [0.6, [-24, -26, 12]], [0.7, [-96, -30, 0]], [0.8, [-70, -26, 8]], [0.9, [-52, -14, 10]], [1.0, [-74, -24, 8]], [1.1, [-132, -16, 4]], [1.24, [-70, -28, 10]], [1.6, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.32, [-14, 12, 0]], [0.44, [-10, 10, 0]], [0.6, [-40, 14, 0]], [0.7, [-8, 10, 0]], [0.9, [-60, 8, 0]], [1.1, [-46, 6, 0]], [1.24, [-78, 14, 0]], [1.6, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.15, [24, 26, -14]], [0.32, [48, 18, -10]], [0.44, [52, 16, -8]], [0.5, [46, 18, -10]], [0.6, [-24, 26, -12]], [0.7, [-54, 30, -8]], [0.8, [-64, 26, -8]], [0.9, [-88, 42, -8]], [1.0, [-62, 30, -8]], [1.1, [-58, 34, -10]], [1.24, [-74, 30, -10]], [1.6, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.32, [-14, -12, 0]], [0.44, [-10, -10, 0]], [0.6, [-40, -14, 0]], [0.7, [-62, -10, 0]], [0.9, [-10, -8, 0]], [1.1, [-70, -10, 0]], [1.24, [-80, -14, 0]], [1.6, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.15, [-10, 0, 18]], [0.6, [-8, 0, 16]], [0.7, [-16, 0, 12]], [0.9, [-12, 0, 12]], [1.1, [-18, 0, 10]], [1.6, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.15, [54, 0, 0]], [0.6, [42, 0, 0]], [0.7, [30, 0, 0]], [0.9, [26, 0, 0]], [1.1, [22, 0, 0]], [1.6, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.15, [-20, 0, -18]], [0.6, [-18, 0, -16]], [0.7, [-14, 0, -12]], [0.9, [-10, 0, -10]], [1.1, [-12, 0, -8]], [1.6, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.15, [64, 0, 0]], [0.6, [52, 0, 0]], [0.7, [40, 0, 0]], [0.9, [34, 0, 0]], [1.1, [30, 0, 0]], [1.6, STANCE.lShin]],
+    },
+  },
+
+  // Chute Meteoro (Nv3): agacha fundo (jump_antic), salta quase até o topo da janela (o
+  // `pet.lift` de stepLeap faz o salto de tela; o clipe só dá a pose), fica ~250 ms no ar e
+  // cai na diagonal com os dois pés em cima do alvo. Hit em 0,95 s.
+  special_meteor: {
+    loop: false,
+    length: 1.3,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.16, [0, -1.55, 0.25]], [0.3, [0, -1.65, 0.2]], [0.4, [0, -0.35, -0.6]], [0.5, [0, 0.45, -1.2]], [0.62, [0, 0.55, -1.5]], [0.72, [0, 0.5, -1.85]], [0.82, [0, -0.2, -3.2]], [0.95, [0, -1.25, -3.85]], [1.05, [0, -1.0, -3.5]], [1.3, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.16, [0, 8, 0]], [0.4, [0, -4, 0]], [0.5, [0, -8, 0]], [0.72, [0, -10, 0]], [0.95, [0, -4, 0]], [1.3, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.16, [28, -14, 0]], [0.3, [30, -12, 0]], [0.4, [-6, -8, 0]], [0.5, [-16, 0, 0]], [0.72, [-20, 0, 0]], [0.82, [12, -4, 0]], [0.95, [26, -8, 0]], [1.05, [18, -10, 0]], [1.3, STANCE.body]],
+      head: [[0, STANCE.head], [0.16, [12, 4, 0]], [0.4, [-12, 4, 0]], [0.5, [-16, 0, 0]], [0.72, [-18, 0, 0]], [0.82, [8, 2, 0]], [0.95, [18, 4, 0]], [1.3, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.16, [42, -30, 24]], [0.4, [-140, -18, 18]], [0.5, [-152, -14, 20]], [0.72, [-150, -14, 22]], [0.82, [-40, -20, 40]], [0.95, [-16, -14, 46]], [1.05, [-30, -20, 26]], [1.3, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.16, [-24, 12, 0]], [0.4, [-18, 10, 0]], [0.72, [-18, 10, 0]], [0.95, [-14, 8, 0]], [1.3, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.16, [42, 30, -24]], [0.4, [-140, 18, -18]], [0.5, [-152, 14, -20]], [0.72, [-150, 14, -22]], [0.82, [-40, 20, -40]], [0.95, [-16, 14, -46]], [1.05, [-30, 20, -26]], [1.3, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.16, [-24, -12, 0]], [0.4, [-18, -10, 0]], [0.72, [-18, -10, 0]], [0.95, [-14, -8, 0]], [1.3, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.16, [-42, 0, 14]], [0.3, [-46, 0, 16]], [0.4, [-24, 0, 10]], [0.5, [-72, 0, 8]], [0.62, [-76, 0, 8]], [0.72, [-80, 0, 8]], [0.82, [-98, 0, 12]], [0.95, [-92, 0, 14]], [1.05, [-48, 0, 12]], [1.3, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.16, [100, 0, 0]], [0.3, [104, 0, 0]], [0.4, [20, 0, 0]], [0.5, [78, 0, 0]], [0.72, [84, 0, 0]], [0.82, [-4, 0, 0]], [0.95, [-10, 0, 0]], [1.05, [62, 0, 0]], [1.3, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.16, [-46, 0, -14]], [0.3, [-50, 0, -16]], [0.4, [-26, 0, -10]], [0.5, [-60, 0, -8]], [0.62, [-64, 0, -8]], [0.72, [-68, 0, -8]], [0.82, [-98, 0, -12]], [0.95, [-92, 0, -14]], [1.05, [-48, 0, -12]], [1.3, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.16, [104, 0, 0]], [0.3, [108, 0, 0]], [0.4, [20, 0, 0]], [0.5, [86, 0, 0]], [0.72, [92, 0, 0]], [0.82, [-4, 0, 0]], [0.95, [-10, 0, 0]], [1.05, [64, 0, 0]], [1.3, STANCE.lShin]],
+    },
+  },
+
+  // Contra-Impacto Sísmico (Nv4) / guarda suprema: um pé atrás, os braços cruzados na
+  // frente do rosto, um joelho no chão, e uma ONDA de partículas sai do centro dela. Hit em 0,62 s.
+  special_guard: {
+    loop: false,
+    length: 1.25,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.16, [0, -0.6, 0.6]], [0.3, [0, -1.3, 0.5]], [0.45, [0, -1.85, 0.5]], [0.55, [0, -1.9, 0.5]], [0.62, [0, -1.0, 0.1]], [0.75, [0, -1.35, 0.2]], [1.25, STANCE.rootPos]],
+      rootRot: [[0, STANCE.rootRot], [0.16, [0, 10, 0]], [0.3, [0, 14, 0]], [0.62, [0, -6, 0]], [1.25, STANCE.rootRot]],
+      body: [[0, STANCE.body], [0.16, [14, -8, 0]], [0.3, [18, -10, 0]], [0.45, [22, -12, 0]], [0.55, [24, -12, 0]], [0.62, [-8, -20, 0]], [0.75, [12, -12, 0]], [1.25, STANCE.body]],
+      head: [[0, STANCE.head], [0.16, [4, 6, 0]], [0.3, [8, 4, 0]], [0.45, [12, 2, 0]], [0.62, [-16, 0, 0]], [0.75, [-2, 6, 0]], [1.25, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.16, [-96, -30, 16]], [0.3, [-128, -38, 18]], [0.45, [-132, -36, 16]], [0.55, [-134, -36, 16]], [0.62, [0, -62, 38]], [0.75, [-52, -28, 14]], [1.25, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.16, [-120, 12, 0]], [0.3, [-142, 10, 0]], [0.45, [-146, 10, 0]], [0.62, [-16, 6, 0]], [0.75, [-74, 12, 0]], [1.25, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.16, [-94, 34, -16]], [0.3, [-124, 40, -16]], [0.45, [-128, 38, -16]], [0.55, [-130, 38, -16]], [0.62, [0, 62, -38]], [0.75, [-50, 30, -14]], [1.25, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.16, [-118, -12, 0]], [0.3, [-140, -10, 0]], [0.45, [-144, -10, 0]], [0.62, [-16, -6, 0]], [0.75, [-72, -12, 0]], [1.25, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.16, [-12, 0, 10]], [0.3, [-16, 0, 10]], [0.45, [-40, 0, 8]], [0.55, [-42, 0, 8]], [0.62, [-30, 0, 10]], [1.25, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.16, [46, 0, 0]], [0.3, [52, 0, 0]], [0.45, [76, 0, 0]], [0.55, [78, 0, 0]], [0.62, [58, 0, 0]], [1.25, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.16, [18, 0, -10]], [0.3, [22, 0, -10]], [0.45, [24, 0, -8]], [0.55, [24, 0, -8]], [0.62, [10, 0, -12]], [1.25, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.16, [52, 0, 0]], [0.3, [56, 0, 0]], [0.45, [84, 0, 0]], [0.55, [86, 0, 0]], [0.62, [62, 0, 0]], [1.25, STANCE.lShin]],
+    },
+  },
+
   // Hit reaction: the head and torso snap back, the arms flail, then she settles.
   combat_hit_stagger: {
     loop: false,
@@ -410,8 +497,13 @@ export const COMBAT_META = {
   attack_hook: { kind: 'attack', durationMs: 720, hitFrameMs: 340, comboWindowMs: null, next: null },
   attack_high_kick: { kind: 'attack', durationMs: 660, hitFrameMs: 300, comboWindowMs: null, next: null },
   attack_dropkick: { kind: 'attack', durationMs: 900, hitFrameMs: 520, comboWindowMs: null, next: null },
-  // cast_special already brings its own charge inside the clip (see melee.startCharge).
+  // cast_special já traz a própria carga dentro do clipe (ver melee.startCharge).
   cast_special: { kind: 'attack', durationMs: 850, hitFrameMs: 620, comboWindowMs: null, next: null, charge: true },
+  // Manobras especiais (só com a Fúria): cada uma tem uma coreografia própria.
+  special_breaker: { kind: 'attack', durationMs: 950, hitFrameMs: 520, comboWindowMs: null, next: null },
+  special_awakening: { kind: 'attack', durationMs: 1600, hitFrameMs: 1000, comboWindowMs: null, next: null },
+  special_meteor: { kind: 'attack', durationMs: 1300, hitFrameMs: 950, comboWindowMs: null, next: null },
+  special_guard: { kind: 'attack', durationMs: 1250, hitFrameMs: 620, comboWindowMs: null, next: null },
   // A guarda segura a pose durante a carga do inimigo (o bloqueio vem ANTES do dano).
   combat_block: { kind: 'defense', durationMs: 450, hitFrameMs: null, comboWindowMs: null },
   // O passo de esquiva (a opacidade e o "Miss!" ficam no melee.js).

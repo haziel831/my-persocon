@@ -240,6 +240,36 @@ export class CombatUI {
     return el;
   }
 
+  // ---------- o anúncio DOURADO das manobras especiais ----------
+  // No lugar do textinho que sobe da cabeça: um painel com moldura dourada, texto #FFD700
+  // e o brilho de raios de ouro. É o anúncio "definitivo" da manobra especial.
+  specialBanner(text, { x = null, y = null, ms = 2100 } = {}) {
+    if (typeof document === 'undefined') return null;
+    const el = document.createElement('div');
+    el.className = 'combat-special';
+    const kicker = document.createElement('small');
+    kicker.textContent = '-- MANOBRA ESPECIAL --';
+    const name = document.createElement('b');
+    name.textContent = text;
+    el.append(kicker, name);
+    const cx = x ?? (typeof innerWidth !== 'undefined' ? innerWidth / 2 : 0);
+    const cy = y ?? (typeof innerHeight !== 'undefined' ? innerHeight * 0.42 : 0);
+    // Nunca deixa o painel sair pela borda (ele é mais largo que o textinho normal).
+    const W = typeof innerWidth !== 'undefined' ? innerWidth : 0;
+    const H = typeof innerHeight !== 'undefined' ? innerHeight : 0;
+    const half = Math.min(170, Math.max(0, W / 2 - 8));
+    el.style.left = `${Math.round(W ? Math.min(W - half, Math.max(half, cx)) : cx)}px`;
+    el.style.top = `${Math.round(Math.max(56, cy))}px`;
+    document.body.append(el);
+    // As faíscas douradas do anúncio.
+    const ray = document.createElement('i');
+    ray.className = 'special-glow';
+    el.append(ray);
+    setTimeout(() => el.classList.add('out'), ms);
+    setTimeout(() => el.remove(), ms + 420);
+    return el;
+  }
+
   // ---------- o banner de VITÓRIA ----------
 
   victoryBanner(xpLines = []) {
