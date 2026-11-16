@@ -1643,6 +1643,32 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
 }
 
 /* ================= combate JRPG (v1.9.23) ================= */
+/* A caixa de log das ações: logo ACIMA dos retratos da fila de turnos. */
+.combat-log {
+  position: fixed; z-index: 9994; pointer-events: none; user-select: none;
+  left: 50%; bottom: calc(50% + 44px); transform: translateX(-50%);
+  width: max-content; min-width: 200px; max-width: min(420px, 76vw);
+  padding: 5px 10px 6px; border-radius: 9px;
+  background: linear-gradient(180deg, rgba(12, 11, 20, 0.92), rgba(6, 6, 12, 0.92));
+  border: 1px solid rgba(255, 215, 94, 0.34);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(255, 215, 94, 0.07);
+  font: 11px PxEmoji, Consolas, monospace;
+  animation: combat-log-in 0.22s ease-out;
+}
+.combat-log .cl-lines { display: grid; gap: 1px; }
+.combat-log .cl-line { color: #d9d9ea; line-height: 1.35; white-space: normal; word-break: break-word; }
+.combat-log .cl-line i { font-style: normal; margin-right: 5px; opacity: 0.7; }
+.combat-log .cl-line.ally { color: #bff4cf; }
+.combat-log .cl-line.ally i { color: #38e06c; }
+.combat-log .cl-line.enemy { color: #ffc6c9; }
+.combat-log .cl-line.enemy i { color: #ff5f68; }
+.combat-log .cl-line.special {
+  color: #ffd700; text-shadow: 0 0 6px rgba(255, 200, 40, 0.85), 1px 1px 0 #3a2600;
+}
+.combat-log .cl-line.special i { color: #ffd700; }
+@keyframes combat-log-in {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+}
 /* A fila de turnos no topo do campo de batalha. */
 /* A fila de turnos no topo do campo de batalha — fica no meio da tela (na faixa do campo). */
 .turn-queue {

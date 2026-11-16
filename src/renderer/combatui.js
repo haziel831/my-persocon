@@ -163,6 +163,46 @@ export class CombatUI {
     this.queueEl = null;
   }
 
+  // ---------- a caixa de log das ações (acima dos retratos) ----------
+  // Cada ação vira uma linha: "Aghata usou Jab", "Unknown usou Investida Viscosa".
+  // O textinho que sobe acima da cabeça continua sendo o do melee; isto é o histórico.
+  showLog() {
+    if (typeof document === 'undefined') return null;
+    if (this.logEl) return this.logEl;
+    const el = document.createElement('div');
+    el.className = 'combat-log';
+    el.setAttribute('role', 'log');
+    el.setAttribute('aria-live', 'polite');
+    const lines = document.createElement('div');
+    lines.className = 'cl-lines';
+    el.append(lines);
+    document.body.append(el);
+    this.logEl = el;
+    this.logLinesEl = lines;
+    return el;
+  }
+
+  // side: 'ally' (ela/Corvo), 'enemy' ou 'special' (manobra dourada).
+  combatLog(text, side = 'ally') {
+    if (!text) return;
+    const box = this.showLog();
+    if (!box) return;
+    const line = document.createElement('div');
+    line.className = `cl-line ${side}`;
+    const mark = document.createElement('i');
+    mark.textContent = side === 'enemy' ? '▸' : '◆';
+    line.append(mark, document.createTextNode(text));
+    this.logLinesEl.append(line);
+    // No máximo 4 linhas: a mais velha sai por cima.
+    while (this.logLinesEl.childElementCount > 4) this.logLinesEl.firstElementChild.remove();
+  }
+
+  hideLog() {
+    this.logEl?.remove();
+    this.logEl = null;
+    this.logLinesEl = null;
+  }
+
   // ---------- o anel de chão ----------
 
   ring(x, y) {
@@ -659,6 +699,7 @@ export class CombatUI {
 
   clear() {
     this.hideQueue();
+    this.hideLog();
     this.hideRing();
     this.hideFoeBars();
     this.hideVictory();

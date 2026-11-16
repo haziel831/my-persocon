@@ -369,6 +369,22 @@ export class Melee {
     return `foe${this.foeIdx}`;
   }
 
+  // O nome dela e o do inimigo da vez (para o log de ações).
+  persoName() {
+    return this.app.config?.name || this.pet?.cfg?.name || 'Persocon';
+  }
+
+  foeName() {
+    const f = this.kind === 'unknown' ? this.foes[this.foeIdx] : null;
+    return f?.name || this.opp?.name || 'Inimigo';
+  }
+
+  // Registra a ação na caixa de log acima dos retratos da fila (combatui).
+  // side: 'ally' (ela/Corvo), 'enemy' ou 'special' (manobra dourada).
+  logAction(text, side = 'ally') {
+    this.ui?.combatLog?.(text, side);
+  }
+
   // Os atores da fila para o topo da tela.
   queueActors() {
     const pet = this.pet;
@@ -423,12 +439,13 @@ export class Melee {
     return this.ui?.ring(this.oppX() ?? pet.x, this.oppY() + 6);
   }
 
-  // Uma fala do Corvo (o texto fica acima dele).
-  sayCrow(iconText, text = '') {
+  // Uma fala do Corvo (o texto fica acima dele). log = também entra no log de ações.
+  sayCrow(iconText, text = '', log = false) {
     const crow = this.app.crow;
     if (!crow) return;
     const line = iconText ? `${iconText} ${text}`.trim() : text;
     this.say(crow.x, crow.y - this.pet.P * 1.35, line, 'good');
+    if (log) this.logAction(text || line, 'ally');
   }
 
   // XP do Corvo pelas lutas (combate e suporte).
@@ -498,6 +515,7 @@ export class Melee {
     this.phase = 'victory';
     this.t = 0;
     this.ui?.hideQueue();
+    this.ui?.hideLog?.();
     this.ui?.hideRing();
     this.ui?.hideFoeBars();
     try {
@@ -939,7 +957,7 @@ export class Melee {
     };
     if (skill === 'busca') {
       const item = meds[0];
-      this.sayCrow('🎒', `Corvo usa ${item.name}!`);
+      this.sayCrow('🎒', `Corvo usa ${item.name}!`, true);
       this.crowGain('busca');
       crow.play?.('fly', 1.8);
       // Passa por cima da cabeça dela e solta o item na mão.
@@ -959,7 +977,7 @@ export class Melee {
       return;
     }
     if (skill === 'grito') {
-      this.sayCrow('📢', 'Corvo usa Grito de Alerta!');
+      this.sayCrow('📢', 'Corvo usa Grito de Alerta!', true);
       this.crowGain('grito');
       crow.play?.('fly', 1.8);
       // Passa por cima dela e deixa as partículas do buff nela.
@@ -977,7 +995,7 @@ export class Melee {
       return;
     }
     if (skill === 'provocacao') {
-      this.sayCrow('💨', 'Corvo usa Provocação Aérea!');
+      this.sayCrow('💨', 'Corvo usa Provocação Aérea!', true);
       this.crowGain('provocacao');
       crow.play?.('fly', 2);
       // Um círculo rápido sobre a cabeça do inimigo, soltando penas escuras.
@@ -1012,7 +1030,7 @@ export class Melee {
     }
     if (skill === 'penas') {
       const dmg = 2 + Math.floor(Math.random() * 2) + Math.floor(this.level / 2);
-      this.sayCrow('🗡', 'Corvo usa Penas Cortantes!');
+      this.sayCrow('🗡', 'Corvo usa Penas Cortantes!', true);
       this.crowGain('penas');
       // Rajada de penas pretas: bate as asas e o dano só cai no impacto.
       crow.play?.('fly', 2.8);
@@ -1027,7 +1045,7 @@ export class Melee {
     }
     if (skill === 'bicada') {
       const dmg = 1 + Math.floor(Math.random() * 3);
-      this.sayCrow('👁', 'Corvo usa Bicada nos Olhos!');
+      this.sayCrow('👁', 'Corvo usa Bicada nos Olhos!', true);
       this.crowGain('bicada');
       dive(dmg, { accPen: 0.3, accTurns: 2 });
       this.finishCrowTurn();
@@ -1035,7 +1053,7 @@ export class Melee {
     }
     // Rasante Sombrio: a investida leve e rápida.
     const dmg = 5 + Math.floor(Math.random() * 3) + Math.floor(this.level / 2);
-    this.sayCrow('🪶', 'Corvo usa Rasante Sombrio!');
+    this.sayCrow('🪶', 'Corvo usa Rasante Sombrio!', true);
     this.crowGain('rasante');
     dive(dmg);
     this.finishCrowTurn();
@@ -1079,6 +1097,7 @@ export class Melee {
     };
     this.moveDur = 0.5;
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, this.move.name, 'bad');
+    this.logAction(`${this.foeName()} usou ${this.move.name}`, 'enemy');
     this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
     if (glitch) this.app.sound?.tone8?.(900, 200, 0.18, 'sawtooth', 0.05);
     this.startFoeCharge(foe);
@@ -1670,6 +1689,7 @@ export class Melee {
     this.moveDur = (this.metaOf(move)?.durationMs ?? 400) / 1000;
     // O nome do golpe: maior e piscando (é uma arte de combate).
     this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good', { big: move.kind === 'attack' });
+    this.logAction(`${this.persoName()} usou ${move.name}`);
     // A carga vem antes: a animação do golpe só começa depois dela.
     this.startCharge(move.kind === 'attack' ? CHARGE_TIME : 0);
   }
@@ -1822,6 +1842,7 @@ export class Melee {
     this.moveDur = (this.metaOf(this.move)?.durationMs ?? 500) / 1000;
     // A manobra é anunciada no banner DOURADO (não no texto normal de golpe).
     this.say(pet.x, pet.y - pet.P * 1.15, `${man.name}!`, 'good', { big: true, special: true, skill: man });
+    this.logAction(`${this.persoName()} usou ${man.name} (manobra especial)`, 'special');
     // A manobra carrega mais: a aura dourada dura um pouco mais.
     this.startCharge(CHARGE_MANEUVER);
   }
@@ -1850,6 +1871,7 @@ export class Melee {
     this.next = TURN.OPPONENT;
     this.hitResolved = true;          // no strike this turn
     this.say(pet.x, pet.y - pet.P * 1.05, `Usou ${item.name}`, 'good');
+    this.logAction(`${this.persoName()} usou ${item.name}`);
     // A animação de uso: ela leva o item à boca e segura (~450 ms) com o ícone em cima.
     pet.playAnimation?.('use_item', { facing: this.facing() > 0 ? 'right' : 'left', restart: true });
     this.ui?.itemPop(pet.x, pet.y - pet.P * 1.6, item.img);
@@ -1874,6 +1896,7 @@ export class Melee {
     this.move = { id: 'brace', name: 'Defende', kind: 'defend', clip: 'combat_block', dmg: 0 };
     this.moveDur = 0.45;
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, 'O boneco se defende', 'bad');
+    this.logAction(`${this.foeName()} se defendeu`, 'enemy');
     this.app.sound?.tone8?.(220, 160, 0.12, 'triangle', 0.05);
     // She waits in the fighting stance while the dummy braces.
     pet.anim('idle', { facing: this.facing() > 0 ? 'right' : 'left', restart: false });
@@ -1899,6 +1922,7 @@ export class Melee {
     this.moveDur = 0.5;
     this._scrapAcc = accBase;
     this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, callout, 'bad');
+    this.logAction(`${this.foeName()} usou ${callout}`, 'enemy');
     this.app.sound?.tone8?.(posture === 'brutal' ? 110 : 150, 90, 0.12, 'square', 0.07);
     this.startFoeCharge(this.opp);
   }
@@ -2032,6 +2056,7 @@ export class Melee {
     this.hitStreak = 0;
     // A ativação continua no texto normal (só a MANOBRA usa o banner dourado).
     this.say(this.pet.x, this.pet.y - this.pet.P * 1.3, '[FÚRIA ATIVADA!]', 'good', { special: false });
+    this.logAction(`${this.persoName()} entrou em FÚRIA!`, 'special');
     // O som de ativação: o golpe grave que acompanha a aura dourada.
     this.app.sound?.play?.('fury', { volume: 0.6 });
     this.showFury();
