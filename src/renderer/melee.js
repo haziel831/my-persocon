@@ -1100,6 +1100,11 @@ export class Melee {
     this.logAction(`${this.foeName()} usou ${this.move.name}`, 'enemy');
     this.app.sound?.tone8?.(150, 90, 0.12, 'square', 0.07);
     if (glitch) this.app.sound?.tone8?.(900, 200, 0.18, 'sawtooth', 0.05);
+    // O Projétil da Peste é conjurado: ele ergue os braços (folha `summon`) antes de cuspir.
+    if (plague) {
+      try { foe?.enemy?.play?.('summon'); } catch { /* sprite */ }
+      this.app.sound?.tone8?.(520, 260, CHARGE_TIME, 'triangle', 0.04);
+    }
     this.startFoeCharge(foe);
   }
 
@@ -1986,6 +1991,12 @@ export class Melee {
       this.app.sound?.tone8?.(520, 220, 0.1, 'square', 0.07);
     }
     this.app.fx?.shake?.(0.3);
+    // O Grim recua de verdade ao ter o golpe defendido (folha `knock`).
+    if (this.opp?.grim) {
+      try { this.opp.enemy?.play?.('knock'); } catch { /* sprite */ }
+      // O recuo de verdade (a folha `knock` é só a pose).
+      if (this.opp.enemy?.x != null) this.opp.enemy.x += facing * 12;
+    }
     // Blocking or dodging breaks the streak of hits: no Fúria.
     this.hitStreak = 0;
     // Esquivar/bloquear treina a Destreza (bloquear rende metade).

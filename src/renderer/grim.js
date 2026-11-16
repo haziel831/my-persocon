@@ -120,7 +120,7 @@ export class Grim {
   // ---------- o desenho ----------
 
   draw() {
-    if (!this.view) return;
+    if (!this.view || typeof this.view.save !== 'function') return;
     const g = this.view;
     const def = ANIMS[this.anim] || ANIMS.idle;
     const img = this.sheet(this.anim);
