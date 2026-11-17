@@ -284,7 +284,8 @@ export async function startPet(files, config) {
     },
     // Debug: preview a close-combat clip and fire its hit frame (VFX/SFX hook).
     previewCombat(name) {
-      if (!view.animator.has(name)) return false;
+      // O preview do debug ignora o liga/desliga das animações (só o clipe precisa existir).
+      if (!view.animator.clips.has(name)) return false;
       app.previewAnim(name);
       const meta = COMBAT_META[name];
       if (meta?.hitFrameMs != null) {
@@ -294,6 +295,23 @@ export async function startPet(files, config) {
         }, meta.hitFrameMs);
       }
       return true;
+    },
+    // Debug: entra no COMBAT_MODE na hora, contra o Sucataoxidado, sem boneco nem energia.
+    debugFight() {
+      const melee = app.melee;
+      if (!melee) return false;
+      if (melee.active) melee.stop('cancelled');
+      if (pet.dead) pet.revive?.();
+      if (pet.unconscious) pet.reviveUnconscious?.();
+      // Ela larga o que estava fazendo (sem congelar a IA: a luta assume em seguida).
+      app.unknown?.interruptPet?.();
+      pet.resume?.();
+      app.toys?.screen?.stop?.();
+      // Sem energia a luta pararia na hora ("cansada"): o debug começa com gás.
+      if (pet.stats.energy < 50) { pet.stats.energy = 80; app.game.changed?.(); }
+      const ok = melee.startSparring(true);
+      if (ok) pet.setCombat?.(true, 'combat');
+      return ok;
     },
     stopPreview() {
       const p = app.previewing;
@@ -1772,6 +1790,14 @@ api.onTrayClick?.(() => {
   window.addEventListener('pointerup', endPress);
   window.addEventListener('pointercancel', endPress);
   window.addEventListener('keydown', (e) => {
+    // Porta do menu de debug (só com o debug ligado): Ctrl+Shift+D abre as Opções no Debug.
+    if (config.debug && e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+      e.preventDefault();
+      if (menu.open && menu.category === 'opcoes') return menu.close();
+      app.openMenu('opcoes');
+      setTimeout(() => menu.el?.querySelector('.group.debug')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 80);
+      return;
+    }
     if (pet.chase?.qte && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
       if (!e.repeat && qteInput && !qteInput.hostKeys) qteKey(e.key === 'ArrowLeft' ? 'left' : 'right');

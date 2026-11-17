@@ -703,17 +703,20 @@ export class Melee {
   // ---------------- the heavy training (real sparring) ----------------
 
   // "Treino Pesado": a real fight against the upgraded Scrap Dummy. It attacks back.
-  startSparring() {
+  // `force` (só o menu de debug) ignora o boneco colocado e a energia.
+  startSparring(force = false) {
     const { pet, game, toys } = this.app;
     const dummy = game?.toys?.boneco_treino;
-    if (!dummy?.placed || dummy.broken) return false;
-    if (!dummy.up) {
-      toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '🔧 Precisa do boneco Sucataoxidado');
-      return false;
-    }
-    if (pet.stats.energy < 30) {
-      toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '😵 Precisa de ≥30% de energia');
-      return false;
+    if (!force) {
+      if (!dummy?.placed || dummy.broken) return false;
+      if (!dummy.up) {
+        toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '🔧 Precisa do boneco Sucataoxidado');
+        return false;
+      }
+      if (pet.stats.energy < 30) {
+        toys?.furn?.floatText?.(pet.x, pet.y - pet.P, '😵 Precisa de ≥30% de energia');
+        return false;
+      }
     }
     // The Scrap Dummy is one level below hers (at level 1 and 2 it is her equal).
     const lvl = this.level;

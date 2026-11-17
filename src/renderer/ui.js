@@ -1571,6 +1571,7 @@ export class Menu {
         ...DUOS.filter((d) => !d.alive || alive).map((d) => btn(d.name, () => doll.brain.startDuo(d.id, true)))) : null,
       this.animRows(),
       this.combatRows(),
+      this.combatDebugRows(),
       h('div.group', {}, 'Changelog'),
       ...CHANGES.map(([v, items]) => h('div.note', {}, h('b', {}, `v${v}: `),
         items.map((x) => (app.config.lang === 'en' ? x[1] : x[0])).join(' · '))),
@@ -1630,6 +1631,36 @@ export class Menu {
         }),
         btn('▶ Soco (jab → cross → uppercut)', () => app.previewCombat?.('attack_jab')),
       ),
+    ];
+  }
+
+  // Debug: luta na hora e prévia de TODOS os golpes/skills, ignorando desbloqueio e liga/desliga.
+  combatDebugRows() {
+    const { app } = this;
+    const clips = new Set((app.animList?.() || []).map((a) => a.name));
+    const moves = [];
+    for (const def of Object.values(SKILL_DEFS)) {
+      for (const m of def.moves || []) moves.push({ name: m.name, clip: m.clip, tag: `${def.art} · Nv ${m.lvl}` });
+    }
+    for (const m of MANEUVERS) moves.push({ name: m.name, clip: m.clip, tag: `Manobra · Nv ${m.lvl}` });
+    const list = moves.filter((m) => clips.has(m.clip));
+    const btn = (label, fn, title = '') => h('button.chip', {
+      title,
+      onclick: () => { this.done(); setTimeout(fn, 80); },
+    }, label);
+    return [
+      h('div.group.debug', {}, `Combate — debug (${list.length})`),
+      h('div.note', {}, '⚔ Forçar combate entra no COMBAT_MODE contra o Sucataoxidado, sem precisar do boneco nem de energia. ▶ toca qualquer golpe ou manobra, mesmo bloqueado e mesmo com a animação desligada.'),
+      h('div.filters', {},
+        btn('⚔ Forçar combate', () => app.debugFight?.() || app.speech?.say('Não deu para começar', 2)),
+        btn('Sair do COMBAT_MODE', () => { app.melee?.stop?.('cancelled'); this.render(); }),
+        app.previewing ? h('button.chip', { onclick: () => { app.stopPreview(); this.render(); } }, '⏹ Parar prévia') : null),
+      list.length
+        ? h('div.filters', {}, list.map((m) => h('button.chip', {
+          title: m.tag,
+          onclick: () => { this.done(); setTimeout(() => app.previewCombat?.(m.clip), 80); },
+        }, `▶ ${m.name}`)))
+        : h('div.note', {}, 'O modelo atual não tem os clipes de combate.'),
     ];
   }
 
