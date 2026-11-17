@@ -71,6 +71,11 @@ Detalhes em `ChangeLogs\v1.9.23.md`.
 **Nível de combate ajustável na mão.** No Perfil › Combate, cada arte (inclusive **Combate Corpo a Corpo**) e o próprio nível de Combate ganharam **−1/+1** — o nível muda exatamente um por clique, de 1 a 10.
 **Inimigo novo: o Grim.** Ele sai do cartucho preto mais duro (vida ×1,6, ataque ×1,3, defesa +0,04, um nível acima), com **Golpe da Peste** de perto e **Projétil da Peste** de longe — e, ao contrário das gosmas, **não estoura** em Glitch Surge. As falas de combate dele são próprias.
 **Escolha do inimigo.** No menu da TV e no painel da arena dá para escolher **Misturado** (gosmas, com Grim só da onda 4 em diante), **só gosmas** ou **só Grim** — o ajuste fica no perfil.
+**Golpe ainda mais barato e exaustão dela.** O custo base por turno caiu para **1,2** (piso 0,4) e a exaustão agora **enfraquece os golpes dela** (metade do dano), não o do inimigo. O **nocaute** só acontece na luta de verdade; o treino contra o Boneco **para sozinho** quando a energia zera.
+**Banners que somem.** Os banners de **vitória** e **derrota** fecham sozinhos em **30 s** ou com um clique (com a dica "clique para fechar").
+**Atributos na mão.** **Força**, **Constituição** e **Agilidade** ganharam **−1/+1** dentro da caixa do atributo, no Perfil.
+**Grim com conjuração e recuo.** Ele **ergue os braços** antes do Projétil da Peste e **recua** (animação própria) quando ela bloqueia ou esquiva.
+**Menu de debug com porta própria.** Com o debug ligado, **Ctrl+Shift+D** abre as Opções no Debug: **⚔ Forçar combate** entra no COMBAT_MODE contra o Sucataoxidado sem boneco nem energia, e **▶** toca **qualquer golpe ou manobra**, mesmo bloqueado e mesmo com a animação desligada.
 Detalhes em `ChangeLogs\v1.9.24.md`.
 
 ## v1.9.22 — 13/11/2026
