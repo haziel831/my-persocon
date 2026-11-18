@@ -6,3 +6,4 @@ src-tauri/gen/
 test/shots/
 *_out.txt
 *_err.txt
+_dev_snapshots/
