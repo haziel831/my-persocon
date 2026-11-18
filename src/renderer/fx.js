@@ -45,6 +45,17 @@ const boomImage = (kind) => {
   return boomImages[kind];
 };
 
+// Tinta dos golpes de espada: cor base + brilho (usada nos arcos, faíscas e flashes).
+const BLADE_TINT = {
+  cyan: ['#aef6ff', 'rgba(70, 220, 255, 0.95)'],
+  white: ['#ffffff', 'rgba(215, 240, 255, 0.95)'],
+  crimson: ['#ff9ab0', 'rgba(255, 40, 90, 0.95)'],
+  gold: ['#ffeaa6', 'rgba(255, 200, 60, 0.95)'],
+  purple: ['#d3b6ff', 'rgba(150, 90, 255, 0.95)'],
+  blue: ['#9fd0ff', 'rgba(60, 150, 255, 0.95)'],
+};
+const tintOf = (c) => BLADE_TINT[c] || BLADE_TINT.cyan;
+
 export class Fx {
   constructor(app) {
     this.app = app;
@@ -343,6 +354,184 @@ export class Fx {
       else setTimeout(() => cv.remove(), 60);
     };
     tick();
+  }
+
+  // ---------- lâmina: VFX do combate de espada ----------
+
+  // O crescente luminoso do corte. É um SVG (arco grosso colorido + fio branco) que gira
+  // no ângulo do golpe e se abre/fecha em ~260 ms.
+  slashArc(x, y, size = 130, opts = {}) {
+    if (typeof document === 'undefined') return null;
+    const ns = 'http://www.w3.org/2000/svg';
+    const [base, glow] = tintOf(opts.color || 'cyan');
+    const s = Math.max(30, Math.round(size));
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('class', `fx-slash${opts.mirror ? ' mirror' : ''}`);
+    svg.style.width = `${s}px`;
+    svg.style.height = `${s}px`;
+    svg.style.left = `${Math.round(x - s / 2)}px`;
+    svg.style.top = `${Math.round(y - s / 2)}px`;
+    svg.style.setProperty('--rot', `${opts.angle ?? -18}deg`);
+    svg.style.setProperty('--glow', glow);
+    if (opts.ms) svg.style.animationDuration = `${opts.ms}ms`;
+    const d = opts.path || 'M 6 84 Q 50 -8 94 84';
+    for (const [width, color, opacity] of [[7, base, 0.95], [2.2, '#ffffff', 1]]) {
+      const p = document.createElementNS(ns, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', color);
+      p.setAttribute('stroke-width', String(width));
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('opacity', String(opacity));
+      svg.append(p);
+    }
+    document.body.append(svg);
+    setTimeout(() => svg.remove(), (opts.ms || 300) + 140);
+    return svg;
+  }
+
+  // O X de dois cortes (combo): dois crescentes cruzados, um logo depois do outro.
+  slashX(x, y, size = 150, opts = {}) {
+    this.slashArc(x, y, size, { ...opts, angle: -40, ms: opts.ms ?? 380 });
+    setTimeout(() => this.slashArc(x, y, size, { ...opts, angle: 40, mirror: true, ms: opts.ms ?? 380 }), opts.stagger ?? 70);
+  }
+
+  // O brilho metálico (embainhar a espada, aparar): uma estrela de quatro pontas.
+  glint(x, y, size = 46, color = 'white') {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.className = 'fx-glint';
+    const s = Math.max(16, Math.round(size));
+    el.style.width = `${s}px`;
+    el.style.height = `${s}px`;
+    el.style.left = `${Math.round(x - s / 2)}px`;
+    el.style.top = `${Math.round(y - s / 2)}px`;
+    el.style.setProperty('--glow', tintOf(color)[1]);
+    document.body.append(el);
+    setTimeout(() => el.remove(), 460);
+  }
+
+  // Faíscas direcionais do impacto: saem num cone (angle) na direção do corte.
+  sparks(x, y, opts = {}) {
+    if (typeof document === 'undefined') return;
+    const n = opts.count ?? 16;
+    const [base, glow] = tintOf(opts.color || 'white');
+    const ang = opts.angle ?? -Math.PI / 2;
+    const spread = opts.spread ?? 1.15;
+    const reach = opts.reach ?? 74;
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('div');
+      el.className = 'fx-hit-spark';
+      const a = ang + (Math.random() - 0.5) * spread;
+      const r = reach * (0.45 + Math.random() * 0.8);
+      el.style.left = `${Math.round(x)}px`;
+      el.style.top = `${Math.round(y)}px`;
+      el.style.background = i % 3 === 0 ? '#ffffff' : base;
+      el.style.boxShadow = `0 0 6px 2px ${glow}`;
+      el.style.setProperty('--dx', `${Math.round(Math.cos(a) * r)}px`);
+      el.style.setProperty('--dy', `${Math.round(Math.sin(a) * r)}px`);
+      el.style.setProperty('--del', `${(Math.random() * 0.05).toFixed(2)}s`);
+      document.body.append(el);
+      setTimeout(() => el.remove(), 600);
+    }
+  }
+
+  // O flash diagonal que atravessa o hitbox no impacto (hit-stop visual).
+  impactSlash(x, y, size = 120, opts = {}) {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.className = 'fx-impact-slash';
+    const w = Math.round(size);
+    const h = Math.round(size * 0.42);
+    el.style.width = `${w}px`;
+    el.style.height = `${h}px`;
+    el.style.left = `${Math.round(x - w / 2)}px`;
+    el.style.top = `${Math.round(y - h / 2)}px`;
+    el.style.setProperty('--rot', `${opts.angle ?? -32}deg`);
+    el.style.setProperty('--glow', tintOf(opts.color || 'white')[1]);
+    document.body.append(el);
+    setTimeout(() => el.remove(), 460);
+  }
+
+  // Uma silhueta fantasma: recorta o próprio canvas do renderer (preserveDrawingBuffer) e
+  // pinta a cópia em ciano/roxo, sumindo em 250–300 ms.
+  afterimage(source, sx, sy, sw, sh, x, y, w, h, opts = {}) {
+    if (typeof document === 'undefined' || !source) return null;
+    try {
+      const c = this._ghostCanvas || (this._ghostCanvas = document.createElement('canvas'));
+      c.width = Math.max(1, Math.round(sw));
+      c.height = Math.max(1, Math.round(sh));
+      const g = c.getContext('2d');
+      g.clearRect(0, 0, c.width, c.height);
+      g.drawImage(source, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      const el = document.createElement('img');
+      el.className = `fx-afterimage ${opts.color || 'cyan'}`;
+      el.src = c.toDataURL('image/png');
+      el.style.left = `${Math.round(x)}px`;
+      el.style.top = `${Math.round(y)}px`;
+      el.style.width = `${Math.round(w)}px`;
+      el.style.height = `${Math.round(h)}px`;
+      el.style.setProperty('--a', String(opts.alpha ?? 0.5));
+      el.style.setProperty('--dx', `${Math.round(opts.dx ?? 0)}px`);
+      document.body.append(el);
+      setTimeout(() => el.remove(), 340);
+      return el;
+    } catch {
+      return null;
+    }
+  }
+
+  // O fantasma dela mesma (atalho: pega a região do corpo no canvas do renderer).
+  ghost(opts = {}) {
+    const { view } = this.app;
+    if (typeof document === 'undefined' || !view?.canvas) return null;
+    const r = devicePixelRatio || 1;
+    const P = view.petHeight;
+    const w = P * 0.92;
+    const h = P * 1.2;
+    const x = view.feetX - w / 2;
+    const y = view.feetY - h;
+    return this.afterimage(view.canvas, x * r, y * r, w * r, h * r, x, y, w, h, opts);
+  }
+
+  // O corte laser horizontal (Corte Relâmpago): uma linha que varre a tela de um ponto ao outro.
+  laserLine(x1, y1, x2, y2, opts = {}) {
+    if (typeof document === 'undefined') return null;
+    const el = document.createElement('div');
+    el.className = 'fx-laser';
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const ang = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+    el.style.left = `${Math.round(x1)}px`;
+    el.style.top = `${Math.round(y1)}px`;
+    el.style.width = `${Math.round(len)}px`;
+    el.style.setProperty('--rot', `${ang.toFixed(1)}deg`);
+    el.style.setProperty('--glow', tintOf(opts.color || 'white')[1]);
+    if (opts.ms) el.style.animationDuration = `${opts.ms}ms`;
+    document.body.append(el);
+    setTimeout(() => el.remove(), (opts.ms || 520) + 160);
+    return el;
+  }
+
+  // O vórtice do Giro Supremo: três anéis de energia girando em velocidades diferentes,
+  // abrindo para fora enquanto a lâmina passa.
+  vortex(x, y, size = 210, ms = 900, color = 'crimson') {
+    if (typeof document === 'undefined') return null;
+    const el = document.createElement('div');
+    el.className = `fx-vortex ${color}`;
+    const s = Math.round(size);
+    el.style.width = `${s}px`;
+    el.style.height = `${s}px`;
+    el.style.left = `${Math.round(x - s / 2)}px`;
+    el.style.top = `${Math.round(y - s / 2)}px`;
+    el.style.setProperty('--ms', `${ms}ms`);
+    el.style.setProperty('--ms-slow', `${Math.round(ms * 0.7)}ms`);
+    el.style.setProperty('--ms-fast', `${Math.round(ms * 0.45)}ms`);
+    el.style.setProperty('--glow', tintOf(color)[1]);
+    for (let i = 0; i < 3; i++) el.append(document.createElement('i'));
+    document.body.append(el);
+    setTimeout(() => el.remove(), ms + 220);
+    return el;
   }
 
   // The screen (and the pet) shake on a heavy hit.

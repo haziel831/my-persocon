@@ -521,6 +521,10 @@ export const COMBAT_META = {
   sword_slash: { kind: 'attack', durationMs: 600, hitFrameMs: 300, comboWindowMs: null, next: null },
   sword_thrust: { kind: 'attack', durationMs: 620, hitFrameMs: 340, comboWindowMs: null, next: null },
   sword_spin: { kind: 'attack', durationMs: 1500, hitFrameMs: 860, comboWindowMs: null, next: null, charge: true },
+  // Corte Relâmpago: o corte sai no dash (0,44 s) e o estouro vem depois, em iaidoBurst.
+  sword_iaido: { kind: 'attack', durationMs: 1500, hitFrameMs: 440, comboWindowMs: null, next: null },
+  // Dança das Lâminas: o primeiro dos três golpes (os outros vêm no hitGap do melee).
+  sword_combo: { kind: 'attack', durationMs: 1500, hitFrameMs: 250, comboWindowMs: null, next: null },
   sword_guard: { kind: 'defense', durationMs: 320, hitFrameMs: null, comboWindowMs: null },
 };
 

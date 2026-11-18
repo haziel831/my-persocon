@@ -1941,3 +1941,107 @@ body.pet-debuffed #pet { filter: drop-shadow(0 0 calc(2px + var(--debuff-level,1
   from { transform: translate(0, 0) scale(1); opacity: 1; }
   to { transform: translate(var(--dx), var(--dy)) scale(0.35); opacity: 0; }
 }
+
+/* ================= VFX da lâmina (v1.9.26) ================= */
+/* O crescente do corte: SVG com filtro neon, gira no ângulo do golpe. */
+.fx-slash {
+  position: fixed; z-index: 9996; pointer-events: none; user-select: none; overflow: visible;
+  filter: drop-shadow(0 0 7px var(--glow, rgba(70, 220, 255, 0.9))) drop-shadow(0 0 20px var(--glow, rgba(70, 220, 255, 0.55)));
+  transform-origin: 50% 50%;
+  animation: fx-slash 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+.fx-slash.mirror { scale: -1 1; }
+@keyframes fx-slash {
+  0% { opacity: 0; transform: rotate(calc(var(--rot, -18deg) - 32deg)) scale(0.55); }
+  32% { opacity: 1; transform: rotate(var(--rot, -18deg)) scale(1); }
+  100% { opacity: 0; transform: rotate(calc(var(--rot, -18deg) + 18deg)) scale(1.22); }
+}
+/* O brilho metálico de quatro pontas. */
+.fx-glint {
+  position: fixed; z-index: 9997; pointer-events: none; user-select: none;
+  background:
+    linear-gradient(0deg, transparent 42%, #fff 50%, transparent 58%),
+    linear-gradient(90deg, transparent 42%, #fff 50%, transparent 58%);
+  filter: drop-shadow(0 0 9px var(--glow, rgba(255, 255, 255, 0.95)));
+  animation: fx-glint 0.42s ease-out forwards;
+}
+@keyframes fx-glint {
+  0% { opacity: 0; transform: scale(0.25) rotate(0deg); }
+  22% { opacity: 1; transform: scale(1.12) rotate(18deg); }
+  58% { opacity: 0.9; transform: scale(0.85) rotate(45deg); }
+  100% { opacity: 0; transform: scale(0.2) rotate(70deg); }
+}
+/* Faíscas direcionais do impacto. */
+.fx-hit-spark {
+  position: fixed; z-index: 9996; width: 5px; height: 5px; margin: -2px 0 0 -2px;
+  pointer-events: none; user-select: none; image-rendering: pixelated;
+  animation: fx-hit-spark 0.42s cubic-bezier(0.15, 0.8, 0.25, 1) var(--del, 0s) forwards;
+}
+@keyframes fx-hit-spark {
+  0% { opacity: 1; scale: 1; translate: 0 0; }
+  100% { opacity: 0; scale: 0.25; translate: var(--dx, 40px) var(--dy, -40px); }
+}
+/* O flash diagonal que rasga o hitbox. */
+.fx-impact-slash {
+  position: fixed; z-index: 9996; pointer-events: none; user-select: none;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 44%, #fff 56%, rgba(255, 255, 255, 0) 100%);
+  clip-path: polygon(0 46%, 100% 0, 100% 54%, 0 100%);
+  filter: drop-shadow(0 0 8px var(--glow, #fff)) drop-shadow(0 0 24px var(--glow, #fff));
+  transform-origin: 50% 50%;
+  animation: fx-impact-slash 0.34s ease-out forwards;
+}
+@keyframes fx-impact-slash {
+  0% { opacity: 0; transform: rotate(var(--rot, -32deg)) scaleX(0.2) scaleY(0.6); }
+  18% { opacity: 1; transform: rotate(var(--rot, -32deg)) scaleX(1.05) scaleY(1.1); }
+  55% { opacity: 0.85; transform: rotate(var(--rot, -32deg)) scaleX(1.1) scaleY(0.7); }
+  100% { opacity: 0; transform: rotate(var(--rot, -32deg)) scaleX(1.16) scaleY(0.22); }
+}
+/* O fantasma do dash (cópia do canvas, tingida). */
+.fx-afterimage {
+  position: fixed; z-index: 9993; pointer-events: none; user-select: none;
+  object-fit: fill; image-rendering: pixelated; mix-blend-mode: screen;
+  animation: fx-ghost 0.3s ease-out forwards;
+}
+.fx-afterimage.cyan { filter: sepia(1) saturate(6) hue-rotate(150deg) brightness(1.55) drop-shadow(0 0 7px rgba(80, 220, 255, 0.9)); }
+.fx-afterimage.purple { filter: sepia(1) saturate(8) hue-rotate(238deg) brightness(1.4) drop-shadow(0 0 7px rgba(160, 90, 255, 0.9)); }
+@keyframes fx-ghost {
+  from { opacity: var(--a, 0.5); transform: translateX(0) scaleX(1); }
+  to { opacity: 0; transform: translateX(calc(var(--dx, 0px) * -0.4)) scaleX(1.05); }
+}
+/* O corte laser do iaido. */
+.fx-laser {
+  position: fixed; height: 5px; margin-top: -2px; z-index: 9996; pointer-events: none;
+  transform-origin: 0 50%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #fff 0%, #fff 68%, rgba(255, 255, 255, 0) 100%);
+  box-shadow: 0 0 8px 3px var(--glow, #fff), 0 0 28px 9px var(--glow, #fff);
+  animation: fx-laser 0.5s ease-out forwards;
+}
+@keyframes fx-laser {
+  0% { opacity: 0; transform: rotate(var(--rot, 0deg)) scaleX(0); }
+  12% { opacity: 1; transform: rotate(var(--rot, 0deg)) scaleX(1); }
+  62% { opacity: 0.9; }
+  100% { opacity: 0; transform: rotate(var(--rot, 0deg)) scaleX(1); }
+}
+/* O vórtice do Giro Supremo. */
+.fx-vortex {
+  position: fixed; z-index: 9996; pointer-events: none; user-select: none;
+  filter: drop-shadow(0 0 14px var(--glow, rgba(255, 60, 90, 0.9)));
+  animation: fx-vortex-expand var(--ms, 900ms) ease-out forwards;
+}
+.fx-vortex i {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 4px dashed rgba(255, 255, 255, 0.82);
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 255, 255, 0.22) 40deg, transparent 95deg, transparent 185deg, rgba(255, 120, 140, 0.32) 225deg, transparent 280deg);
+  animation: fx-vortex-spin var(--ms, 900ms) linear infinite;
+}
+.fx-vortex i:nth-child(2) { inset: 12%; border-width: 3px; opacity: 0.8; animation-duration: var(--ms-slow, 630ms); animation-direction: reverse; }
+.fx-vortex i:nth-child(3) { inset: 27%; border-width: 2px; opacity: 0.62; animation-duration: var(--ms-fast, 405ms); }
+.fx-vortex.gold i { border-color: rgba(255, 238, 170, 0.9); background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 240, 180, 0.25) 40deg, transparent 95deg, transparent 185deg, rgba(255, 205, 70, 0.34) 225deg, transparent 280deg); }
+.fx-vortex.cyan i { border-color: rgba(190, 245, 255, 0.9); background: conic-gradient(from 0deg, transparent 0deg, rgba(190, 245, 255, 0.25) 40deg, transparent 95deg, transparent 185deg, rgba(80, 200, 255, 0.32) 225deg, transparent 280deg); }
+@keyframes fx-vortex-expand {
+  0% { opacity: 0; transform: scale(0.35); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.95); }
+}
+@keyframes fx-vortex-spin { to { transform: rotate(360deg); } }

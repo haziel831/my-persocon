@@ -34,8 +34,10 @@ export const PACE = {
   impact: 0.7,      // the hit lands; the numbers and the effects show up
   recover: 1.2,     // the breathing pause before the next unit acts
 };
-// The freeze on contact (hit-stop): everything halts for a beat.
-export const HIT_STOP = 0.12;
+// The freeze on contact (hit-stop): everything halts for a beat. Leve para golpes normais,
+// um tico mais longo nos pesados/skills (60–90 ms no total).
+export const HIT_STOP = 0.075;
+export const HIT_STOP_HEAVY = 0.09;
 // The charge before the strike: she glows blue and gathers energy (the hit waits for it).
 export const CHARGE_TIME = 0.45;
 export const CHARGE_MANEUVER = 0.55;
@@ -511,9 +513,111 @@ export class Melee {
     try { this.game.attrGain?.('str', this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy,
       this.kind === 'dummy' ? 'dummy' : (opp.unknown ? 'unknown' : 'heavy')); } catch { /* XP */ }
     this.attrGained.str += this.kind === 'dummy' ? ATTR_XP.str.dummy : ATTR_XP.str.heavy;
-    this.hitStop = HIT_STOP;
+    this.hitStop = Math.max(this.hitStop || 0, heavy ? HIT_STOP_HEAVY : HIT_STOP);
+    this.freezeAtImpact();
+    // Com a espada na mão, cada acerto leva o pacote visual da lâmina.
+    try { this.bladeImpact({ ...opts, heavy }); } catch { /* VFX da lâmina */ }
     try { if (opp.enemy) this.updateFoeBars(); } catch { /* barras */ }
     try { this.updateQueueHud(); } catch { /* fila */ }
+  }
+
+  // O pacote visual do corte: crescente neon, faíscas direcionais e flash diagonal no alvo.
+  // Só com a lâmina na mão (briga desarmada não mostra VFX de espada).
+  bladeImpact(opts = {}) {
+    if (!this.armed || !this.swordOut) return;
+    const fx = this.app.fx;
+    if (!fx?.slashArc) return;
+    const pet = this.pet;
+    const side = this.facing() || 1;
+    const x = this.oppX() ?? pet.x;
+    const y = (this.oppY() ?? pet.y) - pet.P * 0.55;
+    const heavy = !!opts.heavy;
+    const i = opts.index || 0;
+    const color = heavy ? 'gold' : i % 2 ? 'purple' : 'cyan';
+    const tilt = (side > 0 ? -1 : 1) * (26 - (i % 3) * 12);
+    fx.slashArc(x, y, pet.P * (heavy ? 1.3 : 0.98), { color, angle: tilt, mirror: side < 0 });
+    // O Corte Relâmpago risca uma linha laser atravessando o inimigo.
+    if (this.move?.iaido) {
+      fx.laserLine?.(x - side * pet.P * 2.2, y, x + side * pet.P * 1.3, y, { color: 'white', ms: 380 });
+    }
+    fx.impactSlash(x, y, pet.P * (heavy ? 1.2 : 0.92), { color: heavy ? 'gold' : 'white', angle: tilt });
+    fx.sparks(x, y, {
+      count: heavy ? 20 : 14,
+      color,
+      angle: side > 0 ? -0.18 : Math.PI + 0.18,
+      spread: 1.25,
+      reach: pet.P * 0.78,
+    });
+    if (heavy) fx.shake?.(0.55);
+  }
+
+  // O hit-stop também congela as animações (dela e do alvo): o contato "trava" por um instante.
+  freezeAtImpact() {
+    try {
+      const petAnim = this.pet?.view?.animator;
+      if (petAnim && this._animSpeed == null) {
+        this._animSpeed = petAnim.speed ?? 1;
+        petAnim.speed = 0;
+      }
+      const foeAnim = this.opp?.enemy?.view?.animator || this.opp?.enemy?.animator;
+      if (foeAnim && this._foeAnimSpeed == null) {
+        this._foeAnimSpeed = foeAnim.speed ?? 1;
+        foeAnim.speed = 0;
+      }
+    } catch { /* animador exótico */ }
+  }
+
+  thawAfterImpact() {
+    try {
+      const petAnim = this.pet?.view?.animator;
+      if (petAnim && this._animSpeed != null) {
+        petAnim.speed = this._animSpeed;
+        this._animSpeed = null;
+      }
+      const foeAnim = this.opp?.enemy?.view?.animator || this.opp?.enemy?.animator;
+      if (foeAnim && this._foeAnimSpeed != null) {
+        foeAnim.speed = this._foeAnimSpeed;
+        this._foeAnimSpeed = null;
+      }
+    } catch { /* animador exótico */ }
+  }
+
+  // A explosão atrasada do Corte Relâmpago: ela já embainhou de costas quando o corte "abre"
+  // no inimigo (uma linha laser + 3 crescentes cruzados + faíscas).
+  iaidoBurst(x, y, ms = 640) {
+    const pet = this.pet;
+    setTimeout(() => {
+      if (!this.active) return;
+      const fx = this.app.fx;
+      const side = this.facing() || 1;
+      x = this.oppX() ?? x;
+      y = (this.oppY() ?? y) - pet.P * 0.55;
+      try { fx?.laserLine?.(x - side * pet.P * 1.6, y, x + side * pet.P * 0.5, y, { color: 'white', ms: 420 }); } catch {}
+      try { fx?.slashX?.(x, y, pet.P * 1.25, { color: 'cyan', ms: 420 }); } catch {}
+      try { fx?.sparks?.(x, y, { count: 20, color: 'cyan', angle: side > 0 ? -0.1 : Math.PI + 0.1, spread: 1.6, reach: pet.P }); } catch {}
+      try { fx?.shake?.(0.85); } catch {}
+      try { this.app.sound?.tone8?.(1200, 240, 0.18, 'sawtooth', 0.07); } catch {}
+    }, ms);
+  }
+
+  // Arremesso para cima (Giro Supremo): o inimigo sobe e volta ao chão em ~0,6 s.
+  launchFoe(foe = null, height = 70) {
+    const en = (foe || this.opp)?.enemy;
+    if (!en || !Number.isFinite(en.y)) return;
+    const y0 = en.y;
+    const t0 = performance.now();
+    const ms = 620;
+    clearInterval(en.__launchT);
+    en.__launchT = setInterval(() => {
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      en.y = y0 - Math.sin(k * Math.PI) * height;
+      try { en.place?.(); } catch { /* desenho */ }
+      if (k >= 1) {
+        clearInterval(en.__launchT);
+        en.y = y0;
+        try { en.place?.(); } catch { /* desenho */ }
+      }
+    }, 16);
   }
 
   checkVictory() {
@@ -531,6 +635,8 @@ export class Melee {
     const pet = this.pet;
     this.phase = 'victory';
     this.t = 0;
+    this.hitStop = 0;
+    this.thawAfterImpact();
     this.ui?.hideQueue();
     this.ui?.hideLog?.();
     this.ui?.hideRing();
@@ -588,6 +694,7 @@ export class Melee {
     this.lowWarned = false;
     this.exhaustWarned = false;
     this.hitStop = 0;
+    this.thawAfterImpact();
     this.itemPopT = 0;
     this.pet.combatMode = true;
     // O Corvo entra como aliado se estiver livre na área de trabalho e tiver Skill de Combate.
@@ -697,6 +804,8 @@ export class Melee {
     this.chargeSpot = null;
     this.petDown = false;
     this.downT = 0;
+    this.hitStop = 0;
+    this.thawAfterImpact();
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
   }
 
@@ -1338,6 +1447,7 @@ export class Melee {
     // O hit-stop: no impacto tudo congela por um instante.
     if (this.hitStop > 0) {
       this.hitStop -= dt;
+      if (this.hitStop <= 0) this.thawAfterImpact();
       this.updateAuras();
       return;
     }
@@ -1380,6 +1490,10 @@ export class Melee {
         this.sheathing = false;
         this.sheathT = 0;
         this.swordOut = false;
+        // A lâmina encaixa na bainha: um brilho branco na cintura.
+        const w = this.pet.view?.waistPoint?.();
+        if (w) this.app.fx?.glint?.(this.pet.x + w.x, this.pet.y - w.y, this.pet.P * 0.38, 'white');
+        this.app.sound?.tone8?.(2400, 1500, 0.08, 'triangle', 0.05);
       }
     }
     // Fase presa (clipe perdido no modelo, evento que não veio, queda sem getUp): a fila
@@ -1636,6 +1750,23 @@ export class Melee {
       this.trailT = 0.07;
       this.app.fx?.dashTrail?.(pet.x - side * pet.P * 0.1, pet.y - pet.P * 0.5, pet.P * 0.85, side);
     }
+    // Fantasmas do dash: 2–3 silhuetas ciano/roxo ficam para trás no caminho (só no avanço,
+    // e com um teto por turno para não pesar no readback do canvas).
+    if (clip === 'dash_forward') {
+      this.ghostSpawnT = (this.ghostSpawnT || 0) - dt;
+      if (this.ghostSpawnT <= 0 && (this.ghostBudget ?? 3) > 0) {
+        this.ghostSpawnT = 0.1;
+        this.ghostBudget = (this.ghostBudget ?? 3) - 1;
+        this.ghostN = ((this.ghostN || 0) + 1) % 3;
+        try {
+          this.app.fx?.ghost?.({
+            color: this.ghostN === 2 ? 'purple' : 'cyan',
+            alpha: 0.4,
+            dx: -side * pet.P * 0.25,
+          });
+        } catch { /* readback do canvas */ }
+      }
+    }
   }
 
   // Dá um passo na direção do ponto de golpe (para frente ou para trás) NO DASH: 3× o andar.
@@ -1723,6 +1854,7 @@ export class Melee {
     const pet = this.pet;
     this.phase = 'windup';
     this.t = 0;
+    this.ghostBudget = 3;
     // She spends the turn on a medicine instead of attacking when it actually helps.
     // With the Fúria the maneuver comes first: the status is precious.
     // Com a espada equipada as manobras desarmadas não existem: a Fúria vira o Giro de Lâmina.
@@ -1752,11 +1884,12 @@ export class Melee {
   swordFuryTurn() {
     const pet = this.pet;
     this.fury = false;
+    this.ghostBudget = 3;
     this.maneuverAuraT = Math.max(this.maneuverAuraT || 0, 2.2);
     this.maneuverShown = false;
     this.showFury();
     const spin = SWORD_MOVES.find((m) => m.clip === 'sword_spin') || SWORD_MOVES[0];
-    this.move = { ...spin, maneuver: null, charge: 0.6, aoe: true };
+    this.move = { ...spin, maneuver: null, charge: 0.6, aoe: true, chargeColor: 'gold' };
     this.next = TURN.OPPONENT;
     const facing = this.facing();
     pet.dir = facing > 0 ? 1 : -1;
@@ -1799,7 +1932,7 @@ export class Melee {
     }
     // A aura da carga em volta dela, o brilho no modelo e as partículas de energia.
     // A cor vem do golpe (vermelho normal, azul/dourado nos especiais).
-    const color = this.move?.maneuver?.color || 'red';
+    const color = this.move?.maneuver?.color || this.move?.chargeColor || 'red';
     const spot = { x: pet.x, y: pet.y - pet.P * 0.45, size: pet.P };
     this.chargeSpot = spot;
     if (color === 'red') this.ui?.glowRed?.(pet.view?.canvas, dur * 1000);
@@ -1814,7 +1947,12 @@ export class Melee {
   releaseCharge() {
     const drawing = this.drawing;
     this.drawing = false;
-    if (this.armed && drawing) this.swordOut = true;
+    if (this.armed && drawing) {
+      this.swordOut = true;
+      // A lâmina sai da bainha com um brilho branco na mão.
+      const sp = this.pet.view?.swordPoint?.();
+      if (sp) this.app.fx?.glint?.(this.pet.x + sp.x, this.pet.y - sp.y, this.pet.P * 0.32, 'white');
+    }
     const s = this.chargeSpot;
     this.chargeSpot = null;
     if (s) this.ui?.chargeBurst?.(s.x, s.y, s.size);
@@ -1925,6 +2063,7 @@ export class Melee {
   maneuverTurn(man) {
     const pet = this.pet;
     this.fury = false;                 // the Fúria is spent (não pode repetir no mesmo turno)
+    this.ghostBudget = 3;
     // O brilho dourado continua aceso durante a manobra inteira (rugido, salto, onda).
     this.maneuverAuraT = Math.max(this.maneuverAuraT || 0, (this.metaOf({ clip: man.clip })?.durationMs ?? 900) / 1000 + 0.6);
     this.maneuverShown = false;
@@ -2272,6 +2411,7 @@ export class Melee {
     this.downT = 0;
     this.crowTurnT = 0;      // o Corvo recomeça a contagem: nada de watchdog na cara
     this.hitStop = 0;
+    this.thawAfterImpact();
     this.closeT = 0;
     this.chargeT = 0;
     this.chargeSpot = null;
@@ -2356,27 +2496,57 @@ export class Melee {
     const x = this.oppX();
     const y = this.oppY() - 24;
     const heavy = move.lvl >= 7 || !!man;
-    const hits = man?.hits || 1;
+    const hits = move.hits || man?.hits || 1;
     let landed = false;
     let missed = false;
     let blocked = false;
     let lastDmg = 0;
+    // Os golpes do combo (Dança das Lâminas) são rolados agora e aplicados espaçados
+    // (move.hitGap), para os números e os crescentes aparecerem em sequência.
+    const gap = hits > 1 ? Math.max(0, move.hitGap ?? 0) : 0;
+    const rolls = [];
     for (let h = 0; h < hits; h++) {
       const roll = this.rollStrike(man);
       this.fightStats.strikes += 1;
       if (roll.result === 'block') { blocked = true; break; }
       if (roll.result === 'miss') { missed = true; continue; }
+      rolls.push(roll);
+    }
+    const apply = (roll, i) => {
+      if (!this.active) return;
       this.fightStats.hits += 1;
       landed = true;
       lastDmg = Math.max(lastDmg, roll.dmg);
       // Cada golpe acertado treina a Força (o treino pesado paga bem mais).
-      this.damageFoe(roll.dmg, { crit: roll.crit });
+      this.damageFoe(roll.dmg, { crit: roll.crit, index: i, heavy: heavy && !i });
       this.app.sound?.swish?.();
       this.app.dummy?.hit?.(roll.dmg, side);
-      // Se a horda acabou no meio de um combo, os golpes restantes não acontecem.
-      if (this.kind === 'unknown' && !this.foes.some((f) => f.hp > 0)) break;
-    }
-    if (landed) {
+    };
+    rolls.forEach((roll, i) => {
+      if (!i) return apply(roll, i);
+      setTimeout(() => {
+        if (!this.active || this.phase === 'victory') return;
+        // Se a horda acabou no meio do combo, os golpes restantes não acontecem.
+        if (this.kind === 'unknown' && !this.foes.some((f) => f.hp > 0)) return;
+        apply(roll, i);
+      }, Math.round(i * gap * 1000));
+    });
+    const landedNow = rolls.length > 0;
+    if (landedNow) {
+      // AGI (Nv 4+): chance de um golpe extra gratuito no mesmo turno.
+      this.agiBonusStrike();
+      // The special effects of the maneuver.
+      this.applyManeuverFx(man, x, y);
+      // O Giro de Lâmina acerta TODOS os inimigos vivos ao redor (dano em área).
+      if (move.aoe) this.splashAround(lastDmg);
+      // Giro Supremo: o vórtice joga o inimigo para cima (knockup).
+      if (move.knockup) {
+        this.app.fx?.vortex?.(pet.x, pet.y - pet.P * 0.55, pet.P * 2.1, 900, 'crimson');
+        this.launchFoe(this.opp, pet.P * 0.9);
+      }
+      // Corte Relâmpago: o corte "abre" no inimigo depois que ela embainha, de costas.
+      if (move.iaido) this.iaidoBurst(x, y, 620);
+    } else if (blocked) {
       // AGI (Nv 4+): chance de um golpe extra gratuito no mesmo turno.
       this.agiBonusStrike();
       // The special effects of the maneuver.

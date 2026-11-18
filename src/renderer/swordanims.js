@@ -32,13 +32,13 @@ const cr = (pts) => Object.fromEntries(pts.map(([t, v, post]) => {
 const STANCE = {
   rootRot: [0, 0, 0],
   rootPos: [0, -0.55, 0],
-  body: [8, -18, 0],
-  head: [-4, 10, 0],
+  body: [8, -22, 0],
+  head: [-4, 12, 0],
   rArm: [-58, -22, 10],
   rFore: [-64, 10, 0],
   lArm: [-46, 26, -8],
   lFore: [-80, -10, 0],
-  hip: [0, 0, 0],
+  hip: [0, -6, 0],
   rLeg: [-8, 0, 10],
   rShin: [38, 0, 0],
   lLeg: [-20, 0, -10],
@@ -52,12 +52,13 @@ const idlePose = (p) => {
   return {
     rootPos: [0, -0.55 + b * 0.07, 0],
     rootRot: [0, 0, b * 0.4],
-    body: [8 + b * 1.1, -18 + b2 * 1.4, 0],
-    head: [-4 - b * 1.4, 10 - b2 * 1.1, 0],
+    body: [8 + b * 1.1, -22 + b2 * 1.4, 0],
+    head: [-4 - b * 1.4, 12 - b2 * 1.1, 0],
     rArm: [-58 + b2 * 1.4, -22, 10 + b * 1.0],
     rFore: [-64 - b * 1.6, 10, 0],
     lArm: [-46 - b2 * 1.2, 26, -8 - b * 1.0],
     lFore: [-80 + b * 1.4, -10, 0],
+    hip: [0, -6 + b2 * 0.8, 0],
     rLeg: [-8, 0, 10],
     rShin: [38 + b * 1.4, 0, 0],
     lLeg: [-20, 0, -10],
@@ -116,11 +117,12 @@ export const SWORD_CLIPS = {
     keys: {
       rootPos: [[0, STANCE.rootPos], [0.14, [0, -0.8, 0.2]], [0.24, [0, -0.7, 0.1]], [0.3, [0, -0.5, -1.9]], [0.4, [0, -0.6, -1.5]], [0.6, STANCE.rootPos]],
       rootRot: [[0, STANCE.rootRot], [0.14, [0, 8, 0]], [0.3, [0, -10, 0]], [0.4, [0, -6, 0]], [0.6, STANCE.rootRot]],
-      body: [[0, STANCE.body], [0.14, [-12, -24, 0]], [0.24, [-16, -22, 0]], [0.3, [26, -2, 0]], [0.4, [30, 4, 0]], [0.6, STANCE.body]],
-      head: [[0, STANCE.head], [0.14, [-16, 4, 0]], [0.3, [12, 2, 0]], [0.4, [16, 6, 0]], [0.6, STANCE.head]],
-      rArm: [[0, STANCE.rArm], [0.14, [-168, -26, 26]], [0.24, [-178, -22, 24]], [0.3, [-18, -14, 10]], [0.4, [4, -10, 14]], [0.6, STANCE.rArm]],
-      rFore: [[0, STANCE.rFore], [0.14, [-22, 10, 0]], [0.24, [-18, 8, 0]], [0.3, [-8, 6, 0]], [0.4, [-12, 6, 0]], [0.6, STANCE.rFore]],
-      lArm: [[0, STANCE.lArm], [0.14, [-104, 30, -14]], [0.24, [-110, 28, -14]], [0.3, [-40, 34, -10]], [0.4, [-32, 30, -8]], [0.6, STANCE.lArm]],
+      body: [[0, STANCE.body], [0.14, [-20, -44, -4]], [0.24, [-24, -48, -4]], [0.3, [26, 16, 5]], [0.4, [30, 24, 7]], [0.6, STANCE.body]],
+      hip: [[0, STANCE.hip], [0.14, [0, -18, 0]], [0.24, [0, -20, 0]], [0.3, [0, 18, 0]], [0.4, [0, 22, 0]], [0.6, STANCE.hip]],
+      head: [[0, STANCE.head], [0.14, [-16, 6, 0]], [0.3, [12, 4, 0]], [0.4, [16, 8, 0]], [0.6, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.14, [-172, -30, 32]], [0.24, [-182, -26, 30]], [0.3, [-12, -10, 8]], [0.4, [6, -4, 14]], [0.6, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.14, [-18, 12, 0]], [0.24, [-14, 10, 0]], [0.3, [-6, 6, 0]], [0.4, [-10, 6, 0]], [0.6, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.14, [-110, 34, -18]], [0.24, [-116, 32, -18]], [0.3, [-34, 38, -12]], [0.4, [-26, 34, -10]], [0.6, STANCE.lArm]],
       lFore: [[0, STANCE.lFore], [0.14, [-58, -10, 0]], [0.3, [-92, -12, 0]], [0.6, STANCE.lFore]],
       rLeg: [[0, STANCE.rLeg], [0.14, [-4, 0, 12]], [0.3, [-22, 0, 12]], [0.6, STANCE.rLeg]],
       rShin: [[0, STANCE.rShin], [0.14, [40, 0, 0]], [0.3, [30, 0, 0]], [0.6, STANCE.rShin]],
@@ -137,7 +139,8 @@ export const SWORD_CLIPS = {
     keys: {
       rootPos: [[0, STANCE.rootPos], [0.16, [0, -1.0, 0.35]], [0.26, [0, -1.05, 0.3]], [0.34, [0, -0.5, -2.5]], [0.46, [0, -0.6, -2.1]], [0.62, STANCE.rootPos]],
       rootRot: [[0, STANCE.rootRot], [0.16, [0, 10, 0]], [0.34, [0, -2, 0]], [0.46, [0, 2, 0]], [0.62, STANCE.rootRot]],
-      body: [[0, STANCE.body], [0.16, [16, -40, 0]], [0.26, [18, -46, 0]], [0.34, [8, -2, 0]], [0.46, [10, 2, 0]], [0.62, STANCE.body]],
+      body: [[0, STANCE.body], [0.16, [18, -46, -3]], [0.26, [22, -52, -3]], [0.34, [10, 6, 3]], [0.46, [12, 10, 4]], [0.62, STANCE.body]],
+      hip: [[0, STANCE.hip], [0.16, [0, -22, 0]], [0.26, [0, -26, 0]], [0.34, [0, 12, 0]], [0.46, [0, 14, 0]], [0.62, STANCE.hip]],
       head: [[0, STANCE.head], [0.16, [2, 24, 0]], [0.34, [-2, 0, 0]], [0.62, STANCE.head]],
       rArm: [[0, STANCE.rArm], [0.16, [-40, -46, 20]], [0.26, [-34, -52, 22]], [0.34, [-104, -6, 4]], [0.46, [-100, -8, 6]], [0.62, STANCE.rArm]],
       rFore: [[0, STANCE.rFore], [0.16, [-118, 18, 0]], [0.26, [-126, 20, 0]], [0.34, [-6, 2, 0]], [0.46, [-10, 4, 0]], [0.62, STANCE.rFore]],
@@ -174,6 +177,53 @@ export const SWORD_CLIPS = {
     },
   },
 
+  // Corte Relâmpago (iaido): the low crouch with the hand on the sheath, the dash THROUGH the
+  // enemy, the pause with her back turned and the click of the blade going home (the hit burst
+  // comes after that, from the melee engine). Hit at 0.44 s.
+  sword_iaido: {
+    loop: false,
+    length: 1.5,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.12, [0, -1.2, 0.25]], [0.34, [0, -1.28, 0.32]], [0.44, [0, -0.55, -2.6]], [0.62, [0, -0.62, -2.9]], [0.86, [0, -0.6, -2.8]], [1.06, [0, -0.58, -2.6]], [1.24, [0, -0.56, -1.1]], [1.5, STANCE.rootPos]],
+      // O corpo dá meia-volta depois do corte (as costas para o inimigo).
+      rootRot: [[0, [0, 0, 0]], [0.12, [0, -22, 0]], [0.34, [0, -26, 0]], [0.44, [0, 40, 0]], [0.62, [0, 118, 0]], [0.86, [0, 126, 0]], [1.06, [0, 120, 0]], [1.24, [0, 60, 0]], [1.5, [0, 0, 0]]],
+      body: [[0, STANCE.body], [0.12, [26, -40, -6]], [0.34, [30, -44, -7]], [0.44, [32, 22, 6]], [0.62, [8, 10, 0]], [0.86, [6, 6, 0]], [1.06, [10, -14, 0]], [1.24, [8, -20, 0]], [1.5, STANCE.body]],
+      hip: [[0, STANCE.hip], [0.12, [0, -24, 0]], [0.34, [0, -28, 0]], [0.44, [0, 24, 0]], [0.62, [0, 12, 0]], [1.06, [0, -10, 0]], [1.5, STANCE.hip]],
+      head: [[0, STANCE.head], [0.12, [16, 14, 0]], [0.34, [18, 12, 0]], [0.44, [-6, 0, 0]], [0.62, [2, -10, 0]], [1.06, [6, -6, 0]], [1.5, STANCE.head]],
+      // A mão esquerda na bainha (preparando o saque), depois o braço direito varre na horizontal.
+      rArm: [[0, STANCE.rArm], [0.12, [-24, -58, 26]], [0.34, [-28, -62, 28]], [0.44, [-96, 34, 6]], [0.62, [-88, 52, 2]], [0.86, [-86, 50, 2]], [1.06, [-20, -52, 24]], [1.24, [-44, -30, 14]], [1.5, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.12, [-118, 20, 0]], [0.34, [-124, 22, 0]], [0.44, [-10, 2, 0]], [0.62, [-6, 0, 0]], [0.86, [-8, 0, 0]], [1.06, [-114, 18, 0]], [1.24, [-78, 12, 0]], [1.5, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.12, [-40, 42, -20]], [0.34, [-44, 44, -22]], [0.44, [-70, 26, -6]], [0.62, [-46, 30, -10]], [1.06, [-38, 40, -18]], [1.5, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.12, [-116, -16, 0]], [0.34, [-120, -18, 0]], [0.44, [-60, -8, 0]], [0.62, [-84, -10, 0]], [1.06, [-110, -14, 0]], [1.5, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.12, [-34, 0, 20]], [0.34, [-38, 0, 22]], [0.44, [-6, 0, 10]], [0.62, [-16, 0, 12]], [1.06, [-16, 0, 14]], [1.5, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.12, [76, 0, 0]], [0.34, [80, 0, 0]], [0.44, [30, 0, 0]], [0.62, [44, 0, 0]], [1.06, [48, 0, 0]], [1.5, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.12, [-40, 0, -20]], [0.34, [-44, 0, -22]], [0.44, [-14, 0, -12]], [0.62, [-24, 0, -14]], [1.06, [-24, 0, -14]], [1.5, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.12, [84, 0, 0]], [0.34, [88, 0, 0]], [0.44, [40, 0, 0]], [0.62, [54, 0, 0]], [1.06, [56, 0, 0]], [1.5, STANCE.lShin]],
+    },
+  },
+
+  // Dança das Lâminas: a short leap and a 3-hit flurry (down-left, up-right, overhead slam)
+  // with the torso whipping side to side. Hit frames: 0.25 / 0.55 / 0.9 s.
+  sword_combo: {
+    loop: false,
+    length: 1.5,
+    keys: {
+      rootPos: [[0, STANCE.rootPos], [0.1, [0, -0.2, 0.1]], [0.25, [0, -0.35, -0.9]], [0.55, [0, -0.5, -1.3]], [0.78, [0, -0.3, -1.5]], [0.9, [0, -0.95, -1.9]], [1.14, [0, -0.7, -1.5]], [1.5, STANCE.rootPos]],
+      rootRot: [[0, [0, 0, 0]], [0.1, [0, -24, 0]], [0.25, [0, 16, 0]], [0.55, [0, -18, 0]], [0.78, [0, 20, 0]], [0.9, [0, 4, 0]], [1.14, [0, -6, 0]], [1.5, [0, 0, 0]]],
+      body: [[0, STANCE.body], [0.1, [-18, -40, -6]], [0.25, [28, 22, 6]], [0.4, [10, 4, 0]], [0.55, [24, -30, -6]], [0.7, [-16, -34, -6]], [0.9, [32, 6, 4]], [1.14, [14, -10, 0]], [1.5, STANCE.body]],
+      hip: [[0, STANCE.hip], [0.1, [0, -20, 0]], [0.25, [0, 20, 0]], [0.55, [0, -22, 0]], [0.78, [0, -24, 0]], [0.9, [0, 12, 0]], [1.14, [0, -8, 0]], [1.5, STANCE.hip]],
+      head: [[0, STANCE.head], [0.1, [-10, 10, 0]], [0.25, [10, -4, 0]], [0.55, [6, 12, 0]], [0.9, [18, 2, 0]], [1.14, [6, 4, 0]], [1.5, STANCE.head]],
+      rArm: [[0, STANCE.rArm], [0.1, [-160, -36, 30]], [0.25, [-14, 20, 10]], [0.4, [-96, -40, 22]], [0.55, [-158, -6, 34]], [0.7, [-178, -18, 26]], [0.9, [-6, -6, 8]], [1.14, [-44, -16, 12]], [1.5, STANCE.rArm]],
+      rFore: [[0, STANCE.rFore], [0.1, [-20, 10, 0]], [0.25, [-8, 4, 0]], [0.4, [-64, 14, 0]], [0.55, [-18, 8, 0]], [0.7, [-14, 8, 0]], [0.9, [-4, 2, 0]], [1.14, [-40, 10, 0]], [1.5, STANCE.rFore]],
+      lArm: [[0, STANCE.lArm], [0.1, [-100, 38, -20]], [0.25, [-30, 30, -8]], [0.55, [-108, 40, -20]], [0.9, [-22, 26, -6]], [1.14, [-40, 28, -10]], [1.5, STANCE.lArm]],
+      lFore: [[0, STANCE.lFore], [0.1, [-64, -12, 0]], [0.25, [-92, -10, 0]], [0.55, [-58, -10, 0]], [0.9, [-96, -12, 0]], [1.5, STANCE.lFore]],
+      rLeg: [[0, STANCE.rLeg], [0.1, [-30, 0, 16]], [0.25, [-6, 0, 12]], [0.55, [-30, 0, 16]], [0.9, [-12, 0, 10]], [1.14, [-18, 0, 12]], [1.5, STANCE.rLeg]],
+      rShin: [[0, STANCE.rShin], [0.1, [72, 0, 0]], [0.25, [26, 0, 0]], [0.55, [70, 0, 0]], [0.9, [58, 0, 0]], [1.14, [56, 0, 0]], [1.5, STANCE.rShin]],
+      lLeg: [[0, STANCE.lLeg], [0.1, [-36, 0, -16]], [0.25, [-14, 0, -12]], [0.55, [-34, 0, -16]], [0.9, [-26, 0, -12]], [1.14, [-26, 0, -12]], [1.5, STANCE.lLeg]],
+      lShin: [[0, STANCE.lShin], [0.1, [80, 0, 0]], [0.25, [34, 0, 0]], [0.55, [78, 0, 0]], [0.9, [68, 0, 0]], [1.14, [66, 0, 0]], [1.5, STANCE.lShin]],
+    },
+  },
+
   // Guard: the blade held high across the body, the head tucked, braced.
   sword_guard: {
     loop: 'hold_on_last_frame',
@@ -181,7 +231,8 @@ export const SWORD_CLIPS = {
     keys: {
       rootPos: [[0, STANCE.rootPos], [0.28, [0, -0.95, 0.15]]],
       rootRot: [[0, STANCE.rootRot], [0.28, [0, 4, 0]]],
-      body: [[0, STANCE.body], [0.28, [14, -30, 0]]],
+      body: [[0, STANCE.body], [0.28, [14, -34, 0]]],
+      hip: [[0, STANCE.hip], [0.28, [0, -16, 0]]],
       head: [[0, STANCE.head], [0.28, [12, 16, 0]]],
       rArm: [[0, STANCE.rArm], [0.28, [-96, -44, 18]]],
       rFore: [[0, STANCE.rFore], [0.28, [-108, 14, 0]]],
@@ -202,8 +253,12 @@ export const SWORD_MOVES = [
   { id: 'corte', name: 'Corte Básico', lvl: 1, dmg: 6, clip: 'sword_slash', kind: 'attack', weapon: true },
   { id: 'guarda_espada', name: 'Guarda de Espada', lvl: 1, dmg: 0, clip: 'sword_guard', kind: 'defend' },
   { id: 'estocada', name: 'Estocada', lvl: 3, dmg: 10, clip: 'sword_thrust', kind: 'attack', weapon: true },
+  // O saque-relâmpago: o corte só "abre" no inimigo depois que ela embainha, de costas.
+  { id: 'relampago', name: 'Corte Relâmpago', lvl: 5, dmg: 13, clip: 'sword_iaido', kind: 'attack', weapon: true, iaido: true, chargeColor: 'blue' },
   { id: 'diagonal', name: 'Corte Diagonal', lvl: 6, dmg: 15, clip: 'sword_slash', kind: 'attack', weapon: true },
-  { id: 'giro_lamina', name: 'Giro de Lâmina', lvl: 8, dmg: 20, clip: 'sword_spin', kind: 'attack', weapon: true, aoe: true, charge: 0.6 },
+  // Três golpes em sequência (baixo-esquerda, cima-direita, cima embaixo).
+  { id: 'danca', name: 'Dança das Lâminas', lvl: 7, dmg: 6, clip: 'sword_combo', kind: 'attack', weapon: true, hits: 3, hitGap: 0.3, chargeColor: 'blue' },
+  { id: 'giro_lamina', name: 'Giro Supremo', lvl: 8, dmg: 20, clip: 'sword_spin', kind: 'attack', weapon: true, aoe: true, charge: 0.6, knockup: true, chargeColor: 'gold' },
   { id: 'ippon_lamina', name: 'Ippon da Lâmina', lvl: 10, dmg: 26, clip: 'sword_thrust', kind: 'attack', weapon: true },
 ];
 
