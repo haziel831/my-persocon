@@ -535,7 +535,9 @@ export class Melee {
     const i = opts.index || 0;
     const color = heavy ? 'gold' : i % 2 ? 'purple' : 'cyan';
     const tilt = (side > 0 ? -1 : 1) * (26 - (i % 3) * 12);
-    fx.slashArc(x, y, pet.P * (heavy ? 1.3 : 0.98), { color, angle: tilt, mirror: side < 0 });
+    // Combo: dois crescentes cruzados por golpe (o X neon sobreposto).
+    if ((this.move?.hits || 0) > 1) fx.slashX?.(x, y, pet.P * 0.95, { color, angle: tilt, ms: 380 });
+    else fx.slashArc(x, y, pet.P * (heavy ? 1.3 : 0.98), { color, angle: tilt, mirror: side < 0 });
     // O Corte Relâmpago risca uma linha laser atravessando o inimigo.
     if (this.move?.iaido) {
       fx.laserLine?.(x - side * pet.P * 2.2, y, x + side * pet.P * 1.3, y, { color: 'white', ms: 380 });
@@ -586,6 +588,13 @@ export class Melee {
   // no inimigo (uma linha laser + 3 crescentes cruzados + faíscas).
   iaidoBurst(x, y, ms = 640) {
     const pet = this.pet;
+    // O "clique" da lâmina voltando para a bainha (a mão chega na cintura antes do estouro).
+    setTimeout(() => {
+      if (!this.active) return;
+      const w = this.pet.view?.waistPoint?.();
+      if (w) this.app.fx?.glint?.(this.pet.x + w.x, this.pet.y - w.y, pet.P * 0.4, 'white');
+      try { this.app.sound?.tone8?.(2200, 1400, 0.07, 'triangle', 0.05); } catch {}
+    }, Math.max(120, ms - 200));
     setTimeout(() => {
       if (!this.active) return;
       const fx = this.app.fx;
