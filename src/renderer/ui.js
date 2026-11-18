@@ -1,6 +1,7 @@
 import { PetView } from './view.js';
 import { SHOP_CATEGORIES, ITEMS, STAT_LABELS, BUFF_LABELS, BUFF_ICONS, ATTRS, INFINITE_MONEY, effectText, isEdible, isConsumable, isSellable, sellPrice, isPowerUp, hasTaste, itemById, HER_BAG } from './game.js';
 import { SKILL_DEFS, COMBAT_ARTS, skillLevel, skillMoves, skillStarted, skillXpFor } from './skills.js';
+import { SWORD_MOVES } from './swordanims.js';
 import { MANEUVERS } from './melee.js';
 import { GAMES } from './games.js';
 import { FILTERS } from './filters.js';
@@ -843,9 +844,12 @@ export class Menu {
       const moves = skillMoves(id, xp);
       if (!skillStarted(id, xp) || !moves.length) return null;   // arte ainda não aprendida: nem aparece
       const lvl = skillLevel(xp);
+      // A espada tem, além do treino, os golpes armados que ela usa de verdade na luta.
+      const armed = id === 'espada' ? SWORD_MOVES.filter((m) => m.lvl <= lvl) : [];
       return h('div.combat-art', {},
         h('div.combat-art-head', {}, `${def.icon} ${def.art}`, h('span.muted', {}, `Nv ${lvl}`), stepBtns(id, lvl)),
-        h('ul.skill-moves', {}, moves.map((m) => h('li', {}, `${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : m.kind === 'defend' ? 'defesa' : 'esquiva'}`))));
+        h('ul.skill-moves', {}, moves.map((m) => h('li', {}, `${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : m.kind === 'defend' ? 'defesa' : 'esquiva'}`))),
+        armed.length ? h('ul.skill-moves.armed', {}, armed.map((m) => h('li', {}, `⚔ ${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : 'defesa'}`))) : null);
     }).filter(Boolean);
     const manList = MANEUVERS.filter((m) => combatLvl >= m.lvl);
     const manBox = manList.length
@@ -1009,7 +1013,8 @@ export class Menu {
     const { game } = app;
     const owned = game.items();
     const placed = Object.entries(game.toys).filter(([, t]) => t.placed).map(([key, t]) => ({ key, item: itemById(baseId(key)), t })).filter((e) => e.item);
-    if (!owned.length && !placed.length) {
+    const equipped = game.profile.swordEquipped === true;
+    if (!owned.length && !placed.length && !equipped) {
       return h('div.empty', {},
         h('div.empty-icon', {}, '🎒'),
         h('div', {}, 'Inventário vazio.'),
@@ -1039,7 +1044,12 @@ export class Menu {
           title: game.bagFree() <= 0 ? 'Bolsa dela cheia' : 'Vai para a bolsa dela (ícone na tela) · ela usa e guarda sozinha',
         }, '🎒 Dar a ela'),
         item.toy && game.toys[item.id]?.broken && repairBtn(item.id),
-        item.toy && !game.toys[item.id]?.broken && h('button.buy', { onclick: () => app.placeToy(item.id) }, 'Colocar'),
+        item.toy && !game.toys[item.id]?.broken && (item.weapon === 'espada'
+          ? h('button.buy', {
+            onclick: () => { if (game.equipSword()) { app.sound.play('ok'); app.toys?.equipSwordShow?.(app.pet); } this.render(); },
+            title: 'Ela passa a carregar a espada na cintura e luta com ela',
+          }, '⚔ Equipar')
+          : h('button.buy', { onclick: () => app.placeToy(item.id) }, 'Colocar')),
         item.id === 'cart_unknown' && h('button.buy', {
           onclick: () => { if (!app.unknown?.insert?.()) { /* insert já avisa */ } },
           title: 'Insere o cartucho preto na TV (a ameaça da TV)',
@@ -1087,7 +1097,24 @@ export class Menu {
         h('span.item-name', {}, item.name, h(t.broken ? 'span.count.warn' : 'span.count', {}, t.broken ? 'quebrado' : 'na área de trabalho')),
         h('span.item-fx', {}, t.broken ? `Conserto: ¥ ${game.repairCost(item.id)} (metade do preço)` : FURN[item.id]?.disco ? 'Liga no modo Jam' : `Usado ${t.uses}×`),
         t.broken && repairBtn(key),
+        item.weapon === 'espada' && !t.broken && h('button.buy', {
+          onclick: () => { if (game.equipSword()) { app.sound.play('ok'); app.toys?.equipSwordShow?.(app.pet); } this.render(); },
+          title: 'Ela pega a espada do chão e passa a carregá-la na cintura',
+        }, '⚔ Equipar'),
         item.fixed ? null : h('button.buy', { onclick: () => game.pickUpToy(key) }, 'Guardar'));
+    // A espada equipada sai do inventário e do desktop: esta linha é o único lugar dela.
+    const equippedRow = equipped && h('div.item.equipped', {},
+      itemIcon(itemById('espada')),
+      h('span.item-name', {}, 'Espada de bamboo', h('span.count', {}, 'na cintura')),
+      h('span.item-fx', {}, 'Equipada: ela luta com golpes de espada'),
+      h('button.buy', {
+        onclick: () => { if (game.unequipSword()) { app.sound.play('ok', { volume: 0.5 }); this.render(); } },
+        title: 'Devolve a espada para o inventário',
+      }, '↩ Desequipar'),
+      h('button.buy', {
+        onclick: () => { if (game.placeSword()) { app.sound.play('ok', { volume: 0.5 }); this.render(); } },
+        title: 'Larga a espada no desktop, na frente dela',
+      }, 'Colocar no Desktop'));
     const bagNote = HER_BAG
       ? h('div.note', {}, `🎒 "Dar a ela" → bolsa dela (${game.herBag().length}/${game.bagCap()}, ícone na tela): comidas/bebidas e brinquedos portáteis (ioiô, bolas…). GameBuddy fica no desktop. Ela usa sozinha e guarda de novo.`)
       : (game.herBag().length ? h('div.note', {}, `🎒 Bolsa dela pausada (${game.herBag().length} item(ns) ainda guardados — menu rápido para devolver).`) : null);
@@ -1106,6 +1133,8 @@ export class Menu {
     const body = this.invCat === 'todos' ? groups.flatMap((g) => [h('div.group', { 'data-seg': g.id }, `${g.icon} ${g.label}`), ...rows(g)])
       : this.invCat === 'colocados' ? placed.map(placedRow)
       : rows(groups.find((g) => g.id === this.invCat));
+    // A espada equipada aparece no topo (Todos e na categoria dela), fora das listas de guardados/colocados.
+    if (equippedRow && (this.invCat === 'todos' || this.invCat === itemById('espada')?.cat)) body.unshift(equippedRow);
     const actions = placed.length ? h('div.row.center', {},
       h('button', {
         title: 'Guarda todos os objetos da área de trabalho (útil se algum sumiu da tela); ao colocar de novo, voltam para perto da Persocon',
@@ -1643,6 +1672,7 @@ export class Menu {
       for (const m of def.moves || []) moves.push({ name: m.name, clip: m.clip, tag: `${def.art} · Nv ${m.lvl}` });
     }
     for (const m of MANEUVERS) moves.push({ name: m.name, clip: m.clip, tag: `Manobra · Nv ${m.lvl}` });
+    for (const m of SWORD_MOVES) moves.push({ name: m.name, clip: m.clip, tag: `Espada · Nv ${m.lvl}` });
     const list = moves.filter((m) => clips.has(m.clip));
     const btn = (label, fn, title = '') => h('button.chip', {
       title,
