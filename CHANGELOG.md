@@ -7,6 +7,14 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.26 — 18/11/2026
+**Modo Clicar Através consertado.** O estado do `set_ignore_cursor_events` é **reafirmado a cada 800 ms** (a janela não fica mais "presa" aceitando cliques depois de perder o foco), o mouse é **solto na hora** quando o cursor sai da janela e as áreas clicáveis só contam quando estão **visíveis e com tamanho de verdade**. Os banners de **vitória/derrota** continuam clicáveis no modo atravessar (viraram `hitzone`) sem travar a janela inteira.
+**Combate de espada dramático.** O **torso torce e inclina 20–30°** para dentro do golpe (o quadril contra-rotaciona), o braço varre **arcos de ~140°** e o dash deixa **2–3 silhuetas fantasma** em ciano/roxo que somem em 250 ms.
+**VFX de lâmina.** Cada corte ganha **crescentes neon** (ciano/branco nos golpes básicos, carmesim/dourado nos carregados), **flash diagonal** no hitbox e **hit-stop de 60–90 ms** com a animação dela e a do alvo congeladas + **12–20 faíscas direcionais**.
+**Skills repensadas.** **Corte Relâmpago** (Nv 5): agacha com a mão na bainha, some num dash atravessando o inimigo deixando uma **linha laser**, pausa de costas e o corte **explode depois do clique da lâmina**. **Dança das Lâminas** (Nv 7): salto e **3 golpes** em sequência com **X neon** sobrepostos. **Giro Supremo** (Nv 8): aura vermelha/dourada, **vórtice** de três anéis e o inimigo **arremessado para cima**.
+**Bainha.** Brilho metálico branco ao **sacar** e ao **embainhar** (e a espada da cintura some enquanto está na mão — nunca duas espadas na tela).
+Detalhes em `ChangeLogs\v1.9.26.md`.
+
 ## v1.9.25 — 17/11/2026
 **Espada equipada.** A **espada de bamboo** agora pode ser **equipada** (pelo Inventário ou pelo objeto no desktop) e passa a ficar **pendurada na cintura** dela — o objeto sai do desktop e da bolsa, então a lâmina nunca existe em dois lugares. No Inventário a linha "na cintura" tem **↩ Desequipar** (volta para a mochila) e **Colocar no Desktop** (larga na frente dela).
 **Combate armado.** Com a espada equipada ela luta com **golpes de espada** no lugar dos socos e chutes, liberados pelo **nível da arte Espada**: **Corte Básico** e **Guarda de Espada** (Nv 1), **Estocada** (Nv 3), **Corte Diagonal** (Nv 6), **Giro de Lâmina** (Nv 8) e **Ippon da Lâmina** (Nv 10). As manobras desarmadas saem de cena enquanto a lâmina está na cintura; com a **Fúria** ela faz um **Giro de Lâmina dourado**.
