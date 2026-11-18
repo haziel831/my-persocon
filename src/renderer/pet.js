@@ -210,6 +210,7 @@ export async function startPet(files, config) {
     passClick() {
       if (config.streamer || window.__PET_COMBATE__ || !api.passClick) return false;
       interactive = false;
+      interactiveWant = false;
       api.passClick().catch?.(() => {});
       return true;
     },
@@ -448,6 +449,7 @@ export async function startPet(files, config) {
   app.modes = modes;
   app.ball = ball;
   app.speech = speech;
+  app.view = view;   // os VFX (afterimage) recortam o canvas do renderer
   pet.app = app;
   const fx = new Fx(app);
   app.fx = fx;
@@ -1545,6 +1547,7 @@ api.onTrayClick?.(() => {
   const place = { left: 0, top: 0, ox: 0, oy: 0, tilt: 0 };
   let cursor = null;
   let interactive = false;
+  let interactiveWant = null;   // último estado pedido ao host (watchdog reaplica)
   let misses = 0;
   let press = null;
   let suppressContext = false;
@@ -1569,10 +1572,25 @@ api.onTrayClick?.(() => {
     return view.hitTest(lx, ly, 3);
   };
 
-  const setInteractive = (value) => {
-    if (value === interactive) return;
+  // Pede ao host (set_ignore_cursor_events) o estado do mouse. Guarda o último pedido para
+  // reaplicar quando o host perder o estado (janela recriada/perda de foco) e nunca engolir
+  // o clique quando o invoke falha.
+  const setInteractive = (value, force = false) => {
     interactive = value;
-    api.setInteractive(value);
+    if (!force && interactiveWant === value) return;
+    interactiveWant = value;
+    try {
+      const p = api.setInteractive(value);
+      if (p && typeof p.catch === 'function') {
+        p.catch((e) => {
+          interactiveWant = null;
+          console.warn('[clickThrough] set_interactive falhou', e);
+        });
+      }
+    } catch (e) {
+      interactiveWant = null;
+      console.warn('[clickThrough] set_interactive falhou', e);
+    }
   };
 
   function refreshInteractive() {
@@ -1593,8 +1611,10 @@ api.onTrayClick?.(() => {
       return setInteractive(false);
     }
     const zone = !!cursor && [...document.querySelectorAll('.hitzone')].some((el) => {
-      if (el.style.display === 'none' || (appHidden && !el.closest('.status-dock, .bag-dock, .toy-menu, .her-bag'))) return false;
+      if (el.style.display === 'none' || el.style.visibility === 'hidden') return false;
+      if (appHidden && !el.closest('.status-dock, .bag-dock, .toy-menu, .her-bag')) return false;
       const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return false;   // fechado/fora da tela
       return cursor.x >= r.left && cursor.x <= r.right && cursor.y >= r.top && cursor.y <= r.bottom;
     });
     const through = config.clickThrough && !app.hand;
@@ -1608,6 +1628,26 @@ api.onTrayClick?.(() => {
       setInteractive(false);
     }
   }
+
+  // Cão de guarda do click-through: se o host perder o estado (janela recriada, foco
+  // roubado, invoke falho), o overlay volta a engolir clique. Reafirma o estado "atravessa"
+  // de tempos em tempos — nunca o contrário (ficar interativo é o estado seguro).
+  setInterval(() => {
+    if (interactiveWant !== false || window.__PET_COMBATE__) return;
+    if (uiOpen() || press || canvas.style.visibility === 'hidden') return;
+    setInteractive(false, true);
+  }, 800);
+
+  // O cursor saiu da janela: solta o mouse na hora (sem isso o overlay prende o clique
+  // até o próximo poll do host, e o clique se perde).
+  const releaseMouse = (e) => {
+    if (e?.relatedTarget || !interactive || uiOpen() || press || window.__PET_COMBATE__) return;
+    misses = 99;
+    document.body.classList.remove('hover');
+    setInteractive(false);
+  };
+  window.addEventListener('pointerout', releaseMouse);
+  document.documentElement.addEventListener('mouseleave', releaseMouse);
 
   const startGrab = () => {
     if (!press || press.grabbing || app.intro?.busy) return;

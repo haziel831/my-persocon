@@ -318,7 +318,7 @@ export class CombatUI {
   victoryBanner(xpLines = []) {
     this.hideVictory();
     const el = document.createElement('div');
-    el.className = 'victory-banner';
+    el.className = 'victory-banner hitzone';
     const h = document.createElement('h1');
     h.textContent = 'VITÓRIA!';
     el.append(h);
@@ -371,7 +371,7 @@ export class CombatUI {
   defeatBanner(title, subtitle) {
     this.hideDefeat();
     const el = document.createElement('div');
-    el.className = 'defeat-banner';
+    el.className = 'defeat-banner hitzone';
     const h = document.createElement('h1');
     h.textContent = title || 'DERROTA...';
     el.append(h);
