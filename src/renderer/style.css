@@ -338,11 +338,13 @@ body.love-glitch { animation: love-shake 0.7s steps(7); }
 .taste.dislike { background: rgba(255, 190, 110, 0.16); color: #ffc58f; }
 
 /* ---------- desktop overlays ---------- */
-.pat-hand, .bell, .held-toy, .request, .countdown, .toy, .gb-screen, .music-note { position: absolute; left: 0; top: 0; display: none; will-change: transform; }
-.pat-hand, .bell, .held-toy, .countdown, .gb-screen, .music-note, .request { pointer-events: none; }
-.pat-hand img, .bell img, .held-toy img, .toy img { display: block; width: 100%; height: 100%; object-fit: fill; image-rendering: pixelated; }
+.pat-hand, .bell, .held-toy, .held-sword, .request, .countdown, .toy, .gb-screen, .music-note { position: absolute; left: 0; top: 0; display: none; will-change: transform; }
+.pat-hand, .bell, .held-toy, .held-sword, .countdown, .gb-screen, .music-note, .request { pointer-events: none; }
+.pat-hand img, .bell img, .held-toy img, .held-sword img, .toy img { display: block; width: 100%; height: 100%; object-fit: fill; image-rendering: pixelated; }
 /* Casco do port�til na m�o: manter propor��o do sprite (n�o esticar). */
-.held-toy img { height: auto; object-fit: contain; }
+.held-toy img, .held-sword img { height: auto; object-fit: contain; }
+/* Espada equipada: pendurada pela empunhadura (cintura) ou na m�o durante a luta. */
+.held-sword { transform-origin: 50% 85%; }
 .bell { transform-origin: 50% 0; }
 .request { background: #fff; color: #222; border: 3px solid #1d1a26; border-radius: 4px; padding: 4px 8px 4px 4px; font: bold 12px/1 PxEmoji, Consolas, monospace; box-shadow: 3px 3px 0 rgba(0,0,0,0.35); display: none; white-space: nowrap; }
 .request img { width: 32px; height: 32px; image-rendering: pixelated; vertical-align: middle; margin-right: 4px; object-fit: contain; }
@@ -476,6 +478,8 @@ body:is([data-theme="gameboy"], [data-theme="gameboy-light"]) .cat.active .icon 
 .step button.mini { margin-left: 0; min-width: 20px; line-height: 1; }
 .step button.mini:disabled { opacity: 0.4; cursor: default; }
 .combat .skill-moves { margin: 0; padding: 0 8px 4px 26px; display: grid; gap: 3px; font-size: 12px; }
+/* Golpes armados: o que ela usa de verdade na luta com a espada. */
+.combat .skill-moves.armed { margin-top: 2px; border-top: 1px dashed var(--line); padding-top: 4px; }
 .filters { display: flex; flex-wrap: wrap; gap: 5px; }
 
 /* ---------- speech, hookshot, video marker, ball ---------- */

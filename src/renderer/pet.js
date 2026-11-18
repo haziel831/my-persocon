@@ -728,6 +728,8 @@ export async function startPet(files, config) {
   const requestEl = div('request');
   requestEl.style.pointerEvents = 'none';
   const toyEl = div('held-toy');
+  // A espada equipada fica presa à cintura (e vai para a mão enquanto ela luta).
+  const swordEl = div('held-sword');
   const bell = { el: div('bell', `<img src="${icon('bell')}" draggable="false">`), a: 0, w: 0, x: null, vx: 0, cool: 0 };
   const countEl = div('countdown');
   const chainEl = div('hook-chain');
@@ -1314,6 +1316,29 @@ api.onTrayClick?.(() => {
       toyEl.style.height = `${Math.round(s * ratio)}px`;
       toyEl.style.transformOrigin = grip ? `50% ${grip * 100}%` : '50% 50%';
       toyEl.style.transform = `translate(${Math.round(x - s / 2)}px, ${Math.round(y - lift + (tp?.bob || 0))}px) rotate(${pet.tilt * 57 + (tp?.angle || 0)}deg)${flip}`;
+    }
+    // Espada equipada: pendurada na cintura (e na mão, na direção da lâmina, enquanto ela luta).
+    const swordUp = app.game.profile.swordEquipped === true && !hidden;
+    swordEl.style.display = swordUp ? 'block' : 'none';
+    if (swordUp) {
+      const item = itemById('espada');
+      const swordSrc = skins.art('espada', item?.img) || item?.img;
+      if (swordEl.dataset.src !== swordSrc) {
+        swordEl.dataset.src = swordSrc;
+        swordEl.innerHTML = `<img src="${swordSrc}" draggable="false">`;
+      }
+      const sp = view.swordPoint?.();
+      const hand = melee.swordOut && sp ? toScreen(sp) : null;
+      const waist = hand ? null : toScreen(view.waistPoint?.());
+      const at = hand || waist;
+      if (at) {
+        const s = Math.round(P * (hand ? 0.055 : 0.05));
+        const h = Math.round(s * 4.5);
+        const ang = hand ? sp.angle + place.tilt * 57 : -22;
+        swordEl.style.width = `${s}px`;
+        swordEl.style.height = `${h}px`;
+        swordEl.style.transform = `translate(${Math.round(at.x - s / 2)}px, ${Math.round(at.y - h * 0.85)}px) rotate(${ang}deg)${pet.dir < 0 ? ' scaleX(-1)' : ''}`;
+      } else swordEl.style.display = 'none';
     }
     // GameBuddy screen: placed once when the game starts, then stays put while the pet moves.
     const tv = tp?.tv && tp.picked && !hidden ? toys.tvRect() : null;
