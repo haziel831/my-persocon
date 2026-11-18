@@ -204,6 +204,8 @@ const newProfile = () => ({
   gamesPlayed: 0, coinsEarned: 0, toysBought: 0, requestsDone: 0, purchases: 0, boxesOpened: 0, missionsDone: 0, wallet: 0,
   attrs: Object.fromEntries(ATTRS.map(([k]) => [k, 0])),
   bagSize: 1, herBag: [], skills: {},
+  // A espada equipada fica na cintura dela (o objeto sai do desktop).
+  swordEquipped: false,
 });
 
 export class Game {
@@ -284,12 +286,16 @@ export class Game {
     this.profile.blackCartridgeWave ??= 1;
     // Quem ela encara no cartucho preto: 'slime' | 'grim' | 'mixed' (padrão).
     this.profile.blackEnemy ??= 'mixed';
+    // A espada equipada (na cintura) não pode existir duas vezes: nem no desktop, nem no inventário.
+    this.profile.swordEquipped = this.profile.swordEquipped === true;
     this.profile.cristalAwarded ??= !!this.profile.unknownDone;
     this.profile.blackCartLore ??= false;
     // toys: { id: { uses, maxUses, broken, placed, x } }
     this.toys = { ...(save?.toys || {}) };
     // Decor kept in the inventory is just a count (older saves also had a record for it).
     for (const [key, t] of Object.entries(this.toys)) if (!t.placed && itemById(baseId(key))?.decor) delete this.toys[key];
+    // Espada equipada: o objeto sai do desktop/inventário/bolsa (ela está com ela na cintura).
+    if (this.profile.swordEquipped) this.takeSwordOutOfWorld();
     // Last color/intensity chosen for each party item: new copies start with it.
     this.disco = { ...(save?.disco || {}) };
     this.cartridges = save?.cartridges || ['tetris'];
@@ -344,6 +350,8 @@ export class Game {
       const id = baseId(key);
       const item = itemById(id);
       if (!item || item.fixed || item.decor) continue;
+      // A espada equipada vive na cintura dela: não é um objeto órfão, não volta para o inventário.
+      if (id === 'espada' && this.profile.swordEquipped) continue;
       if (t.placed) continue;
       if (this.count(id) > 0 || this.bagHas(id)) continue;
       // Restore to the player's inventory so it shows up again.
@@ -948,6 +956,73 @@ export class Game {
       this.inventory[id] = 1;
     }
     this.changed();
+  }
+
+  // ---------- espada (combate armado) ----------
+
+  // O registro da espada no desktop (cria se ainda não existir, sem duplicar).
+  swordRecord() {
+    let t = this.toys.espada;
+    if (!t) {
+      t = this.toys.espada = { uses: 0, maxUses: 20 + Math.floor(Math.random() * 31), broken: false, placed: false, x: null };
+    }
+    return t;
+  }
+
+  // Tira a espada do desktop, do inventário e da bolsa dela: ela passa a carregá-la.
+  takeSwordOutOfWorld() {
+    const t = this.toys.espada;
+    if (t) {
+      t.placed = false;
+      t.x = t.y = t.on = t.dx = undefined;
+      delete t.fromBag;
+      delete t.homeX;
+    }
+    delete this.inventory.espada;
+    const bag = this.herBag();
+    const i = bag.indexOf('espada');
+    if (i >= 0) bag.splice(i, 1);
+  }
+
+  // Equipa a espada: pega o objeto do desktop, do inventário ou da bolsa e fica com ele na cintura.
+  equipSword() {
+    if (this.profile.swordEquipped) return false;
+    const t = this.toys.espada;
+    const onDesk = !!t?.placed;
+    const inBag = this.herBag().includes('espada');
+    if (!onDesk && !this.count('espada') && !inBag) return false;
+    this.takeSwordOutOfWorld();
+    this.profile.swordEquipped = true;
+    this.changed();
+    return true;
+  }
+
+  // Desequipa: a espada volta para o inventário do jogador.
+  unequipSword() {
+    if (!this.profile.swordEquipped) return false;
+    this.profile.swordEquipped = false;
+    this.inventory.espada = 1;
+    this.changed();
+    return true;
+  }
+
+  // Larga a espada na área de trabalho, na frente dela (o objeto volta a existir no desktop).
+  placeSword() {
+    const pet = this.pet;
+    const P = pet?.P || 130;
+    const dir = pet?.dir || 1;
+    const t = this.swordRecord();
+    t.broken = false;
+    t.placed = true;
+    t.x = pet ? Math.round(pet.x + dir * P * 0.8) : 400;
+    t.y = t.on = t.dx = undefined;
+    t.display = 0;
+    delete t.fromBag;
+    delete t.homeX;
+    this.profile.swordEquipped = false;
+    delete this.inventory.espada;
+    this.changed();
+    return t;
   }
 
   // One play session; returns true when the toy broke.
