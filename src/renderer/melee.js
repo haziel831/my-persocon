@@ -8,6 +8,7 @@
 // (combatanims.js) and the result is rolled with the Combat Skill Level: a higher level means
 // more accuracy, more crits and a better defense.
 import { combatMoves, skillLevel, skillGain } from './skills.js';
+import { SWORD_MOVES, SWORD_MULT } from './swordanims.js';
 import { COMBAT_META } from './combatanims.js';
 import { ITEMS, itemById } from './game.js';
 import { ATTR_XP } from './attrxp.js';
@@ -38,6 +39,9 @@ export const HIT_STOP = 0.12;
 // The charge before the strike: she glows blue and gathers energy (the hit waits for it).
 export const CHARGE_TIME = 0.45;
 export const CHARGE_MANEUVER = 0.55;
+// Com a espada equipada: o saque no começo do turno e a embainhada depois do dash de volta.
+export const SWORD_DRAW_TIME = 0.45;
+export const SWORD_SHEATHE_TIME = 0.45;
 // A distância de golpe (em "larguras da Persocon"): longe o bastante para os dois sprites não
 // se encostarem (o corpo do slime tem quase uma largura dela) e perto o bastante para o soco.
 export const STRIKE_GAP = 1.0;
@@ -291,6 +295,11 @@ export class Melee {
     this.returnTo = null;    // o retorno do desvio (x inicial + tempo)
     this.ghostT = 0;         // a opacidade 0,7 do desvio
     this.trailT = 0;         // o intervalo do rastro do dash
+    // Espada equipada: se a lâmina está na mão, se está sacando/embainhando.
+    this.swordOut = false;
+    this.drawing = false;
+    this.sheathing = false;
+    this.sheathT = 0;
     this._seen = null;       // relógio de fase (fase presa = a fila avança)
     this.crowTurnT = 0;      // o relógio do turno do Corvo (cão de guarda de 2,5 s)
     this.pendingCrow = false; // a skill do Corvo espera a carga vermelha terminar
@@ -312,10 +321,18 @@ export class Melee {
   get pet() { return this.app.pet; }
   get game() { return this.app.game; }
   get ui() { return this.app.combatUI; }
-  // The Combat Skill Level (the unarmed skill).
-  get level() { return skillLevel(this.game?.skillXp?.('unarmed') || 0); }
-  // The moves she may use right now (only the unlocked ones).
-  get moves() { return combatMoves(this.game?.skillXp?.('unarmed') || 0); }
+  // A espada equipada (profile.swordEquipped): na luta ela não usa socos nem chutes.
+  get armed() { return this.game?.profile?.swordEquipped === true; }
+  // O nível da arte de espada (o que libera os golpes armados).
+  get swordLevel() { return skillLevel(this.game?.skillXp?.('espada') || 0); }
+  // The Combat Skill Level (the highest of the arts she is actually using).
+  get level() { return Math.max(skillLevel(this.game?.skillXp?.('unarmed') || 0), this.armed ? this.swordLevel : 1); }
+  // The moves she may use right now (only the unlocked ones). With the sword, the punches and
+  // kicks are replaced by the sword maneuvers of the Sword skill.
+  get moves() {
+    if (this.armed) return SWORD_MOVES.filter((m) => m.lvl <= this.swordLevel);
+    return combatMoves(this.game?.skillXp?.('unarmed') || 0);
+  }
   get attacks() { return this.moves.filter((m) => m.kind === 'attack'); }
   // O oponente atual: na luta contra o Unknown é o inimigo da fila; no treino, o boneco.
   get opp() {
@@ -525,7 +542,7 @@ export class Melee {
     // A horda morre de verdade (animação de morte + fala dela).
     if (this.kind === 'unknown') this.app.unknown?.onDefeat?.('win');
     const lines = [];
-    if (this.xpGained > 0) lines.push(['Combate Corpo a Corpo', this.xpGained]);
+    if (this.xpGained > 0) lines.push([this.armed ? 'Espadas' : 'Combate Corpo a Corpo', this.xpGained]);
     if (this.attrGained.str > 0) lines.push(['Força', this.attrGained.str]);
     if (this.attrGained.agi > 0) lines.push(['Agilidade', this.attrGained.agi]);
     if (this.attrGained.con > 0) lines.push(['Constituição', this.attrGained.con]);
@@ -671,6 +688,13 @@ export class Melee {
     if (this.pet) this.pet.lift = 0;
     this.maneuverAuraT = 0;
     this.maneuverShown = false;
+    // A espada volta para a cintura e o estado do saque/carga não atravessa a luta.
+    this.swordOut = false;
+    this.drawing = false;
+    this.sheathing = false;
+    this.sheathT = 0;
+    this.chargeT = 0;
+    this.chargeSpot = null;
     this.petDown = false;
     this.downT = 0;
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
@@ -1349,6 +1373,15 @@ export class Melee {
       this.ghostT -= dt;
       if (this.ghostT <= 0) this.clearGhost();
     }
+    // A espada volta para a cintura depois do dash de recuo (o overlay sai da mão).
+    if (this.sheathing) {
+      this.sheathT -= dt;
+      if (this.sheathT <= 0) {
+        this.sheathing = false;
+        this.sheathT = 0;
+        this.swordOut = false;
+      }
+    }
     // Fase presa (clipe perdido no modelo, evento que não veio, queda sem getUp): a fila
     // AVANÇA na mão — a luta nunca fica parada num turno.
     const cap = PHASE_MAX[this.phase];
@@ -1420,8 +1453,10 @@ export class Melee {
           this.pendingFoe = false;
           this.phase = 'windup';
           this.t = 0;
-          // O clarão vermelho da liberação (antes do golpe sair).
-          this.releaseCharge();
+          // O clarão vermelho da liberação (antes do golpe sair). Com a espada, o fim do saque
+          // pode emendar direto na carga do golpe (o Giro de Lâmina carrega depois de sacar).
+          const again = this.releaseCharge();
+          if (again) break;
           if (crow) this.runCrowAct();
           else if (foe) { if (this.opp?.scrap) this.scrapStrike(); else this.foeStrike(); }
           else this.startMoveAnim();
@@ -1627,6 +1662,12 @@ export class Melee {
       const side = Math.sign(d);
       pet.x = this.edgeX(pet.x + Math.sign(d) * Math.min(Math.abs(d), speed * dt));
       this.dashPose('dash_backward', side, dt);
+    } else if (this.armed && this.swordOut && !this.sheathing) {
+      // Chegou na formação: ela embainha a espada (a lâmina volta para a cintura).
+      this.sheathing = true;
+      this.sheathT = SWORD_SHEATHE_TIME;
+      const facing = this.facing();
+      pet.playAnimation?.('sword_sheathe', { facing: facing > 0 ? 'right' : 'left', restart: true });
     }
     // O inimigo da vez também volta ao slot da formação (ninguém sai andando pelo chão).
     const f = this.kind === 'unknown' ? this.foes[this.foeIdx] : null;
@@ -1684,6 +1725,8 @@ export class Melee {
     this.t = 0;
     // She spends the turn on a medicine instead of attacking when it actually helps.
     // With the Fúria the maneuver comes first: the status is precious.
+    // Com a espada equipada as manobras desarmadas não existem: a Fúria vira o Giro de Lâmina.
+    if (this.fury && this.armed) return this.swordFuryTurn();
     const man = this.fury ? maneuverFor(this.level) : null;
     if (man) return this.maneuverTurn(man);
     if (this.useMedicine()) return;
@@ -1701,13 +1744,44 @@ export class Melee {
     // O nome do golpe: maior e piscando (é uma arte de combate).
     this.say(pet.x, pet.y - pet.P * 1.05, move.name, 'good', { big: move.kind === 'attack' });
     this.logAction(`${this.persoName()} usou ${move.name}`);
-    // A carga vem antes: a animação do golpe só começa depois dela.
-    this.startCharge(move.kind === 'attack' ? CHARGE_TIME : 0);
+    // A carga vem antes: a animação do golpe só começa depois dela (o Giro carrega 0,6 s).
+    this.startCharge(move.charge ?? (move.kind === 'attack' ? CHARGE_TIME : 0));
+  }
+
+  // Fúria com a espada: o Giro de Lâmina dourado (ocupa o lugar das manobras desarmadas).
+  swordFuryTurn() {
+    const pet = this.pet;
+    this.fury = false;
+    this.maneuverAuraT = Math.max(this.maneuverAuraT || 0, 2.2);
+    this.maneuverShown = false;
+    this.showFury();
+    const spin = SWORD_MOVES.find((m) => m.clip === 'sword_spin') || SWORD_MOVES[0];
+    this.move = { ...spin, maneuver: null, charge: 0.6, aoe: true };
+    this.next = TURN.OPPONENT;
+    const facing = this.facing();
+    pet.dir = facing > 0 ? 1 : -1;
+    this.moveDur = (this.metaOf(this.move)?.durationMs ?? 1500) / 1000;
+    this.say(pet.x, pet.y - pet.P * 1.15, `${spin.name}!`, 'good', { big: true, special: true, skill: spin });
+    this.logAction(`${this.persoName()} usou ${spin.name} (Fúria da lâmina)`, 'special');
+    this.startCharge(0.6);
   }
 
   // A carga antes do golpe: ela brilha em VERMELHO e junta energia (0 = sem carga).
   startCharge(dur = 0) {
     const pet = this.pet;
+    const facing = this.facing();
+    // Com a espada na cintura ela SACA a lâmina antes de qualquer golpe armado.
+    const draw = this.armed && !this.swordOut && !this.drawing;
+    if (draw) {
+      this.phase = 'charge';
+      this.t = 0;
+      this.drawing = true;
+      this.chargeSpot = null;
+      this.chargeT = Math.max(dur || 0, SWORD_DRAW_TIME);
+      pet.playAnimation?.('sword_draw', { facing: facing > 0 ? 'right' : 'left', restart: true });
+      this.app.sound?.swish?.();
+      return;
+    }
     if (!(dur > 0)) {
       this.startMoveAnim();
       return;
@@ -1716,12 +1790,12 @@ export class Melee {
     this.t = 0;
     this.chargeT = dur;
     // A pose de espera enquanto a energia junta.
-    const facing = this.facing();
     // A Fúria tem a própria carga dentro do clipe (cast_special): ela já entra vibrando.
+    // O Giro de Lâmina também (os primeiros 0,6 s do clipe são a carga vermelha).
     if (this.metaOf(this.move)?.charge) {
-      pet.playAnimation?.('cast_special', { facing: facing > 0 ? 'right' : 'left', restart: true });
+      pet.playAnimation?.(this.move.clip, { facing: facing > 0 ? 'right' : 'left', restart: true });
     } else {
-      pet.playAnimation?.('combat_idle', { facing: facing > 0 ? 'right' : 'left', restart: false });
+      pet.playAnimation?.(this.armed ? 'sword_idle' : 'combat_idle', { facing: facing > 0 ? 'right' : 'left', restart: false });
     }
     // A aura da carga em volta dela, o brilho no modelo e as partículas de energia.
     // A cor vem do golpe (vermelho normal, azul/dourado nos especiais).
@@ -1736,10 +1810,22 @@ export class Melee {
   }
 
   // O clarão rápido quando a carga estoura e o golpe sai.
+  // Retorna true quando outra carga começou (o saque da espada emenda na carga do Giro).
   releaseCharge() {
+    const drawing = this.drawing;
+    this.drawing = false;
+    if (this.armed && drawing) this.swordOut = true;
     const s = this.chargeSpot;
     this.chargeSpot = null;
     if (s) this.ui?.chargeBurst?.(s.x, s.y, s.size);
+    // Saque concluído: se o golpe tem carga própria, ela começa agora (com a espada na mão).
+    if (drawing) {
+      if ((this.move?.charge || 0) > 0) {
+        this.startCharge(this.move.charge);
+        return true;
+      }
+      return false;
+    }
     const man = this.move?.maneuver;
     const pet = this.pet;
     const facing = this.facing();
@@ -1813,8 +1899,8 @@ export class Melee {
     // O clipe já está tocando (a carga faz parte dele): não recomeça.
     if (pet.combatAnim?.name === this.move.clip) return;
     if (!pet.playAnimation(this.move.clip, { facing: facing > 0 ? 'right' : 'left' })) {
-      // The model has no such clip: fall back to the stance.
-      pet.playAnimation('combat_idle', { facing: facing > 0 ? 'right' : 'left' });
+      // The model has no such clip: fall back to the stance (the sword's when she's armed).
+      pet.playAnimation(this.armed ? 'sword_idle' : 'combat_idle', { facing: facing > 0 ? 'right' : 'left' });
     }
   }
 
@@ -2237,7 +2323,8 @@ export class Melee {
     if (r >= blockChance + hitChance) return { result: 'miss', stunned };
     const crit = Math.random() < critChance;
     // The Strength decides how hard she hits; a maneuver has its own multiplier.
-    const base = man ? man.mult * 6 : (this.move?.dmg ?? 0);
+    // Com a espada equipada o golpe leva o multiplicador da arma (SWORD_MULT).
+    const base = man ? man.mult * 6 : (this.move?.dmg ?? 0) * (this.move?.weapon ? SWORD_MULT : 1);
     const dmg = Math.max(1, Math.round(base * mult * (0.85 + lvl * 0.03) * (0.75 + str * 0.075) * (crit ? 1.7 : 1) * (this.exhausted ? EXHAUST_DAMAGE : 1)));
     return { result: 'hit', dmg, crit };
   }
@@ -2273,6 +2360,7 @@ export class Melee {
     let landed = false;
     let missed = false;
     let blocked = false;
+    let lastDmg = 0;
     for (let h = 0; h < hits; h++) {
       const roll = this.rollStrike(man);
       this.fightStats.strikes += 1;
@@ -2280,6 +2368,7 @@ export class Melee {
       if (roll.result === 'miss') { missed = true; continue; }
       this.fightStats.hits += 1;
       landed = true;
+      lastDmg = Math.max(lastDmg, roll.dmg);
       // Cada golpe acertado treina a Força (o treino pesado paga bem mais).
       this.damageFoe(roll.dmg, { crit: roll.crit });
       this.app.sound?.swish?.();
@@ -2292,6 +2381,8 @@ export class Melee {
       this.agiBonusStrike();
       // The special effects of the maneuver.
       this.applyManeuverFx(man, x, y);
+      // O Giro de Lâmina acerta TODOS os inimigos vivos ao redor (dano em área).
+      if (move.aoe) this.splashAround(lastDmg);
     } else if (blocked) {
       this.say(this.oppX(), this.oppY() - this.pet.P * 1.05, 'Bloqueou!', 'good');
       this.app.fx?.impact?.('shield', x, y, 0.45);
@@ -2308,7 +2399,8 @@ export class Melee {
     const before = lvl;
     const gain = skillGain(this.kind === 'fight' ? 'sparring' : this.kind === 'unknown' ? 'battle' : 'dummy');
     this.xpGained += gain;
-    this.game.skillAdd('unarmed', gain);
+    // A arte treinada é a que ela está usando: a espada quando está armada.
+    this.game.skillAdd(this.armed ? 'espada' : 'unarmed', gain);
     // Treinar no boneco também dá Constituição (de leve, um turno por vez).
     if (this.kind === 'dummy') { this.game.attrGain?.('con', ATTR_XP.con.turn, 'dummy'); this.attrGained.con += ATTR_XP.con.turn; }
     const after = this.level;
@@ -2322,6 +2414,30 @@ export class Melee {
     if (this.checkVictory()) return;
     this.phase = 'impact';
     this.t = 0;
+  }
+
+  // O giro da lâmina acerta todos os inimigos vivos ao redor (dano em área do Giro).
+  splashAround(dmg) {
+    if (!(dmg > 0) || this.kind !== 'unknown') return;
+    const others = this.foes.filter((f, i) => i !== this.foeIdx && f.hp > 0);
+    if (!others.length) return;
+    const pet = this.pet;
+    // O swoosh circular em volta dela.
+    this.app.fx?.wave?.(pet.x, pet.y - pet.P * 0.55, pet.P * 2.2, 'gold');
+    this.app.fx?.impact?.('burst', pet.x, pet.y - pet.P * 0.5, 1.2);
+    this.app.sound?.play?.('whoosh', { volume: 0.55 });
+    this.app.fx?.shake?.(0.9);
+    const cur = this.foeIdx;
+    try {
+      for (const f of others) {
+        const i = this.foes.indexOf(f);
+        if (i < 0 || f.hp <= 0) continue;
+        this.foeIdx = i;          // o damageFoe usa o oponente da vez
+        this.damageFoe(Math.max(1, Math.round(dmg * 0.5)), { crit: false });
+      }
+    } finally {
+      this.foeIdx = cur;
+    }
   }
 
   // The special effect of a maneuver (the shockwave, the explosion, the stun on the enemy).
@@ -2395,8 +2511,8 @@ export class Melee {
     if (!this.active) return;
     const pet = this.pet;
     if (reason === 'win') {
-      // Defeating the Scrap Dummy gives a bonus of Combat Skill XP.
-      this.game.skillAdd('unarmed', 12 + this.opp.level * 6);
+      // Defeating the Scrap Dummy gives a bonus of Combat Skill XP (na arte que ela usou).
+      this.game.skillAdd(this.armed ? 'espada' : 'unarmed', 12 + this.opp.level * 6);
       this.say(this.oppX(), this.oppY() - this.pet.P * 1.1, 'Sucataoxidado derrubado!', 'good');
       this.say(pet.x, pet.y - pet.P * 1.25, `Nível ${this.level}!`, 'good');
       this.app.sound?.play?.('ok', { volume: 0.5 });
