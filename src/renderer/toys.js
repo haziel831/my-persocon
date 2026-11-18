@@ -1033,6 +1033,12 @@ export class Toys {
     const key = game.placeToy(id, x, this.app.display?.() ?? 0);
     if (!key) return this.app.sound.play('cancel', { volume: 0.5 });
     this.app.sound.play('ok', { volume: 0.4 });
+    // A espada largada no desktop não é "brincar" na hora: se ela pegasse, equiparia de novo.
+    if (baseId(id) === 'espada') {
+      this.lastPlay.espada = performance.now();
+      this.want = null;
+      return;
+    }
     // A freshly placed toy gets played with right away.
     this.want = key;
     this.goPlay();
@@ -1137,6 +1143,11 @@ export class Toys {
       return;
     }
     if (id === 'espada') {
+      // Na bolsa dela: pegar a espada é equipar (a lâmina fica na cintura dali em diante).
+      if (!game.profile.swordEquipped && game.equipSword()) {
+        this.equipSwordShow(pet);
+        return;
+      }
       this.materializeBagToy(id, pet, pet.x);
       pet.playToy({
         id, dur: rand(16, 26), gain: item.gain, scale, hold: item.img, holdFrom: 0.9, pickAnim, one: true, fromBag: true,
@@ -1169,8 +1180,25 @@ export class Toys {
     return pet.chooseNext();
   }
 
-  // Training dummy: unarmed melee practice. The weapons have no combat use for now, so
-  // she always fights with her fists (the melee engine runs the turns).
+  // Brincar com a espada é EQUIPAR: ela pega a lâmina e passa a carregá-la na cintura.
+  // O objeto sai do desktop/bolsa/inventário (o game.equipSword já fez isso).
+  equipSwordShow(pet) {
+    const { game } = this.app;
+    const t = game.toys.espada;
+    if (t) delete t.homeX;
+    this.app.doll?.brain?.yieldToy?.('espada');
+    pet.squash = null;
+    pet.lift = 0;
+    const pickAnim = pet.pickClip(['pegar'], ['use_mainhand', 'swing_hand', 'idle']);
+    pet.anim?.(pickAnim, { facing: pet.dir > 0 ? 'right' : 'left', restart: true });
+    this.app.fx?.impact?.('dust', pet.x, pet.y - 4, 0.45);
+    this.app.sound?.play?.('ok', { volume: 0.45 });
+    this.furn.floatText(pet.x, pet.y - this.P * 1.15, '⚔ Espada equipada');
+    game.changed();
+  }
+
+  // Training dummy: melee practice. With the sword equipped she trains armed (SWORD_MOVES);
+  // without it she fights with her fists (the melee engine runs the turns either way).
   // mode: 'unarmed' (the basic training) or 'sparring' (the heavy training, real fight).
   // byPlayer: the heavy training ONLY starts when the player asks for it (the AI never does).
   playDummy(pet, forcedMode = null, onEnd = null, byPlayer = false) {
@@ -1251,6 +1279,12 @@ export class Toys {
     } else if (id === 'pelucia') {
       this.dollPlay(pet, item, scale, pickAnim, end);
     } else if (id === 'espada') {
+      // Com a espada no desktop, brincar com ela é EQUIPAR: a lâmina vai para a cintura dela
+      // e o objeto sai do chão (nada de espada duplicada no desktop/inventário).
+      if (!game.profile.swordEquipped && game.equipSword()) {
+        this.equipSwordShow(pet);
+        return;
+      }
       // Solo: uses the sword even with low energy (only the dummy needs ≥50%).
       pet.playToy({
         id, dur: rand(16, 26), gain: item.gain, scale, hold: art, holdFrom: 0.9, pickAnim, one: true, effort: 2.2,
