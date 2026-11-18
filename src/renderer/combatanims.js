@@ -513,6 +513,15 @@ export const COMBAT_META = {
   dash_forward: { kind: 'move', durationMs: 300, hitFrameMs: null, comboWindowMs: null },
   dash_backward: { kind: 'move', durationMs: 280, hitFrameMs: null, comboWindowMs: null },
   combat_hit_stagger: { kind: 'stagger', durationMs: 450, hitFrameMs: null, comboWindowMs: null },
+  // Arma equipada (swordanims.js): saque, embainhar, corte, estocada e o giro com carga.
+  // O Giro de Lâmina tem a carga dentro do clipe (os primeiros 0,6 s), como o cast_special.
+  sword_idle: { kind: 'idle', durationMs: 1200, hitFrameMs: null, comboWindowMs: null },
+  sword_draw: { kind: 'utility', durationMs: 500, hitFrameMs: null, comboWindowMs: null },
+  sword_sheathe: { kind: 'utility', durationMs: 450, hitFrameMs: null, comboWindowMs: null },
+  sword_slash: { kind: 'attack', durationMs: 600, hitFrameMs: 300, comboWindowMs: null, next: null },
+  sword_thrust: { kind: 'attack', durationMs: 620, hitFrameMs: 340, comboWindowMs: null, next: null },
+  sword_spin: { kind: 'attack', durationMs: 1500, hitFrameMs: 860, comboWindowMs: null, next: null, charge: true },
+  sword_guard: { kind: 'defense', durationMs: 320, hitFrameMs: null, comboWindowMs: null },
 };
 
 export const COMBAT_ANIM_NAMES = Object.keys(COMBAT_META);

@@ -4,6 +4,7 @@ import { loadClips, Animator } from './animation.js';
 import { addGenerated, GEN_ROLES } from './genanims.js';
 import { addCombatClips } from './combatanims.js';
 import { addActionClips } from './actanims.js';
+import { addSwordClips } from './swordanims.js';
 import { HairPhysics } from './hairphys.js';
 
 // Model faces -Z; the camera looks at it from +Z.
@@ -47,8 +48,10 @@ export class PetView {
     const combatClips = addCombatClips(model.bones.keys(), clips);
     // Action clips (use_item, jump_prep, knockup, fall_hit, knockdown, get_up): same idea.
     const actionClips = addActionClips(model.bones.keys(), clips);
+    // Armed combat clips (sword_draw, sword_sheathe, sword_slash, sword_thrust, sword_spin).
+    const swordClips = addSwordClips(model.bones.keys(), clips);
     const view = new PetView(model, clips, petHeight, canvas);
-    view.generated = [...generated, ...combatClips];
+    view.generated = [...generated, ...combatClips, ...swordClips];
     view.combatClips = combatClips;
     view.actionClips = actionClips;
     view.genRoles = Object.fromEntries(generated.filter((n) => GEN_ROLES[n]).map((n) => [n, GEN_ROLES[n]]));
@@ -398,6 +401,37 @@ export class PetView {
     const x = pts.reduce((s, p) => s + p.x, 0) / pts.length;
     const y = pts.reduce((s, p) => s + p.y, 0) / pts.length;
     return { x: x * this.ppu, y: y * this.ppu };
+  }
+
+  // The waist/hip (where the sheathed sword hangs), relative to the feet, in CSS pixels (y up).
+  waistPoint() {
+    const bone = this.model.bones.get('Hips') || this.model.bones.get('Pelvis')
+      || this.model.bones.get('Hip') || this.model.bones.get('DownBody');
+    if (!bone) return null;
+    this.scene.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(bone, true);
+    const v = box.getCenter(new THREE.Vector3());
+    // Um pouco para o lado e para trás: a espada fica pendurada na cintura, não no meio do corpo.
+    return { x: v.x * this.ppu, y: v.y * this.ppu, h: Math.max(1, (box.max.y - box.min.y) * this.ppu) };
+  }
+
+  // The right hand plus the blade direction (from the forearm to the hand), for the held sword.
+  // x/y are relative to the feet in CSS pixels (y up); angle is in degrees, 0 = blade up.
+  swordPoint() {
+    this.scene.updateMatrixWorld(true);
+    const hand = this.model.bones.get('RightHandLocator') || this.model.bones.get('RightForeArm') || this.model.bones.get('RightArm');
+    if (!hand) return null;
+    const h = new THREE.Vector3();
+    hand.getWorldPosition(h);
+    const fore = this.model.bones.get('RightForeArm') || this.model.bones.get('RightArm');
+    const f = new THREE.Vector3();
+    if (fore) new THREE.Box3().setFromObject(fore, true).getCenter(f);
+    else f.copy(h);
+    const dx = (h.x - f.x) * this.ppu;
+    const dy = -(h.y - f.y) * this.ppu;   // screen y grows down
+    const len = Math.hypot(dx, dy);
+    const angle = len > 0.6 ? (Math.atan2(dx, -dy) * 180) / Math.PI : 0;
+    return { x: h.x * this.ppu, y: h.y * this.ppu, angle };
   }
 
   update(dt) {
