@@ -68,6 +68,15 @@ export async function startArena(app) {
   const modelBtn = btn('Modelo', 'Troca o modelo da Persocon', () => swapModel());
   panel.append(el('div', { display: 'flex', gap: '6px', flexWrap: 'wrap' }, ''), startBtn, stopBtn, healBtn, killBtn, modelBtn);
 
+  // Combate armado: a arena equipa/desequipa a espada e mexe no nível da arte Espada
+  // (é o que libera os golpes SWORD_MOVES), sem precisar comprar nada na Shop.
+  const swordBtn = btn('Equipar espada', 'Equipa/desequipa a espada (combate armado)', () => toggleSword());
+  const swordLabel = el('span', { flex: '1', font: '11px PxEmoji, monospace', color: '#c9c1d8' }, '');
+  const swordDown = btn('−1', 'Baixa um nível da arte Espada', () => setSwordLevel(-1));
+  const swordUp = btn('+1', 'Sobe um nível da arte Espada', () => setSwordLevel(1));
+  panel.append(swordBtn);
+  panel.append(el('div', { display: 'flex', gap: '4px', alignItems: 'center' }, ''), swordLabel, swordDown, swordUp);
+
   // Nível de combate na mão: Combate e Combate Corpo a Corpo são o mesmo dado (`unarmed`).
   const lvlLabel = el('span', { flex: '1', font: '11px PxEmoji, monospace', color: '#c9c1d8' }, '');
   const lvlDown = btn('−1', 'Baixa um nível de Combate', () => setCombatLevel(-1));
@@ -89,6 +98,36 @@ export async function startArena(app) {
   }
 
   paintLevel();
+
+  // ---------- combate armado (espada) ----------
+  function swordLevel() {
+    return skillLevel(app.game.skillXp?.('espada') || 0) || 1;
+  }
+
+  function paintSword() {
+    const on = app.game.profile.swordEquipped === true;
+    swordLabel.textContent = `Espada Nv ${swordLevel()} · ${on ? 'na cintura' : 'guardada'}`;
+    swordBtn.textContent = on ? 'Desequipar espada' : 'Equipar espada';
+    swordBtn.style.borderColor = on ? '#c8a03c' : '#4a3f58';
+  }
+
+  function setSwordLevel(d) {
+    app.game.skillSetLevel?.('espada', Math.min(10, Math.max(1, swordLevel() + d)));
+    paintSword();
+  }
+
+  function toggleSword() {
+    const g = app.game;
+    if (g.profile.swordEquipped) g.unequipSword?.();
+    // Na arena a lâmina é livre: se não houver nenhuma no inventário/desktop, dá uma.
+    else if (!g.equipSword?.()) {
+      g.inventory.espada = 1;
+      g.equipSword?.();
+    }
+    paintSword();
+  }
+
+  paintSword();
 
   const status = el('div', { font: '11px PxEmoji, monospace', color: '#9c93ad', whiteSpace: 'pre' });
   panel.append(status);
@@ -167,10 +206,12 @@ export async function startArena(app) {
       `ela: ${hp} hp · energia ${Math.round(pet.stats.energy)} · ${pet.action}`,
       `horda: ${alive.length} viva(s) · ${Math.round(foesHp)} hp · ${unknown.state}`,
       `distância: ${dist === undefined ? '-' : Math.round(dist)} px (alvo ${Math.round(STRIKE_GAP * pet.P)})`,
+      `espada: ${app.game.profile.swordEquipped ? `Nv ${swordLevel()} · ${app.melee?.swordOut ? 'na mão' : 'na cintura'}` : 'guardada'}`,
       `modelo: ${shortDir(app.config.modelDir)}`,
       ends[0] ? `último fim: ${ends[0]}` : 'último fim: -',
     ].join('\n');
     startBtn.disabled = fighting();
+    paintSword();
   }, 250);
   timer.unref?.();
 

@@ -7,6 +7,16 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.25 — 17/11/2026
+**Espada equipada.** A **espada de bamboo** agora pode ser **equipada** (pelo Inventário ou pelo objeto no desktop) e passa a ficar **pendurada na cintura** dela — o objeto sai do desktop e da bolsa, então a lâmina nunca existe em dois lugares. No Inventário a linha "na cintura" tem **↩ Desequipar** (volta para a mochila) e **Colocar no Desktop** (larga na frente dela).
+**Combate armado.** Com a espada equipada ela luta com **golpes de espada** no lugar dos socos e chutes, liberados pelo **nível da arte Espada**: **Corte Básico** e **Guarda de Espada** (Nv 1), **Estocada** (Nv 3), **Corte Diagonal** (Nv 6), **Giro de Lâmina** (Nv 8) e **Ippon da Lâmina** (Nv 10). As manobras desarmadas saem de cena enquanto a lâmina está na cintura; com a **Fúria** ela faz um **Giro de Lâmina dourado**.
+**Dano.** A lâmina soma **1,4× de dano** nos golpes de espada (a exaustão continua cortando o dano dela pela metade) e o **Giro de Lâmina acerta todos os inimigos vivos** ao redor.
+**Animações.** Sete clipes procedurais novos: **saque da cintura, corte, estocada, giro de 360°, guarda, embainhar** e o **giro dourado da Fúria** — a lâmina vai para a mão na direção do golpe e o **rastro da carga vermelha** acompanha.
+**Brincar com a espada agora é equipar** (não é mais brinquedo de mão) e o **treino no Boneco de Treino fica armado** quando a espada está equipada.
+**Arena de combate.** O **My Persocon Combate.exe** ganhou **Equipar/Desequipar espada**, botões **−1/+1 do nível da arte Espada** e o estado da lâmina (na mão ou na cintura) no painel — combate armado testável sem comprar nada.
+**Correção.** Carregar o save com a espada equipada **não devolve mais uma cópia** para o Inventário (o reparo de objetos órfãos duplicava a lâmina a cada início).
+Detalhes em `ChangeLogs\v1.9.25.md`.
+
 ## v1.9.23 — 13/11/2026
 **Reformulação completa do combate em JRPG.** Barra de **ordem de turnos** no topo (retratos, o da vez cresce e ganha anel dourado), **formação lado a lado** (a Persocon e o Corvo à esquerda, os inimigos à direita) e cada turno em **4 fases**: anúncio (~900 ms, nome acima da cabeça + anel no chão), passo/carga (~800 ms, azul e partículas), impacto (animação do golpe + **hit-stop de 120 ms**) e respiração (~1,2 s) antes do próximo da fila agir.
 **Feedback novo.** O número de dano sobe e **quica no chão**; o **ícone do item** consumível usado flutua acima da cabeça dela; a vitória tem **pose, fanfarra e banner com o resumo de XP**.
