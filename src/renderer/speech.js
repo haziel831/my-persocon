@@ -387,7 +387,7 @@ export class Speech {
   react(type, data) {
     if (this.app.config.speech === false) return;
     // Em combate só o combate fala: nada de comentários da área de trabalho no meio da luta.
-    if (this.app.melee?.active) return;
+    if (this.app.melee?.active || this.app.pet?.combatMode) return;
     // Asleep she stays completely quiet (wake lines only fire after she is up).
     if (this.app.pet.action === 'sleep') return;
     const entry = LINES[type];

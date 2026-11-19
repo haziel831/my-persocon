@@ -2768,6 +2768,8 @@ export class Melee {
     this.pet.endToy?.(true);
     this.pet.resume?.();          // segurança: nunca devolve a Persocon paralisada
     this.pet.chooseNext?.();
+    // A impressão que ficou pronta durante a luta só é buscada agora, com o combate limpo.
+    this.app.toys?.resumePendingFetch?.();
     return true;
   }
 

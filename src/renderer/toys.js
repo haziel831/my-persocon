@@ -56,6 +56,10 @@ export class Toys {
     this.popup = null;
     this.parcels = new Map();
     this.unpacking = null;
+    // Impressão pronta durante o combate: a coleta fica pendente até a luta acabar.
+    this.pendingPrintFetch = false;
+    this.printWaitShown = false;
+    this.printRetryT = 0;
     this.furn = new Furniture(app, this);
     this.fun = new FunToys(app, this);
     this.casino = new Casino(app, this);
@@ -1769,7 +1773,7 @@ export class Toys {
     if ((p.invHints || 0) < 3) {
       p.invHints = (p.invHints || 0) + 1;
       game.dirty = true;
-      setTimeout(() => this.app.speech?.say('Guardei no Inventário!', 2.5), 950);
+      setTimeout(() => { if (!this.inCombat()) this.app.speech?.say('Guardei no Inventário!', 2.5); }, 950);
     }
   }
 
@@ -1780,7 +1784,7 @@ export class Toys {
     const now = performance.now();
     if (game.deliveries.length && now - (this.rushAt || 0) > 1000) {
       this.rushAt = now;
-      if (game.deliveries.some((d) => d.onPrinter) && !this.unpacking && pet.action !== 'goto') this.callPet();
+      if (game.deliveries.some((d) => d.onPrinter) && !this.unpacking && pet.action !== 'goto' && !this.inCombat()) this.callPet();
       else if (this.rush() && pet.mode === 'ground' && !pet.paused && !pet.activity && !pet.dead && ['idle', 'walk', 'sit'].includes(pet.action)) pet.chooseNext();
     }
     const u = this.unpacking;
@@ -1869,6 +1873,14 @@ export class Toys {
       }
     }
     this.printerFx(job, hidden);
+    // Coleta que ficou pendente do combate (ou de um cochilo): tenta de novo com calma.
+    if (this.pendingPrintFetch) {
+      this.printRetryT = (this.printRetryT || 0) - dt;
+      if (this.printRetryT <= 0) {
+        this.printRetryT = 1.5;
+        this.resumePendingFetch();
+      }
+    }
   }
 
   // Item being printed layer by layer (bottom up) under the moving print head, progress on the
@@ -1956,9 +1968,61 @@ export class Toys {
     render();
   }
 
+  // A impressão pronta chama ela — mas NUNCA por baixo de uma luta: encerrar o toy do combate
+  // aqui cancelava a batalha. Em combate a coleta vira uma tarefa pendente.
+  inCombat() {
+    const pet = this.app.pet;
+    const m = this.app.melee;
+    return !!(pet?.combatMode || m?.active || m?.isKnockedDown || m?.isRecovering);
+  }
+
+  // Há impressão (ainda não recolhida) esperando ela?
+  hasPendingPrintFetch() {
+    return !!this.app.game?.deliveries?.some((d) => d.onPrinter);
+  }
+
+  // Aviso discreto acima da impressora — não toca no estado, na ação nem no alvo dela.
+  showPrintWaiting() {
+    if (this.printWaitShown) return;
+    this.printWaitShown = true;
+    const en = this.app.config?.lang === 'en';
+    const g = this.printerGeom?.();
+    const pet = this.app.pet;
+    const x = g?.x ?? pet?.x ?? 0;
+    const y = g ? g.top + g.size * 0.12 : (pet?.y ?? 0) - (pet?.P ?? 100) * 1.2;
+    this.furn?.floatText?.(x, y, en ? '📦 Print ready — after the fight' : '📦 Pronto — depois da luta');
+  }
+
+  // Fim da luta (vitória, derrota ou fuga): só agora ela vai buscar o que ficou pronto.
+  resumePendingFetch() {
+    if (!this.pendingPrintFetch) return false;
+    // Nada mais para buscar (ela já recolheu, ou o Corvo pegou): encerra a pendência.
+    if (!this.hasPendingPrintFetch()) {
+      this.pendingPrintFetch = false;
+      this.printWaitShown = false;
+      this.printRetryT = 0;
+      return false;
+    }
+    // Ainda em combate (ou o fim da luta ainda está limpando o estado): espera.
+    if (this.inCombat()) return false;
+    const ok = this.callPet();
+    if (ok) {
+      this.pendingPrintFetch = false;
+      this.printWaitShown = false;
+      this.printRetryT = 0;
+    }
+    return ok;
+  }
+
   // A print is ready: she drops what she's doing and goes to get it (running if she has energy).
   callPet() {
     const { pet, antics, minigames } = this.app;
+    // COMBAT LOCK: o motor da luta é o dono do toy e da ação dela. A impressão espera.
+    if (this.inCombat()) {
+      this.pendingPrintFetch = true;
+      this.showPrintWaiting();
+      return false;
+    }
     // Dormindo: a impressão fica esperando ela acordar (a impressora não acorda ninguém).
     if (pet.action === 'sleep') return false;
     if (this.unpacking || pet.dead || pet.mode !== 'ground' || pet.chase || pet.mini || minigames?.active || pet.paused || pet.eating || pet.meals?.length) return false;
