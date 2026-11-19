@@ -293,6 +293,9 @@ export class Melee {
     this.crowFight = false;  // o Corvo entrou na luta
     this.crowActing = false; // o Corvo está executando a ação do turno dele
     this.petDown = false;    // ela está no chão (nocaute): o turno espera ela levantar
+    this.isKnockedDown = false; // do arremesso até o get_up: ela está caída
+    this.isRecovering = false;  // o get_up está acontecendo (levantando do chão)
+    this.upT = 0;               // relógio do levantar (cão de guarda do get_up)
     this.homeX = null;       // a formação dela (para onde ela volta depois do golpe)
     this.returnTo = null;    // o retorno do desvio (x inicial + tempo)
     this.ghostT = 0;         // a opacidade 0,7 do desvio
@@ -704,6 +707,9 @@ export class Melee {
     this.exhaustWarned = false;
     this.hitStop = 0;
     this.thawAfterImpact();
+    this.isKnockedDown = false;
+    this.isRecovering = false;
+    this.upT = 0;
     this.itemPopT = 0;
     this.pet.combatMode = true;
     // O Corvo entra como aliado se estiver livre na área de trabalho e tiver Skill de Combate.
@@ -813,6 +819,9 @@ export class Melee {
     this.chargeSpot = null;
     this.petDown = false;
     this.downT = 0;
+    this.isKnockedDown = false;
+    this.isRecovering = false;
+    this.upT = 0;
     this.hitStop = 0;
     this.thawAfterImpact();
     this.pet.emit?.('combatEnd', { reason, turns: this.turns, hits: this.hits });
@@ -1463,6 +1472,20 @@ export class Melee {
     // Ela foi nocauteada e está no chão: a luta espera ela se levantar.
     if (this.petDown) {
       this.t = 0;
+      // Ela já está no clipe get_up: é a recuperação. O evento 'getUp' é a saída normal,
+      // mas o clipe pode terminar sem ele — o cão de guarda de 1,2 s destrava o turno.
+      if (this.pet.knock?.stage === 'up') {
+        this.isKnockedDown = false;
+        this.isRecovering = true;
+        this.upT = (this.upT || 0) + dt;
+        if (this.upT > 1.2) {
+          console.warn('[PetDown] get_up sem evento em 1,2 s — destravando o turno');
+          this.upT = 0;
+          this.afterGetUp();
+          this.updateAuras();
+          return;
+        }
+      } else this.upT = 0;
       // Rede de segurança: o 'getUp' é a única saída normal, então ela nunca pode depender
       // só dele. Sem queda em andamento (nocaute de derrota, animação perdida) ou passando
       // do tempo máximo, a luta destrava na mão.
@@ -1471,6 +1494,9 @@ export class Melee {
         console.warn('[PetDown] destravando o turno sem o getUp');
         this.petDown = false;
         this.downT = 0;
+        this.isKnockedDown = false;
+        this.isRecovering = false;
+        this.upT = 0;
         this.pet.knock = null;
         this.pet.jumpPrep = null;
         this.t = 0;
@@ -1479,6 +1505,7 @@ export class Melee {
       return;
     }
     this.downT = 0;
+    this.upT = 0;
     // O retorno do desvio: ela volta para a guarda num piscar.
     if (this.returnTo) {
       const r = this.returnTo;
@@ -2270,6 +2297,9 @@ export class Melee {
       pet.launchKnockback(-this.facing() * pet.P * 1.5, -pet.P * 2.4);
       this.petDown = true;
       this.downT = 0;
+      this.isKnockedDown = true;
+      this.isRecovering = false;
+      this.upT = 0;
       this.say(pet.x, pet.y - pet.P * 1.3, 'Arremessada!', 'bad');
     }
     this.app.fx?.impact?.('rust', pet.x + this.facing() * pet.P * 0.3, pet.y - pet.P * 0.65, 0.5);
@@ -2418,6 +2448,12 @@ export class Melee {
     const pet = this.pet;
     this.petDown = false;
     this.downT = 0;
+    // De pé: a queda e o levantar acabaram. O Atordoado do nocaute não atravessa o get_up.
+    this.isKnockedDown = false;
+    this.isRecovering = false;
+    this.upT = 0;
+    this.stunTurns = 0;
+    pet.cureDebuff?.('atordoado');
     this.crowTurnT = 0;      // o Corvo recomeça a contagem: nada de watchdog na cara
     this.hitStop = 0;
     this.thawAfterImpact();
@@ -2718,6 +2754,9 @@ export class Melee {
     // Nada de estado de nocaute atravessando a luta: a próxima começa limpa.
     this.petDown = false;
     this.downT = 0;
+    this.isKnockedDown = false;
+    this.isRecovering = false;
+    this.upT = 0;
     this.closeT = 0;
     this.leap = null;
     if (this.pet) this.pet.lift = 0;

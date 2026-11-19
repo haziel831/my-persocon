@@ -2071,7 +2071,7 @@ api.onTrayClick?.(() => {
   if (hasDebuff) {
     pet.complainT = (pet.complainT || 0) + dt;
     const threshold = 18 + Math.random() * 25;
-    if (!pet.offstage && !pet.dead && pet.complainT >= threshold) {
+    if (!pet.offstage && !pet.dead && !pet.combatMode && !app.melee?.active && pet.complainT >= threshold) {
       pet.complainT = 0;
       const en = config.lang === 'en';
       const lines = en

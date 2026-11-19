@@ -382,6 +382,15 @@ export class Pet {
     for (const fn of this.listeners) fn(type, data);
   }
 
+  // A luta manda: com o motor ativo (ou nocaute/recuperação) nada de fala ou ação autônoma
+  // por baixo — o turno da luta não pode ser atropelado por um passeio ou uma soneca.
+  inCombat() {
+    if (this.combatMode) return true;
+    const m = this.app?.melee;
+    if (m?.active || m?.isKnockedDown || m?.isRecovering) return true;
+    return !!(typeof window !== 'undefined' && window.Melee?.isActive?.());
+  }
+
   // src: where a mood gain comes from (defaults to what she is doing); the same source gets boring.
   // Her maximum Health: the Constitution and the Strength make her tougher.
   maxHealth() {
@@ -910,7 +919,7 @@ export class Pet {
     if (this.action === 'sleep') return;
     // COMBAT_MODE: no requests during the fight — and anything asked before is dropped
     // (the balloon and the "Wants" chips do not follow her into the battle).
-    if (this.combatMode) {
+    if (this.inCombat()) {
       if (this.request) {
         this.request = null;
         this.emit('requestEnd');
@@ -2144,6 +2153,8 @@ export class Pet {
   }
 
   startGround(kind) {
+    // COMBAT_MODE: a ação é do motor da luta — nada de passeio/soneca por baixo.
+    if (this.inCombat()) return;
     if (kind !== 'sleep' && kind !== 'sleepLong') this.onBed = false;
     // Sitting (resting or watching): the cushion first, if there is one on the floor.
     if (kind === 'sit' || kind === 'watch') {
@@ -2234,7 +2245,7 @@ export class Pet {
     if (this.dead) return this.lieDead();
     if (this.powerOff) return this.lieOff();
     // COMBAT_MODE: the fight owns her; nothing else starts.
-    if (this.combatMode) {
+    if (this.inCombat()) {
       // A luta roda no tick do toy: se uma ação por baixo tirou o `action` de 'toy',
       // devolve a ação para ele (senão o updateToy para e a luta congela em pé).
       const tp = this.toyPlay;
@@ -2321,6 +2332,12 @@ export class Pet {
   updateGround(dt) {
     const s = this.validateGround();
     if (!s) return;
+
+    // COMBAT_MODE: a luta manda — só o toy da luta continua sendo ticado aqui.
+    if (this.inCombat()) {
+      if (this.action === 'toy') this.updateToy(dt);
+      return;
+    }
 
     // Free but still holding a player queue: drain now (do not wait for the idle timer).
     if ((this.afterPlay?.length || this.meals.length || this.actionQueue?.length)
@@ -2956,7 +2973,7 @@ export class Pet {
           else if (this.powerOff) this.lieOff();
           // Em combate a luta manda: nada de passeio aleatório depois do get_up (o
           // chooseNext devolve a ação ao toy da luta).
-          else if (this.action === 'land' && !this.combatMode) this.startGround(chance(0.6) ? 'walk' : 'idle');
+          else if (this.action === 'land' && !this.inCombat()) this.startGround(chance(0.6) ? 'walk' : 'idle');
           else this.chooseNext();
         }
       } else {
