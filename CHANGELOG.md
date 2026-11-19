@@ -7,6 +7,12 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.27 — 19/11/2026
+**Combate sem interferência.** Durante a luta ela não sai mais para **passear, sentar, dormir, comer, pedir algo** nem **comentar os próprios debuffs** — o turno do combate é o único dono da ação dela.
+**Levantar do chão consertado.** Depois de um golpe pesado, se o clipe `get_up` termina sem disparar o evento, um **cão de guarda de 1,2 s** destrava o turno na hora: ela não fica mais **andando até o inimigo e congelando**.
+**Nocaute limpo.** Ao levantar, queda, recuperação e o **Atordoado** do golpe são zerados — nada sobra para o próximo turno ou para a próxima luta.
+Detalhes em `ChangeLogs\v1.9.27.md`.
+
 ## v1.9.26 — 18/11/2026
 **Modo Clicar Através consertado.** O estado do `set_ignore_cursor_events` é **reafirmado a cada 800 ms** (a janela não fica mais "presa" aceitando cliques depois de perder o foco), o mouse é **solto na hora** quando o cursor sai da janela e as áreas clicáveis só contam quando estão **visíveis e com tamanho de verdade**. Os banners de **vitória/derrota** continuam clicáveis no modo atravessar (viraram `hitzone`) sem travar a janela inteira.
 **Combate de espada dramático.** O **torso torce e inclina 20–30°** para dentro do golpe (o quadril contra-rotaciona), o braço varre **arcos de ~140°** e o dash deixa **2–3 silhuetas fantasma** em ciano/roxo que somem em 250 ms.
