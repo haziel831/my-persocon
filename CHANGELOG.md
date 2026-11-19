@@ -7,6 +7,11 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.28 — 19/11/2026
+**Impressora não cancela mais o combate.** Se uma impressão fica pronta durante a luta, ela **continua lutando**: a coleta vira uma **tarefa pendente** e só acontece depois da vitória, derrota ou fuga.
+**Retomada automática.** A fila de coleta usa os **deliveries reais** do jogo, tenta de novo a cada **1,5 s** (cobre o caso de ela estar desmaiada) e mostra um aviso discreto **"📦 Pronto — depois da luta"** sem mexer na ação dela.
+Detalhes em `ChangeLogs\v1.9.28.md`.
+
 ## v1.9.27 — 19/11/2026
 **Combate sem interferência.** Durante a luta ela não sai mais para **passear, sentar, dormir, comer, pedir algo** nem **comentar os próprios debuffs** — o turno do combate é o único dono da ação dela.
 **Levantar do chão consertado.** Depois de um golpe pesado, se o clipe `get_up` termina sem disparar o evento, um **cão de guarda de 1,2 s** destrava o turno na hora: ela não fica mais **andando até o inimigo e congelando**.

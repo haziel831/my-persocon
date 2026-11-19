@@ -1,6 +1,10 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.28', [
+    ['A impressora 3D não cancela mais o combate: quando uma impressão fica pronta no meio da luta, a Persocon continua lutando normalmente e a coleta vira uma tarefa pendente — só depois da vitória, derrota ou fuga ela vai buscar e guardar o item', 'The 3D printer no longer cancels combat: when a print finishes mid-fight, the Persocon keeps fighting normally and the pickup becomes a pending task — only after victory, defeat or escape does she go fetch and store the item'],
+    ['Fila de coleta da impressora com retomada automática: o item pendente é reconhecido pelos deliveries reais do jogo, com nova tentativa a cada 1,5 s (por exemplo, se ela estava desmaiada ao fim da luta) e aviso discreto "📦 Pronto — depois da luta" sem mexer na ação dela', 'Printer pickup queue with automatic resume: the pending item is tracked from the game\'s real deliveries, retried every 1.5 s (for instance if she was knocked out at the end of the fight) and with a discreet "📦 Print ready — after the fight" notice that never touches her action'],
+  ]],
   ['1.9.27', [
     ['O combate não é mais atropelado por ações ociosas: durante a luta ela não sai para passear, não senta, não dorme, não come, não pede nada nem comenta os próprios debuffs — o turno da luta é o único dono da ação dela', 'Combat is no longer overridden by idle actions: during a fight she does not wander off, sit, sleep, eat, ask for anything or comment on her own debuffs — the fight turn is the only owner of her action'],
     ['Levantar do chão consertado: depois de um golpe pesado, se o clipe `get_up` termina sem disparar o evento, um cão de guarda de 1,2 s destrava o turno na hora — ela não fica mais andando até o inimigo e congelando', 'Getting up fixed: after a heavy blow, if the `get_up` clip ends without firing its event, a 1.2 s watchdog unlocks the turn right away — she no longer walks up to the enemy and freezes'],
