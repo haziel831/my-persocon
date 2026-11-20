@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.32 — 20/11/2026
+**Brinquedos e mobílias.** Bolhas de Sabão (bolhas clicáveis, pop + espuma, comemoração após 4), Aviãozinho de Papel (arco sobre as janelas, interceptação pelo Corvo), Caderno de Desenho (desenhos pixel art salvos no álbum e no Mural), Mural de Recados e Fotos com post-it editável, Cafeteira/Estação de Chá com carteira própria e Energy Drinks fictícios no upgrade, e Escrivaninha com Abajur que treina Inteligência. Ler mangás também treina `int`.
+
+**Ambiente e convivência.** Clima offline com um canvas leve (chuva com guarda-chuva, sakura, vagalumes à noite, neve), cenas raras em trio (Corvo ladrão e Trio no ritmo), Não Perturbe por lista de apps em foco (Rust publica `active_app` só ao trocar HWND), presets de personalidade, rotina diária e busca/filtros no catálogo.
+
+**Correções e textos.** Drag-and-drop usa os eventos do Tauri 2; Pomodoro não grava `config.focus` e libera a pausa no intervalo; presets restauram volume; "Modo Jam" renomeado para **Ouvir Música** (id interno `jam` preservado). `catalog.js` concentra opções/presets/temas e a busca; `weather.js` e `trio.js` são novos módulos.
+
 ## v1.9.31 — 20/11/2026
 **Arrastar e soltar arquivos.** A janela agora aceita arquivos soltos sobre a Persocon. `.mid`/`.midi` são lidos via `read_file_data` e tocados no sintetizador (com `songImport` e reação musical); `.vrm`/`.glb`/`.zip` entram direto no `inspectModel`, pulando o diálogo de arquivo; `.png` de 64×64 ou 64×32 abre o preview de skin com a opção de importar como skin Minecraft.
 
