@@ -7,3 +7,8 @@ test/shots/
 *_out.txt
 *_err.txt
 _dev_snapshots/
+# Backup e assets brutos (ficam no disco, fora do versionamento)
+backup-cursor/
+freepixel-japanese-food/
+*.rar
+save.json
