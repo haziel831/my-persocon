@@ -5,6 +5,7 @@
 import { ITEMS, TASTE_RANK } from './game.js';
 import { STYLES, pickStyle, vendFrame, vendCell, VEND_COIN, VEND_TRAY, VEND_TRAY_COLORS } from './casinoitems.js';
 import { dollReact } from './watch.js';
+import { icon } from './pixel.js';
 
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -12,7 +13,7 @@ const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 export const VEND_MARKUP = 1.2;
 // The neon machine never jams (teleport) and always takes the card.
 const st0 = (s) => (s === 'stuck' || s === 'classic' ? 'card' : s);
-const KINDS = { venda_comida: 'comidas', venda_bebida: 'bebidas' };
+const KINDS = { venda_comida: 'comidas', venda_bebida: 'bebidas', cafeteira: 'bebidas' };
 const STAT = { comidas: 'hunger', bebidas: 'thirst' };
 
 export class Vending {
@@ -39,6 +40,13 @@ export class Vending {
   }
 
   art(id) {
+    if (id === 'cafeteira') {
+      const up = !!this.app.game.toys.cafeteira?.up;
+      const brewing = this.cur?.id === id || this.out?.v?.id === id;
+      const puff = brewing && Math.floor(performance.now() / 220) % 2 === 0;
+      const name = up ? (puff ? 'cafeteira_up_brew' : 'cafeteira_up') : (puff ? 'cafeteira_brew' : 'cafeteira');
+      return icon(name);
+    }
     const m = this.state(id);
     return vendFrame(id === 'venda_comida' ? 'comida' : 'bebida', m.lit % 3, m.sel, m.sel >= 0 ? m.blink % 2 : 0, m.led, m.ic, m.tray, m.empty, !!this.app.game.toys[id]?.up);
   }
@@ -58,8 +66,19 @@ export class Vending {
 
   // Favorites first, then what she likes, then neutral ones; with none of those known yet, something
   // she never tasted. Never what she dislikes or hates.
-  choose(cat, wallet, up = this.isUp(cat)) {
+  choose(cat, wallet, up = this.isUp(cat), id = null) {
     const game = this.app.game;
+    if (id === 'cafeteira') {
+      // Her own drinks: never a bad taste, never the shared market or the vending machines.
+      // Energy Drinks only exist on the upgraded machine.
+      const all = ITEMS.filter((i) => i.coffee && (!i.energyDrink || up));
+      const ok = all.filter((e) => this.priceOf(e) <= wallet);
+      if (!ok.length) return { broke: all.length > 0 };
+      const w = ok.map((e) => (e.energyDrink ? 2 : 1) * this.thrift(e, wallet));
+      let r = Math.random() * w.reduce((a, b) => a + b, 0);
+      for (let i = 0; i < ok.length; i++) if ((r -= w[i]) <= 0) return { item: ok[i] };
+      return { item: ok[0] };
+    }
     if (up) return this.chooseUp(cat, wallet);
     const all = ITEMS.filter((i) => i.cat === cat && (i.vend || (!i.legacy && !i.watchOnly && !i.loot && !i.buff && i.price > 0)))
       .map((item) => ({ item, rank: TASTE_RANK[game.tasteOf(item.id)] ?? -1 }));
@@ -73,8 +92,9 @@ export class Vending {
     return { item: ok[0].item };
   }
 
-  isUp(cat) {
-    return !!this.app.game.toys[cat === 'comidas' ? 'venda_comida' : 'venda_bebida']?.up;
+  isUp(cat, id) {
+    const key = id || (cat === 'comidas' ? 'venda_comida' : 'venda_bebida');
+    return !!this.app.game.toys[key]?.up;
   }
 
   // Neon machine: only its exclusive items. Whatever she can afford, favorites weigh more; with a
@@ -105,9 +125,12 @@ export class Vending {
   }
 
   machine(cat) {
-    const key = cat === 'comidas' ? 'venda_comida' : cat === 'bebidas' ? 'venda_bebida' : null;
-    const t = key && this.app.game.toys[key];
-    return t?.placed && !t.broken && this.toys.reach(t) ? key : null;
+    const keys = cat === 'bebidas' ? ['cafeteira', 'venda_bebida'] : cat === 'comidas' ? ['venda_comida'] : [];
+    for (const key of keys) {
+      const t = this.app.game.toys[key];
+      if (t?.placed && !t.broken && this.toys.reach(t)) return key;
+    }
+    return null;
   }
 
   // Called by toys.needsSupply when she is hungry/thirsty: { x, use } to walk there, or null.
@@ -116,7 +139,7 @@ export class Vending {
     const key = this.machine(cat);
     if (!key || this.cur || this.out || this.app.pet.dead) return null;
     if (likedInBag && Math.random() > 0.12) return null;
-    const c = this.choose(cat, this.casino.wallet);
+    const c = this.choose(cat, this.casino.wallet, this.isUp(cat, key), key);
     if (!c.item) {
       if (!c.broke || performance.now() - this.brokeAt < 240000) return null;
       this.brokeAt = performance.now();
@@ -136,7 +159,7 @@ export class Vending {
     const cat = KINDS[id];
     if (pet.stats[STAT[cat]] > 92) return no(cat === 'comidas' ? 'Ela está sem fome agora' : 'Ela está sem sede agora');
     const w = this.casino.wallet;
-    const c = this.choose(cat, w);
+    const c = this.choose(cat, w, this.isUp(cat, id), id);
     if (!c.item) return no(c.broke ? `Carteira dela: ¥ ${w} · não dá para nada que ela goste (Ações → Carteira)` : 'Nada aqui que ela queira');
     if (pet.mode !== 'ground' || pet.surfaceId !== 'floor' || pet.chase || pet.mini || pet.eating || pet.meals?.length || pet.activity || pet.ballPlay || minigames?.active
       || !['idle', 'walk', 'run', 'sit', 'emote', 'toy', 'antic', 'goto', 'react'].includes(pet.action)) return no('Ela está ocupada agora');

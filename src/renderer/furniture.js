@@ -5,6 +5,7 @@ import { GACHA_PRICE, figureById, paintFigure } from './casinoitems.js';
 import { upIcon, upSize, ARCADE_SCREEN } from './upgrades.js';
 import { ArcadeShooter } from './arcadeshooter.js';
 import { crtFilter, GAMES } from './games.js';
+import { ATTR_XP } from './attrxp.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -216,6 +217,9 @@ export const FURN = {
   estante: { size: 0.6, ratio: 118 / 97, back: true },
   estante_cartuchos: { size: 0.6, ratio: 118 / 97, back: true },
   alvo: { size: 0.4, ratio: 26 / 22, back: true },
+  escrivaninha: { size: 0.62, ratio: 28 / 28, back: true },
+  cafeteira: { size: 0.42, ratio: 24 / 28, back: true },
+  mural: { size: 0.7, ratio: 22 / 30, back: true },
   globo: { size: 0.16, ratio: 18 / 14, disco: true },
   holofote: { size: 0.2, ratio: 16 / 14, disco: true },
   laser: { size: 0.2, ratio: 10 / 14, disco: true },
@@ -277,15 +281,27 @@ export const FURN_ITEMS = [
   item('gacha', 'mobilia', 'Gacha-Machine', 600, 'gacha_icon', { furn: true, noWear: true, note: `Clique para girar (¥ ${GACHA_PRICE}, você paga) · ela também gira sozinha com a carteira dela · cápsulas Comum, Incomum, Rara e Épica: moedas (para você), comidas, bebidas e bonecos colecionáveis` }),
   item('slot', 'mobilia', 'Slot-Machine', 800, 'slot_icon', { furn: true, noWear: true, note: 'Ela aposta as moedas da carteira dela · os ganhos vão para você · clique para pedir uma rodada · a sorte vem da Afeição' }),
   item('alvo', 'mobilia', 'Alvo', 160, 'alvo', { furn: true, gain: { mood: 0.35 }, note: 'Clique para um minigame de 3 minutos com recorde · a Persocon também joga dardos' }),
+  item('mural', 'mobilia', 'Mural de Recados e Fotos', 220, 'mural', {
+    furn: true, decor: true, noWear: true,
+    note: 'Mostra as últimas fotos do álbum da câmera e um post-it curto que você pode editar',
+  }),
+  item('cafeteira', 'mobilia', 'Cafeteira / Estação de Chá', 300, 'cafeteira', {
+    furn: true, noWear: true, gain: { mood: 0.08, energy: 0.03 },
+    note: 'Chá e Café pela carteira dela · nunca dá reação ruim · com upgrade vira a Estação Energy Neon',
+  }),
+  item('escrivaninha', 'mobilia', 'Escrivaninha com Abajur', 260, 'escrivaninha', {
+    furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
+    note: 'Estuda e lê com a luz do abajur · treina Inteligência em sessões de foco · o abajur acende sozinho à noite',
+  }),
   item('boneco_treino', 'mobilia', 'Boneco de treino', 200, 'dummy', {
     furn: true, noWear: true, gain: { mood: 0.25, energy: -0.08, thirst: -0.06 },
     note: 'Tamanho dela · balança como pino de boliche · combate por turnos desarmada (só socos) · o treino acaba quando ela fica sem energia',
   }),
-  item('globo', 'mobilia', 'Globo de luz', 140, 'globo', { furn: true, decor: true, note: 'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
-  item('holofote', 'mobilia', 'Holofotes', 120, 'holofote', { furn: true, decor: true, note: 'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
-  item('laser', 'mobilia', 'Lasers', 160, 'laser', { furn: true, decor: true, note: 'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
-  item('fumaca', 'mobilia', 'Máquina de fumaça', 130, 'fumaca', { furn: true, decor: true, note: 'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
-  item('confete', 'mobilia', 'Lança-confete', 90, 'confete', { furn: true, decor: true, note: 'Liga no Jam · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
+  item('globo', 'mobilia', 'Globo de luz', 140, 'globo', { furn: true, decor: true, note: 'Liga ao Ouvir Música · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
+  item('holofote', 'mobilia', 'Holofotes', 120, 'holofote', { furn: true, decor: true, note: 'Liga ao Ouvir Música · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
+  item('laser', 'mobilia', 'Lasers', 160, 'laser', { furn: true, decor: true, note: 'Liga ao Ouvir Música · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
+  item('fumaca', 'mobilia', 'Máquina de fumaça', 130, 'fumaca', { furn: true, decor: true, note: 'Liga ao Ouvir Música · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
+  item('confete', 'mobilia', 'Lança-confete', 90, 'confete', { furn: true, decor: true, note: 'Liga ao Ouvir Música · mova no Editar mobília (até para o alto) · pode ter vários · botão direito: cor e intensidade' }),
   item('impressora', 'mobilia', 'Impressora 3D', 0, 'printer3d', { furn: true, fixed: true, note: 'Imprime as compras uma de cada vez, em fila · a Persocon pega cada item e guarda' }),
   item('gamegear', 'fun', 'GameGlow', 320, 'gamegear', { baggable: true, gain: { mood: 0.58 }, note: 'Aceita todos os cartuchos · mais divertido que o GameBuddy' }),
   item('psp', 'fun', 'PlayPocket 3000', 480, 'psp', { baggable: true, gain: { mood: 0.66 }, note: 'Aceita todos os cartuchos · o mais divertido dos portáteis' }),
@@ -320,6 +336,96 @@ defineIcons({ estante_icon: (sprite) => sprite(24, 30, ({ rect }) => {
   for (let r = 0; r < 4; r++) rect(1, 7 + r * 7, 22, 1, '#8a5a2b');
   ['#e2603b', '#ff6fb5', '#3a2f4a', '#ffd23f', '#3c6be0'].forEach((c, i) => rect(3 + i * 3, 2, 2, 5, c));
 }) });
+
+// Desk with lamp: the lit variant is used at night/dawn and during a focus session.
+const paintDesk = ({ rect, px }, lit) => {
+  rect(1, 7, 26, 3, '#8a5a2b'); rect(1, 7, 26, 1, '#b0793f');
+  rect(3, 10, 3, 15, '#6e4520'); rect(22, 10, 3, 15, '#6e4520');
+  rect(2, 22, 24, 3, '#5a3818'); rect(2, 24, 24, 1, '#3c2610');
+  rect(7, 2, 13, 5, '#2a2a33'); rect(8, 3, 11, 3, lit ? '#3c6be0' : '#141824');
+  rect(9, 4, 9, 1, lit ? '#8ea6ee' : '#2a3550');
+  rect(4, 10, 8, 2, '#d8c49a'); rect(5, 11, 6, 1, '#f0e2bb');
+  rect(18, 1, 1, 6, '#555'); rect(16, 6, 5, 1, '#c9c6c0');
+  rect(17, 7, 3, 1, lit ? '#ffd23f' : '#8a8577');
+  if (lit) {
+    rect(13, 8, 10, 8, '#ffe9a0'); rect(14, 9, 8, 6, '#fff4c8');
+    rect(15, 10, 6, 4, '#ffffff');
+    px(12, 8, '#ffd23f'); px(24, 8, '#ffd23f');
+  }
+};
+defineIcons({
+  escrivaninha: (sprite) => sprite(28, 28, (p) => paintDesk(p, false)),
+  escrivaninha_lamp: (sprite) => sprite(28, 28, (p) => paintDesk(p, true)),
+});
+
+// Coffee/tea station: the two brew frames add a little animated steam.
+const paintBrewer = ({ rect, px }, up, brew) => {
+  const body = up ? '#2c2048' : '#d8d4cc';
+  const edge = up ? '#ff3ea5' : '#8a8577';
+  rect(3, 6, 18, 18, body); rect(2, 7, 20, 16, body);
+  rect(3, 6, 18, 2, up ? '#5ef0ff' : '#f4f1ea');
+  rect(4, 9, 16, 4, up ? '#120c24' : '#3b3b46');
+  rect(5, 10, 14, 2, up ? '#ffd23f' : '#c8553d');
+  rect(6, 15, 12, 6, up ? '#1a1030' : '#f4f1ea');
+  rect(9, 16, 6, 4, up ? '#7a3cff' : '#5a3818');
+  rect(3, 22, 18, 3, up ? '#120c24' : '#8a8577');
+  rect(6, 25, 12, 2, up ? '#ff3ea5' : '#5a5550');
+  px(20, 11, up ? '#5ef0ff' : '#d33c3c'); px(20, 13, up ? '#ffd23f' : '#3c6be0');
+  if (brew) {
+    [[8, 4], [12, 2], [16, 4], [20, 1]].forEach(([x, y]) => {
+      px(x, y, up ? '#5ef0ff' : '#ffffff');
+      px(x + 1, y - 1, up ? '#ff9a3d' : '#d8d4cc');
+    });
+  }
+};
+defineIcons({
+  mural: (sprite) => sprite(30, 22, ({ rect, px }) => {
+    rect(0, 0, 30, 22, '#8a5a2b'); rect(1, 1, 28, 20, '#c8a06a');
+    for (let i = 0; i < 30; i += 3) px(i, 2, '#a87e48');
+    rect(3, 4, 24, 14, '#e8dfc0'); rect(4, 5, 22, 12, '#f6efd8');
+    rect(4, 5, 22, 1, '#ffffff'); rect(4, 17, 22, 1, '#cfc4a0');
+    px(14, 1, '#d33c3c'); px(15, 1, '#e2475a'); px(14, 20, '#d33c3c');
+  }),
+  cafeteira: (sprite) => sprite(24, 28, (p) => paintBrewer(p, false, false)),
+  cafeteira_brew: (sprite) => sprite(24, 28, (p) => paintBrewer(p, false, true)),
+  cafeteira_up: (sprite) => sprite(24, 28, (p) => paintBrewer(p, true, false)),
+  cafeteira_up_brew: (sprite) => sprite(24, 28, (p) => paintBrewer(p, true, true)),
+});
+
+// Drinks sold ONLY by the cafeteira. `legacy` keeps them out of the common shop and vending
+// machines; `noBadTaste` guarantees she never reacts badly to them.
+const coffeeDrink = (id, name, price, effects, extra = {}) => ({
+  id, cat: 'bebidas', name, price, effects: { thirst: 30, ...effects },
+  coffee: true, legacy: true, noBadTaste: true, pix: `cd_${id}`,
+  ...extra,
+  get img() { return typeof document === 'undefined' ? '' : icon(this.pix); },
+});
+
+export const COFFEE_ITEMS = [
+  coffeeDrink('cha_quente', 'Chá', 12, { energy: 8, mood: 2 }),
+  coffeeDrink('cafe_forte', 'Café', 18, { energy: 16, mood: 2 }),
+  coffeeDrink('voltmint', 'VoltMint', 38, { energy: 26, mood: 3 }, { energyDrink: true, buff: ['noTired', 180] }),
+  coffeeDrink('neoberry_surge', 'NeoBerry Surge', 46, { energy: 22, mood: 10 }, { energyDrink: true, buff: ['doubleMood', 180] }),
+  coffeeDrink('solaris_zero', 'Solaris Zero', 54, { energy: 24, mood: 4 }, { energyDrink: true, buff: ['noTired', 300] }),
+  coffeeDrink('cybermatcha_rush', 'CyberMatcha Rush', 68, { energy: 28, mood: 6 }, { energyDrink: true, attrXp: { int: 4, con: 2 } }),
+  coffeeDrink('hyperyuzu', 'HyperYuzu', 82, { energy: 36, mood: 8 }, { energyDrink: true, buff: ['shield', 180] }),
+];
+
+defineIcons(Object.fromEntries(COFFEE_ITEMS.map((it) => [it.pix, (sprite) => sprite(12, 16, ({ rect, px }) => {
+  const cup = it.id === 'cha_quente' || it.id === 'cafe_forte';
+  const colors = {
+    cha_quente: '#b5793a', cafe_forte: '#5a3818', voltmint: '#3dd6a0', neoberry_surge: '#7a3cff',
+    solaris_zero: '#ffd23f', cybermatcha_rush: '#7fd8a0', hyperyuzu: '#f4f1ea',
+  };
+  const c = colors[it.id];
+  if (cup) {
+    rect(2, 4, 8, 10, '#f4f1ea'); rect(2, 4, 8, 2, c); rect(3, 7, 6, 4, c);
+    rect(9, 6, 2, 4, '#f4f1ea'); px(5, 2, '#ffffff'); px(7, 1, '#ffffff');
+  } else {
+    rect(3, 1, 6, 2, '#c0c4d0'); rect(3, 3, 6, 11, c); rect(3, 6, 6, 3, '#120c24');
+    px(4, 4, '#ffffff'); px(4, 11, '#ffffff'); rect(3, 14, 6, 1, '#8a909e');
+  }
+})])));
 
 defineIcons({
   dummy: (sprite) => sprite(16, 28, ({ rect, circle, px }) => {
@@ -392,6 +498,7 @@ export class Furniture {
   }
 
   art(id, key = id) {
+    if (id === 'cafeteira') return this.app.casino?.vend?.art?.(id) || icon('cafeteira');
     if (id === 'estante' || id === 'estante_cartuchos') return this.shelfImage(key);
     if (this.toys.casino?.owns(id)) return this.toys.casino.art(id);
     return upIcon(id, this.app.game.toys[key]) || (this.toys.fun?.owns(id) ? this.toys.fun.art(id) : null);
@@ -402,6 +509,8 @@ export class Furniture {
     const up = this.app.game.toys[id]?.up;
     if (!up || !it.gain) return it.gain;
     if (id === 'banheira') return { ...it.gain, hygiene: it.gain.hygiene * 1.5, energy: 0.2 };
+    // Neon desk: a calm place to study, with a stronger energy recovery while she uses it.
+    if (id === 'escrivaninha') return { mood: 0.2, energy: 0.22 };
     const k = id === 'almofada' ? 1.6 : id === 'cama' || id === 'videogame' ? 1.3 : 1;
     return Object.fromEntries(Object.entries(it.gain).map(([s, v]) => [s, v > 0 ? v * k : v]));
   }
@@ -766,6 +875,8 @@ export class Furniture {
         }
       },
     });
+    // Reading also trains Inteligência (never coins — XP only).
+    this.app.game.attrAdd?.('int', ATTR_XP.int.manga, 'Mangá');
     pet.emit('readManga', { manga: m });
     return true;
   }

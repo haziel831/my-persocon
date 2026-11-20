@@ -1,6 +1,7 @@
 import { Combat } from './combat.js';
 import { ATTR_XP } from './attrxp.js';
 import { dayPeriod } from './watch.js';
+import { isFocus } from './focusmode.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const chance = (p) => Math.random() < p;
@@ -906,7 +907,7 @@ export class Pet {
 
   // Something she asks for out of the blue (from pet.js: toys she owns, a bath, music...).
   wish() {
-    if (this.request || this.dead || this.cfg.focus || this.combatMode || this.liveWishes().length >= 3) return false;
+    if (this.request || this.dead || isFocus(this.cfg, this.app) || this.combatMode || this.liveWishes().length >= 3) return false;
     const w = this.wishPool?.();
     if (!w) return false;
     this.request = { ...w, wish: true, t: 60 };
@@ -935,7 +936,7 @@ export class Pet {
       }
       return;
     }
-    if (this.stats.mood >= 60 || this.activity || this.chase || this.cfg.focus || this.liveWishes().length >= 3) return;
+    if (this.stats.mood >= 60 || this.activity || this.chase || isFocus(this.cfg, this.app) || this.liveWishes().length >= 3) return;
     this.requestTimer -= dt;
     if (this.requestTimer > 0) return;
     this.requestTimer = rand(60, 120);
@@ -1487,6 +1488,10 @@ export class Pet {
         this.timer = this.dosing + 0.5;
         this.anim('idle', { facing: 'front' });
       }
+    }
+    // Exclusive drinks can also train attributes (e.g. CyberMatcha Rush).
+    if (e.item.attrXp) {
+      for (const [attr, amount] of Object.entries(e.item.attrXp)) this.app?.game?.attrAdd?.(attr, amount, 'Bebida');
     }
     this.emit('ate', { item: e.item, drink: e.drink });
     this.checkDeath();
@@ -2281,7 +2286,7 @@ export class Pet {
     if (this.activity) return this.startGround(this.activity);
     if (this.paused) return this.startGround('idle');
     if (parcel && !parcel.urgent && this.goTo(parcel.x, parcel.go, parcel.rush)) return;
-    const focus = !!this.cfg.focus;
+    const focus = !!isFocus(this.cfg, this.app);
     if (this.findToy && !focus && chance(0.3)) {
       const toy = this.findToy();
       if (toy && this.goTo(toy.x, () => toy.play(this))) return;
@@ -2494,7 +2499,7 @@ export class Pet {
       if (Math.abs(w.y1 - w.top) > 2) continue;
       const mountX = w.x + this.dir * this.P * 0.3;
       if (!this.world.surfaceAt(w.id, mountX, 0)) continue;
-      if (!chance(this.cfg.focus ? 0 : this.cfg.climbChance * (this.stats.energy < 30 ? 0.3 : 1))) continue;
+      if (!chance(isFocus(this.cfg, this.app) ? 0 : this.cfg.climbChance * (this.stats.energy < 30 ? 0.3 : 1))) continue;
       this.startClimb(w);
       return true;
     }

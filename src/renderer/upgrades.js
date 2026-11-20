@@ -13,6 +13,8 @@ export const UPGRADES = {
   gacha: { name: 'Gacha-Machine Neon', note: 'Visual neon, animações mais épicas, mais prêmios e bonecos novos só dela' },
   videogame: { name: 'VideoGame Neon (TV + console)', note: 'Visual neon, TV maior e jogos com gráficos melhores', pix: 'tvset_up', size: 1.3 },
   cama: { name: 'Cama Moderna', note: 'Recupera energia 1,5x mais rápido, sem perder fome nem sede', pix: 'bed_up' },
+  escrivaninha: { name: 'Escrivaninha Estúdio Neon', note: 'Treina Inteligência 1,5x mais rápido e recupera Energia enquanto ela estuda ou faz pausas', pix: 'escrivaninha_up' },
+  cafeteira: { name: 'Estação Energy Neon', note: 'Cardápio exclusivo de Energy Drinks fictícios, todos pela carteira dela e sem reação ruim', pix: 'cafeteira_up' },
   almofada: { name: 'Almofada de Veludo', note: 'Mais confortável: descanso e humor melhores', pix: 'almofada_up' },
   banheira: { name: 'Cabine de Limpeza Laser', note: 'Cabine com lasers neon: limpa mais rápido, dá um pouco de energia e esconde a Persocon atrás do vidro', pix: 'tub_up', size: 0.85, ratio: 48 / 28 },
   teclado: { name: 'Sintetizador Neon', note: 'Som de sintetizador (mono), playlist de MIDI e timbres', pix: 'teclado_up_back' },
@@ -64,6 +66,27 @@ defineIcons({
     rect(3, 24, 9, 3, '#12141a'); rect(4, 25, 2, 1, NEON.pink); rect(6, 25, 2, 1, NEON.sun); rect(8, 25, 3, 1, NEON.cyan);
     rect(20, 24, 2, 2, NEON.cyan); rect(23, 24, 2, 2, NEON.pink); px(14, 25, NEON.gold); px(16, 25, NEON.gold);
     rect(1, 27, 26, 1, NEON.violet);
+  }),
+  // Neon studio desk: same footprint as the wooden one, lit lamp variant for night/focus.
+  escrivaninha_up: (sprite) => sprite(28, 28, ({ rect, px }) => {
+    rect(1, 7, 26, 3, NEON.violet); rect(1, 7, 26, 1, NEON.cyan);
+    rect(3, 10, 3, 15, '#2c2048'); rect(22, 10, 3, 15, '#2c2048'); px(3, 10, NEON.pink); px(24, 10, NEON.pink);
+    rect(2, 22, 24, 3, NEON.deep); rect(2, 24, 24, 1, NEON.pink);
+    rect(7, 2, 13, 5, '#120c24'); rect(8, 3, 11, 3, NEON.deep); rect(9, 4, 9, 1, NEON.cyan);
+    rect(4, 10, 8, 2, '#2c2048'); rect(5, 11, 6, 1, NEON.cyan);
+    rect(18, 1, 1, 6, '#5b5e70'); rect(16, 6, 5, 1, NEON.pink);
+    rect(17, 7, 3, 1, '#6b6f84');
+  }),
+  escrivaninha_up_lamp: (sprite) => sprite(28, 28, ({ rect, px }) => {
+    rect(1, 7, 26, 3, NEON.violet); rect(1, 7, 26, 1, NEON.cyan);
+    rect(3, 10, 3, 15, '#2c2048'); rect(22, 10, 3, 15, '#2c2048'); px(3, 10, NEON.pink); px(24, 10, NEON.pink);
+    rect(2, 22, 24, 3, NEON.deep); rect(2, 24, 24, 1, NEON.pink);
+    rect(7, 2, 13, 5, '#120c24'); rect(8, 3, 11, 3, NEON.deep); rect(9, 4, 9, 1, NEON.cyan);
+    rect(4, 10, 8, 2, '#2c2048'); rect(5, 11, 6, 1, NEON.cyan);
+    rect(18, 1, 1, 6, '#5b5e70'); rect(16, 6, 5, 1, NEON.pink);
+    rect(17, 7, 3, 1, NEON.gold);
+    rect(13, 8, 10, 8, 'rgba(255,210,63,0.35)'); rect(15, 9, 6, 5, '#fff4c8');
+    px(12, 8, NEON.sun); px(24, 8, NEON.sun); px(18, 8, '#ffffff');
   }),
   // Synthwave trampoline: chrome springs, neon grid mat and a half-sun rising over the frame.
   pula_pula_up: (sprite) => sprite(32, 12, ({ rect, px, circle }) => {

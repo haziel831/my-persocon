@@ -3,6 +3,8 @@
 // groups; each group is a 3-frame animation (3 x 32px) clipped by CSS background-position and
 // played with a steps(3) animation. No .gif files and no generated pixel emotes are used.
 
+import { isFocus } from './focusmode.js';
+
 const SHEET_COLS = 10;
 const SHEET_ROWS = 18;
 const FRAME = 32; // frame size in the sheet
@@ -198,7 +200,7 @@ export class Emoticons {
   }
 
   maybe(category, p) {
-    const rate = (this.cfg.emoticonRate ?? 1) * (this.cfg.focus ? 0.3 : 1);
+    const rate = (this.cfg.emoticonRate ?? 1) * (isFocus(this.cfg) ? 0.3 : 1);
     if (p >= 1) this.show(category, true);
     else if (Math.random() < p * rate) this.show(category);
   }

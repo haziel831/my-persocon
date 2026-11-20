@@ -262,6 +262,14 @@ const SKIN = '#f6cfa6';
 const SKIN_D = '#dca57a';
 
 const DEFS = {
+  // Tiny pixel umbrella used during light rain (no emoji, no external art).
+  umbrella: () => sprite(30, 16, ({ rect, px }) => {
+    rect(2, 5, 26, 2, '#8a5a2b'); rect(4, 3, 22, 2, '#8a5a2b');
+    rect(6, 1, 18, 2, '#8a5a2b');
+    rect(1, 7, 28, 1, '#3c6be0'); rect(2, 6, 26, 1, '#5ac8ff');
+    rect(5, 8, 4, 1, '#e2475a'); rect(12, 8, 4, 1, '#f4f1ea'); rect(19, 8, 4, 1, '#e2475a');
+    rect(14, 9, 2, 5, '#8a5a2b'); px(15, 14, '#5a3818'); px(16, 13, '#5a3818');
+  }),
   // 32x32 open hand (petting), sleeve at the bottom.
   hand: () => sprite(32, 32, ({ rect }) => {
     rect(8, 13, 16, 12, SKIN);

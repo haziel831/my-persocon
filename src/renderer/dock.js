@@ -124,7 +124,7 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     const en = config.lang === 'en';
     const chips = [];
     const push = (title, markup) => chips.push(`<span title="${String(title).replace(/[<>&"]/g, '')}">${markup}</span>`);
-    if (pet.activity === 'jam') push(en ? 'Jam mode' : 'Modo Jam', '🎵');
+    if (pet.activity === 'jam') push(en ? 'Listen to Music' : 'Ouvir Música', '🎵');
     if (pet.activity === 'watch') push(en ? 'Watch mode' : 'Modo Assistir', '📺');
     if (pet.pending) push(en ? `Next: ${pet.pending}` : `Próximo: ${pet.pending}`, '⏭');
     if (pet.toyPlay?.id) push(pet.toyPlay.id, '🎮');

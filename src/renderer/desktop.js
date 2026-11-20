@@ -3,6 +3,7 @@
 // a copy of the icon and shows it to the player, suggesting a match.
 import { icon } from './pixel.js';
 import { dollReact } from './watch.js';
+import { isFocus } from './focusmode.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -18,7 +19,7 @@ export class DesktopGames {
 
   get enabled() {
     const c = this.app.config;
-    return c.desktopGames !== false && !c.focus && !c.streamer && !!window.petAPI?.desktopIcons;
+    return c.desktopGames !== false && !isFocus(c, this.app) && !c.streamer && !!window.petAPI?.desktopIcons;
   }
 
   ready() {

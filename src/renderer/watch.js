@@ -1,6 +1,8 @@
 // Reacts to what happens on the desktop: windows opening, closing, maximized or being dragged
 // (with her riding on it, or not), lots of windows or none at all, the player going away and coming
 // back, the mouse racing around. The Persocon comments and acts it out; the living Doll reacts too.
+import { isFocus } from './focusmode.js';
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -48,7 +50,7 @@ export class DesktopWatch {
   // One contextual greeting (and at most one little gesture) when the real period changes.
   dayTick() {
     const cfg = this.app.config;
-    if (cfg.dayRoutine === false || cfg.focus || this.app.pomodoro?.active) return;
+    if (cfg.dayRoutine === false || isFocus(cfg, this.app)) return;
     const period = dayPeriod();
     if (this.period === null) {
       // Do not greet on launch — only on an actual change of period.
@@ -63,7 +65,12 @@ export class DesktopWatch {
     this.periodAt = now;
     if (this.pet.dead || this.pet.unconscious || this.pet.mode === 'held') return;
     const calm = this.calm();
-    if (period === 'manha' && calm) this.app.antics?.tryStart?.('stretch');
+    if (period === 'manha') {
+      if (calm) this.app.antics?.tryStart?.('stretch');
+      // Morning tea/coffee, paid from her own wallet if a Cafeteira is placed.
+      const station = Object.entries(this.app.game?.toys || {}).find(([key, t]) => key.split('#')[0] === 'cafeteira' && t.placed && !t.broken);
+      if (station) this.app.casino?.vend?.click?.('cafeteira', station[1].x, station[1].y, () => {}, () => {});
+    }
     if (period === 'madrugada' && calm) this.app.antics?.tryStart?.('yawn');
     this.app.speech?.sayPeriod?.(period);
   }
@@ -81,7 +88,7 @@ export class DesktopWatch {
 
   fire(kind, data = {}) {
     const now = performance.now() / 1000;
-    if (this.app.config.desktopReactions === false || this.app.config.focus) return false;
+    if (this.app.config.desktopReactions === false || isFocus(this.app.config, this.app) || this.app.dndActive) return false;
     if (kind !== 'winRide' && this.cool > 0) return false;
     if (now - (this.last[kind] ?? -1e9) < (GAP[kind] ?? 60)) return false;
     if (this.pet.dead || this.pet.unconscious || this.pet.mode === 'held') return false;

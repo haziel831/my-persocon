@@ -8,9 +8,12 @@ import { FURN, BALLS, CONSOLES, CONSOLE_SLOTS, Furniture, baseId, PRINT_AREA, MA
 import { Casino } from './casino.js';
 import { GACHA_PRICE, STYLES, pickStyle, figureById } from './casinoitems.js';
 import { FunToys, FUN_SIZE } from './funtoys.js';
+import { isFocus } from './focusmode.js';
 import { UPGRADES, upgradeCost, upSize, upRatio, upIcon } from './upgrades.js';
 import { upgradeFx } from './upgradefx.js';
 import { skillPick, skillGain, skillLevel } from './skills.js';
+import { dayPeriod } from './watch.js';
+import { translate } from './i18n.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -241,6 +244,70 @@ export class Toys {
   }
 
   // Right-click on an object: store it, change its look, and options of that object.
+  // The Mural shows the latest camera album shots and a short editable note.
+  updateMural(id) {
+    const el = this.els.get(id);
+    const board = el?.querySelector('.mural-board');
+    if (!board) return;
+    const t = this.app.game.toys[id] || {};
+    const photos = (this.app.game.profile?.fun?.photos || []).slice(-4).reverse();
+    const sig = photos.map((p) => p.src).join('|') + '::' + (t.note || '');
+    if (board.dataset.sig === sig) return;
+    board.dataset.sig = sig;
+    const strip = board.querySelector('.mural-photos');
+    strip.replaceChildren(...photos.map((p) => {
+      const im = document.createElement('img');
+      im.src = p.src;
+      im.alt = '';
+      return im;
+    }));
+    const note = board.querySelector('.mural-note');
+    note.textContent = t.note || translate('Clique para editar o post-it');
+    note.classList.toggle('empty', !t.note);
+  }
+
+  editMuralNote(id) {
+    const { app } = this;
+    const t = app.game.toys[id];
+    if (!t || t.broken) return;
+    const box = document.createElement('div');
+    box.className = 'mural-edit hitzone';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = 80;
+    input.value = t.note || '';
+    input.placeholder = translate('Escreva um recado curto...');
+    const save = document.createElement('button');
+    save.textContent = translate('Salvar');
+    save.onclick = () => {
+      t.note = input.value.trim().slice(0, 80);
+      app.game.changed();
+      app.sound.play('ok', { volume: 0.4 });
+      box.remove();
+      this.updateMural(id);
+    };
+    const cancel = document.createElement('button');
+    cancel.textContent = translate('Cancelar');
+    cancel.onclick = () => box.remove();
+    input.onkeydown = (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') save.click();
+      else if (e.key === 'Escape') box.remove();
+    };
+    box.append(input, save, cancel);
+    document.body.append(box);
+    input.focus();
+    input.select();
+    setTimeout(() => {
+      const off = (e) => {
+        if (box.contains(e.target)) return;
+        box.remove();
+        window.removeEventListener('pointerdown', off, true);
+      };
+      window.addEventListener('pointerdown', off, true);
+    }, 0);
+  }
+
   contextMenu(id, x, y) {
     this.closeMenu();
     const { game, sound } = this.app;
@@ -366,7 +433,7 @@ export class Toys {
     }
     if (id === 'gacha' && !t?.broken) btn(`🎰 Girar a Gacha (¥ ${GACHA_PRICE}, você paga)`, () => this.casino.click(id, x, y));
     if (id === 'slot' && !t?.broken) btn(`🎰 Pedir para ela jogar (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
-    if (this.casino.vend.owns(id) && !t?.broken) btn(`${id === 'venda_bebida' ? '🥤' : '🍙'} Pedir para ela comprar (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
+    if (this.casino.vend.owns(id) && !t?.broken) btn(`${id === 'cafeteira' ? 'Pedir chá ou café' : id === 'venda_bebida' ? '🥤' : '🍙'} (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
     // Call her to play with the toy (her personal bag / "Dar a ela" is paused).
     if (t && !t.broken && !['bag', 'food', 'corvo'].includes(id)) {
       const bid = baseId(id);
@@ -1858,7 +1925,7 @@ export class Toys {
     if (job) {
       job.t = (job.t || 0) + dt * (game.toys.impressora?.up ? 1.5 : 1);
       this.buzz = (this.buzz ?? 0) - dt;
-      if (this.buzz <= 0 && !hidden && !pet.cfg.focus) {
+      if (this.buzz <= 0 && !hidden && !isFocus(pet.cfg, this.app)) {
         this.buzz = 0.35 + Math.random() * 0.3;
         sound.tone8(180 + Math.random() * 120, 140, 0.05, 'square', 0.012);
       }
@@ -2058,6 +2125,23 @@ export class Toys {
       mark.className = 'mark';
       mark.draggable = false;
       el.append(mark);
+      if (baseId(id) === 'mural') {
+        const board = document.createElement('div');
+        board.className = 'mural-board';
+        const strip = document.createElement('div');
+        strip.className = 'mural-photos';
+        const note = document.createElement('div');
+        note.className = 'mural-note';
+        note.textContent = '';
+        note.title = translate('Clique para editar o post-it');
+        note.addEventListener('pointerdown', (e) => {
+          if (this.editing) return;
+          e.stopPropagation();
+          this.editMuralNote(id);
+        });
+        board.append(strip, note);
+        el.append(board);
+      }
       el.addEventListener('pointerdown', (e) => this.pointer(e, id));
       el.addEventListener('wheel', (e) => {
         if (!this.editing || !this.app.game.toys[id]) return;
@@ -2454,6 +2538,18 @@ export class Toys {
   update(dt, hidden) {
     const { game, pet } = this.app;
     const floor = this.floorY();
+    // Now and then she notices the photos on the Mural and says something fond about them.
+    this.muralCool = (this.muralCool ?? rand(90, 200)) - dt;
+    if (this.muralCool <= 0) {
+      this.muralCool = rand(180, 420);
+      const key = Object.keys(game.toys).find((k) => k.split('#')[0] === 'mural' && game.toys[k].placed && !game.toys[k].broken);
+      const t = key && game.toys[key];
+      if (t && !hidden && pet.mode === 'ground' && !pet.dead && Math.abs(pet.x - t.x) < this.P * 4) {
+        this.app.emoticons?.show?.('love', true);
+        const lines = ['Olha as fotos no mural... que lembranças boas!', 'Tô com saudade desses dias... obrigada por tirar as fotos!'];
+        this.app.speech?.say(translate(lines[Math.floor(Math.random() * lines.length)]), 3.5);
+      }
+    }
     this.updateHops(dt);
     if (this.want && !this.editing) this.goPlay();
     // GameBuddy must stay on the desk (and keeps the cartridge bag visible beside it).
@@ -2507,15 +2603,20 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const b = baseId(id);
       const item = itemById(b);
       const nb = this.bagsUp() ? '_up' : '';
-      const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : this.furn.art(b, id) || item?.img;
+      // Desk lamp: lit at night/dawn or while she studies in a focus session.
+      const deskLit = b === 'escrivaninha' && !t.broken
+        && (t.lampOn || this.app.pomodoro?.active || ['noite', 'madrugada'].includes(dayPeriod()));
+      const deskArt = deskLit ? icon(t.up ? 'escrivaninha_up_lamp' : 'escrivaninha_lamp') : null;
+      const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : (deskArt || this.furn.art(b, id)) || item?.img;
       // Arte importada (ao vivo ou salva) vence upgrade/casino/resourcepack, como já valia no salvo.
       const custom = this.live(b)?.frames?.length || skins?.objects?.[b]?.frames?.length;
       const bagUp = nb && (id === 'bag' || id === 'food') && !custom;
-      const src = (custom ? skins?.art(b, base) : null) || (t.up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base) || base;
+      const src = (custom ? skins?.art(b, base) : null) || deskArt || (t.up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base) || base;
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');
       if (img && img.getAttribute('src') !== src) img.src = src;
       el.classList.toggle('back', !!FURN[b]?.back);
+      if (b === 'mural') this.updateMural(id);
       const size = this.size(id);
       const tp = pet.toyPlay;
       const inHands = (tp?.id === id && tp.hold && tp.t >= tp.holdFrom && !(FURN[id] && !FURN[id].console)) || this.fun.hides(id);
@@ -2540,7 +2641,8 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
         : id === 'gacha' ? `Clique: girar a Gacha (¥ ${GACHA_PRICE}, você paga) · ela também gira com a carteira dela`
         : id === 'slot' ? `Clique: pedir para ela jogar · aposta da carteira dela (¥ ${this.casino.wallet}), os ganhos vão para você · a sorte vem da Afeição`
         : this.casino.vend.owns(id) ? `Clique: pedir para ela comprar algo que ela gosta com a carteira dela (¥ ${this.casino.wallet}) · com ${id === 'venda_bebida' ? 'sede' : 'fome'} ela vem sozinha`
-        : disco ? 'Dormente: só liga no modo Jam · botão direito para cor e intensidade · mova no Editar mobília'
+        : b === 'cafeteira' ? 'Clique: pedir chá ou café com a carteira dela · botão direito para opções'
+        : disco ? 'Dormente: só liga ao Ouvir Música · botão direito para cor e intensidade · mova no Editar mobília'
         : item?.furn ? 'Botão direito para opções · mova no Editar mobília'
         : 'Arraste para mover · botão direito para opções';
       const funTitle = !t.broken && this.fun.owns(b) && this.fun.title(b);

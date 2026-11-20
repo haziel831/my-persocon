@@ -55,6 +55,7 @@ export class Sound {
     this.ctx = null;
     this.crowVol = 1;
     this.crowFlapVol = 1;
+    this.dnd = false; // transient Do Not Disturb: silences everything without touching config
     try {
       this.ctx = new AudioContext();
       this.master = this.ctx.createGain();
@@ -101,7 +102,13 @@ export class Sound {
   }
 
   get enabled() {
-    return !!this.ctx && this.cfg.sound !== false;
+    return !!this.ctx && this.cfg.sound !== false && !this.dnd;
+  }
+
+  setDnd(on) {
+    this.dnd = !!on;
+    if (this.dnd && this.master) this.master.gain.value = 0;
+    else if (!this.dnd) this.applyVolume();
   }
 
   applyVolume() {
@@ -202,6 +209,7 @@ export class Sound {
   // ---------- synthesized 8-bit eating sounds ----------
 
   tone(type, f0, f1, t0, dur, vol, dest) {
+    if (this.dnd) return;
     const c = this.ctx;
     const o = c.createOscillator();
     const g = c.createGain();
@@ -221,6 +229,7 @@ export class Sound {
   }
 
   noise(t0, dur, vol, freq = 1800, dest) {
+    if (this.dnd) return;
     const c = this.ctx;
     if (!this.noiseBuf) {
       // Coarse sample-and-hold noise sounds more "chiptune" than white noise.
@@ -439,6 +448,7 @@ export class Sound {
       case 'gameover': [494, 466, 440, 415].forEach((f, i) => T('triangle', f, f * 0.98, i * 0.22, 0.24, v * 1.4)); break;
       case 'select': T('square', 660, 660, 0, 0.04); T('square', 990, 990, 0.05, 0.05); break;
       case 'beep': T('square', 1320, 1320, 0, 0.07); break;
+      case 'pop': T('sine', 880, 240, 0, 0.09, v * 1.4); T('triangle', 1400, 700, 0.01, 0.05, v * 0.5); break;
       case 'beep2': T('square', 1320, 1320, 0, 0.06); T('square', 1760, 1760, 0.09, 0.08); break;
       case 'buzz': T('sawtooth', 140, 120, 0, 0.3); break;
       case 'ding': T('triangle', 1760, 1750, 0, 0.4, v * 1.2); T('square', 2637, 2630, 0, 0.12, v * 0.4); break;

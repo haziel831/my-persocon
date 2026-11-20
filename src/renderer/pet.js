@@ -2,7 +2,8 @@ import { PetView } from './view.js';
 import { World } from './world.js';
 import { Pet, AFFECTION_LEAVE, AFFECTION_MAX, DEBUFFS } from './behavior.js';
 import { Emoticons } from './emoticons.js';
-import { Menu, ImportDialog, ObjectsDialog, showGameOver, DEFAULT_OPTS, prefLabel } from './ui.js';
+import { Menu, ImportDialog, ObjectsDialog, showGameOver, prefLabel } from './ui.js';
+import { DEFAULT_OPTS } from './catalog.js';
 import { Game, ITEMS, TASTE_MOOD, TASTE_RANK, BUFF_LABELS, BUFF_ICONS, itemById, HER_BAG } from './game.js';
 import { demoLocked, demoGameLocked, shortVersion } from './edition.js';
 import { Gains } from './gains.js';
@@ -14,6 +15,8 @@ import { icon, glyphIcon, setArtStyle } from './pixel.js';
 import { EventLog } from './eventlog.js';
 import { createDock } from './dock.js';
 import { Pomodoro } from './focus.js';
+import { Weather } from './weather.js';
+import { Trio } from './trio.js';
 import './statusicons.js';
 import { baseId } from './furniture.js';
 import { Ball } from './ball.js';
@@ -40,6 +43,7 @@ import { Care } from './care.js';
 import { QuickMenu } from './quickmenu.js';
 import { TrainingDummy } from './dummy.js';
 import { setLang, setSex, translate } from './i18n.js';
+import { isFocus } from './focusmode.js';
 import { cleanName } from './names.js';
 import { TitleScreen } from './title.js';
 import { Intro } from './intro.js';
@@ -145,7 +149,7 @@ export async function startPet(files, config) {
       add(1, 'toy', { id, name: it.name, img: it.img, label: it.name, say: [`Brinca comigo de ${it.name}?`, `Me deixa usar ${it.name}?`], en: [`Play ${it.name} with me?`, `Can I use the ${it.name}?`] });
     }
     if (pet.stats.hygiene < 70) add(2, 'bath', { label: 'Banho', img: glyphIcon('🛁'), say: ['Me dá um banho?', 'Tô precisando de um banho...'], en: ['Give me a bath?', 'I really need a bath...'] });
-    add(0.8, 'jam', { label: 'Modo Jam', img: glyphIcon('🎵'), say: ['Põe uma música e abre o Modo Jam pra gente dançar?', 'Bora! Menu → Brincar → Modo Jam!'], en: ['Put on music and open Jam mode so we can dance?', 'Come on! Menu → Play → Jam mode!'] });
+    add(0.8, 'jam', { label: 'Ouvir Música', img: glyphIcon('🎵'), say: ['Põe uma música e vamos dançar? É só ir em Brincar → Ouvir Música!', 'Bora! Menu → Brincar → Ouvir Música!'], en: ['Put on music and let us dance? Just go to Play → Listen to Music!', 'Come on! Menu → Play → Listen to Music!'] });
     add(0.8, 'watch', { label: 'Modo Assistir', img: glyphIcon('🍿'), say: ['Vamos no Modo Assistir? Clique no vídeo pra eu ver!', 'Cinema! Menu → Brincar → Modo Assistir!'], en: ['Watch mode? Click the video so I can see it!', 'Movie time! Menu → Play → Watch mode!'] });
     if (placed('videogame')) add(1, 'tv', { label: 'TV', img: glyphIcon('📺'), say: ['Liga a TV pra gente?', 'Vamos ver alguma coisa na TV?'], en: ['Turn on the TV for us?', "Let's watch something on TV?"] });
     add(0.7, 'ball', { label: 'Bola', img: icon('ball'), say: ['Joga a bola pra mim?', 'Bora jogar bola?'], en: ['Throw me the ball?', "Let's play ball?"] });
@@ -187,6 +191,7 @@ export async function startPet(files, config) {
 
   const app = {
     config,
+    dndActive: false,
     version: '',
     pet,
     game,
@@ -512,6 +517,8 @@ export async function startPet(files, config) {
   app.rewards = rewards;
   // Cooperative Pomodoro: she and the Doll keep the user company through a focus session.
   app.pomodoro = new Pomodoro(app);
+  app.weather = new Weather(app);
+  app.trio = new Trio(app);
   const care = new Care(app);
   app.display = () => display;
   const modelKey = () => config.modelDir || 'models/MyPersocon';
@@ -913,7 +920,12 @@ export async function startPet(files, config) {
   function setAppHidden(on) {
     appHidden = on;
     document.body.classList.toggle('app-hidden', on);
-    if (on) app.closeMenu?.();
+    if (on) {
+      app.closeMenu?.();
+      app.toys?.fun?.cleanupBubbles?.();
+      app.toys?.fun?.cleanupPlane?.();
+      app.toys?.fun?.cleanupDrawing?.();
+    }
     dock.invalidate();
     bagDockT = 0;
     app.uiChanged();
@@ -1702,6 +1714,14 @@ api.onTrayClick?.(() => {
     };
     cursor = raw.cursor ? { x: raw.cursor[0] / s, y: raw.cursor[1] / s } : null;
     pet.cursor = cursor;
+    // Transient Do Not Disturb: match the foreground app against the configured list.
+    const dndTerms = config.dndEnabled === false ? [] : String(config.dndApps || '')
+      .split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+    const dndNow = dndTerms.length > 0 && !!raw.active_app && dndTerms.some((t) => raw.active_app.includes(t));
+    if (dndNow !== app.dndActive) {
+      app.dndActive = dndNow;
+      sound.setDnd(dndNow);
+    }
     if (raw.keys && qteInput) {
       qteInput.hostKeys = true;
       if (raw.keys[0]) qteKey('left');
@@ -1804,11 +1824,13 @@ api.onTrayClick?.(() => {
   // Tauri 2 gives real local paths (needed by inspect_model / read_file_data).
   api.onFileDropHover?.(() => interact.fileDrop(true, dropHint()));
   api.onFileDropCancel?.(() => interact.fileDrop(false));
-  api.onFileDrop?.((paths) => {
+  api.onFileDrop?.((payload) => {
     if (Date.now() - lastDomDrop < 600) return;
     interact.fileDrop(false);
-    if (Array.isArray(paths) && paths[0]) app.handleDropPath(paths[0]);
+    const paths = Array.isArray(payload) ? payload : payload?.paths;
+    if (paths?.[0]) app.handleDropPath(paths[0]);
   });
+  api.onFileDropOver?.(() => interact.fileDrop(true, dropHint()));
   // Browser-level fallback (also covers drag highlighting when Tauri's drop is off).
   const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
   window.addEventListener('dragover', (e) => {
@@ -1898,7 +1920,7 @@ api.onTrayClick?.(() => {
     const dy = lastY === null ? 0 : Math.abs(pet.y - lastY);
     lastX = pet.x;
     lastY = pet.y;
-    if (config.footsteps !== true || config.focus) return;
+    if (config.footsteps !== true || isFocus(config, app)) return;
     const walking = pet.mode === 'ground' && ['walk', 'run', 'chase'].includes(pet.action) && dx > 0.05;
     const climbing = pet.mode === 'wall' && (pet.action === 'climbUp' || pet.action === 'climbDown') && dy > 0.05;
     if (!walking && !climbing) {
@@ -2033,6 +2055,8 @@ api.onTrayClick?.(() => {
       care.update(dt, hidden);
       rewards.update(dt, hidden);
       app.pomodoro.update(dt);
+      app.weather.update(dt, hidden, canvas.style.visibility === 'hidden');
+      app.trio.update(dt);
       updateDock();
       speech.update(dt, calm, quiet);
       fx.update(dt, head, quiet);

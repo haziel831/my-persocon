@@ -3,6 +3,7 @@
 // own reminders and alarms (Ações › Lembretes). A click gives her a cafuné; then she drops back down and
 // climbs back onto the taskbar where she was.
 import { icon } from './pixel.js';
+import { isFocus } from './focusmode.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -160,7 +161,7 @@ export class Closeup {
       if (!this.ready(urgent)) return;
       return this.start(this.queue.shift());
     }
-    if (this.cfg.closeupAuto === false || this.cfg.focus) return;
+    if (this.cfg.closeupAuto === false || isFocus(this.cfg, this.app)) return;
     if ((this.nextAuto -= dt) > 0) return;
     if (!this.ready(false) || this.app.pet.surfaceId !== 'floor') {
       this.nextAuto = 45;

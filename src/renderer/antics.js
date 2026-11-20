@@ -3,6 +3,8 @@
 // tripping, dozing off standing, sneezing, balancing, squats, waving at the cursor, humming,
 // impatient tapping, gazing at the desktop, shadowboxing and chasing a butterfly.
 
+import { isFocus } from './focusmode.js';
+
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -71,7 +73,7 @@ export class Antics {
     // INCONSCIENTE: nenhuma travessura, antic ou interação autônoma — ela está apagada fora.
     if (pet.unconscious) return false;
     // Focus session (Pomodoro) and discreet presets: no tricks or desktop mischief.
-    if (this.app.pomodoro?.active || this.app.config.anticsOff) return false;
+    if (isFocus(this.app.config, this.app) || this.app.config.anticsOff || this.app.dndActive) return false;
     if (this.cur || pet.mode !== 'ground' || pet.dead || pet.action === 'sleep' || pet.toyPlay || pet.activity || pet.mini || pet.chase || pet.eating || minigames?.active) return false;
     // COMBAT_MODE: no random antics during a fight.
     if (pet.combatMode) return false;

@@ -373,6 +373,38 @@ export class Crow {
     this.app.sound.crow('takeoff', 0.8);
   }
 
+  // Paper plane interception: grab it in mid-air, do a proud lap, then bring it back to her.
+  interceptPlane(plane) {
+    if (!this.free || plane.crow || plane.landed) return false;
+    plane.crow = true;
+    this.fetching = true;
+    this.flyTo(() => ({ x: plane.x, y: plane.y }), () => {
+      if (!plane.el.isConnected) { this.fetching = false; return; }
+      plane.el.remove();
+      this.carry.push(icon('aviao'));
+      this.app.sound.crow?.('caw', 0.9);
+      const pet = this.app.pet;
+      let a = 0;
+      this.flyTo(() => {
+        a += 0.14;
+        return {
+          x: clamp(pet.x + Math.sin(a) * 90, this.P, this.app.world.width - this.P),
+          y: this.floorY() - 80 - Math.abs(Math.cos(a)) * 50,
+        };
+      }, () => {
+        this.carry = [];
+        this.flyTo(() => ({ x: pet.x + (pet.dir || 1) * this.P * 0.5, y: this.floorY() }), () => {
+          this.perch = 'floor';
+          this.fetching = false;
+          pet.react?.('cheer');
+          pet.adjust?.({ mood: 6, affection: 1 }, 'corvo');
+          this.app.speech?.say(this.app.config.lang === 'en' ? 'The Crow brought your plane back!' : 'O Corvo trouxe seu avião de volta!', 3);
+        });
+      }, 4.2);
+    }, 5.2);
+    return true;
+  }
+
   hopTo(x, then) {
     this.act = { kind: 'hop', tx: clamp(x, this.P * 0.2, this.app.world.width - this.P * 0.2), then, t: 0 };
     this.play('hop');

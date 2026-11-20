@@ -2,6 +2,7 @@
 // driven by the host's audio loopback analysis: { level, bass, mid, high, beat, bpm } ~30x/s.
 import { icon } from './pixel.js';
 import { TASTE_RANK } from './game.js';
+import { isFocus } from './focusmode.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const SNACK_STAT = { comidas: 'hunger', bebidas: 'thirst' };
@@ -54,7 +55,10 @@ export class Modes {
       this.listening = true;
       window.petAPI.audioListen?.(true).catch(() => {});
     }
-    if (kind === 'jam') pet.fulfill?.('jam');
+    if (kind === 'jam') {
+      pet.fulfill?.('jam');
+      this.app.trio?.jamStarted?.();
+    }
     if (kind === 'watch') pet.fulfill?.('watch');
     return true;
   }
@@ -74,7 +78,7 @@ export class Modes {
   // Listens for a few seconds; steady beats = music (Jam), voices without beat = a video (Assistir).
   probe() {
     const { pet, config } = this.app;
-    if (config.autoActivity === false || config.focus || this.kind || this.probing || pet.dead || pet.toyPlay || pet.chase || pet.mode !== 'ground') return;
+    if (config.autoActivity === false || isFocus(config, this.app) || this.kind || this.probing || pet.dead || pet.toyPlay || pet.chase || pet.mode !== 'ground') return;
     if (!['idle', 'walk', 'sit'].includes(pet.action) || Math.random() > 0.5) return;
     this.probing = { n: 0, level: 0, beats: 0 };
     window.petAPI.audioListen?.(true).catch(() => {});

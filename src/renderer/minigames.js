@@ -113,11 +113,11 @@ export const MG_BONUS = {
   batata: ['Zera o tédio: cafuné e brinquedos voltam a render Humor cheio', (app) => { app.pet.bored = {}; return '🥔 Tédio zerado!'; }],
   estatua: ['Comportada por 1h: não mexe no cursor nem nos ícones', (app) => { setBuff(app, 'behaved', 3600); return '🗿 Comportada por 1h'; }],
   esconde: ['Ela acha uma Caixa Comum', (app) => giveBox(app, 'caixa_comum')],
-  ritmo: ['Ela aprende um passo novo no Jam (até 4)', (app) => {
+  ritmo: ['Ela aprende um passo novo ao ouvir música (até 4)', (app) => {
     const p = app.game.profile;
     if ((p.jamMoves || 0) >= 4) return '🎶 Ela já sabe todos os passos';
     app.pet.jamMoves = p.jamMoves = (p.jamMoves || 0) + 1;
-    return `🎶 Passo novo no Jam! (${p.jamMoves}/4)`;
+    return `🎶 Passo novo ao ouvir música! (${p.jamMoves}/4)`;
   }],
   desenho: ['Seu melhor desenho vai para o Álbum', (app, score, s) => {
     if (!s.art) return null;

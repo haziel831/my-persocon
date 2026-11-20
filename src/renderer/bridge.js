@@ -39,9 +39,10 @@ window.petAPI = {
   quit: () => invoke('quit'),
   onWorld: (cb) => listen('world', (e) => cb(e.payload)),
   // Tauri 2 intercepts OS file drops and delivers local paths through these events.
-  onFileDrop: (cb) => listen('tauri://file-drop', (e) => cb(e.payload)),
-  onFileDropHover: (cb) => listen('tauri://file-drop-hover', (e) => cb(e.payload)),
-  onFileDropCancel: (cb) => listen('tauri://file-drop-cancelled', () => cb()),
+  onFileDrop: (cb) => listen('tauri://drag-drop', (e) => cb(e.payload)),
+  onFileDropHover: (cb) => listen('tauri://drag-enter', (e) => cb(e.payload)),
+  onFileDropOver: (cb) => listen('tauri://drag-over', (e) => cb(e.payload)),
+  onFileDropCancel: (cb) => listen('tauri://drag-leave', () => cb()),
   setDisplay: (index) => invoke('set_display', { index }),
   audioListen: (value) => invoke('audio_listen', { value }),
   onAudio: (cb) => listen('audio', (e) => cb(e.payload)),

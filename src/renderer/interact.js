@@ -5,6 +5,7 @@
 // pixels, laughing, and putting it back.
 import { icon } from './pixel.js';
 import { dollReact } from './watch.js';
+import { isFocus } from './focusmode.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -72,7 +73,7 @@ export class Interactions {
   allowed(kind) {
     const c = this.cfg;
     const api = window.petAPI || {};
-    const desk = !c.streamer && !c.focus;
+    const desk = !c.streamer && !isFocus(c, this.app) && !this.app.dndActive;
     // COMBAT_MODE: nothing gets in the way of the fight.
     if (this.app.pet?.combatMode) return false;
     // Estátua bonus: behaved for a while, no playing with the cursor or the icons.
@@ -81,8 +82,8 @@ export class Interactions {
       case 'steal': return c.cursorSteal !== false && desk && !!api.setCursor;
       case 'kick': case 'bin': case 'nudge': return c.iconPlay !== false && desk && !!api.desktopAll;
       case 'perch': return c.windowPerch !== false && desk;
-      case 'sound': return c.soundReact !== false && !c.focus && !!api.audioListen;
-      case 'attention': return c.askAttention !== false && !c.focus;
+      case 'sound': return c.soundReact !== false && !isFocus(c, this.app) && !!api.audioListen;
+      case 'attention': return c.askAttention !== false && !isFocus(c, this.app);
       case 'pause': return c.breakReminder !== false;
       default: return true;
     }
@@ -157,7 +158,7 @@ export class Interactions {
     if (!this.free()) return;
     if (this.tryPause() || this.tryAttention() || this.trySteal()) return;
     if ((this.wait -= dt) > 0) return;
-    this.wait = rand(50, 100) * (this.cfg.focus ? 3 : 1);
+    this.wait = rand(50, 100) * (isFocus(this.cfg, this.app) ? 3 : 1);
     if (this.tryGift()) return;
     const kinds = ['perch', 'sound', 'kick', 'bin', 'nudge'].filter((k) => this.clock >= this.next[k] && this.allowed(k));
     if (kinds.length && Math.random() < 0.55) this.start(pick(kinds));

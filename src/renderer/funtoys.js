@@ -6,6 +6,7 @@ import { FURN, baseId } from './furniture.js';
 import { ATTR_XP } from './attrxp.js';
 import { KOI } from './upgrades.js';
 import { dollReact } from './watch.js';
+import { isFocus } from './focusmode.js';
 import { VOICES, MonoVoice, echoBus, parseMidi, songLength, SynthPlayer } from './synth.js';
 import { KEYBOARD_SONGS as SONGS, SYNTH_SONGS, songLabel } from './swsongs.js';
 
@@ -26,6 +27,28 @@ const cubeFace = (seed) => (sprite) => sprite(13, 13, ({ rect }) => {
   }
 });
 defineIcons({
+  desenho: (sprite) => sprite(18, 18, ({ rect, px }) => {
+    rect(2, 1, 13, 16, '#f4f1ea'); rect(3, 2, 11, 14, '#ffffff');
+    rect(2, 1, 2, 16, '#3c6be0'); rect(4, 15, 9, 1, '#d8d4cc');
+    rect(13, 2, 2, 13, '#ffd23f'); rect(15, 3, 2, 10, '#e8a93d'); px(16, 2, '#e2475a');
+    px(5, 5, '#ff8ad8'); px(7, 7, '#5ef0ff'); px(9, 5, '#7fd8a0');
+  }),
+  aviao: (sprite) => sprite(20, 14, ({ rect, px }) => {
+    rect(2, 6, 16, 2, '#f4f1ea'); rect(4, 4, 12, 2, '#e8dfc0');
+    rect(2, 7, 8, 1, '#c9c6d0'); rect(10, 5, 8, 1, '#ffffff');
+    rect(9, 2, 2, 4, '#d8d4cc'); px(17, 6, '#3c6be0'); px(3, 7, '#e2475a');
+  }),
+  bolhas: (sprite) => sprite(16, 16, ({ rect, circle, px }) => {
+    rect(4, 6, 8, 9, '#3c6be0'); rect(5, 7, 6, 7, '#7a3cff'); rect(5, 6, 6, 2, '#f4f1ea');
+    rect(6, 3, 1, 3, '#c9c6d0'); rect(9, 2, 1, 4, '#c9c6d0');
+    rect(9, 0, 6, 1, '#f4f1ea'); rect(9, 1, 6, 1, '#5ef0ff');
+    circle(3, 11, 2, 'rgba(255,255,255,0.5)'); px(12, 12, '#ffd23f'); px(6, 13, '#ffffff');
+  }),
+  bubble_wand: (sprite) => sprite(14, 14, ({ rect, circle, px }) => {
+    rect(1, 11, 2, 3, '#8a5a2b'); rect(3, 9, 2, 3, '#b0793f');
+    rect(5, 7, 2, 3, '#c9c6d0'); rect(7, 5, 2, 3, '#c9c6d0');
+    circle(10, 4, 3, 'rgba(255,255,255,0.55)'); px(9, 3, '#5ef0ff'); px(11, 5, '#ff8ad8');
+  }),
   ioio: (sprite) => sprite(10, 10, ({ circle, rect }) => {
     circle(5, 5, 4, '#e2384d'); rect(1, 4, 8, 2, '#f4f1ea'); circle(5, 5, 1, '#7a1020');
   }),
@@ -183,6 +206,9 @@ export const FUN_ITEMS = [
   item('teclado', 'mobilia', 'Teclado musical', 350, 'teclado', { furn: true, gain: { mood: 0.45 }, note: 'Ela toca melodias 8-bit com a voz dela · clique nas teclas para tocar você também' }),
   item('pula_pula', 'mobilia', 'Pula-pula', 380, 'pula_pula', { furn: true, gain: { mood: 0.5, energy: -0.14, hunger: -0.05, thirst: -0.08 }, note: 'Pulos altos: às vezes alcança o topo de uma janela e fica lá em cima · clique para ela pular' }),
   item('camera', 'fun', 'Câmera instantânea', 300, 'camera', { baggable: true, gain: { mood: 0.35 }, note: `Ela tira fotos da cena, que vão para o Álbum (Perfil) · até ${ALBUM_MAX} fotos` }),
+  item('bolhas', 'fun', 'Bolhas de Sabão', 120, 'bolhas', { baggable: true, gain: { mood: 0.45 }, note: 'Ela segura a varinha e sopra bolhas · clique nas bolhas para estourar e ela aplaude' }),
+  item('aviao', 'fun', 'Aviãozinho de Papel', 100, 'aviao', { baggable: true, gain: { mood: 0.42 }, note: 'Ela dobra e lança o avião pelas janelas · o Corvo pode interceptá-lo no ar' }),
+  item('desenho', 'fun', 'Caderno de Desenho', 160, 'desenho', { baggable: true, gain: { mood: 0.4 }, note: 'Ela rabisca mini desenhos pixel art e salva no Álbum (Perfil) · também aparece no Mural' }),
   item('robo', 'fun', 'Robô de corda', 140, 'robo', { baggable: true, gain: { mood: 0.4, energy: -0.06, thirst: -0.04 }, note: 'Ela dá corda, ele anda pela tela e ela persegue · esbarra no Doll' }),
   item('tamagotchi', 'fun', 'Tamapet', 160, 'tamagotchi', { baggable: true, noWear: true, gain: { mood: 0.3 }, note: 'Um bichinho virtual com fome e humor próprios: ela cuida dele' }),
 ];
@@ -694,9 +720,13 @@ export class FunToys {
     const fn = {
       ioio: this.playYoyo, syntoyo: this.playYoyo, bambole: this.playHoop, pipa: this.playKite, cubo: this.playCube, skate: this.playSkate,
       aquario: this.playTank, teclado: this.playKeys, pula_pula: this.playTramp, camera: this.playCamera, robo: this.playRobot, tamagotchi: this.playTama,
+      bolhas: this.playBubbles, aviao: this.playPlane, desenho: this.playDraw,
     }[baseId(id)];
     if (!fn) return false;
     const done = (i, tp) => {
+      if (baseId(i) === 'bolhas') this.cleanupBubbles();
+      if (baseId(i) === 'aviao') this.cleanupPlane();
+      if (baseId(i) === 'desenho') this.cleanupDrawing();
       pet.squash = null;
       pet.bodyY = 0;
       end(i, tp);
@@ -721,6 +751,261 @@ export class FunToys {
     t.x = clamp(home, this.P * 0.3, this.app.world.width - this.P * 0.3);
     delete t.homeX;
     this.app.game.changed();
+  }
+
+  // ---------- drawing notebook ----------
+  playDraw(id, pet, it, scale, pickAnim, end) {
+    pet.playToy({
+      id, dur: rand(9, 15), gain: it?.gain || { mood: 0.4 }, scale,
+      hold: icon('desenho'), holdSize: 0.13, holdFrom: 0.7, pickAnim,
+      anim: 'sit', pose: 'sit', facing: 'front', onEnd: end,
+      tick: (dt, tp) => {
+        tp.reach = 0.45 + Math.sin(tp.t * 12) * 0.12;
+        tp.angle = Math.sin(tp.t * 9) * 8;
+        if (tp.t >= tp.dur - 0.25 && !tp.drew) {
+          tp.drew = true;
+          this.finishDrawing(pet);
+        }
+      },
+    });
+  }
+
+  // A tiny procedural pixel drawing, saved into the same album as camera photos.
+  makeDrawing() {
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 48;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+    R(0, 0, 64, 48, '#f4efe0');
+    R(2, 2, 60, 44, '#fffdf6');
+    R(2, 2, 60, 1, '#d8d4cc');
+    const kind = Math.floor(Math.random() * 4);
+    const hair = pick(['#e2475a', '#8a5a2b', '#3c6be0', '#7a3cff', '#2a2738']);
+    const sky = pick(['#5ac8ff', '#8ea6ee', '#ffb3d1', '#7fd8c0']);
+    if (kind === 0) {
+      R(22, 12, 20, 20, '#f6cfa6'); R(22, 12, 20, 3, hair); R(20, 14, 4, 14, hair); R(40, 14, 4, 14, hair);
+      R(27, 21, 2, 3, '#2a2738'); R(35, 21, 2, 3, '#2a2738'); R(29, 28, 6, 1, '#d2536a');
+      R(24, 33, 16, 7, '#7a3cff');
+    } else if (kind === 1) {
+      R(24, 11, 16, 18, '#c9c6d0'); R(26, 13, 12, 10, '#5ac8ff');
+      R(20, 29, 24, 8, '#8a5a2b'); R(28, 18, 2, 2, '#2a2738'); R(34, 18, 2, 2, '#2a2738');
+      R(30, 8, 4, 3, '#ffd23f');
+    } else if (kind === 2) {
+      R(20, 14, 24, 16, '#2a2738'); R(40, 18, 8, 4, '#ffd23f');
+      R(26, 19, 3, 3, '#f4f1ea'); R(33, 19, 3, 3, '#f4f1ea');
+      R(28, 30, 3, 6, '#8a5a2b'); R(36, 30, 3, 6, '#8a5a2b');
+    } else {
+      R(2, 2, 60, 30, sky);
+      const heart = pick(['#e2475a', '#ff8ad8', '#ffd23f']);
+      for (let y = 0; y < 5; y++) {
+        const half = y < 2 ? y + 2 : 6 - y;
+        R(32 - half, 12 + y * 2, half * 2, 2, heart);
+      }
+      R(8, 6, 3, 3, '#ffffff'); R(50, 10, 2, 2, '#ffffff'); R(20, 4, 2, 2, '#ffffff');
+      R(6, 38, 52, 4, '#7fd8a0');
+    }
+    R(3, 44, 58, 1, '#d8d4cc');
+    return c.toDataURL('image/png');
+  }
+
+  finishDrawing(pet) {
+    const src = this.makeDrawing();
+    const photos = (this.data.photos ||= []);
+    photos.push({ src, at: Date.now() });
+    while (photos.length > ALBUM_MAX) photos.shift();
+    this.app.game.changed();
+    this.app.sound.sfx?.('ok', 0.6);
+    pet.adjust?.({ mood: 6, affection: 1 }, 'desenho');
+    this.app.game.attrAdd?.('int', 2, 'Desenho');
+    this.app.speech?.say(
+      this.app.config.lang === 'en' ? 'Look what I drew! I put it in the album!' : 'Olha o que eu desenhei! Guardei no álbum!',
+      3.5,
+    );
+    const h = this.hand();
+    const card = document.createElement('div');
+    card.className = 'fun-drawing';
+    const img = document.createElement('img');
+    img.src = src;
+    card.append(img);
+    card.style.left = `${Math.round(h.x - 48)}px`;
+    card.style.top = `${Math.round(h.y - 76)}px`;
+    document.body.append(card);
+    this.cleanupDrawing();
+    this.drawCard = card;
+    this.drawTimer = setTimeout(() => this.cleanupDrawing(), 3600);
+  }
+
+  cleanupDrawing() {
+    clearTimeout(this.drawTimer);
+    this.drawCard?.remove();
+    this.drawCard = null;
+    this.drawTimer = null;
+  }
+
+  // ---------- paper plane ----------
+  playPlane(id, pet, it, scale, pickAnim, end) {
+    pet.playToy({
+      id, dur: rand(16, 26), gain: it?.gain || { mood: 0.42 }, scale,
+      hold: icon('aviao'), holdSize: 0.14, holdFrom: 0.7, pickAnim,
+      anim: 'idle', facing: 'front', onEnd: end,
+      tick: (dt, tp) => this.planeTick(dt, tp, pet),
+    });
+  }
+
+  planeTick(dt, tp, pet) {
+    if (tp.t < tp.holdFrom) return;
+    let s = this.planeState;
+    if (!s || s.tp !== tp) {
+      this.cleanupPlane();
+      const el = document.createElement('div');
+      el.className = 'fun-plane';
+      el.style.width = '20px';
+      el.style.height = '14px';
+      el.style.background = `url("${icon('aviao')}") center/contain no-repeat`;
+      document.body.append(el);
+      const h = this.hand();
+      s = this.planeState = {
+        tp, el, x: h.x, y: h.y - 10,
+        vx: (pet.dir || 1) * rand(220, 340), vy: -rand(90, 150), age: 0, landed: false, crow: false,
+      };
+      this.app.sound?.sfx?.('whoosh', 0.5);
+      // The Crow may try to catch it mid-air.
+      if (this.app.crow?.free && Math.random() < 0.5) this.app.crow.interceptPlane(s);
+    }
+    if (s.landed || s.crow) return;
+    s.age += dt;
+    s.vy += 210 * dt;
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    const W = innerWidth;
+    if (s.x < 8 || s.x > W - 8) {
+      s.x = clamp(s.x, 8, W - 8);
+      s.vx *= -0.6;
+    }
+    // Land softly on an open window (or the floor).
+    let floor = innerHeight - 14;
+    for (const w of this.app.world?.windows?.values?.() || []) {
+      if (s.x >= w.x && s.x <= w.right && s.y >= w.y - 12 && s.y <= w.bottom) {
+        floor = Math.min(floor, w.y - 12);
+      }
+    }
+    if (s.y >= floor) {
+      s.y = floor;
+      s.landed = true;
+      this.app.sound?.sfx?.('clink', 0.5);
+      const dist = Math.round(Math.abs(s.x - pet.x));
+      this.app.toys?.furn?.floatText?.(s.x, s.y - 16, `${dist}px!`);
+      pet.react?.('cheer');
+    }
+    const angle = Math.atan2(s.vy, s.vx) * 180 / Math.PI;
+    s.el.style.transform = `translate(${Math.round(s.x - 10)}px, ${Math.round(s.y - 7)}px) rotate(${angle.toFixed(1)}deg)`;
+  }
+
+  cleanupPlane() {
+    const s = this.planeState;
+    if (!s) return;
+    s.el.remove();
+    this.planeState = null;
+  }
+
+  // ---------- bubbles ----------
+  playBubbles(id, pet, it, scale, pickAnim, end) {
+    pet.playToy({
+      id, dur: rand(18, 30), gain: it?.gain || { mood: 0.45 }, scale,
+      hold: icon('bubble_wand'), holdSize: 0.12, holdFrom: 0.8, pickAnim,
+      anim: 'idle', facing: 'front', onEnd: end,
+      tick: (dt, tp) => this.bubblesTick(dt, tp, pet),
+    });
+  }
+
+  bubblesTick(dt, tp, pet) {
+    if (tp.t < tp.holdFrom) return;
+    const s = this.bubbleState ||= { tp, items: [], layer: null, popped: 0, celebrated: false, next: 0 };
+    if (s.tp !== tp) this.cleanupBubbles();
+    const state = this.bubbleState ||= { tp, items: [], layer: null, popped: 0, celebrated: false, next: 0 };
+    if (!state.layer) {
+      const layer = document.createElement('div');
+      layer.className = 'fun-bubbles';
+      document.body.append(layer);
+      state.layer = layer;
+    }
+    state.next -= dt;
+    if (state.next <= 0 && state.items.length < 14) {
+      state.next = rand(0.35, 0.8);
+      this.spawnBubble(state, pet);
+    }
+    for (let i = state.items.length - 1; i >= 0; i--) {
+      const b = state.items[i];
+      b.age += dt;
+      b.y -= dt * b.rise;
+      b.x = b.x0 + Math.sin(b.age * b.wob) * b.amp;
+      b.el.style.transform = `translate(${Math.round(b.x)}px, ${Math.round(b.y)}px) scale(${b.scale})`;
+      if (b.y < -80) {
+        b.el.remove();
+        state.items.splice(i, 1);
+      }
+    }
+  }
+
+  spawnBubble(state, pet) {
+    const h = this.hand();
+    const size = Math.round(rand(18, 34));
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'fun-bubble hitzone';
+    el.style.width = el.style.height = `${size}px`;
+    el.title = 'Estourar bolha';
+    const b = {
+      el, x0: h.x + (pet.dir || 1) * rand(6, 26), y: h.y - rand(8, 28),
+      x: 0, age: 0, rise: rand(38, 82), wob: rand(1.2, 2.6), amp: rand(6, 18), scale: rand(0.85, 1.15),
+    };
+    b.x = b.x0;
+    el.style.transform = `translate(${Math.round(b.x)}px, ${Math.round(b.y)}px) scale(${b.scale})`;
+    el.addEventListener('pointerdown', (e) => this.popBubble(e, state, b));
+    state.layer.append(el);
+    state.items.push(b);
+  }
+
+  popBubble(e, state, b) {
+    e.preventDefault();
+    e.stopPropagation();
+    const idx = state.items.indexOf(b);
+    if (idx < 0) return;
+    state.items.splice(idx, 1);
+    b.el.remove();
+    this.app.sound?.sfx?.('pop', 0.8);
+    this.foamBurst(b.x + b.scale * 16, b.y + b.scale * 16);
+    state.popped++;
+    if (state.popped >= 4 && !state.celebrated) {
+      state.celebrated = true;
+      const pet = this.app.pet;
+      pet.react?.('cheer');
+      pet.adjust?.({ mood: 8, affection: 2 }, 'bolhas');
+      this.app.speech?.say(this.app.config.lang === 'en' ? 'You popped them all! Yay!' : 'Você estourou todas! Uhuu!', 3);
+    }
+  }
+
+  foamBurst(x, y) {
+    for (let i = 0; i < 6; i++) {
+      const p = document.createElement('span');
+      p.className = 'fun-foam';
+      const a = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
+      p.style.left = `${Math.round(x)}px`;
+      p.style.top = `${Math.round(y)}px`;
+      p.style.setProperty('--dx', `${Math.round(Math.cos(a) * rand(18, 42))}px`);
+      p.style.setProperty('--dy', `${Math.round(Math.sin(a) * rand(18, 42))}px`);
+      p.addEventListener('animationend', () => p.remove(), { once: true });
+      document.body.append(p);
+    }
+  }
+
+  cleanupBubbles() {
+    const s = this.bubbleState;
+    if (!s) return;
+    s.layer?.remove();
+    this.bubbleState = null;
   }
 
   // ---------- yo-yo ----------
@@ -1918,7 +2203,7 @@ export class FunToys {
     if (k === this.dollKey) return;
     this.dollKey = k;
     const s = this.app.sound;
-    if (s.enabled && !this.app.config?.focus) {
+    if (s.enabled && !isFocus(this.app.config, this.app)) {
       const f = 293.66 * 2 ** ((WHITE[k] + 12) / 12);
       s.tone8(f, f * 1.002, 0.16, 'triangle', 0.035);
     }
@@ -2449,6 +2734,11 @@ export class FunToys {
     if (this.slowT <= 0) {
       this.slowT = 1;
       this.tickState(Date.now());
+    }
+    if (hidden) {
+      if (this.bubbleState) this.cleanupBubbles();
+      if (this.planeState) this.cleanupPlane();
+      if (this.drawCard) this.cleanupDrawing();
     }
     this.updateTank(dt, hidden);
     this.updateKeys(dt, hidden);

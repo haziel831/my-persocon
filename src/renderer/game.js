@@ -2,7 +2,7 @@
 import { FULL_STATS, DIFFICULTIES, DEBUFFS } from './behavior.js';
 import { icon, cartridge } from './pixel.js';
 import { GAMES } from './games.js';
-import { FURN_ITEMS, baseId } from './furniture.js';
+import { FURN_ITEMS, COFFEE_ITEMS, baseId } from './furniture.js';
 import { FUN_ITEMS } from './funtoys.js';
 import { LOOT_ITEMS, RARITIES } from './lootitems.js';
 import { FOOD_ITEMS } from './consumables.js';
@@ -79,7 +79,7 @@ export const ITEMS = [
   pix('bola', 'fun', 'Bola', 80, 'ball', { toy: true, baggable: true, gain: { mood: 0.35, energy: -0.1, hunger: -0.04, thirst: -0.07 } }),
   pix('espada', 'fun', 'Espada de bamboo', 100, 'sword', { toy: true, baggable: true, weapon: 'espada', gain: { mood: 0.4, hunger: -0.06, thirst: -0.07, energy: -0.1 } }),
   pix('gancho', 'fun', 'Grappling hook', 250, 'hook', { gear: true, baggable: true }),
-  pix('microfone', 'fun', 'Microfone de mão', 150, 'mic', { gear: true, baggable: true, note: 'Canta sozinho de vez em quando · libera o Modo Karaokê no Jam' }),
+  pix('microfone', 'fun', 'Microfone de mão', 150, 'mic', { gear: true, baggable: true, note: 'Canta sozinho de vez em quando · libera o Modo Karaokê ao Ouvir Música' }),
   pix('syntoyo', 'fun', 'Syntoyo', 180, 'syntoyo', { toy: true, gear: true, baggable: true, weapon: 'syntoyo', gain: { mood: 0.4 }, note: 'Ioiô synthwave · novos truques e golpes · só aparece ao dominar o ioiô comum' }),
   pix('bolsa_p', 'fun', 'Bolsa pequena', 120, 'bag_s', { gear: true, bagSlots: 3, note: 'Inventário dela: 3 slots' }),
   pix('bolsa_m', 'fun', 'Bolsa média', 280, 'bag_m', { gear: true, bagSlots: 6, note: 'Inventário dela: 6 slots' }),
@@ -107,6 +107,7 @@ export const ITEMS = [
   ...FOOD_ITEMS,
   ...MED_ITEMS,
   ...FURN_ITEMS,
+  ...COFFEE_ITEMS,
   ...FUN_ITEMS,
   ...LOOT_ITEMS,
 ];
@@ -850,7 +851,9 @@ export class Game {
   taste(item, data) {
     const tastes = (this.profile.tastes ||= {});
     const first = !tastes[item.id];
-    if (first) tastes[item.id] = rollTaste(item);
+    // Drinks from her own coffee station are always welcome — never a grimace or a complaint.
+    if (item.noBadTaste) tastes[item.id] = 'like';
+    else if (first) tastes[item.id] = rollTaste(item);
     const taste = tastes[item.id];
     if (data) data.taste = taste;
     // Jokenpô "deal": the next food she dislikes costs no Humor.

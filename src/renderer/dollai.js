@@ -2,6 +2,7 @@
 // plays with the Persocon (player 2 on the consoles, reading, ball, Jam) plus duo minigames.
 import { icon, emojiOnly } from './pixel.js';
 import { MANGAS, mangaCoverIcon, BALLS, baseId } from './furniture.js';
+import { isFocus } from './focusmode.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -574,7 +575,7 @@ export class DollBrain {
   }
 
   tone(...a) {
-    if (!this.app.config?.focus) this.app.sound.tone8(...a);
+    if (!isFocus(this.app.config, this.app)) this.app.sound.tone8(...a);
   }
 
   // Little shows on its own (procedural poses above), each with its bubble and sounds.
@@ -915,7 +916,7 @@ export class DollBrain {
   // ---------- toys (funtoys.js / toys.js) ----------
 
   sfx(name, k = 1) {
-    if (!this.app.config?.focus) this.app.sound.toy?.(name, k);
+    if (!isFocus(this.app.config, this.app)) this.app.sound.toy?.(name, k);
   }
 
   // Key of the toy the Doll is using on its own: the Persocon leaves it alone until it is done.

@@ -4,6 +4,7 @@
 import { icon } from './pixel.js';
 import { isPowerUp } from './game.js';
 import { VfxSequence, VFX_FOLDERS } from './vfx.js';
+import { isFocus } from './focusmode.js';
 
 // Impact effects for the melee: the 32x32 pixel sheet (assets/vfx/32x32_simple_sfx_sheet.png),
 // sliced frame by frame and drawn at the exact impact point.
@@ -570,7 +571,7 @@ export class Fx {
     }
     // A rumble each time hunger drops another 5 points; louder the emptier the stomach.
     const step = Math.floor(pet.stats.hunger / 5);
-    if (step < this.hungerStep && this.app.config.growl !== false && !this.app.config.focus) sound.growl(1 - pet.stats.hunger / 100);
+    if (step < this.hungerStep && this.app.config.growl !== false && !isFocus(this.app.config, this.app)) sound.growl(1 - pet.stats.hunger / 100);
     this.hungerStep = step;
   }
 }

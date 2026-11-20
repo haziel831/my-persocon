@@ -30,6 +30,11 @@
 // Destreza (dex)
 //   dodge   — esquivar no combate
 //   block   — bloquear no combate
+//
+// Inteligência (int)
+//   manga   — terminar a leitura de um mangá na estante
+//   desk    — estudar na Escrivaninha com Abajur
+//   focus   — concluir um bloco de foco (Pomodoro)
 export const ATTR_XP = {
   str: {
     dummy: 1.5,
@@ -60,6 +65,11 @@ export const ATTR_XP = {
     dodge: 0.4,
     block: 0.2,
   },
+  int: {
+    manga: 1.5,
+    desk: 2,
+    focus: 6,
+  },
 };
 
 // De onde veio o XP (o log mostra: "+4 XP em Força (Treino Pesado)").
@@ -78,6 +88,9 @@ export const ATTR_SOURCES = {
   dodge: 'Esquiva',
   catch: 'Pega-pega',
   escape: 'Pega-pega',
+  manga: 'Mangá',
+  desk: 'Escrivaninha',
+  focus: 'Foco',
 };
 
 // O XP em que o nível começa.
