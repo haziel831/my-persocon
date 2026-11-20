@@ -29,6 +29,11 @@ use tauri::{
 };
 use tauri_plugin_dialog::DialogExt;
 
+// Zip imports (resourcepacks) must not be allowed to exhaust memory, even if the archive lies
+// about its uncompressed sizes or is deliberately malformed.
+const MAX_ZIP_ENTRY_BYTES: u64 = 32 * 1024 * 1024;
+const MAX_ZIP_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
+
 static APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
 
 struct PetState {
@@ -341,15 +346,14 @@ async fn install_side_model(
     name: String,
     texture: Option<String>,
 ) -> Result<Value, String> {
-    let safe = safe_name(&name);
-    let label = if safe.is_empty() { "Doll".to_string() } else { safe };
+    let safe = safe_name(&name, "Doll");
     let dir = if let Some(f) = vrm_file(Path::new(&path)) {
-        let dir = state.data.join("models").join(&label);
+        let dir = state.data.join("models").join(&safe);
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         fs::copy(&f, dir.join("model.vrm")).map_err(|e| e.to_string())?;
         dir
     } else {
-        model_io::load(Path::new(&path))?.install(&state.data.join("models"), &label, texture.as_deref())?
+        model_io::load(Path::new(&path))?.install(&state.data.join("models"), &safe, texture.as_deref())?
     };
     let rel = rel_to(&state.data, &dir);
     Ok(json!({ "dir": rel }))
@@ -386,7 +390,7 @@ async fn import_model(
     pet_height: Option<f64>,
 ) -> Result<Value, String> {
     let dir = if let Some(f) = vrm_file(Path::new(&path)) {
-        let dir = state.data.join("models").join(safe_name(&name));
+        let dir = state.data.join("models").join(safe_name(&name, "vroid"));
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         fs::copy(&f, dir.join("model.vrm")).map_err(|e| e.to_string())?;
         dir
@@ -417,9 +421,9 @@ fn mime_of(name: &str) -> &'static str {
     }
 }
 
-fn safe_name(name: &str) -> String {
+fn safe_name(name: &str, fallback: &str) -> String {
     let safe: String = name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
-    if safe.trim_matches('_').is_empty() { "vroid".to_string() } else { safe }
+    if safe.trim_matches('_').is_empty() { fallback.to_string() } else { safe }
 }
 
 #[tauri::command]
@@ -478,8 +482,9 @@ async fn read_zip(path: String, prefixes: Vec<String>, max_files: usize) -> Resu
     let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("zip inválido: {e}"))?;
     let mut out = serde_json::Map::new();
     let mut names = Vec::new();
+    let mut total = 0u64;
     for i in 0..zip.len() {
-        let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
+        let f = zip.by_index(i).map_err(|e| e.to_string())?;
         if !f.is_file() {
             continue;
         }
@@ -488,8 +493,16 @@ async fn read_zip(path: String, prefixes: Vec<String>, max_files: usize) -> Resu
         if out.len() >= max_files || !prefixes.iter().any(|p| name.starts_with(p.as_str())) {
             continue;
         }
+        // Read one byte past the cap so an oversized entry is detectable without buffering it all.
         let mut bytes = Vec::new();
-        f.read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+        f.take(MAX_ZIP_ENTRY_BYTES + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+        if bytes.len() as u64 > MAX_ZIP_ENTRY_BYTES {
+            return Err("Arquivo dentro do zip excede o limite de tamanho.".into());
+        }
+        total += bytes.len() as u64;
+        if total > MAX_ZIP_TOTAL_BYTES {
+            return Err("Zip excede o limite máximo de tamanho descomprimido.".into());
+        }
         out.insert(name.clone(), json!(format!("data:{};base64,{}", mime_of(&name), STANDARD.encode(&bytes))));
     }
     Ok(json!({ "files": out, "names": names }))
@@ -500,20 +513,20 @@ async fn read_zip(path: String, prefixes: Vec<String>, max_files: usize) -> Resu
 fn store_blob(state: State<PetState>, name: String, data: Value) -> Result<(), String> {
     let dir = state.data.join("data");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    fs::write(dir.join(format!("{}.json", safe_name(&name))), serde_json::to_vec(&data).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+    fs::write(dir.join(format!("{}.json", safe_name(&name, "blob"))), serde_json::to_vec(&data).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn load_blob(state: State<PetState>, name: String) -> Option<Value> {
-    let text = fs::read(state.data.join("data").join(format!("{}.json", safe_name(&name)))).ok()?;
+    let text = fs::read(state.data.join("data").join(format!("{}.json", safe_name(&name, "blob")))).ok()?;
     serde_json::from_slice(&text).ok()
 }
 
 // Minecraft skin as the pet: the renderer builds the model and animations from the skin.
 #[tauri::command]
 fn import_mc_skin(state: State<PetState>, name: String, skin: String, slim: bool, pet_height: Option<f64>) -> Result<Value, String> {
-    let safe = safe_name(&name);
-    let dir = state.data.join("models").join(if safe.is_empty() { "skin".to_string() } else { safe });
+    let safe = safe_name(&name, "skin");
+    let dir = state.data.join("models").join(&safe);
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     fs::write(dir.join("skin.png"), decode_data_url(&skin)?).map_err(|e| e.to_string())?;
     fs::write(dir.join("mc.json"), json!({ "slim": slim }).to_string()).map_err(|e| e.to_string())?;

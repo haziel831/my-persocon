@@ -9,6 +9,9 @@ use std::{
 };
 
 const MAX_DEPTH: usize = 4;
+// Bound both per-entry and cumulative uncompressed bytes when importing .zip models.
+const MAX_ZIP_ENTRY_BYTES: u64 = 32 * 1024 * 1024;
+const MAX_ZIP_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
 
 struct Entry {
     path: String,
@@ -54,14 +57,24 @@ fn read_zip(path: &Path) -> Result<Vec<Entry>, String> {
     let file = fs::File::open(path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("zip inválido: {e}"))?;
     let mut out = Vec::new();
+    let mut total = 0u64;
     for i in 0..zip.len() {
-        let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
+        let f = zip.by_index(i).map_err(|e| e.to_string())?;
         if !f.is_file() || !wanted(f.name()) {
             continue;
         }
+        let path = f.name().to_string();
+        // Read one byte past the cap so an oversized entry is detectable without buffering it all.
         let mut bytes = Vec::new();
-        f.read_to_end(&mut bytes).map_err(|e| e.to_string())?;
-        out.push(Entry { path: f.name().to_string(), bytes });
+        f.take(MAX_ZIP_ENTRY_BYTES + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+        if bytes.len() as u64 > MAX_ZIP_ENTRY_BYTES {
+            return Err("Arquivo dentro do zip excede o limite de tamanho.".into());
+        }
+        total += bytes.len() as u64;
+        if total > MAX_ZIP_TOTAL_BYTES {
+            return Err("Zip excede o limite máximo de tamanho descomprimido.".into());
+        }
+        out.push(Entry { path, bytes });
     }
     Ok(out)
 }
