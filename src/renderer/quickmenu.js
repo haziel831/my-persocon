@@ -69,6 +69,16 @@ export class QuickMenu {
       row.append(name, input, val);
       return row;
     };
+    const pomo = app.pomodoro;
+    const focusItems = !pomo ? [] : pomo.active
+      ? [
+        action(pomo.paused ? '▶ Retomar foco' : '⏱ Pausar foco', 'Modo Foco (Pomodoro)', () => pomo.toggle()),
+        action('✕ Cancelar foco', 'Encerra a sessão de foco', () => pomo.cancel()),
+      ]
+      : [
+        action('⏱ Foco 25/5', '25 min de foco com a Persocon e a Boneca, 5 min de pausa', () => pomo.start('25/5')),
+        action('⏱ Foco 50/10', '50 min de foco com a Persocon e a Boneca, 10 min de pausa', () => pomo.start('50/10')),
+      ];
     const vol = document.createElement('div');
     vol.className = 'qm-title';
     vol.textContent = 'Volume';
@@ -81,6 +91,7 @@ export class QuickMenu {
         (bx, by) => this.showBag(bx, by),
       ) : null,
       item('🎯 Modo foco', 'focus', 'Menos distrativa: fala e se mexe menos, não pede coisas, não escala janelas nem reage ao desktop'),
+      ...focusItems,
       item('🎥 Streamer Mode', 'streamer'),
       item('🖱 Clicar através', 'clickThrough', 'Os cliques passam pela Persocon, objetos e mobília (para desligar: ícone da bandeja › Clicar através)'),
       vol,

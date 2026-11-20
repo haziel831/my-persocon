@@ -83,8 +83,48 @@ const coinText = (game) => (INFINITE_MONEY ? '∞' : String(game.coins));
 // Defaults for options that changed after release (applied once to old configs, and by "Restaurar padrões").
 export const DEFAULT_OPTS = {
   emoticonScale: 0.75, emoticonOffsetX: -26, emoticonOffsetY: 10,
-  volume: 0.3, gbVolume: 0.7, footsteps: false,
+  volume: 0.3, gbVolume: 0.7, footsteps: false, dayRoutine: true,
 };
+
+// Personality presets. `approach`/`screenHit`/`noAttention` are kept as requested aliases; the
+// live equivalents used by the game are `closeupAuto`, `askAttention` and `anticsOff`.
+export const PERSONALITY_PRESETS = [
+  {
+    id: 'calma', icon: '💤', name: 'Calma',
+    desc: 'Mais sentada, soneca e calma. Sem roubar cursor, sem mexer nos ícones.',
+    patch: {
+      actionWeights: { sit: 30, sleep: 18, idle: 30, run: 0, walk: 20, emote: 6, hop: 2 },
+      cursorSteal: false, iconPlay: false, screenHit: false, askAttention: false,
+      emoticonRate: 0.7, anticsOff: true, focus: false,
+    },
+  },
+  {
+    id: 'travessa', icon: '🎾', name: 'Travessa',
+    desc: 'Muita energia, emotes e passeios. Rouba o cursor e brinca com os ícones.',
+    patch: {
+      actionWeights: { walk: 60, run: 22, emote: 30, sit: 6, idle: 12, sleep: 3 },
+      approach: true, closeupAuto: true, cursorSteal: true, iconPlay: true,
+      askAttention: true, screenHit: true, emoticonRate: 1.3, anticsOff: false, focus: false,
+    },
+  },
+  {
+    id: 'estudo', icon: '📖', name: 'Estudo / Trabalho',
+    desc: 'Companhia discreta: sem pedir atenção nem aprontar, passos e volume baixos.',
+    patch: {
+      noAttention: true, askAttention: false, closeupAuto: false, anticsOff: true,
+      cursorSteal: false, iconPlay: false, screenHit: false, footsteps: false,
+      volume: 0.12, emoticonRate: 0.5, focus: true,
+    },
+  },
+  {
+    id: 'streamer', icon: '🎥', name: 'Streamer',
+    desc: 'Expressiva e ativa, mas deixa o mouse em paz para o jogo ou a gravação.',
+    patch: {
+      actionWeights: { emote: 34, walk: 50, run: 18, sit: 6, idle: 14, sleep: 3 },
+      emoticons: true, cursorSteal: false, iconPlay: false, anticsOff: false, focus: false,
+    },
+  },
+];
 
 export const THEMES = [
   ['padrao', 'Padrão', ['#1d2130', '#7aa2ff']],
@@ -219,6 +259,20 @@ function tasteTag(game, item) {
   return h(`span.taste.${cls}`, { title }, text);
 }
 
+// Catalog search: accent/case-insensitive matching, no internet needed.
+const normText = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// Flags used by the quick-filter chips on both Shop and Inventory rows.
+function itemFlags(game, item) {
+  const flags = [item.cat];
+  if (isEdible(item) || ['comidas', 'bebidas', 'sobremesas', 'medicina'].includes(item.cat)) flags.push('comidas');
+  if (item.toy || item.cat === 'fun') flags.push('brinquedos');
+  if (item.cat === 'mobilia') flags.push('moveis');
+  const taste = game.tasteOf?.(item.id);
+  if (taste === 'love') flags.push('favoritos');
+  if (!taste || !game.count?.(item.id)) flags.push('novos');
+  return [...new Set(flags)].join(' ');
+}
+
 // ---------------------------------------------------------------- context menu
 
 const CATEGORIES = [
@@ -239,9 +293,13 @@ export class Menu {
     this.category = 'acoes';
     this.shopCat = 'fun';
     this.invCat = 'todos';
+    this.search = '';
+    this.shopQuick = 'todos';
+    this.invQuick = 'todos';
     this.qty = 1;
     this.expanded = null;
     this.feeding = false;
+    this.presetNote = '';
     app.game.onChange(() => {
       if (!this.open) return;
       if (['inventario', 'shop', 'perfil'].includes(this.category) || this.feeding || this.giving) this.render();
@@ -355,7 +413,10 @@ export class Menu {
   }
 
   select(category) {
-    if (category !== this.category) this.openGroups = new Set();
+    if (category !== this.category) {
+      this.openGroups = new Set();
+      this.search = '';
+    }
     this.category = category;
     this.expanded = null;
     this.feeding = false;
@@ -454,6 +515,70 @@ export class Menu {
     }
     if (this.anchor) this.place();
     this.applyFlash();
+    this.filterCatalog();
+  }
+
+  // Search + quick chips shared by the Shop and Inventory catalogs. Rows are only hidden/shown,
+  // never rebuilt, so typing never loses focus or the caret position.
+  catalogTools(kind) {
+    const shop = kind === 'shop';
+    const chips = [
+      ['todos', 'Todos'], ['comidas', 'Comidas'], ['brinquedos', 'Brinquedos'],
+      ['moveis', 'Móveis'], ['favoritos', 'Favoritos'], ['novos', 'Novos'],
+    ];
+    const active = shop ? this.shopQuick : this.invQuick;
+    const input = h('input.catalog-search', {
+      type: 'search',
+      value: this.search,
+      placeholder: shop ? 'Buscar item...' : 'Buscar no inventário...',
+      oninput: (e) => { this.search = e.target.value; this.filterCatalog(); },
+      onkeydown: (e) => {
+        // Never let the app's global shortcuts (Escape, QTE arrows, debug combo) fire while typing.
+        e.stopPropagation();
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this.search = '';
+          input.value = '';
+          this.filterCatalog();
+        }
+      },
+    });
+    return h('div.catalog-tools', {},
+      input,
+      h('div.quick-chips', {}, chips.map(([id, label]) => h(`button.quick-chip${active === id ? '.active' : ''}`, {
+        'data-quick': id,
+        onclick: () => {
+          if (shop) this.shopQuick = id;
+          else this.invQuick = id;
+          const box = this.el?.querySelector('.catalog-tools');
+          for (const b of box?.querySelectorAll('.quick-chip') || []) b.classList.toggle('active', b.dataset.quick === id);
+          this.filterCatalog();
+        },
+      }, label))),
+      h('div.catalog-empty', {}, 'Nada encontrado.'),
+    );
+  }
+
+  filterCatalog() {
+    const panel = this.el?.querySelector('.panel');
+    if (!panel) return;
+    const q = normText(this.search).trim();
+    const quick = this.category === 'shop' ? this.shopQuick : this.invQuick;
+    let visible = 0;
+    for (const row of panel.querySelectorAll('.item[data-name]')) {
+      const ok = (!q || row.dataset.name.includes(q)) && (quick === 'todos' || (row.dataset.flags || '').split(' ').includes(quick));
+      row.hidden = !ok;
+      if (ok) visible++;
+    }
+    for (const group of panel.querySelectorAll('.group[data-seg]')) {
+      let any = false;
+      for (let n = group.nextElementSibling; n && !n.classList.contains('group'); n = n.nextElementSibling) {
+        if (n.matches('.item') && !n.hidden) { any = true; break; }
+      }
+      group.hidden = !any;
+    }
+    const empty = panel.querySelector('.catalog-empty');
+    if (empty) empty.hidden = visible > 0;
   }
 
   // Bought/used item: its row blinks (or its category, if it is gone from the list).
@@ -613,6 +738,27 @@ export class Menu {
         this.done();
         app.startChase();
       }, { disabled: pet.dead || !!pet.chase }),
+      ...(!app.pomodoro?.active ? [
+        this.tile('⏱', 'Foco 25/5', '25 min de foco juntas, 5 min de pausa · sem moedas extras', () => {
+          this.done();
+          app.pomodoro.start('25/5');
+          this.render();
+        }),
+        this.tile('⏱', 'Foco 50/10', '50 min de foco juntas, 10 min de pausa · sem moedas extras', () => {
+          this.done();
+          app.pomodoro.start('50/10');
+          this.render();
+        }),
+      ] : [
+        this.tile('⏱', app.pomodoro.paused ? 'Retomar foco' : 'Pausar foco', 'Modo Foco (Pomodoro)', () => {
+          app.pomodoro.toggle();
+          this.render();
+        }, { active: true }),
+        this.tile('✕', 'Cancelar foco', 'Encerra a sessão e devolve o comportamento normal', () => {
+          app.pomodoro.cancel();
+          this.render();
+        }),
+      ]),
       this.tile('🎵', act === 'jam' ? 'Parar Jam' : 'Modo Jam', 'Ela dança a música do PC (quando pedir música/festa, use isto)', () => {
         if (act === 'jam') app.stopMode();
         else app.startMode('jam');
@@ -970,7 +1116,7 @@ export class Menu {
     const price = (item) => (INFINITE_MONEY && item.price ? `¥ ∞` : item.price ? `¥ ${item.price * n}` : 'Grátis');
     const body = list.length
       ? h('div.items', {}, list.map((item) =>
-          h('div.item', { 'data-item': item.id },
+          h('div.item', { 'data-item': item.id, 'data-name': normText(item.name), 'data-flags': itemFlags(game, item) },
             itemIcon(item),
             h('span.item-name', {}, item.name, tasteTag(game, item), game.count(item.id) ? h('span.count', {}, `tem ${game.count(item.id)}`) : null,
               game.pending(item.id) ? h('span.count', {}, game.queued(item.id) ? 'na fila da impressora' : 'impresso, a guardar') : null,
@@ -1004,7 +1150,7 @@ export class Menu {
       sobremesas: 'Sobremesas dão bastante Humor. Ela come como refeição, então não substituem um prato principal.',
       medicina: 'Medicamentos curam efeitos negativos (gripe, prisão de ventre, náusea, lesão) ou dão bônus temporários. Todos custam um pouco de Humor.',
     }[this.shopCat] || 'Ordenadas do mais barato ao mais caro.';
-    return [tabs, qty, h('div.note', {}, '📦 Toda compra sai pela Impressora 3D e a Persocon guarda no 🎒 Inventário.'),
+    return [tabs, this.catalogTools('shop'), qty, h('div.note', {}, '📦 Toda compra sai pela Impressora 3D e a Persocon guarda no 🎒 Inventário.'),
       DEMO ? h('div.note', {}, '🔒 Demo: os itens com cadeado ficam na versão completa.') : null, h('div.note', {}, note), body];
   }
 
@@ -1025,7 +1171,7 @@ export class Menu {
       const nSell = isSellable(item) ? Math.min(this.qty || 1, count) : 0;
       const sellYen = nSell ? sellPrice(item) * nSell : 0;
       // Buttons L→R: extras → Vender → Usar (Usar is rightmost / first from the right).
-      return h('div.item', { 'data-item': item.id },
+      return h('div.item', { 'data-item': item.id, 'data-name': normText(item.name), 'data-flags': itemFlags(game, item) },
         itemIcon(item),
         h('span.item-name', {}, item.name, h('span.count', {}, `×${count}`), tasteTag(game, item)),
         h('span.item-fx', {}, effectText(item)),
@@ -1092,7 +1238,7 @@ export class Menu {
       disabled: !INFINITE_MONEY && game.coins < game.repairCost(baseId(key)),
     }, `🔧 Consertar ¥ ${game.repairCost(baseId(key))}`);
     const placedRow = ({ key, item, t }) =>
-      h('div.item', {},
+      h('div.item', { 'data-item': item.id, 'data-name': normText(item.name), 'data-flags': `${itemFlags(game, item)} colocados` },
         itemIcon(item),
         h('span.item-name', {}, item.name, h(t.broken ? 'span.count.warn' : 'span.count', {}, t.broken ? 'quebrado' : 'na área de trabalho')),
         h('span.item-fx', {}, t.broken ? `Conserto: ¥ ${game.repairCost(item.id)} (metade do preço)` : FURN[item.id]?.disco ? 'Liga no modo Jam' : `Usado ${t.uses}×`),
@@ -1103,7 +1249,7 @@ export class Menu {
         }, '⚔ Equipar'),
         item.fixed ? null : h('button.buy', { onclick: () => game.pickUpToy(key) }, 'Guardar'));
     // A espada equipada sai do inventário e do desktop: esta linha é o único lugar dela.
-    const equippedRow = equipped && h('div.item.equipped', {},
+    const equippedRow = equipped && h('div.item.equipped', { 'data-item': 'espada', 'data-name': normText('Espada de bamboo'), 'data-flags': 'colocados' },
       itemIcon(itemById('espada')),
       h('span.item-name', {}, 'Espada de bamboo', h('span.count', {}, 'na cintura')),
       h('span.item-fx', {}, 'Equipada: ela luta com golpes de espada'),
@@ -1147,7 +1293,7 @@ export class Menu {
     const sellNote = canSellAny
       ? h('div.note', {}, '💰 Comidas, bebidas, mobília (várias), PowerUps e prêmios: venda pela metade do valor. Guarde da área de trabalho antes.')
       : null;
-    return [tabs, bagNote, sellQty, sellNote, actions, h('div.items', {}, body)];
+    return [tabs, this.catalogTools('inv'), bagNote, sellQty, sellNote, actions, h('div.items', {}, body)];
   }
 
   modelo() {
@@ -1249,7 +1395,16 @@ export class Menu {
       h('div.note', {}, DEMO
         ? 'Na Demo as dicas explicam Jam, Assistir e Opções. Dá para desligar aqui ou no botão "Não mostrar dicas".'
         : 'Dicas aparecem nos primeiros dias. Desligue aqui ou no botão "Não mostrar dicas" de cada cartão.'),
+      h('div.group', {}, 'Presets de personalidade'),
+      h('div.grid', {}, PERSONALITY_PRESETS.map((p) => this.tile(p.icon, p.name, p.desc, () => {
+        app.applyConfigPatch(p.patch);
+        app.sound.play('ok');
+        this.presetNote = `Predefinição aplicada: ${p.name}`;
+        this.render();
+      }))),
+      this.presetNote ? h('div.note', {}, this.presetNote) : null,
       h('div.group', {}, 'Comportamento'),
+      toggle({ label: 'Rotina diária (saudações por período)', value: c.dayRoutine !== false, onchange: (v) => app.setOption('dayRoutine', v) }),
       toggle({ label: 'Começar Modo Jam / Assistir sozinho', value: c.autoActivity !== false, onchange: (v) => app.setOption('autoActivity', v) }),
       toggle({ label: 'Reagir ao que acontece no desktop (janelas, mouse)', value: c.desktopReactions !== false, onchange: (v) => app.setOption('desktopReactions', v) }),
       toggle({ label: 'Achar jogos nos ícones da área de trabalho', value: c.desktopGames !== false, onchange: (v) => app.setOption('desktopGames', v) }),

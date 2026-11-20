@@ -232,7 +232,7 @@ function parse(tokens) {
       const fn = FUNCTIONS.get(parts[1]);
       if (fn) {
         const n = args.length;
-        if (n === 0) return CONST(Number(fn()));
+        if (n === 0) return () => fn();
         if (n === 1) {
           const a = args[0];
           return (ctx) => fn(a(ctx));
@@ -324,7 +324,7 @@ export function compileMolang(expr) {
   if (src === '') return () => 0;
 
   const num = Number(src);
-  if (!Number.isNaN(num)) return () => num;
+  if (Number.isFinite(num)) return () => num;
 
   let node;
   try {

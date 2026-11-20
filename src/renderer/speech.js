@@ -1,5 +1,6 @@
 // Speech bubble typed letter by letter (a blip per key), lines in Portuguese or English.
 import { emojiOnly } from './pixel.js';
+import { translate } from './i18n.js';
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
@@ -347,11 +348,19 @@ function contextLines(app, en) {
 }
 // Chatter that depends on the time of day.
 const TIME_LINES = [
-  [[5, 12], ['Bom dia!', 'Já tomou café da manhã?', 'Manhã é hora de energia!', 'O sol acordou junto comigo!', 'Bom dia, {name}! Dormiu bem?', '{name}, café da manhã é a refeição mais importante!'], ['Good morning!', 'Had breakfast yet?', 'Mornings are for energy!', 'The sun woke up with me!', 'Good morning, {name}! Sleep well?', '{name}, breakfast is the most important meal!']],
-  [[12, 18], ['Boa tarde!', 'Já almoçou?', 'Que sono depois do almoço...', 'A tarde tá passando rápido!', 'Boa tarde, {name}! Já almoçou direitinho?', '{name}, que tal um lanchinho da tarde?'], ['Good afternoon!', 'Did you have lunch?', 'So sleepy after lunch...', 'The afternoon is flying by!', 'Good afternoon, {name}! Had a proper lunch?', '{name}, how about an afternoon snack?']],
-  [[18, 24], ['Boa noite!', 'Já tá escuro lá fora?', 'Hora de relaxar um pouco.', 'Que tal um filme hoje?', 'Boa noite, {name}! Já jantou?', '{name}, não fica até tarde hoje, tá?'], ['Good evening!', 'Is it dark outside already?', 'Time to relax a bit.', 'How about a movie tonight?', 'Good evening, {name}! Had dinner?', "{name}, don't stay up too late today, okay?"]],
-  [[0, 5], ['Ainda acordado?', 'Já é madrugada... vai dormir!', 'Tô com soninho...', 'Só as corujas estão acordadas agora.', '{name}, a cama tá te chamando!', 'Madrugada de novo, {name}? Vai descansar!'], ['Still awake?', "It's so late... go to sleep!", "I'm sleepy...", 'Only owls are up now.', '{name}, your bed is calling you!', 'Up late again, {name}? Go rest!']],
+  [[6, 12], ['Bom dia!', 'Já tomou café da manhã?', 'Manhã é hora de energia!', 'O sol acordou junto comigo!', 'Bom dia, {name}! Dormiu bem?', '{name}, café da manhã é a refeição mais importante!'], ['Good morning!', 'Had breakfast yet?', 'Mornings are for energy!', 'The sun woke up with me!', 'Good morning, {name}! Sleep well?', '{name}, breakfast is the most important meal!']],
+  [[12, 19], ['Boa tarde!', 'Já almoçou?', 'Que sono depois do almoço...', 'A tarde tá passando rápido!', 'Boa tarde, {name}! Já almoçou direitinho?', '{name}, que tal um lanchinho da tarde?'], ['Good afternoon!', 'Did you have lunch?', 'So sleepy after lunch...', 'The afternoon is flying by!', 'Good afternoon, {name}! Had a proper lunch?', '{name}, how about an afternoon snack?']],
+  [[19, 24], ['Boa noite!', 'Já tá escuro lá fora?', 'Hora de relaxar um pouco.', 'Que tal um filme hoje?', 'Boa noite, {name}! Já jantou?', '{name}, não fica até tarde hoje, tá?'], ['Good evening!', 'Is it dark outside already?', 'Time to relax a bit.', 'How about a movie tonight?', 'Good evening, {name}! Had dinner?', "{name}, don't stay up too late today, okay?"]],
+  [[0, 6], ['Ainda acordado?', 'Já é madrugada... vai dormir!', 'Tô com soninho...', 'Só as corujas estão acordadas agora.', '{name}, a cama tá te chamando!', 'Madrugada de novo, {name}? Vai descansar!'], ['Still awake?', "It's so late... go to sleep!", "I'm sleepy...", 'Only owls are up now.', '{name}, your bed is calling you!', 'Up late again, {name}? Go rest!']],
 ];
+
+// One-shot greetings for the real time-of-day bands (translations live in i18n.js).
+const PERIOD_LINES = {
+  manha: ['Bom dia! Já tomou café ou chá?', 'Bom dia! Vamos começar o dia com calma.', 'Acordou? Tô pronta pra hoje!'],
+  tarde: ['Boa tarde! Como vai o trabalho?', 'Boa tarde! Já almoçou?', 'A tarde tá passando rápido, hein?'],
+  noite: ['Boa noite! Hora de desacelerar.', 'Boa noite! Já jantou?', 'Que tal relaxar um pouco?'],
+  madrugada: ['Já é madrugada... que tal descansar?', 'Tô com soninho... você também devia dormir.', 'A cama tá te chamando, viu?'],
+};
 
 export class Speech {
   constructor(app) {
@@ -412,6 +421,14 @@ export class Speech {
     if (this.app.speechHistory.length > 250) this.app.speechHistory.shift();
   }
 
+  // Called by DesktopWatch when the real period of the day changes.
+  sayPeriod(period) {
+    if (this.app.config?.speech === false) return;
+    const lines = PERIOD_LINES[period];
+    if (!lines) return;
+    this.say(translate(lines[Math.floor(Math.random() * lines.length)]), 4.5);
+  }
+
   // Idle chatter.
   idle(dt) {
     const { pet } = this.app;
@@ -424,7 +441,8 @@ export class Speech {
     // Sometimes a wish instead: doing what she asks earns affection.
     if (Math.random() < 0.3 && pet.wish?.()) return;
     const hour = new Date().getHours();
-    const time = TIME_LINES.find(([[a, b]]) => hour >= a && hour < b);
+    // With the daily routine on, the one-shot period greeting already covers this — no repeats.
+    const time = this.app.config.dayRoutine === false ? TIME_LINES.find(([[a, b]]) => hour >= a && hour < b) : null;
     const ctx = Math.random() < 0.55 ? contextLines(this.app, this.en) : [];
     this.say(pick(ctx.length ? ctx : time && Math.random() < 0.25 ? time[this.en ? 2 : 1] : CHATTER[this.en ? 1 : 0]));
   }

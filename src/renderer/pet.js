@@ -12,6 +12,8 @@ import { Modes } from './modes.js';
 import { GameScreen } from './games.js';
 import { icon, glyphIcon, setArtStyle } from './pixel.js';
 import { EventLog } from './eventlog.js';
+import { createDock } from './dock.js';
+import { Pomodoro } from './focus.js';
 import './statusicons.js';
 import { baseId } from './furniture.js';
 import { Ball } from './ball.js';
@@ -255,6 +257,22 @@ export async function startPet(files, config) {
       if (key === 'lang') setLang(value);
       save({ [key]: value });
     },
+    // Apply a whole personality preset at once (saved immediately, not debounced).
+    applyConfigPatch(patch) {
+      clearTimeout(saveTimer);
+      pending = {};
+      Object.assign(config, patch);
+      if (patch.anticsOff && app.antics?.cur) app.antics.stop(false);
+      if ('volume' in patch || 'sound' in patch) sound.applyVolume();
+      if ('emoticonScale' in patch) emoticons.setSize(pet.P);
+      if ('filter' in patch || 'filterStrength' in patch) applyFilter(canvas, view, config.filter || 'nenhum', pet.P, config.filterStrength ?? 1);
+      if ('alwaysOnTop' in patch) api.setAlwaysOnTop?.(!!patch.alwaysOnTop).catch?.(() => {});
+      if ('clickThrough' in patch) refreshInteractive();
+      if ('streamer' in patch || 'streamerBg' in patch) applyStreamer();
+      if ('lang' in patch) setLang(patch.lang);
+      api.saveConfig(patch).catch((e) => api.log('save failed', e));
+      app.uiChanged?.();
+    },
     files,
     openMenu(cat) {
       menu.show(Math.min(pet.x + pet.P * 0.4, innerWidth - 380), Math.max(40, pet.y - pet.P));
@@ -492,6 +510,8 @@ export async function startPet(files, config) {
   app.closeup = closeup;
   const rewards = new Rewards(app);
   app.rewards = rewards;
+  // Cooperative Pomodoro: she and the Doll keep the user company through a focus session.
+  app.pomodoro = new Pomodoro(app);
   const care = new Care(app);
   app.display = () => display;
   const modelKey = () => config.modelDir || 'models/MyPersocon';
@@ -830,85 +850,30 @@ export async function startPet(files, config) {
   }
 
   // Docked status window: always-visible bars in a corner of the screen (Opções → Status fixo).
-  let dockEl = null;
   let bagDockEl = null;
   let appHidden = false;
-  let dockT = 0;
   let bagDockT = 0;
-  let dockMenuEl = null;
-  let dockMoving = false;
   let bagDockMoving = false;
-  let dockMenuOff = null;
-  // Cached DOM writes for the dock: only touch the element when a value actually changed.
-  let dockGeo = null;
-  let dockW = 0;
-  let dockH = 0;
-  let dockHint = null;
-  let dockMovingLast = null;
-  let dockHtml = '';
   // Event log under the dock: 5 latest big events, [pt, en] pairs picked at render time.
   const eventLog = new EventLog(config);
-  const pushLog = (pt, en, cat = 'general') => { eventLog.push(pt, en, cat); dockT = 0; };
-const toggleLogFilter = (cat) => {
-  config.logFilter = { ...(config.logFilter || {}), [cat]: !(config.logFilter?.[cat] ?? true) };
-  app.setOption('logFilter', config.logFilter);
-  dockT = 0;
-  app.uiChanged();
-};
-
-  function closeDockMenu() {
-    if (!dockMenuEl) return;
-    dockMenuEl.remove();
-    dockMenuEl = null;
-    window.removeEventListener('pointerdown', dockMenuOff, true);
+  // The dock owns its DOM, drag state, menu and caches (see dock.js).
+  const dock = createDock({
+    config, pet, game, app, sound, rewards, eventLog,
+    isHidden: () => appHidden,
+    setHidden: (on) => setAppHidden(on),
+    toggleLogFilter: (cat) => toggleLogFilter(cat),
+    focusLabel: () => app.pomodoro?.label ?? null,
+  });
+  app.dock = dock;
+  const pushLog = (pt, en, cat = 'general') => { eventLog.push(pt, en, cat); dock.invalidate(); };
+  const toggleLogFilter = (cat) => {
+    config.logFilter = { ...(config.logFilter || {}), [cat]: !(config.logFilter?.[cat] ?? true) };
+    app.setOption('logFilter', config.logFilter);
+    dock.invalidate();
     app.uiChanged();
-  }
+  };
 
-  // Right-click on the docked status: always on top, click through, move it, close it.
-  function dockMenu(x, y) {
-    closeDockMenu();
-    const el = document.createElement('div');
-    el.className = 'toy-menu hitzone';
-    const title = document.createElement('div');
-    title.className = 'title';
-    title.textContent = 'Status fixo';
-    el.append(title);
-    const item = (label, on, fn) => {
-      const b = document.createElement('button');
-      b.textContent = `${on === undefined ? '' : on ? '✓ ' : '◻ '}${label}`;
-      b.onclick = (e) => {
-        e.stopPropagation();
-        closeDockMenu();
-        sound.play('ok', { volume: 0.4 });
-        fn();
-      };
-      el.append(b);
-    };
-    item('Sempre na frente', config.alwaysOnTop !== false, () => app.setOption('alwaysOnTop', config.alwaysOnTop === false));
-    item('Clicar através', !!config.clickThrough, () => app.setOption('clickThrough', !config.clickThrough));
-    item(appHidden ? 'Mostrar o app' : 'Esconder o app', undefined, () => setAppHidden(!appHidden));
-    item('✥ Mudar a posição', undefined, () => { dockMoving = true; dockT = 0; });
-    const k = config.statusDockScale ?? 1.3;
-    const scale = (v) => { app.setOption('statusDockScale', Math.round(Math.min(2.5, Math.max(0.8, v)) * 10) / 10); dockT = 0; };
-    item(`➕ Aumentar (${Math.round(k * 100)}%)`, undefined, () => scale(k + 0.2));
-    item('➖ Diminuir', undefined, () => scale(k - 0.2));
-  item('Filtro do log: status', config.logFilter?.status !== false, () => toggleLogFilter('status'));
-  item('Filtro do log: missões', config.logFilter?.mission !== false, () => toggleLogFilter('mission'));
-  item('Filtro do log: moedas', config.logFilter?.money !== false, () => toggleLogFilter('money'));
-  item('Filtro do log: corvo', config.logFilter?.crow !== false, () => toggleLogFilter('crow'));
-  item('Chat log (o que ela fala)', config.chatLogOff !== true, () => { app.setOption('chatLogOff', config.chatLogOff !== true); dockT = 0; });
-  item('Registro de XP (o que ela treina)', config.xpLogOff !== true, () => { app.setOption('xpLogOff', config.xpLogOff !== true); dockT = 0; });
-  item('✕ Fechar', undefined, () => app.setOption('statusDock', 'off'));
-    el.addEventListener('pointerdown', (e) => e.stopPropagation());
-    document.body.append(el);
-    el.style.left = `${Math.min(x, innerWidth - el.offsetWidth - 6)}px`;
-    el.style.top = `${Math.min(y, innerHeight - el.offsetHeight - 6)}px`;
-    dockMenuEl = el;
-    dockMenuOff = (e) => !el.contains(e.target) && closeDockMenu();
-    setTimeout(() => dockMenuEl === el && window.addEventListener('pointerdown', dockMenuOff, true), 0);
-    sound.play('blip', { volume: 0.4 });
-    app.uiChanged();
-  }
+  const closeDockMenu = () => dock.closeMenu();
 
   function bagDockMenu(x, y) {
     closeDockMenu();
@@ -939,9 +904,7 @@ const toggleLogFilter = (cat) => {
     document.body.append(el);
     el.style.left = `${Math.min(x, innerWidth - el.offsetWidth - 6)}px`;
     el.style.top = `${Math.min(y, innerHeight - el.offsetHeight - 6)}px`;
-    dockMenuEl = el;
-    dockMenuOff = (e) => !el.contains(e.target) && closeDockMenu();
-    setTimeout(() => dockMenuEl === el && window.addEventListener('pointerdown', dockMenuOff, true), 0);
+    dock.setMenu(el, (e) => !el.contains(e.target) && closeDockMenu());
     sound.play('blip', { volume: 0.4 });
     app.uiChanged();
   }
@@ -951,7 +914,7 @@ const toggleLogFilter = (cat) => {
     appHidden = on;
     document.body.classList.toggle('app-hidden', on);
     if (on) app.closeMenu?.();
-    dockT = 0;
+    dock.invalidate();
     bagDockT = 0;
     app.uiChanged();
   }
@@ -959,32 +922,10 @@ const toggleLogFilter = (cat) => {
 api.onTrayClick?.(() => {
     setAppHidden(false);
     appHidden = false;
-    dockT = 0;
+    dock.invalidate();
     api.focusWindow?.();
     app.uiChanged();
   });
-  // "Mudar a posição": drag the status anywhere; released, it stays there.
-  function dragDock(e) {
-    const r = dockEl.getBoundingClientRect();
-    const ox = e.clientX - r.left;
-    const oy = e.clientY - r.top;
-    const move = (ev) => {
-      config.statusDock = 'free';
-      config.statusDockAt = { x: ev.clientX - ox, y: ev.clientY - oy };
-      dockT = 0;
-      updateDock();
-    };
-    const up = () => {
-      removeEventListener('pointermove', move);
-      removeEventListener('pointerup', up);
-      setTimeout(() => { dockMoving = false; }, 0);
-      app.setOption('statusDockAt', config.statusDockAt);
-      app.setOption('statusDock', config.statusDock);
-      app.uiChanged();
-    };
-    addEventListener('pointermove', move);
-    addEventListener('pointerup', up);
-  }
 
   function dragBagDock(e) {
     const r = bagDockEl.getBoundingClientRect();
@@ -1078,225 +1019,7 @@ api.onTrayClick?.(() => {
 
   function updateDock() {
     updateBagDock();
-    const pos = config.statusDock ?? 'tr';
-    if (pos === 'off') {
-      dockEl?.remove();
-      dockEl = null;
-      return;
-    }
-    if (!dockEl) {
-      dockEl = document.createElement('div');
-      dockEl.className = 'status-dock hitzone';
-      dockEl.title = 'Clique: menu · 2×: rápido · botão direito: opções · segurar direito: mover';
-      let rmb = null;
-      dockEl.addEventListener('click', (e) => {
-        if (dockMoving || rmb?.moved) return;
-        if (e.target.closest('.sd-hide') || appHidden) return setAppHidden(!appHidden);
-        if (e.target.closest('.sd-log-toggle')) { app.setOption('logOff', !config.logOff); dockT = 0; return; }
-        if (e.target.closest('.sd-chat-toggle')) { app.setOption('chatLogOff', !config.chatLogOff); dockT = 0; return; }
-        if (e.target.closest('.sd-xp-toggle')) { app.setOption('xpLogOff', !config.xpLogOff); dockT = 0; return; }
-        app.openMenu();
-      });
-      dockEl.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        if (dockMoving || e.target.closest('.sd-log-toggle')) return;
-        const r = dockEl.getBoundingClientRect();
-        app.quick?.show?.(r.left + r.width / 2, r.bottom);
-      });
-      dockEl.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        if (dockMoving && e.button === 0) return dragDock(e);
-        if (e.button !== 2) return;
-        const sx = e.clientX;
-        const sy = e.clientY;
-        rmb = { moved: false };
-        const move = (ev) => {
-          if (!rmb.moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) {
-            rmb.moved = true;
-            dockMoving = true;
-            dragDock(ev);
-          }
-        };
-        const up = () => {
-          removeEventListener('pointermove', move);
-          removeEventListener('pointerup', up);
-          setTimeout(() => { rmb = null; }, 0);
-        };
-        addEventListener('pointermove', move);
-        addEventListener('pointerup', up);
-      });
-      dockEl.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (rmb?.moved || dockMoving) return;
-        dockMenu(e.clientX, e.clientY);
-      });
-      document.body.append(dockEl);
-      dockT = 0;
-      // Fresh element: forget the cached markup/size so it gets built again.
-      dockHtml = '';
-      dockGeo = null;
-      dockW = 0;
-      dockH = 0;
-    }
-    if (dockEl.dataset.pos !== pos) dockEl.dataset.pos = pos;
-    const k = String(config.statusDockScale ?? 1.3);
-    if (dockEl.style.getPropertyValue('--sdk') !== k) {
-      dockEl.style.setProperty('--sdk', k);
-      dockW = 0; // scale changed: the cached size is stale
-    }
-    const at = pos === 'free' && config.statusDockAt;
-    const geo = at ? `${Math.round(at.x)}|${Math.round(at.y)}|${dockW}|${dockH}|${innerWidth}|${innerHeight}` : 'none';
-    if (geo !== dockGeo) {
-      dockGeo = geo;
-      if (at) {
-        if (!dockW) {
-          dockW = dockEl.offsetWidth;
-          dockH = dockEl.offsetHeight;
-        }
-        dockEl.style.left = `${Math.round(Math.min(Math.max(0, at.x), innerWidth - dockW))}px`;
-        dockEl.style.top = `${Math.round(Math.min(Math.max(0, at.y), innerHeight - dockH))}px`;
-      } else {
-        dockEl.style.left = '';
-        dockEl.style.top = '';
-      }
-    }
-    if (dockMovingLast !== dockMoving) {
-      dockMovingLast = dockMoving;
-      dockEl.classList.toggle('moving', dockMoving);
-    }
-    const hint = config.lang === 'en' ? 'Drag to move' : 'Arraste para mover';
-    if (dockHint !== hint) {
-      dockHint = hint;
-      dockEl.dataset.hint = hint;
-    }
-    if ((dockT -= 1) > 0) return;
-    dockT = 15;
-    const s = pet.stats;
-    const bar = (ic, v, col) => `<div class="sd-row"><span>${ic}</span><i><b style="width:${Math.round(Math.max(0, Math.min(100, v)))}%;background:${col}"></b></i></div>`;
-    const hideTip = appHidden ? (config.lang === 'en' ? 'Show the app' : 'Mostrar o app') : (config.lang === 'en' ? 'Hide the app' : 'Esconder o app');
-    const maxHp = Math.max(1, pet.maxHealth?.() ?? 100);
-    const html = `<div class="sd-name">${(config.name || 'Ninna').replace(/[<>&']/g, '')} · ¥ ${Math.floor(game.coins)} · ${config.lang === 'en' ? 'Wallet' : 'Carteira'} ¥ ${Math.floor(game.profile?.wallet || 0)} · ${config.lang === 'en' ? 'Doing' : 'Fazendo'}: ${String(pet.activity || pet.action || 'idle').replace(/[<>&']/g, '')}`
-      + `<button class="sd-hide" type="button" title="${hideTip}" aria-label="${hideTip}">${appHidden ? '😑' : '👁'}</button></div>`
-      + bar('❤️', (Math.min(s.health, maxHp) / maxHp) * 100, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
-      + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
-      + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock();
-    // Rebuilding the markup kills the click on the hide button and the selection, so only do it
-    // when something visible actually changed.
-    if (html !== dockHtml) {
-      dockHtml = html;
-      dockEl.innerHTML = html;
-      dockW = 0;
-      dockH = 0;
-      // O feed de ganhos fica logo abaixo da caixinha de XP (ele segue o dock).
-      app.gains?.place?.();
-    }
-  }
-  // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
-  function wishChips() {
-    // Em combate ela não pede nada: os chips "Quer" somem enquanto a luta acontece.
-    if (pet.combatMode) return '';
-    const now = Date.now();
-    const list = (pet.wishes || []).filter((w) => w.until > now);
-    if (!list.length) return '';
-    const en = config.lang === 'en';
-    const what = (w) => w.label || { food: w.name || (en ? 'Food' : 'Comida'), drink: w.name || (en ? 'Drink' : 'Bebida'), dessert: w.name || (en ? 'Dessert' : 'Sobremesa'), pat: en ? 'Head pat' : 'Cafuné', play: en ? 'Play' : 'Brincar' }[w.kind] || w.kind;
-    const chip = (w) => {
-      const left = Math.max(1, Math.round((w.until - now) / 60000));
-      const time = left >= 60 ? `${Math.floor(left / 60)}h${String(left % 60).padStart(2, '0')}` : `${left} min`;
-      const tip = `${en ? 'She wants' : 'Ela quer'}: ${String(what(w)).replace(/[<>&"]/g, '')} · ${en ? 'still' : 'ainda'} ${time}`;
-      const src = w.img || icon({ food: 'food', drink: 'cup', pat: 'hand', play: 'ball' }[w.kind] || 'ball');
-      return `<span title="${tip}"><img src="${src}" alt=""></span>`;
-    };
-    return `<div class="sd-queue sd-wishes"><b>${en ? 'Wants' : 'Quer'}</b>${list.map(chip).join('')}</div>`;
-  }
-  // Meals / pending action / current activity — shown while she is busy with something else.
-  function queueChips() {
-    const en = config.lang === 'en';
-    const chips = [];
-    const push = (title, html) => chips.push(`<span title="${String(title).replace(/[<>&"]/g, '')}">${html}</span>`);
-    if (pet.activity === 'jam') push(en ? 'Jam mode' : 'Modo Jam', '🎵');
-    if (pet.activity === 'watch') push(en ? 'Watch mode' : 'Modo Assistir', '📺');
-    if (pet.pending) push(en ? `Next: ${pet.pending}` : `Próximo: ${pet.pending}`, '⏭');
-    if (pet.toyPlay?.id) push(pet.toyPlay.id, '🎮');
-    if (pet.chase) push(en ? 'Tag' : 'Pega-pega', '🏃');
-    for (const it of [pet.eating?.item, ...(pet.meals || [])].filter(Boolean)) {
-      push(it.name, it.img ? `<img src="${it.img}" alt="" style="image-rendering:pixelated${it.tint ? `;filter:${it.tint}` : ''}">` : (it.icon || '•'));
-    }
-    for (const q of pet.actionQueue || []) {
-      const icon = q.kind === 'sleep' ? '🌙' : q.kind === 'bath' ? '🛁' : q.kind === 'box' ? '🎁' : '⏭';
-      push(q.label || q.kind, icon);
-    }
-    for (const id of pet.afterPlay || []) {
-      const it = itemById(id);
-      if (it) push(it.name, it.img ? `<img src="${it.img}" alt="" style="image-rendering:pixelated${it.tint ? `;filter:${it.tint}` : ''}">` : (it.icon || '•'));
-    }
-    if (!chips.length) return '';
-    if (pet.eating && chips.length) {
-      const i = chips.findIndex((c) => c.includes('img') || c.includes('•'));
-      // mark first meal chip as current when possible
-      void i;
-    }
-    return `<div class="sd-queue"><b>${en ? 'Queue' : 'Fila'}</b>${chips.slice(0, 8).join('')}${chips.length > 8 ? `<em>+${chips.length - 8}</em>` : ''}</div>`;
-  }
-  function buffChips() {
-    const now = Date.now();
-    const on = Object.entries(pet.buffs || {}).filter(([, t]) => t > now);
-    return on.length ? `<div class="sd-buffs">${on.map(([k, t]) => `<span title="${BUFF_LABELS[k] || k}">${BUFF_ICONS[k] || '✨'} ${Math.ceil((t - now) / 60000)}m</span>`).join('')}</div>` : '';
-  }
-  // Negative statuses: pixel-art cards with the name anchored at the bottom of the icon.
-  function debuffChips() {
-    const now = Date.now();
-    const en = config.lang === 'en';
-    const on = Object.entries(pet.debuffs || {}).filter(([, t]) => t > now);
-    return on.length
-      ? `<div class="sd-debuffs">${on.map(([id, t]) => {
-        const d = DEBUFFS[id];
-        const L = d ? d[en ? 'en' : 'pt'] : null;
-        const title = L ? `${L.name} — ${L.desc} · ${L.cure} (${Math.ceil((t - now) / 60000)}m)` : id;
-        return `<span class="sd-debuff" style="--c:${d?.color || '#e2475a'}" title="${title.replace(/[<>&"]/g, '')}">`
-          + `<img src="${icon(d?.art || 'db_gripe')}" alt=""><u>${L ? L.name : id}</u></span>`;
-      }).join('')}</div>`
-      : '';
-  }
-  // Daily missions as a list with their exact names: hidden once all three are done.
-  function missionChip() {
-    const list = rewards.missions();
-    if (!list.length || list.every((m) => m.done)) return '';
-    const en = config.lang === 'en';
-    const rows = list.map((m) => `<li class="${m.done ? 'done' : ''}">${m.done ? '✔' : '·'} ${String(en ? translate(m.text) : m.text).replace(/[<>&"]/g, '')} <em>${Math.min(m.n, m.goal)}/${m.goal}</em></li>`).join('');
-    return `<div class="sd-missions"><b>📅 ${en ? 'Daily missions' : 'Missões do dia'}</b><ul>${rows}</ul></div>`;
-  }
-  // Event log right under the pinned status: 5 latest lines, with a toggle to collapse it.
-  function logBlock() {
-    const en = config.lang === 'en';
-    const open = !config.logOff;
-    const tip = en ? 'Show or hide the log' : 'Mostrar ou ocultar o registro';
-    const head = `<div class="sd-log-head"><b>📝 ${en ? 'Log' : 'Registro'}</b><button class="sd-log-toggle" type="button" title="${tip}" aria-label="${tip}">${open ? 'X' : '+'}</button></div>`;
-    if (!open) return `<div class="sd-log sd-eventlog">${head}</div>`;
-    const rows = eventLog.lines.filter((r) => (config.logFilter?.[r[2] || 'general'] ?? true)).map(([pt, t, , n]) => `<div>${String(en ? t : pt).replace(/[<>&"]/g, '')}${n > 1 ? ` <b>(${n}x)</b>` : ''}</div>`).join('') || `<div>${en ? 'No events yet' : 'Ainda sem eventos'}</div>`;
-    return `<div class="sd-log sd-eventlog">${head}<div class="sd-log-rows">${rows}</div></div>`;
-  }
-  // Chat log right under the event log: the last 5 phrases the Persocon said.
-  function chatLogBlock() {
-    const en = config.lang === 'en';
-    const open = config.chatLogOff !== true;
-    const tip = en ? 'Show or hide the chat log' : 'Mostrar ou ocultar o chat log';
-    const head = `<div class="sd-log-head"><b>💬 ${en ? 'Chat' : 'Chat'}</b><button class="sd-chat-toggle" type="button" title="${tip}" aria-label="${tip}">${open ? 'X' : '+'}</button></div>`;
-    if (!open) return `<div class="sd-log sd-chat">${head}</div>`;
-    const rows = (app.speechHistory || []).slice(-5).reverse().map((t) => `<div>${String(t).replace(/[<>&"]/g, '')}</div>`).join('') || `<div>${en ? 'She has not spoken yet' : 'Ela ainda não falou'}</div>`;
-    return `<div class="sd-log sd-chat">${head}<div class="sd-log-rows">${rows}</div></div>`;
-  }
-  // The XP log right under the chat: what she is training right now and how much.
-  function xpLogBlock() {
-    const en = config.lang === 'en';
-    const open = config.xpLogOff !== true;
-    const tip = en ? 'Show or hide the XP log' : 'Mostrar ou ocultar o registro de XP';
-    const head = `<div class="sd-log-head"><b>⭐ XP</b><button class="sd-xp-toggle" type="button" title="${tip}" aria-label="${tip}">${open ? 'X' : '+'}</button></div>`;
-    if (!open) return `<div class="sd-log sd-xp">${head}</div>`;
-    const rows = (app.xpLog?.lines?.(5) || []).slice().reverse().map((t) => `<div>${String(t).replace(/[<>&"]/g, '')}</div>`).join('') || `<div>${en ? 'No XP yet' : 'Ainda sem XP'}</div>`;
-    return `<div class="sd-log sd-xp">${head}<div class="sd-log-rows">${rows}</div></div>`;
+    dock.update();
   }
 
   function updateOverlays(dt, head, hidden, calm) {
@@ -1597,7 +1320,7 @@ api.onTrayClick?.(() => {
   let press = null;
   let suppressContext = false;
 
-  const uiOpen = () => (menu.open && !config.menuPinned) || quick.open || !!dockMenuEl || dockMoving || bagDockMoving || importDialog.open || !!app.gameOver || !!toys.popup || !!toys.menuEl || !!toys.shelfPopup || !!app.marking || !!app.dialog || !!toys.editing || !!minigames.active || !!minigames.guide || !!doll.brain.betEl || !!app.combatUI?.modalOpen;
+  const uiOpen = () => (menu.open && !config.menuPinned) || quick.open || dock.menuOpen || dock.moving || bagDockMoving || importDialog.open || !!app.gameOver || !!toys.popup || !!toys.menuEl || !!toys.shelfPopup || !!app.marking || !!app.dialog || !!toys.editing || !!minigames.active || !!minigames.guide || !!doll.brain.betEl || !!app.combatUI?.modalOpen;
 
   app.uiOpen = uiOpen;
   startTips(app, () => uiOpen() || !!menu.open || !!pet.toyPlay || pet.mode === 'held');
@@ -2220,6 +1943,7 @@ api.onTrayClick?.(() => {
       }
       care.update(dt, hidden);
       rewards.update(dt, hidden);
+      app.pomodoro.update(dt);
       updateDock();
       speech.update(dt, calm, quiet);
       fx.update(dt, head, quiet);

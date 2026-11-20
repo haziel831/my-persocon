@@ -380,6 +380,23 @@ export class DollBrain {
     return x;
   }
 
+  // Stay beside the Persocon in a calm sitting pose during a focus session.
+  focusPose(on) {
+    if (!on) {
+      if (this.task?.focus) this.task = null;
+      return;
+    }
+    if (!this.app.doll?.alive || this.task?.focus) return;
+    const sit = () => {
+      this.doFor('sit', Infinity, () => false);
+      this.task.focus = true;
+    };
+    if (Math.abs(this.doll.x - this.besidePet()) > this.P * 0.3) {
+      this.walkTo(this.besidePet(), sit);
+      this.task.focus = true;
+    } else sit();
+  }
+
   // ---------- brain ----------
 
   update(dt, grounded, hidden) {

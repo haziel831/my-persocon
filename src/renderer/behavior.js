@@ -1,5 +1,6 @@
 import { Combat } from './combat.js';
 import { ATTR_XP } from './attrxp.js';
+import { dayPeriod } from './watch.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const chance = (p) => Math.random() < p;
@@ -2298,6 +2299,11 @@ export class Pet {
       w.emote *= 0.3;
       w.sit *= 3;
       w.idle *= 2;
+    }
+    // Real madrugada (00–05h): a little sleepier and more fond of sitting still.
+    if (this.cfg.dayRoutine !== false && dayPeriod() === 'madrugada') {
+      w.sleep *= 1.5;
+      w.sit *= 1.3;
     }
     if (!focus && this.gear.gancho && e > 30 && chance(0.25) && this.hookSomewhere()) return;
     if (!focus && this.gear.microfone && e > 25 && chance(0.05 * this.prefMul('mic')) && this.trySing?.()) return;

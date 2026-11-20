@@ -7,6 +7,13 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 // Per-kind minimum gap (s) between two reactions of that kind.
 const GAP = { winOpen: 70, winClose: 80, winMax: 120, winDrag: 50, winRide: 25, manyWindows: 600, emptyDesktop: 600, playerAway: 1, playerBack: 1, cursorFast: 150, cursorHover: 180 };
 
+// Real time-of-day bands (local clock, no internet): manhã 06–11, tarde 12–18, noite 19–23, madrugada 00–05.
+export const dayPeriod = (hour = new Date().getHours()) => (
+  hour >= 6 && hour < 12 ? 'manha' : hour >= 12 && hour < 19 ? 'tarde' : hour >= 19 ? 'noite' : 'madrugada'
+);
+// A greeting can only happen once per real period change, with a long guard against clock jumps.
+const PERIOD_GAP = 1800;
+
 // The living Doll's reaction: an emoji bubble and, when it is free, a short pose.
 export function dollReact(app, emoji, pose, dur = 1.6) {
   const doll = app.doll;
@@ -34,6 +41,31 @@ export class DesktopWatch {
     this.hoverT = 0;
     this.many = false;
     this.empty = false;
+    this.period = null;
+    this.periodAt = 0;
+  }
+
+  // One contextual greeting (and at most one little gesture) when the real period changes.
+  dayTick() {
+    const cfg = this.app.config;
+    if (cfg.dayRoutine === false || cfg.focus || this.app.pomodoro?.active) return;
+    const period = dayPeriod();
+    if (this.period === null) {
+      // Do not greet on launch — only on an actual change of period.
+      this.period = period;
+      this.periodAt = performance.now() / 1000;
+      return;
+    }
+    if (period === this.period) return;
+    const now = performance.now() / 1000;
+    if (now - this.periodAt < PERIOD_GAP) return;
+    this.period = period;
+    this.periodAt = now;
+    if (this.pet.dead || this.pet.unconscious || this.pet.mode === 'held') return;
+    const calm = this.calm();
+    if (period === 'manha' && calm) this.app.antics?.tryStart?.('stretch');
+    if (period === 'madrugada' && calm) this.app.antics?.tryStart?.('yawn');
+    this.app.speech?.sayPeriod?.(period);
   }
 
   get pet() {
@@ -173,6 +205,7 @@ export class DesktopWatch {
 
   update(dt) {
     this.cool -= dt;
+    this.dayTick();
     const c = this.pet.cursor;
     const P = this.pet.P || 100;
     if (!c) return;

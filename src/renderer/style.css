@@ -189,6 +189,19 @@ input.text:focus { border-color: var(--accent); }
 @keyframes konami-toast { 0% { opacity: 0; transform: translate(-50%, -6px); } 12%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .row .seg { flex: 1; }
 .note { color: var(--muted); font-size: 11px; }
+/* Catálogo: busca e filtros rápidos (a fonte de emoji vem primeiro em toda a pilha). */
+.catalog-tools { display: grid; gap: 6px; margin: 2px 0 8px; }
+.catalog-search {
+  font: inherit; font-family: PxEmoji, system-ui, sans-serif; color: inherit;
+  background: rgba(0, 0, 0, 0.3); border: 1px solid var(--line); border-radius: 7px;
+  padding: 6px 9px; outline: none; width: 100%; box-sizing: border-box; user-select: text;
+}
+.catalog-search:focus { border-color: var(--accent); }
+.quick-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.quick-chip { padding: 3px 8px; font-size: 11px; border-radius: 12px; font-family: PxEmoji, system-ui, sans-serif; }
+.quick-chip.active { background: var(--accent); border-color: transparent; color: var(--on-accent); }
+.catalog-empty { color: var(--muted); font-size: 12px; padding: 10px 0; text-align: center; font-family: PxEmoji, system-ui, sans-serif; }
+.item[hidden], .group[hidden], .catalog-empty[hidden] { display: none !important; }
 .back { justify-self: start; padding-left: 0; }
 .items { display: grid; gap: 6px; }
 .item {
