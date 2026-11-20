@@ -25,6 +25,7 @@ window.petAPI = {
   openStreamerControl: () => invoke('open_streamer_control'),
   streamerRpc: (target, payload) => invoke('streamer_rpc', { target, payload }),
   onStreamerRpc: (cb) => listen('streamer-rpc', (e) => cb(e.payload)),
+  streamerPushState: (state) => invoke('streamer_push_state', { state }),
   ttsVoices: (dir) => invoke('tts_voices', { dir }),
   ttsSpeak: (dir, text, voice, lang, speed) => invoke('tts_speak', { dir, text, voice, lang, speed }),
   ttsStop: () => invoke('tts_stop'),

@@ -207,10 +207,12 @@ export class VoiceTTS {
   }
 
   reportQueue() {
-    window.petAPI?.streamerRpc?.('stream-ctrl', {
-      type: 'ttsQueue',
-      count: this.queue.length + (this.speaking ? 1 : 0),
-      muted: this.muted,
-    });
+    window.petAPI?.streamerPushState?.({
+      tts: {
+        queue: this.queue.length + (this.speaking ? 1 : 0),
+        muted: this.muted,
+        speaking: this.speaking,
+      },
+    }).catch?.(() => {});
   }
 }

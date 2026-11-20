@@ -3,6 +3,7 @@
 import { textFor } from './introtext.js';
 import { Music } from './music.js';
 import { editionLabel } from './edition.js';
+import { translate } from './i18n.js';
 
 const LOGO_URL = new URL('./assets/logo.png', import.meta.url).href;
 
@@ -192,9 +193,16 @@ export class TitleScreen {
     this.nameEl = el('div', 'title-name');
     this.nameEl.append(pixelText('MY PERSOCON'));
     this.badge = el('div', 'title-badge', `v${this.app.version || ''} · ${editionLabel(T.earlyAccess)}`);
+    this.modeBadge = el('div', 'title-mode-badge');
+    this.modeMain = el('div', 'title-mode-main');
+    this.modeSub = el('div', 'title-mode-sub');
+    this.modeBtn = el('button', 'act title-mode-btn');
+    this.modeBadge.append(this.modeMain, this.modeSub, this.modeBtn);
+    this.modeToast = el('div', 'title-mode-toast');
     this.menuEl = el('div', 'title-menu');
     this.langEl = el('div', 'title-lang');
-    this.panel.append(this.canvas, this.nameEl, this.badge, this.menuEl, this.langEl);
+    this.panel.append(this.canvas, this.nameEl, this.badge, this.modeBadge, this.menuEl, this.langEl, this.modeToast);
+    this.refreshModeBadge();
     this.buildLang();
     this.root.append(this.panel);
     document.body.append(this.root);
@@ -221,6 +229,7 @@ export class TitleScreen {
       last = now;
       this.t += dt * this.speed;
       this.draw();
+      this.refreshModeBadge();
       if (this.t > 3.9) this.nameEl.classList.add('show');
       if (this.t > 4.7) {
         this.menuEl.classList.add('show');
@@ -313,6 +322,31 @@ export class TitleScreen {
       return b;
     });
     this.focus(this.buttons.find((b) => !b.classList.contains('off')));
+  }
+
+  refreshModeBadge() {
+    const on = !!(window.__PET_STREAMER__ || this.app.config.streamer);
+    if (this._mode === on) return;
+    const first = this._mode === undefined;
+    this._mode = on;
+    this.modeBadge.classList.toggle('on', on);
+    this.modeMain.textContent = on ? `🎥 ${translate('Modo Streamer ATIVADO')}` : `✨ ${translate('Jogo Normal')}`;
+    this.modeSub.textContent = on
+      ? translate('Save isolado · Controle aberto no navegador')
+      : translate('Save principal');
+    this.modeBtn.textContent = on ? translate('Voltar ao Jogo Normal') : `🎥 ${translate('Ativar Modo Streamer')}`;
+    this.modeBtn.onclick = () => {
+      this.app.sound?.play('ok', { volume: 0.5 });
+      this.app.setOption?.('streamer', !on);
+    };
+    if (!first) this.modeFlash(translate(on ? 'Modo Streamer ativado' : 'Jogo Normal ativado'));
+  }
+
+  modeFlash(message) {
+    this.modeToast.textContent = message;
+    this.modeToast.classList.add('show');
+    clearTimeout(this._modeToastTimer);
+    this._modeToastTimer = setTimeout(() => this.modeToast.classList.remove('show'), 2200);
   }
 
   buildLang() {

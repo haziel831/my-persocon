@@ -1816,6 +1816,31 @@ api.onTrayClick?.(() => {
   let streamerSolidOn = streamerSolid();
   api.onStreamer((on) => on !== !!config.streamer && app.setOption('streamer', on));
   // Commands from the second-monitor control window.
+  // Snapshot for the browser-based control panel (Rust serves it at GET /state).
+  let statePushAt = 0;
+  let voiceCache = [];
+  let voiceFetchAt = 0;
+  function pushStreamerState(force = false) {
+    if (!window.__PET_STREAMER__) return;
+    const now = Date.now();
+    if (!force && now - statePushAt < 900) return;
+    statePushAt = now;
+    if (!voiceCache.length && now - voiceFetchAt > 60_000) {
+      voiceFetchAt = now;
+      api.ttsVoices?.(config.ttsDir || '').then((v) => {
+        voiceCache = Array.isArray(v) ? v : v?.voices || [];
+      }).catch(() => {});
+    }
+    api.streamerPushState?.({
+      config,
+      coins: game.coins,
+      twitch: !!app.twitch?.connected,
+      brb: document.body.classList.contains('brb-on'),
+      tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
+      voices: voiceCache,
+    }).catch?.(() => {});
+  }
+
   api.onStreamerRpc?.((p) => {
     if (!p || !window.__PET_STREAMER__) return;
     if (p.type === 'openMenu') app.openMenu?.(p.cat);
@@ -1835,6 +1860,15 @@ api.onTrayClick?.(() => {
     else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
     else if (p.type === 'simulate') app.streamAlerts?.push?.(p.event);
     else if (p.type === 'brb') app.setBrb?.(p.value, p.text);
+    else if (p.type === 'setOption') app.setOption?.(p.key, p.value);
+    else if (p.type === 'exitStreamer') app.setOption?.('streamer', false);
+    else if (p.type === 'startMode') app.startMode?.(p.mode);
+    else if (p.type === 'callToy') app.toys?.callFurn?.(p.id);
+    else if (p.type === 'weather') {
+      if (p.kind === 'off') app.weather?.stop?.();
+      else if (app.weather) { app.weather.start(p.kind); app.weather.until = Date.now() + 120000; }
+    }
+    pushStreamerState(true);
   });
 
   // ---------- drag & drop files onto the pet ----------
@@ -2113,6 +2147,7 @@ api.onTrayClick?.(() => {
       app.weather.update(dt, hidden, canvas.style.visibility === 'hidden');
       app.trio.update(dt);
       window.__PET_TTS_LEVEL__ = app.tts.mouthLevel;
+      pushStreamerState();
       updateDock();
       speech.update(dt, calm, quiet);
       fx.update(dt, head, quiet);
