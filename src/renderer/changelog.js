@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.38', [
+    ['Menu do Doll agora abre com botão direito, mostra as 12 skills normais e as 6 de combate com barras de progresso iguais às do Corvo, e tem a mesma aparência dos dois perfis', 'The Doll menu now opens with right click, shows all 12 normal skills and 6 combat skills with progress bars like the Crow, and both profiles share the same look'],
+    ['Menu rápido da Persocon mudou: passe o mouse por cima dela e pressione X em vez de dar duplo clique', 'The Persocon quick menu changed: hover over her and press X instead of double-clicking'],
+    ['Nome personalizado do Corvo aparece no perfil, menu, lutas, feed de ganhos e registros', 'The Crow custom name shows up in the profile, menu, battles, gains feed and logs'],
+  ]],
   ['1.9.37', [
     ['Menu de botão esquerdo do Doll no estilo do Corvo, com skills normais e de combate em duas colunas, progresso, foco e botão de treinar com cooldown anti-spam', 'Left-click Doll menu in the Crow style, with normal and combat skills in two columns, progress, focus and a train button with anti-spam cooldown'],
     ['Renomear Corvo e Doll, skin de blocos no Doll (64×64/64×32), animações de combate procedurais e 6 skills de combate do Doll que entram nas lutas', 'Rename the Crow and Doll, block skins for the Doll (64×64/64×32), procedural combat animations and 6 Doll combat skills that join battles'],

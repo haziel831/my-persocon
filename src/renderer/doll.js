@@ -3,7 +3,7 @@
 // With the Crystal Mágico it comes alive (see dollai.js).
 import { DollBrain } from './dollai.js';
 import { icon } from './pixel.js';
-import { DOLL_SKILLS, DOLL_COMBAT_SKILLS, dollData, dollHasSkill, trainRemaining, markTrain, fmtCooldown } from './dollskills.js';
+import { DOLL_SKILLS, DOLL_COMBAT_SKILLS, DOLL_XP, dollData, dollHasSkill, trainRemaining, markTrain, fmtCooldown } from './dollskills.js';
 import { dollName } from './game.js';
 import { renameDialog } from './ui.js';
 import { translate } from './i18n.js';
@@ -226,8 +226,12 @@ export class Doll {
       el.append(e);
       return e;
     };
-    add('div', 'title', dollName(app));
-    add('div', 'crow-stats', `${translate('Treinos')}: ${d.trains || 0}`);
+    add('div', 'title', dollName(app)).prepend(Object.assign(document.createElement('img'), {
+      src: icon('doll'), className: 'crow-ico', draggable: false, alt: '',
+    }));
+    const totalSkills = Object.keys(DOLL_SKILLS).length + Object.keys(DOLL_COMBAT_SKILLS).length;
+    const learnedCount = Object.keys({ ...DOLL_SKILLS, ...DOLL_COMBAT_SKILLS }).filter((id) => dollHasSkill(app, id)).length;
+    add('div', 'crow-stats', `${translate('Treinos')}: ${d.trains || 0} · ${translate('Skills')}: ${learnedCount}/${totalSkills}`);
     const cols = add('div', 'crow-cols');
     const mkCol = (title, combat) => {
       const col = document.createElement('div');
@@ -244,9 +248,7 @@ export class Doll {
     };
     const normal = mkCol(translate('Skills Normais'), false);
     const combat = mkCol(translate('Skills de Combate'), true);
-    const skills = { ...DOLL_SKILLS, ...DOLL_COMBAT_SKILLS };
-    for (const [id, s] of Object.entries(skills)) {
-      if (!!s.combat !== combat.combat) continue;
+    const addSkill = (id, s, list) => {
       const known = dollHasSkill(app, id);
       const row = document.createElement('div');
       row.className = `crow-skill${known ? ' known' : ' off'}${s.combat ? ' combat' : ''}`;
@@ -254,11 +256,16 @@ export class Doll {
       const head = document.createElement('div');
       head.className = 'crow-skill-head';
       const b = document.createElement('b');
-      b.textContent = known ? translate(s.name) : '?';
+      b.textContent = known ? translate(s.name) : '❔ ???';
       const pct = document.createElement('span');
-      pct.textContent = known ? '✓' : `${Math.min(99, Math.round((d.xp[id] || 0)))}%`;
+      pct.textContent = known ? '✓' : `${Math.floor(Math.min(99, ((d.xp[id] || 0) / DOLL_XP) * 100))}%${d.focus === id ? ` · ${translate('treinando')}` : ''}`;
       head.append(b, pct);
-      row.append(head);
+      const bar = document.createElement('div');
+      bar.className = 'crow-bar';
+      const fill = document.createElement('i');
+      fill.style.width = `${known ? 100 : Math.floor(Math.min(99, ((d.xp[id] || 0) / DOLL_XP) * 100))}%`;
+      bar.append(fill);
+      row.append(head, bar);
       if (known) {
         const small = document.createElement('small');
         small.textContent = translate(s.desc);
@@ -267,9 +274,11 @@ export class Doll {
       if (!known) {
         row.onclick = () => { d.focus = id; app.game.changed(); this.menu(x, y); };
       }
-      (s.combat ? combat.list : normal.list).append(row);
-    }
-    if (!Object.keys(DOLL_COMBAT_SKILLS).length) add('div', 'crow-note', translate('Em breve'));
+      list.append(row);
+    };
+    for (const [id, s] of Object.entries(DOLL_SKILLS)) addSkill(id, s, normal.list);
+    for (const [id, s] of Object.entries(DOLL_COMBAT_SKILLS)) addSkill(id, s, combat.list);
+    add('div', 'crow-note', translate('A Persocon decide o que ensinar. As Skills de Combate só valem na luta. As habilidades ficam ocultas até serem aprendidas.'));
     const left = trainRemaining('doll', app.game);
     const train = add('button', '', left > 0 ? `${translate('🎓 Treinar')} (${fmtCooldown(left)})` : translate('🎓 Treinar'));
     train.disabled = left > 0;
@@ -319,12 +328,12 @@ export class Doll {
     if (this.el) return;
     const el = (this.el = document.createElement('canvas'));
     el.className = 'toy doll';
-    el.title = 'Clique para interagir · arraste e solte para jogar · botão direito: skin e opções';
+    el.title = translate('Clique para interagir · arraste e solte para jogar · botão direito: menu do Doll');
     el.addEventListener('pointerdown', (e) => this.grab(e));
     el.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.app.toys.contextMenu('pelucia', e.clientX, e.clientY);
+      this.menu(e.clientX, e.clientY);
     });
     document.body.append(el);
   }
@@ -364,8 +373,7 @@ export class Doll {
       const h = this.held.hist;
       this.held = null;
       if (moved < 5) {
-        if (performance.now() - t0 < 400 && this.alive) this.menu(e.clientX, e.clientY);
-        else if (performance.now() - t0 < 400) this.poke();
+        if (performance.now() - t0 < 400) this.poke();
         return;
       }
       this.brain.task = null;

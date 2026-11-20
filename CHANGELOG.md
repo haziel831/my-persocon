@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.38 — 21/11/2026
+Correções de interface: menu do Doll passa a abrir com botão direito; as 12 skills normais voltaram a aparecer (a comparação de coluna estava errada) e as linhas agora têm barra de progresso, ícone e contador como no perfil do Corvo — os dois perfis ficaram visualmente parecidos. O menu rápido da Persocon agora é **hover + X**, sem duplo clique. Nome personalizado do Corvo refletido em perfil, menu, combate, gains e logs.
+
 ## v1.9.37 — 21/11/2026
 Menu do Doll no estilo do Corvo (skills normais × combate em duas colunas, progresso/foco, treinar com cooldown de 2 min reduzido pelo Carisma, piso 45 s). Cooldown anti-spam também no treino manual do Corvo. Renomear Corvo e Doll com nomes refletidos em feeds e toasts. Skin de blocos no Doll (`64×64`/`64×32`) salva no save. `doll.playCombat()` com clipes para idle/attack/cast/shield/dodge/hurt/cheer e 6 skills de combate do Doll integradas em `melee.js`.
 

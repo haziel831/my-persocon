@@ -14,6 +14,7 @@ import { upgradeFx } from './upgradefx.js';
 import { skillPick, skillGain, skillLevel } from './skills.js';
 import { dayPeriod } from './watch.js';
 import { ATTR_XP } from './attrxp.js';
+import { crowName } from './game.js';
 import { DOLL_SKILLS, dollHasSkill, dollData, dollBonus, dollWave } from './dollskills.js';
 import { translate } from './i18n.js';
 
@@ -464,7 +465,7 @@ export class Toys {
     };
     const title = document.createElement('div');
     title.className = 'title';
-    title.textContent = id === 'corvo' ? 'Corvo' : (t?.up && UPGRADES[baseId(id)]?.name) || itemById(baseId(id))?.name || id;
+    title.textContent = id === 'corvo' ? crowName(app) : (t?.up && UPGRADES[baseId(id)]?.name) || itemById(baseId(id))?.name || id;
     if (id === 'corvo') title.prepend(Object.assign(document.createElement('img'), { src: icon('crow'), className: 'crow-ico', draggable: false }));
     el.append(title);
     if (id === 'corvo') {

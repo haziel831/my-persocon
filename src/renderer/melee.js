@@ -15,7 +15,7 @@ import { ATTR_XP } from './attrxp.js';
 import { VFX_FOLDERS, flashIntensity } from './vfx.js';
 import { icon } from './pixel.js';
 import { DOLL_COMBAT_SKILLS, dollHasSkill } from './dollskills.js';
-import { dollName } from './game.js';
+import { dollName, crowName } from './game.js';
 import { translate } from './i18n.js';
 import { enemyPortrait, persoconPortrait } from './combatui.js';
 
@@ -417,7 +417,7 @@ export class Melee {
     const dir = this.app.config?.modelDir || 'models/MyPersocon';
     const hpPct = pet.maxHealth?.() ? Math.max(0, pet.stats.health / pet.maxHealth()) : 1;
     const list = [{ id: 'persocon', name, face: persoconPortrait(dir, hpPct, name), glyph: null, side: 'ally', hp: hpPct }];
-    if (this.crowFight) list.push({ id: 'corvo', name: 'Corvo', face: icon('crow'), glyph: null, side: 'ally', hp: null });
+    if (this.crowFight) list.push({ id: 'corvo', name: crowName(this.app), face: icon('crow'), glyph: null, side: 'ally', hp: null });
     if (this.kind === 'unknown') {
       this.foes.forEach((f, i) => list.push({
         id: `foe${i}`, name: f.name || 'Unknown', face: enemyPortrait(f.enemy?.kind), glyph: null, side: 'enemy',
@@ -1015,7 +1015,7 @@ export class Melee {
     this.crowActing = true;
     this.crowTurnT = 0;
     this.t = 0;
-    this.move = { id: 'crow', name: 'Corvo', kind: 'attack', clip: 'combat_idle', dmg: 0 };
+    this.move = { id: 'crow', name: crowName(this.app), kind: 'attack', clip: 'combat_idle', dmg: 0 };
     this.moveDur = 0.5;
     // O Corvo não passa pelo resolveHit da Persocon (o dano dele é aplicado na skill).
     this.hitResolved = true;
@@ -1115,7 +1115,7 @@ export class Melee {
     };
     if (skill === 'busca') {
       const item = meds[0];
-      this.sayCrow('🎒', `Corvo usa ${item.name}!`, true);
+      this.sayCrow('🎒', `${crowName(this.app)} usa ${item.name}!`, true);
       this.crowGain('busca');
       crow.play?.('fly', 1.8);
       // Passa por cima da cabeça dela e solta o item na mão.

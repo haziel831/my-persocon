@@ -1399,7 +1399,7 @@ export class Crow {
       el.append(e);
       return e;
     };
-    add('div', 'title', 'Corvo').prepend(crowIcon());
+    add('div', 'title', crowName(this.app)).prepend(crowIcon());
     add('div', 'crow-stats', `Treinos: ${d.trains || 0} · Presentes trazidos: ${d.gifts || 0}`);
     const cols = add('div', 'crow-cols');
     const mkCol = (title, combat) => {

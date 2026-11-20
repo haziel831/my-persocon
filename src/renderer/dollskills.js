@@ -38,6 +38,8 @@ export const DOLL_SKILLS = {
   plaquinha: { name: 'Assistente de Palco', desc: 'Erguenta plaquinhas fofas em emotes e no Streamer Mode' },
 };
 
+export const DOLL_XP = 100;
+
 // Combat-only skills (no coins). Each maps to a Doll combat animation.
 export const DOLL_COMBAT_SKILLS = {
   investida: { name: 'Investida Fofa', desc: 'Corre e tromba no inimigo', anim: 'combat_attack', combat: true },

@@ -51,6 +51,7 @@ const EN = {
   '🧱 Skin de blocos (.png)': '🧱 Block skin (.png)', 'Skin de blocos do Doll': "Doll's block skin", 'Skin PNG': 'PNG skin',
   'A skin precisa ser 64×64 ou 64×32.': 'The skin must be 64×64 or 64×32.', '🔁 Restaurar padrão': '🔁 Restore default',
   'Deixe vazio para o nome padrão': 'Leave empty for the default name', 'Em breve': 'Soon',
+  'Skills': 'Skills', 'treinando': 'training', 'A Persocon decide o que ensinar. As Skills de Combate só valem na luta. As habilidades ficam ocultas até serem aprendidas.': 'The Persocon decides what to teach. Combat Skills only matter in battle. Abilities stay hidden until learned.',
   // Doll combat skills
   'Investida Fofa': 'Fluffy Charge', 'Raio do Cristal': 'Crystal Beam', 'Laço de Fita': 'Ribbon Lasso',
   'Escudo do Boneco': 'Doll Shield', 'Abraço Revigorante': 'Refreshing Hug', 'Combo Sincronizado': 'Synced Combo',

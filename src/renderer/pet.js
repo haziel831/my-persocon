@@ -4,6 +4,7 @@ import { Pet, AFFECTION_LEAVE, AFFECTION_MAX, DEBUFFS } from './behavior.js';
 import { Emoticons } from './emoticons.js';
 import { Menu, ImportDialog, ObjectsDialog, ImageDropDialog, showGameOver, prefLabel } from './ui.js';
 import { DEFAULT_OPTS } from './catalog.js';
+import { crowName } from './game.js';
 import { Game, ITEMS, TASTE_MOOD, TASTE_RANK, BUFF_LABELS, BUFF_ICONS, itemById, HER_BAG } from './game.js';
 import { demoLocked, demoGameLocked, shortVersion } from './edition.js';
 import { Gains } from './gains.js';
@@ -711,7 +712,10 @@ export async function startPet(files, config) {
     if (LOG_EVENTS.has(type) && logEnabled()) logInfo('evento', `${type} ${brief(data)}`);
     if (type === 'earn' && !(data.src || '').toLowerCase().includes('tempo')) pushLog(`+${data.n} ¥ (${data.src || '?'})`, `+${data.n} ¥ (${data.src || '?'})`, 'money');
     if (type === 'pay') pushLog(`-${data.n} ¥ (${data.src || '?'})`, `-${data.n} ¥ (${data.src || '?'})`, 'money');
-    if (type === 'crowSkill' && data?.name) pushLog(`Corvo usou: ${data.name}`, `Crow used: ${data.name}`, 'crow');
+    if (type === 'crowSkill' && data?.name) {
+      const who = crowName(app);
+      pushLog(`${who} usou: ${data.name}`, `${who} used: ${data.name}`, 'crow');
+    }
     if (type === 'pet') patHand.t = 1.3;
     if (type === 'bounce') {
       if (data.sfx === 'tramp') {
@@ -1549,7 +1553,7 @@ api.onTrayClick?.(() => {
       else lastClick = { t: now, x: press.x, y: press.y };
       return;
     }
-    if (dbl) return quick.show(press.x, press.y);
+    // Menu rápido agora é com a tecla X sobre ela (duplo clique só vale no combate).
     lastClick = { t: now, x: press.x, y: press.y };
     if (pet.toyPlay?.versus) return;
     pet.pat();
