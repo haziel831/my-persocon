@@ -12,7 +12,7 @@ use windows_sys::Win32::Foundation::{CloseHandle, BOOL, HANDLE, HWND, LPARAM, PO
 use windows_sys::Win32::Graphics::Gdi::{
     ClientToScreen, DeleteObject, GetDC, GetDIBits, ReleaseDC, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS,
 };
-use windows_sys::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
+use windows_sys::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED};
 use windows_sys::Win32::System::Diagnostics::Debug::{ReadProcessMemory, WriteProcessMemory};
 use windows_sys::Win32::System::Memory::{VirtualAllocEx, VirtualFreeEx, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_READWRITE};
 use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE};
@@ -306,7 +306,7 @@ impl Drop for Remote {
 /// Only shortcuts (games flagged), as the game finder uses them.
 pub fn scan(work: (i32, i32, i32, i32)) -> Vec<DesktopIcon> {
     let out = scan_icons(work, false);
-    *SCANNED.lock().unwrap() = out.iter().map(|d| d.path.clone()).collect();
+    *SCANNED.lock().unwrap_or_else(|e| e.into_inner()) = out.iter().map(|d| d.path.clone()).collect();
     out
 }
 
@@ -316,9 +316,29 @@ pub fn scan_all(work: (i32, i32, i32, i32)) -> Vec<DesktopIcon> {
     scan_icons(work, true)
 }
 
+/// Initializes COM for the current thread and releases it on drop.
+/// The scans run inside Tokio worker threads, so the apartment must not outlive the call.
+struct ComGuard(bool);
+
+impl ComGuard {
+    fn new() -> Self {
+        // S_OK (0) and S_FALSE (1) both mean this call owns an initialization.
+        let hr = unsafe { CoInitializeEx(null(), COINIT_APARTMENTTHREADED as u32) };
+        Self(hr == 0 || hr == 1)
+    }
+}
+
+impl Drop for ComGuard {
+    fn drop(&mut self) {
+        if self.0 {
+            unsafe { CoUninitialize() };
+        }
+    }
+}
+
 fn scan_icons(work: (i32, i32, i32, i32), all: bool) -> Vec<DesktopIcon> {
     // Internet shortcuts (.url) need COM for their icons.
-    unsafe { CoInitializeEx(null(), COINIT_APARTMENTTHREADED as u32) };
+    let _com = ComGuard::new();
     // (stem, full name, path, is shortcut)
     let mut files: Vec<(String, String, PathBuf, bool)> = Vec::new();
     for dir in [folder(CSIDL_DESKTOPDIRECTORY), folder(CSIDL_COMMON_DESKTOPDIRECTORY)].into_iter().flatten() {
@@ -407,7 +427,7 @@ pub fn place_icon(name: &str, x: i32, y: i32) -> bool {
 
 /// Opens a shortcut found by the last scan (anything else is refused).
 pub fn open(path: &str) -> Result<(), String> {
-    if !SCANNED.lock().unwrap().iter().any(|p| p == path) {
+    if !SCANNED.lock().unwrap_or_else(|e| e.into_inner()).iter().any(|p| p == path) {
         return Err("Atalho desconhecido".into());
     }
     let r = unsafe { ShellExecuteW(null_mut(), wide("open").as_ptr(), wide(path).as_ptr(), null(), null(), SW_SHOWNORMAL) };

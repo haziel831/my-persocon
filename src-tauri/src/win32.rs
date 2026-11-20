@@ -101,12 +101,13 @@ pub fn list_windows(ignore_pid: u32) -> Vec<WindowInfo> {
             if GetWindowTextLengthW(h) == 0 {
                 continue;
             }
-            if IGNORED_CLASSES.contains(&class_name(h).as_str()) || is_cloaked(h) {
-                continue;
-            }
+            // Cheap check first: DWM and class-name lookups cost a lot more than a query.
             let mut pid = 0u32;
             GetWindowThreadProcessId(h, &mut pid);
             if pid == ignore_pid {
+                continue;
+            }
+            if IGNORED_CLASSES.contains(&class_name(h).as_str()) || is_cloaked(h) {
                 continue;
             }
             let Some(rect) = frame_rect(h) else { continue };
@@ -185,7 +186,7 @@ pub fn key_pressed(vk: u16, was_down: &mut bool) -> bool {
 /// Text on the clipboard (CF_UNICODETEXT), if any.
 pub fn clipboard_text() -> Option<String> {
     use windows_sys::Win32::System::DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard};
-    use windows_sys::Win32::System::Memory::{GlobalLock, GlobalUnlock};
+    use windows_sys::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
     const CF_UNICODETEXT: u32 = 13;
     unsafe {
         if OpenClipboard(null_mut()) == 0 {
@@ -196,8 +197,10 @@ pub fn clipboard_text() -> Option<String> {
         if !h.is_null() {
             let p = GlobalLock(h as _) as *const u16;
             if !p.is_null() {
+                // The block may have no NUL terminator: never scan past its real size.
+                let max_u16 = (GlobalSize(h as _) / 2).min(8192);
                 let mut n = 0;
-                while *p.add(n) != 0 && n < 8192 {
+                while n < max_u16 && *p.add(n) != 0 {
                     n += 1;
                 }
                 out = Some(String::from_utf16_lossy(std::slice::from_raw_parts(p, n)));

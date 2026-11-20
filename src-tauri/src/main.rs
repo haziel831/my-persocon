@@ -15,7 +15,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Mutex,
+        Mutex, MutexGuard,
     },
     thread,
     time::Duration,
@@ -42,7 +42,12 @@ struct PetState {
     autostarted: bool,
 }
 
-#[derive(Serialize, Clone)]
+// A poisoned config mutex must not take the whole app down: recover the inner value.
+fn lock_config(state: &PetState) -> MutexGuard<'_, Value> {
+    state.config.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+#[derive(Serialize, Clone, PartialEq)]
 struct WindowOut {
     id: String,
     x: f64,
@@ -53,7 +58,7 @@ struct WindowOut {
     active: bool,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, PartialEq)]
 struct WorldOut {
     width: f64,
     height: f64,
@@ -74,6 +79,9 @@ static ON_TOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::ne
 // the full-monitor overlay; the world is the window's client area.
 static STREAMER: AtomicBool = AtomicBool::new(false);
 static STREAMER_OPAQUE: AtomicBool = AtomicBool::new(true);
+// One Streamer Mode transition at a time: a second toggle while windows are being
+// created/destroyed is ignored instead of racing the first one.
+static STREAMER_BUSY: AtomicBool = AtomicBool::new(false);
 // Combat arena: an isolated, interactive window that only runs fights (own player folder).
 static COMBATE: AtomicBool = AtomicBool::new(false);
 
@@ -209,14 +217,14 @@ fn decode_data_url(data_url: &str) -> Result<Vec<u8>, String> {
 }
 
 fn model_dir(state: &PetState) -> PathBuf {
-    let dir = state.config.lock().unwrap()["modelDir"].as_str().unwrap_or(DEFAULT_MODEL).to_string();
+    let dir = lock_config(state)["modelDir"].as_str().unwrap_or(DEFAULT_MODEL).to_string();
     let found = resolve_dir(state, &dir);
     if found.is_dir() { found } else { state.root.join(DEFAULT_MODEL) }
 }
 
 #[tauri::command]
 fn get_config(state: State<PetState>) -> Value {
-    let mut config = state.config.lock().unwrap().clone();
+    let mut config = lock_config(&state).clone();
     if let Some(shots) = &state.shots {
         config["previewShots"] = shots.clone();
     }
@@ -234,14 +242,18 @@ fn save_config(state: State<PetState>, patch: Value) -> Result<Value, String> {
             let _ = tray.set_menu(Some(menu));
         }
     }
-    let mut config = state.config.lock().unwrap();
+    let mut config = lock_config(&state);
     if let Value::Object(p) = patch {
         for (k, v) in p {
             config[k] = v;
         }
     }
     let text = serde_json::to_string_pretty(&*config).map_err(|e| e.to_string())?;
-    fs::write(state.data.join("config.json"), text).map_err(|e| e.to_string())?;
+    // Write-then-rename: a crash mid-write must not leave a truncated config behind.
+    let path = state.data.join("config.json");
+    let tmp = state.data.join("config.json.tmp");
+    fs::write(&tmp, text).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
     Ok(config.clone())
 }
 
@@ -374,8 +386,7 @@ async fn import_model(
     pet_height: Option<f64>,
 ) -> Result<Value, String> {
     let dir = if let Some(f) = vrm_file(Path::new(&path)) {
-        let safe: String = name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
-        let dir = state.data.join("models").join(if safe.is_empty() { "vroid".to_string() } else { safe });
+        let dir = state.data.join("models").join(safe_name(&name));
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         fs::copy(&f, dir.join("model.vrm")).map_err(|e| e.to_string())?;
         dir
@@ -407,7 +418,8 @@ fn mime_of(name: &str) -> &'static str {
 }
 
 fn safe_name(name: &str) -> String {
-    name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect()
+    let safe: String = name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    if safe.trim_matches('_').is_empty() { "vroid".to_string() } else { safe }
 }
 
 #[tauri::command]
@@ -425,7 +437,14 @@ fn read_file_data(path: String) -> Result<String, String> {
 
 // MIDI file from an http(s) link. curl ships with Windows and ignores page CORS.
 #[tauri::command]
-fn fetch_midi(url: String) -> Result<String, String> {
+async fn fetch_midi(url: String) -> Result<String, String> {
+    // curl can take up to 20s: never hold a command thread for that long.
+    tauri::async_runtime::spawn_blocking(move || fetch_midi_blocking(&url))
+        .await
+        .unwrap_or_else(|_| Err("Não deu para baixar o MIDI".to_string()))
+}
+
+fn fetch_midi_blocking(url: &str) -> Result<String, String> {
     let url = url.trim();
     if !(url.starts_with("https://") || url.starts_with("http://")) || url.chars().any(|c| c.is_control()) {
         return Err("Link inválido.".into());
@@ -545,7 +564,7 @@ fn delete_model(state: State<PetState>, dir: String) -> Result<(), String> {
     if target.parent() != Some(base.as_path()) || dir == DEFAULT_MODEL || dir == AGHATA_MODEL {
         return Err("Esse modelo não pode ser apagado.".into());
     }
-    if state.config.lock().unwrap()["modelDir"].as_str() == Some(dir.as_str()) {
+    if lock_config(&state)["modelDir"].as_str() == Some(dir.as_str()) {
         return Err("Esse modelo está em uso.".into());
     }
     fs::remove_dir_all(&target).map_err(|e| e.to_string())
@@ -830,12 +849,16 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
 
 #[tauri::command]
 fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Result<(), String> {
-    let config = state.config.lock().unwrap().clone();
+    if STREAMER_BUSY.swap(true, Ordering::AcqRel) {
+        return Ok(());
+    }
+    let config = lock_config(&state).clone();
     let was = STREAMER.load(Ordering::Relaxed);
     let was_opaque = STREAMER_OPAQUE.load(Ordering::Relaxed);
     let want_opaque = value && streamer_opaque(&config);
     // Page load used to call this while already in Streamer Mode and rebuild forever (crash).
     if was == value && (!value || was_opaque == want_opaque) {
+        STREAMER_BUSY.store(false, Ordering::Release);
         return Ok(());
     }
     STREAMER.store(value, Ordering::Relaxed);
@@ -865,11 +888,14 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                         logfile::line("ERROR", "streamer", &e.to_string());
                     }
                 }
+                // Windows are built/destroyed here: the transition is over.
+                STREAMER_BUSY.store(false, Ordering::Release);
             }
         });
         if ok.is_err() {
             STREAMER.store(was, Ordering::Relaxed);
             STREAMER_OPAQUE.store(was_opaque, Ordering::Relaxed);
+            STREAMER_BUSY.store(false, Ordering::Release);
         }
     });
     Ok(())
@@ -912,10 +938,17 @@ async fn desktop_icons() -> Vec<desktop::DesktopIcon> {
     if STREAMER.load(Ordering::Relaxed) {
         return Vec::new();
     }
-    win32::make_thread_dpi_aware();
-    let monitors = win32::monitors();
-    let Some(m) = monitors.get(DISPLAY.load(Ordering::Relaxed).min(monitors.len().saturating_sub(1))) else { return Vec::new() };
-    desktop::scan((m.work.left, m.work.top, m.work.right, m.work.bottom))
+    // Win32 scanning blocks: keep it off the async executor.
+    tauri::async_runtime::spawn_blocking(|| {
+        win32::make_thread_dpi_aware();
+        let monitors = win32::monitors();
+        let Some(m) = monitors.get(DISPLAY.load(Ordering::Relaxed).min(monitors.len().saturating_sub(1))) else {
+            return Vec::new();
+        };
+        desktop::scan((m.work.left, m.work.top, m.work.right, m.work.bottom))
+    })
+    .await
+    .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -934,9 +967,13 @@ async fn desktop_all() -> Vec<desktop::DesktopIcon> {
     if STREAMER.load(Ordering::Relaxed) {
         return Vec::new();
     }
-    win32::make_thread_dpi_aware();
-    let Some(w) = current_work() else { return Vec::new() };
-    desktop::scan_all((w.left, w.top, w.right, w.bottom))
+    tauri::async_runtime::spawn_blocking(|| {
+        win32::make_thread_dpi_aware();
+        let Some(w) = current_work() else { return Vec::new() };
+        desktop::scan_all((w.left, w.top, w.right, w.bottom))
+    })
+    .await
+    .unwrap_or_default()
 }
 
 // Moves a desktop icon by (dx, dy) physical pixels; returns where it was, to put it back.
@@ -945,14 +982,22 @@ async fn move_icon(name: String, dx: i32, dy: i32) -> Option<(i32, i32)> {
     if STREAMER.load(Ordering::Relaxed) {
         return None;
     }
-    win32::make_thread_dpi_aware();
-    desktop::move_icon(&name, dx, dy)
+    tauri::async_runtime::spawn_blocking(move || {
+        win32::make_thread_dpi_aware();
+        desktop::move_icon(&name, dx, dy)
+    })
+    .await
+    .unwrap_or_default()
 }
 
 #[tauri::command]
 async fn place_icon(name: String, x: i32, y: i32) -> bool {
-    win32::make_thread_dpi_aware();
-    desktop::place_icon(&name, x, y)
+    tauri::async_runtime::spawn_blocking(move || {
+        win32::make_thread_dpi_aware();
+        desktop::place_icon(&name, x, y)
+    })
+    .await
+    .unwrap_or_default()
 }
 
 // x, y: physical pixels inside the overlay (the current monitor's work area).
@@ -1031,19 +1076,32 @@ fn start_world_polling(app: AppHandle) {
         let mut last_work = None;
         let mut tick: u64 = 0;
         let (mut left_down, mut right_down) = (false, false);
+        // The monitor layout rarely changes: refresh it once per second (or when the display
+        // changes) instead of querying the system 33 times per second.
+        let mut monitors: Vec<win32::MonitorInfo> = Vec::new();
+        let mut monitor_list: Vec<(i32, i32, i32, i32, bool)> = Vec::new();
+        let mut mon_at: u64 = 0;
+        let mut last_display = usize::MAX;
+        // Last payload sent: identical frames are skipped (the renderer gets a 450 ms heartbeat).
+        let mut last_world: Option<WorldOut> = None;
         loop {
             thread::sleep(Duration::from_millis(30));
             tick += 1;
             let Some(win) = app.get_webview_window(window_label(STREAMER.load(Ordering::Relaxed))) else { continue };
-            let monitors = win32::monitors();
-            let display = DISPLAY.load(Ordering::Relaxed).min(monitors.len().saturating_sub(1));
+            let wanted_display = DISPLAY.load(Ordering::Relaxed);
+            if monitor_list.is_empty() || wanted_display != last_display || tick - mon_at >= 33 {
+                monitors = win32::monitors();
+                monitor_list = monitors
+                    .iter()
+                    .map(|m| (m.work.left, m.work.top, m.work.right - m.work.left, m.work.bottom - m.work.top, m.primary))
+                    .collect();
+                mon_at = tick;
+                last_display = wanted_display;
+            }
+            let display = wanted_display.min(monitors.len().saturating_sub(1));
             let Some(mon) = monitors.get(display) else { continue };
             let work = mon.work;
             let bounds = mon.bounds;
-            let monitor_list: Vec<(i32, i32, i32, i32, bool)> = monitors
-                .iter()
-                .map(|m| (m.work.left, m.work.top, m.work.right - m.work.left, m.work.bottom - m.work.top, m.primary))
-                .collect();
 
             // Streamer Mode and the combat arena both use the window's client area as the world.
             if STREAMER.load(Ordering::Relaxed) || COMBATE.load(Ordering::Relaxed) {
@@ -1062,19 +1120,20 @@ fn start_world_polling(app: AppHandle) {
                         win32::key_pressed(0x27, &mut right_down) as u32,
                     )
                 });
-                let _ = app.emit(
-                    "world",
-                    WorldOut {
-                        width: size.width as f64,
-                        height: size.height as f64,
-                        windows: Vec::new(),
-                        fullscreen: false,
-                        cursor,
-                        keys,
-                        monitors: monitor_list,
-                        display,
-                    },
-                );
+                let out = WorldOut {
+                    width: size.width as f64,
+                    height: size.height as f64,
+                    windows: Vec::new(),
+                    fullscreen: false,
+                    cursor,
+                    keys,
+                    monitors: monitor_list.clone(),
+                    display,
+                };
+                if last_world.as_ref() != Some(&out) || tick % 15 == 0 {
+                    let _ = app.emit("world", out.clone());
+                }
+                last_world = Some(out);
                 continue;
             }
 
@@ -1082,13 +1141,6 @@ fn start_world_polling(app: AppHandle) {
                 let _ = win.set_position(PhysicalPosition::new(work.left, work.top));
                 let _ = win.set_size(PhysicalSize::new((work.right - work.left) as u32, (work.bottom - work.top) as u32));
                 last_work = Some(work);
-            }
-            // Discord and other topmost apps steal the z-order; re-assert often.
-            if ON_TOP.load(Ordering::Relaxed) && tick % 15 == 0 {
-                let _ = win.set_always_on_top(true);
-                if let Ok(h) = win.hwnd() {
-                    win32::keep_topmost(h.0 as _);
-                }
             }
 
             // Rects stay in physical pixels; the renderer divides by its devicePixelRatio, the only
@@ -1119,6 +1171,15 @@ fn start_world_polling(app: AppHandle) {
                 });
             }
 
+            // Discord and other topmost apps steal the z-order; re-assert often — but never fight
+            // a fullscreen game for it.
+            if ON_TOP.load(Ordering::Relaxed) && tick % 15 == 0 && !fullscreen {
+                let _ = win.set_always_on_top(true);
+                if let Ok(h) = win.hwnd() {
+                    win32::keep_topmost(h.0 as _);
+                }
+            }
+
             let cursor = win32::cursor_pos().map(|(x, y)| ((x - work.left) as f64, (y - work.top) as f64));
             let keys = WATCH_KEYS.load(Ordering::Relaxed).then(|| {
                 (
@@ -1126,19 +1187,21 @@ fn start_world_polling(app: AppHandle) {
                     win32::key_pressed(0x27, &mut right_down) as u32,
                 )
             });
-            let _ = app.emit(
-                "world",
-                WorldOut {
-                    width: (work.right - work.left) as f64,
-                    height: (work.bottom - work.top) as f64,
-                    windows,
-                    fullscreen,
-                    cursor,
-                    keys,
-                    monitors: monitor_list,
-                    display,
-                },
-            );
+            let out = WorldOut {
+                width: (work.right - work.left) as f64,
+                height: (work.bottom - work.top) as f64,
+                windows,
+                fullscreen,
+                cursor,
+                keys,
+                monitors: monitor_list.clone(),
+                display,
+            };
+            // Same cursor/windows/monitors as the last frame: skip the IPC (heartbeat every ~450 ms).
+            if last_world.as_ref() != Some(&out) || tick % 15 == 0 {
+                let _ = app.emit("world", out.clone());
+            }
+            last_world = Some(out);
         }
     });
 }
