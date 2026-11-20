@@ -7,6 +7,15 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.29 — 19/11/2026
+**Molang seguro.** As expressões dos modelos passam por um interpretador em JS puro (tokenizador + AST de closures), sem `eval` nem `new Function`. Mantém compatibilidade total: case-insensitive, `=` como igualdade, namespaces `q/v/t/c/ysm`, `math.*` e ternário associativo à direita. Testes: 26 casos e 200 mil avaliações em ~15 ms.
+
+**Menos travamento com o mouse.** `hitTest` em `view.js`/`vrmview.js` cacheia coordenadas arredondadas, timestamp e resultado: só chama `gl.readPixels` se o cursor andou ≥2 px ou passaram ≥60 ms, reaproveitando o `Uint8Array` e parando no primeiro pixel opaco. Em `pet.js`, `refreshInteractive` compara uma chave (cursor, posição da Persocon, `place`, `clickThrough`, `appHidden`, `streamer`) e pula o `querySelectorAll('.hitzone')` quando nada mudou, com fallback de 500 ms. O cache do retângulo do menu e do dock também evita trabalho repetido por quadro.
+
+**Áudio e Rust.** Áudio WASAPI em tempo real sem alocação (buffer circular, `sort_unstable_by(total_cmp)`, `try_send` no callback). `list_windows` checa o PID antes de `class_name`/`is_cloaked`; `clipboard_text` usa `GlobalSize`; COM com guarda RAII; config carregado de forma atômica; comandos de desktop em `spawn_blocking`, `fetch_midi` async, `STREAMER_BUSY` e `safe_name` com fallback. O polling de `world` cacheia monitores (1 s), deriva `PartialEq` para emitir só quando há mudança (heartbeat de 450 ms) e não disputa z-order com tela cheia.
+
+**Ferramentas.** Novo `npm run check` (`scripts/check.mjs`) valida a sintaxe dos 83 arquivos JS do renderer (exceto `vendor/`) e roda `cargo check`, falhando com resumo em pt-BR. `.gitignore` agora ignora backups, `.rar`, `save.json` e assets brutos — nenhum arquivo foi apagado do disco.
+
 ## v1.9.28 — 19/11/2026
 **Impressora não cancela mais o combate.** Se uma impressão fica pronta durante a luta, ela **continua lutando**: a coleta vira uma **tarefa pendente** e só acontece depois da vitória, derrota ou fuga.
 **Retomada automática.** A fila de coleta usa os **deliveries reais** do jogo, tenta de novo a cada **1,5 s** (cobre o caso de ela estar desmaiada) e mostra um aviso discreto **"📦 Pronto — depois da luta"** sem mexer na ação dela.

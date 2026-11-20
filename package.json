@@ -1,6 +1,6 @@
 {
   "name": "persocon",
-  "version": "1.9.28",
+  "version": "1.9.29",
   "edition": "",
   "private": true,
   "description": "My Persocon: desktop companion that walks on window tops and climbs window sides",
@@ -9,7 +9,8 @@
     "dist": "tauri build && node scripts/package.mjs",
     "demo": "node scripts/demo.mjs",
     "preview": "node scripts/package.mjs --preview",
-    "sim": "node test/sim.mjs"
+    "sim": "node test/sim.mjs",
+    "check": "node scripts/check.mjs"
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.5.5",
