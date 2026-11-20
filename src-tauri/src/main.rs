@@ -69,6 +69,8 @@ struct WorldOut {
     height: f64,
     windows: Vec<WindowOut>,
     fullscreen: bool,
+    // Foreground window identifier (lowercase title + class), refreshed only when its HWND changes.
+    active_app: Option<String>,
     cursor: Option<(f64, f64)>,
     // Arrow key presses (left, right) since the last update; only while the renderer asks for them.
     keys: Option<(u32, u32)>,
@@ -1095,12 +1097,20 @@ fn start_world_polling(app: AppHandle) {
         let mut monitor_list: Vec<(i32, i32, i32, i32, bool)> = Vec::new();
         let mut mon_at: u64 = 0;
         let mut last_display = usize::MAX;
+        // Foreground app: re-read only when the focused HWND actually changes.
+        let mut last_hwnd: isize = 0;
+        let mut active_app: Option<String> = None;
         // Last payload sent: identical frames are skipped (the renderer gets a 450 ms heartbeat).
         let mut last_world: Option<WorldOut> = None;
         loop {
             thread::sleep(Duration::from_millis(30));
             tick += 1;
             let Some(win) = app.get_webview_window(window_label(STREAMER.load(Ordering::Relaxed))) else { continue };
+            let hwnd = win.hwnd().map(|h| h.0 as isize).unwrap_or(0);
+            if hwnd != last_hwnd {
+                last_hwnd = hwnd;
+                active_app = win32::foreground_title();
+            }
             let wanted_display = DISPLAY.load(Ordering::Relaxed);
             if monitor_list.is_empty() || wanted_display != last_display || tick - mon_at >= 33 {
                 monitors = win32::monitors();
@@ -1138,6 +1148,7 @@ fn start_world_polling(app: AppHandle) {
                     height: size.height as f64,
                     windows: Vec::new(),
                     fullscreen: false,
+                    active_app: active_app.clone(),
                     cursor,
                     keys,
                     monitors: monitor_list.clone(),
@@ -1205,6 +1216,7 @@ fn start_world_polling(app: AppHandle) {
                 height: (work.bottom - work.top) as f64,
                 windows,
                 fullscreen,
+                active_app: active_app.clone(),
                 cursor,
                 keys,
                 monitors: monitor_list.clone(),

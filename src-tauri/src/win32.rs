@@ -55,6 +55,20 @@ unsafe fn class_name(hwnd: HWND) -> String {
     String::from_utf16_lossy(&buf[..n.max(0) as usize])
 }
 
+/// Cheap identifier for the foreground window: lowercase title plus window class.
+/// No path, no process enumeration — call this only when the foreground HWND changes.
+pub fn foreground_title() -> Option<String> {
+    unsafe {
+        let h = GetForegroundWindow();
+        if h.is_null() { return None; }
+        let mut buf = [0u16; 512];
+        let n = GetWindowTextW(h, buf.as_mut_ptr(), buf.len() as i32);
+        let title = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
+        let s = format!("{} {}", title.trim(), class_name(h)).trim().to_lowercase();
+        if s.is_empty() { None } else { Some(s) }
+    }
+}
+
 unsafe fn is_cloaked(hwnd: HWND) -> bool {
     let mut cloaked: u32 = 0;
     DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED as _, &mut cloaked as *mut u32 as *mut _, size_of::<u32>() as u32) == 0
