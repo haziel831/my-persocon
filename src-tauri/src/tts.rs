@@ -98,7 +98,6 @@ fn segments_for(text: &str, speed: f32) -> Value {
             }
             (None, None) => {
                 out.push(json!({ "text": rest, "speed": speed, "gain": 1.0 }));
-                rest = "";
                 break;
             }
         };
