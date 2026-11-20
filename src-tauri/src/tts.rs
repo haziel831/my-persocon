@@ -64,7 +64,13 @@ fn request(s: &mut Session, mut payload: Value) -> Result<Value, String> {
     }
 }
 
+// The voices command returns IDs like "neural:pf_dora", but speak() needs the bare Kokoro ID.
+fn clean_voice(v: &str) -> &str {
+    v.trim().strip_prefix("neural:").unwrap_or(v.trim())
+}
+
 fn lang_for(voice: &str, lang: &str) -> String {
+    let voice = clean_voice(voice);
     // The voice ID carries the real language (pf_dora, af_nicole, am_eric, jf_alpha...).
     // React to its prefix first; the caller's lang is only a fallback.
     let prefix = voice.split('_').next().unwrap_or("").to_ascii_lowercase();
@@ -83,7 +89,23 @@ pub fn voices(dir: &Path) -> Result<Value, String> {
     let mut g = get(dir)?;
     let s = g.as_mut().ok_or("TTS indisponível")?;
     let res = request(s, json!({ "cmd": "voices" }))?;
-    Ok(res.get("voices").cloned().unwrap_or(res))
+    let list = res.get("voices").cloned().unwrap_or(res);
+    if !list.is_array() { return Ok(list); }
+    let cleaned: Vec<Value> = list.as_array().unwrap().iter().map(|v| {
+        if let Some(id) = v.as_str() {
+            Value::String(clean_voice(id).to_string())
+        } else if v.is_object() {
+            let mut item = v.clone();
+            let id = item.get("id").and_then(Value::as_str).map(clean_voice).unwrap_or("").to_string();
+            if !id.is_empty() {
+                item["id"] = json!(id);
+                let missing_lang = item.get("lang").and_then(Value::as_str).map_or(true, |l| l.trim().is_empty());
+                if missing_lang { item["lang"] = json!(lang_for(&id, "")); }
+            }
+            item
+        } else { v.clone() }
+    }).collect();
+    Ok(Value::Array(cleaned))
 }
 
 // Reticences and dashes become real silences so the calm persona sounds pensive, not rushed.
@@ -124,6 +146,7 @@ fn segments_for(text: &str, speed: f32) -> Value {
 }
 
 pub fn speak(dir: &Path, text: &str, voice: &str, lang: &str, speed: f32) -> Result<String, String> {
+    let voice = clean_voice(voice);
     let out = std::env::temp_dir().join(format!("persocon-tts-{}-{}.wav", std::process::id(), NEXT_ID.fetch_add(1, Ordering::Relaxed)));
     let payload = json!({
         "cmd": "speak", "out": out.to_string_lossy(), "voice": voice, "lang": lang_for(voice, lang),

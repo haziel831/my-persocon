@@ -303,9 +303,10 @@ function fillRedeems(map) {
   if (names.includes(previous)) sel.value = previous;
 }
 
+const cleanVoiceId = (s) => String(s || '').replace(/^neural:/, '').trim();
 const voiceInfo = (v) => typeof v === 'string'
-  ? { id:v, name:v, lang:'' }
-  : { id:String(v.id || v.name || ''), name:String(v.name || v.id || ''), lang:String(v.lang || '') };
+  ? { id:cleanVoiceId(v), name:cleanVoiceId(v), lang:'' }
+  : { id:cleanVoiceId(v.id || v.name), name:String(v.name || cleanVoiceId(v.id) || ''), lang:String(v.lang || '') };
 const voiceLang = (v) => { const i = voiceInfo(v); return (i.lang || i.id.split('_')[0]).toLowerCase(); };
 const voiceRank = (v) => { const l = voiceLang(v); return l === 'pt-br' ? 0 : l === 'en-us' ? 1 : 2; };
 const voiceLabel = (v) => { const i = voiceInfo(v); return `${i.name} (${i.lang || i.id})`; };
