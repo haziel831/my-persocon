@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.30 — 19/11/2026
+**Modo Foco (Pomodoro).** Novo `focus.js`: sessões 25/5 e 50/10 com contador no dock, pausa/retomada/cancelamento no menu rápido e no painel Brincar. Durante o foco ela fica sentada e quieta, a Boneca senta ao lado, travessuras/roubo de cursor são bloqueados. Ao concluir: chime, `dollReact`, fala sugerindo água/descanso, afeção + humor + XP de Constituição — **nenhuma moeda**.
+
+**Rotina e presets.** Saudação única por período real do dia (06–11 / 12–18 / 19–23 / 00–05) com madrugada mais sonolenta; opção `dayRoutine`. Quatro presets de personalidade (Calma, Travessa, Estudo/Trabalho, Streamer) aplicados de uma vez e salvos via `saveConfig`. Busca em Loja/Inventário com chips de filtro (Todos, Comidas, Brinquedos, Móveis, Favoritos, Novos), sem perder o foco ao digitar e sem disparar atalhos globais.
+
+**Refactor e correções.** Status Dock extraído para `dock.js` (cache `0|0` corrigido); Molang trata `Infinity` como `0`; `safe_name` com fallback por fluxo; limites de 32 MiB por entrada e 128 MiB totais em zips; CSP restritiva sem `eval`; áudio WASAPI sem alocação e polling de mundo com cache/heartbeat. Tudo validado por `npm run check`.
+
 ## v1.9.29 — 19/11/2026
 **Molang seguro.** As expressões dos modelos passam por um interpretador em JS puro (tokenizador + AST de closures), sem `eval` nem `new Function`. Mantém compatibilidade total: case-insensitive, `=` como igualdade, namespaces `q/v/t/c/ysm`, `math.*` e ternário associativo à direita. Testes: 26 casos e 200 mil avaliações em ~15 ms.
 
