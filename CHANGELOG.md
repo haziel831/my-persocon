@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.33 — 21/11/2026
+**Conteúdo novo.** Caderno de Desenho (desenhos pixel art no álbum), Aviãozinho de Papel com interceptação do Corvo, Bolhas de Sabão clicáveis, Mural com moldura/orientação/fotos próprias via drag-and-drop, Cafeteira com Energy Drinks e power-ups, Escrivaninha com “Forçar a estudar”, câmera com álbum de 20/50 fotos e mangás treinando Inteligência por raridade.
+
+**Sistema.** Clima offline (chuva/pétalas/vagalumes/neve), cenas em trio, Não Perturbe por janela em foco (com `foreground_hwnd` corrigido), chroma key e artes de 2 estados no editor de aparência, contador do Pomodoro no fim do dock, buscas/filtros e presets com desfazer.
+
+**Correções.** Cooldowns de interações reduzidos, layout da loja/tiles, fundo transparente das máquinas, gosmas obrigatórias até o Cristal Negro, itens especiais protegidos, correções de clima/trio/áudio e varredura completa de traduções PT/EN.
+
 ## v1.9.32 — 20/11/2026
 **Brinquedos e mobílias.** Bolhas de Sabão (bolhas clicáveis, pop + espuma, comemoração após 4), Aviãozinho de Papel (arco sobre as janelas, interceptação pelo Corvo), Caderno de Desenho (desenhos pixel art salvos no álbum e no Mural), Mural de Recados e Fotos com post-it editável, Cafeteira/Estação de Chá com carteira própria e Energy Drinks fictícios no upgrade, e Escrivaninha com Abajur que treina Inteligência. Ler mangás também treina `int`.
 
