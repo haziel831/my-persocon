@@ -2013,6 +2013,12 @@ export class ImportDialog {
     window.addEventListener('keydown', (this.onKey = (e) => e.key === 'Escape' && !this.busy && this.close()));
   }
 
+  // Drop a local .vrm/.glb/.zip straight into the inspection flow, skipping the file dialog.
+  openPath(path) {
+    this.show();
+    this.inspect(path);
+  }
+
   close() {
     if (!this.el) return;
     this.disposeView();

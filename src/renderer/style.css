@@ -202,6 +202,13 @@ input.text:focus { border-color: var(--accent); }
 .quick-chip.active { background: var(--accent); border-color: transparent; color: var(--on-accent); }
 .catalog-empty { color: var(--muted); font-size: 12px; padding: 10px 0; text-align: center; font-family: PxEmoji, system-ui, sans-serif; }
 .item[hidden], .group[hidden], .catalog-empty[hidden] { display: none !important; }
+/* File drag & drop: discreet glow on the pet, never intercepts the mouse. */
+body.file-drop #pet { filter: drop-shadow(0 0 10px var(--accent)); }
+body.file-drop::after {
+  content: attr(data-drop-hint); position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+  padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  color: var(--fg); font: 12px PxEmoji, system-ui, sans-serif; pointer-events: none; z-index: 60; opacity: 0.92;
+}
 .back { justify-self: start; padding-left: 0; }
 .items { display: grid; gap: 6px; }
 .item {

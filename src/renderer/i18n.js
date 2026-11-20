@@ -68,6 +68,10 @@ const EN = {
   // ---- catalog search / quick filters ----
   'Buscar item...': 'Search item...', 'Buscar no inventário...': 'Search inventory...', 'Nada encontrado.': 'Nothing found.',
   'Móveis': 'Furniture', 'Brinquedos': 'Toys', 'Novos': 'New',
+  // ---- file drag & drop ----
+  'Solte aqui na Persocon': 'Drop it on the Persocon', 'Música importada! Ela vai tocar.': 'Song imported! She will play it.',
+  'Modelo aberto para importação.': 'Model opened for import.', 'Skin de blocos aberta.': 'Block skin opened.',
+  'Arquivo não suportado.': 'Unsupported file.',
   'Dar comida': 'Give food', 'Também dá para alimentar assistindo': 'You can also feed her while watching',
   'Minijogos': 'Minigames', 'Mostrar os guias dos minijogos de novo': 'Show the minigame guides again',
   // ---- profile ----

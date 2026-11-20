@@ -22,6 +22,14 @@ export const IX_NAMES = [
 ];
 
 export class Interactions {
+  // Subtle highlight on the pet while a file is being dragged over the window.
+  fileDrop(on, hint = '') {
+    document.body.classList.toggle('file-drop', !!on);
+    if (on) document.body.dataset.dropHint = hint;
+    clearTimeout(this._dropT);
+    if (on) this._dropT = setTimeout(() => document.body.classList.remove('file-drop'), 2500);
+  }
+
   constructor(app) {
     this.app = app;
     this.clock = 0;

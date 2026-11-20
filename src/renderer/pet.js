@@ -1757,6 +1757,95 @@ api.onTrayClick?.(() => {
   let streamerOn = false;
   let streamerSolidOn = streamerSolid();
   api.onStreamer((on) => on !== !!config.streamer && app.setOption('streamer', on));
+
+  // ---------- drag & drop files onto the pet ----------
+  const dropHint = () => translate('Solte aqui na Persocon');
+  const sayDrop = (pt) => app.speech?.say(translate(pt), 3);
+  const skinSizeOk = (dataUrl) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.width === 64 && (img.height === 64 || img.height === 32));
+    img.onerror = () => resolve(false);
+    img.src = dataUrl;
+  });
+  const readAs = (file, as) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    if (as === 'url') r.readAsDataURL(file);
+    else r.readAsArrayBuffer(file);
+  });
+  let lastDomDrop = 0;
+  app.handleDropPath = async (path) => {
+    const name = String(path || '').split(/[\\/]/).pop() || '';
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    try {
+      if (ext === 'mid' || ext === 'midi') {
+        const data = await api.readFileData(path);
+        const buf = await (await fetch(data)).arrayBuffer();
+        app.toys?.fun?.storeMidi(name.replace(/\.midi?$/i, ''), buf);
+        sayDrop('Música importada! Ela vai tocar.');
+      } else if (['vrm', 'glb', 'zip'].includes(ext)) {
+        importDialog.openPath(path);
+        sayDrop('Modelo aberto para importação.');
+      } else if (ext === 'png') {
+        const data = await api.readFileData(path);
+        if (!await skinSizeOk(data)) throw new Error('skin');
+        importDialog.show();
+        await importDialog.stepSkin(data, name.replace(/\.png$/i, ''));
+        sayDrop('Skin de blocos aberta.');
+      } else {
+        throw new Error('ext');
+      }
+    } catch {
+      app.sound?.play?.('cancel', { volume: 0.5 });
+      sayDrop('Arquivo não suportado.');
+    }
+  };
+  // Tauri 2 gives real local paths (needed by inspect_model / read_file_data).
+  api.onFileDropHover?.(() => interact.fileDrop(true, dropHint()));
+  api.onFileDropCancel?.(() => interact.fileDrop(false));
+  api.onFileDrop?.((paths) => {
+    if (Date.now() - lastDomDrop < 600) return;
+    interact.fileDrop(false);
+    if (Array.isArray(paths) && paths[0]) app.handleDropPath(paths[0]);
+  });
+  // Browser-level fallback (also covers drag highlighting when Tauri's drop is off).
+  const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+  window.addEventListener('dragover', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    interact.fileDrop(true, dropHint());
+  }, true);
+  window.addEventListener('dragleave', (e) => {
+    if (e.relatedTarget === null) interact.fileDrop(false);
+  }, true);
+  window.addEventListener('drop', async (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    interact.fileDrop(false);
+    lastDomDrop = Date.now();
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    try {
+      if (ext === 'mid' || ext === 'midi') {
+        app.toys?.fun?.storeMidi(file.name.replace(/\.midi?$/i, ''), await readAs(file, 'buf'));
+        sayDrop('Música importada! Ela vai tocar.');
+      } else if (ext === 'png') {
+        const data = await readAs(file, 'url');
+        if (!await skinSizeOk(data)) throw new Error('skin');
+        importDialog.show();
+        await importDialog.stepSkin(data, file.name.replace(/\.png$/i, ''));
+        sayDrop('Skin de blocos aberta.');
+      } else {
+        // Models need a local path: Tauri's native drop event handles those.
+        sayDrop('Arquivo não suportado.');
+      }
+    } catch {
+      app.sound?.play?.('cancel', { volume: 0.5 });
+      sayDrop('Arquivo não suportado.');
+    }
+  }, true);
   api.onClickThrough?.(() => app.setOption('clickThrough', !config.clickThrough));
   if (config.streamer) applyStreamer(false);
   setLang(config.lang);
