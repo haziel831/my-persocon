@@ -49,6 +49,14 @@ const pix = (id, cat, name, price, pixName, extra = {}) => ({
   },
 });
 
+// Nomes personalizados (até 24 caracteres, sem HTML).
+const cleanCustomName = (value, fallback) => {
+  const s = String(value || '').replace(/[<>&"']/g, '').trim().slice(0, 24);
+  return s || fallback;
+};
+export const crowName = (app) => cleanCustomName(app?.game?.profile?.crowName, app?.config?.lang === 'en' ? 'Crow' : 'Corvo');
+export const dollName = (app) => cleanCustomName(app?.game?.profile?.dollName, app?.config?.lang === 'en' ? 'Doll' : 'Boneco');
+
 export const BUFF_LABELS = {
   noHunger: 'Sem fome (não passa)',
   doubleMood: 'Humor em dobro ao ganhar',
@@ -292,6 +300,8 @@ export class Game {
     this.profile.blackCartridgeWave ??= 1;
     // Quem ela encara no cartucho preto: 'slime' | 'grim' | 'mixed' (padrão).
     this.profile.blackEnemy ??= 'mixed';
+    this.profile.crowName ??= '';
+    this.profile.dollName ??= '';
     // A espada equipada (na cintura) não pode existir duas vezes: nem no desktop, nem no inventário.
     this.profile.swordEquipped = this.profile.swordEquipped === true;
     this.profile.cristalAwarded ??= !!this.profile.unknownDone;

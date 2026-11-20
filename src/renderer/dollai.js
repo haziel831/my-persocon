@@ -3,7 +3,7 @@
 import { icon, emojiOnly } from './pixel.js';
 import { MANGAS, mangaCoverIcon, BALLS, baseId } from './furniture.js';
 import { isFocus } from './focusmode.js';
-import { DOLL_SKILLS, dollData, dollHasSkill, teachDollSkill, dollWave, dollBonus } from './dollskills.js';
+import { DOLL_SKILLS, DOLL_COMBAT_SKILLS, dollData, dollHasSkill, teachDollSkill, dollWave, dollBonus, trainReady, trainRemaining, markTrain, fmtCooldown } from './dollskills.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -402,13 +402,21 @@ export class DollBrain {
   // ---------- skills (outside combat) ----------
 
   teachSkill(id) {
-    return teachDollSkill(this.app, id);
+    if (!trainReady('doll', this.app.game)) return false;
+    const ok = teachDollSkill(this.app, id);
+    if (ok) markTrain('doll', this.app.game);
+    return ok;
+  }
+
+  trainLabel() {
+    const left = trainRemaining('doll', this.app.game);
+    return left > 0 ? fmtCooldown(left) : '';
   }
 
   nextSkill() {
     const d = dollData(this.app);
     if (d.focus && !dollHasSkill(this.app, d.focus)) return d.focus;
-    return Object.keys(DOLL_SKILLS).find((id) => !dollHasSkill(this.app, id)) || null;
+    return [...Object.keys(DOLL_SKILLS), ...Object.keys(DOLL_COMBAT_SKILLS)].find((id) => !dollHasSkill(this.app, id)) || null;
   }
 
   // Ambient skill effects, checked once a second from the Doll brain.

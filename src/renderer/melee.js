@@ -14,6 +14,9 @@ import { ITEMS, itemById } from './game.js';
 import { ATTR_XP } from './attrxp.js';
 import { VFX_FOLDERS, flashIntensity } from './vfx.js';
 import { icon } from './pixel.js';
+import { DOLL_COMBAT_SKILLS, dollHasSkill } from './dollskills.js';
+import { dollName } from './game.js';
+import { translate } from './i18n.js';
 import { enemyPortrait, persoconPortrait } from './combatui.js';
 
 export const TURN = { PERSOCON: 'persocon', CROW: 'corvo', FOE: 'foe' };
@@ -481,6 +484,7 @@ export class Melee {
   damageFoe(dmg, opts = {}) {
     const opp = this.opp;
     if (!opp || opp.hp <= 0) return;
+    if (this.pendingDollBonus) { dmg = Math.round(dmg * 1.2); this.pendingDollBonus = false; }
     opp.hp = Math.max(0, opp.hp - dmg);
     this.hits++;
     this.fightStats.damage += dmg;
@@ -1438,8 +1442,28 @@ export class Melee {
 
   // ---------------- the turns ----------------
 
+  // The Doll helps periodically from the sidelines when it learned a combat skill.
+  dollAssist(dt) {
+    const app = this.app;
+    const doll = app?.doll;
+    if (!doll?.alive || this.petDown || ['victory', 'defeat', 'recover'].includes(this.phase)) return;
+    const learned = Object.keys(DOLL_COMBAT_SKILLS).filter((id) => dollHasSkill(app, id));
+    if (!learned.length) return;
+    this._dollT = (this._dollT || 0) + dt;
+    if (this._dollT < 9) return;
+    this._dollT = 0;
+    const id = learned[Math.floor(Math.random() * learned.length)];
+    const s = DOLL_COMBAT_SKILLS[id];
+    doll.playCombat(s.anim, 900, () => {
+      this.say(doll.x, doll.y - 20, `${dollName(app)}: ${translate(s.name)}!`, 'good');
+      app.gains?.show('⚔', 'gain', `${dollName(app)}: ${translate(s.name)}`, '✨');
+      this.pendingDollBonus = true;
+    });
+  }
+
   update(dt) {
     if (!this.active) return;
+    this.dollAssist(dt);
     const pet = this.pet;
     // Marca o frame: o resgate do combat (behavior.update) não pode ticar duas vezes.
     this.frame = this.app?.pet?.frame ?? -1;

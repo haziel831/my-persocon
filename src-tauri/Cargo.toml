@@ -1,6 +1,6 @@
 [package]
 name = "persocon"
-version = "1.9.36"
+version = "1.9.37"
 edition = "2021"
 
 [build-dependencies]

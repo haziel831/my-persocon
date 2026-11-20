@@ -1,6 +1,10 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.37', [
+    ['Menu de botão esquerdo do Doll no estilo do Corvo, com skills normais e de combate em duas colunas, progresso, foco e botão de treinar com cooldown anti-spam', 'Left-click Doll menu in the Crow style, with normal and combat skills in two columns, progress, focus and a train button with anti-spam cooldown'],
+    ['Renomear Corvo e Doll, skin de blocos no Doll (64×64/64×32), animações de combate procedurais e 6 skills de combate do Doll que entram nas lutas', 'Rename the Crow and Doll, block skins for the Doll (64×64/64×32), procedural combat animations and 6 Doll combat skills that join battles'],
+  ]],
   ['1.9.36', [
     ['Build de estabilização após as correções de cooldown das skills do Doll, menu do dock e feed de ganhos', 'Stabilization build after the Doll skill cooldown, dock menu and gains feed fixes'],
   ]],

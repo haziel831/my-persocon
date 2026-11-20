@@ -15,7 +15,11 @@ import { ITEMS, itemById } from './game.js';
 import { LOOT_ITEMS } from './lootitems.js';
 import { defineIcons, icon, emojiOnly } from './pixel.js';
 import { CONSOLE_SLOTS } from './furniture.js';
+import { crowName } from './game.js';
+import { translate } from './i18n.js';
+import { renameDialog } from './ui.js';
 import { ATTR_XP, teachSpeedMul } from './attrxp.js';
+import { trainReady, markTrain, trainRemaining, fmtCooldown } from './dollskills.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -159,7 +163,7 @@ export class Crow {
 
   // Entry in the gains feed when it uses a skill.
   used(id, text, kind = 'skill', ic = null) {
-    this.app.gains?.show(text, kind, `Corvo: ${CROW_SKILLS[id].name}`, ic || CROW_SKILLS[id].icon);
+    this.app.gains?.show(text, kind, `${crowName(this.app)}: ${translate(CROW_SKILLS[id].name)}`, ic || CROW_SKILLS[id].icon);
     this.app.pet?.emit('crowSkill', { id, name: CROW_SKILLS[id].name });
   }
 
@@ -1345,7 +1349,15 @@ export class Crow {
   // Right-click menu (called from toys.contextMenu with its button helper).
   menu(btn, x, y) {
     btn('📋 Perfil e habilidades', () => this.profile(x, y));
-    if (!this.allLearned) btn('🎓 Treinar agora', () => this.startDuo('treinar', true));
+    const rename = btn('✏️ Renomear', () => renameDialog(this.app.game.profile.crowName, (v) => {
+      this.app.game.profile.crowName = String(v || '').slice(0, 24);
+      this.app.game.changed();
+    }, translate('Nome do Corvo')));
+    if (!this.allLearned) {
+      const left = trainRemaining('crow', this.app.game);
+      const t = btn(left > 0 ? `🎓 Treinar (${fmtCooldown(left)})` : '🎓 Treinar agora', () => this.startDuo('treinar', true));
+      t.disabled = left > 0;
+    }
     btn('🤗 Fazer carinho', () => this.startDuo('carinho', true));
     btn('🍞 Dar migalhas', () => this.startDuo('migalhas', true));
     btn('🙋 Pousar na cabeça dela', () => { if (this.free && this.headOk()) this.toHead(); });
@@ -1487,9 +1499,11 @@ export class Crow {
       if (manual) minigames?.toast(this.away ? 'O Corvo saiu para procurar algo' : 'Agora não dá');
       return false;
     }
+    if (kind === 'treinar' && manual && !trainReady('crow', this.app.game)) return false;
     if (kind === 'treinar' && (this.allLearned || (manual ? care?.refuse() : pet.drained?.()))) return false;
     if (pet.activity) this.app.modes?.stop();
     if (pet.toyPlay) pet.endToy(true);
+    if (kind === 'treinar' && manual) markTrain('crow', this.app.game);
     this.duo = { kind, phase: 'wait', t: 0 };
     pet.mini = () => {
       if (pet.surfaceId !== 'floor') return pet.startGround('hop');

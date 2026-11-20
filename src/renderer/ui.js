@@ -2437,6 +2437,40 @@ class Dialog {
   }
 }
 
+// Small inline rename dialog (Enter saves, Escape cancels, empty restores default).
+export function renameDialog(current, onSave, title) {
+  const box = document.createElement('div');
+  box.className = 'mural-edit hitzone';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 24;
+  input.value = current || '';
+  input.placeholder = translate('Deixe vazio para o nome padrão');
+  input.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { onSave(input.value); box.remove(); }
+    else if (e.key === 'Escape') box.remove();
+  };
+  const save = document.createElement('button');
+  save.className = 'primary';
+  save.textContent = translate('Salvar');
+  save.onclick = () => { onSave(input.value); box.remove(); };
+  const cancel = document.createElement('button');
+  cancel.textContent = translate('Cancelar');
+  cancel.onclick = () => box.remove();
+  const label = document.createElement('span');
+  label.textContent = title || translate('Renomear');
+  label.style.color = 'var(--fg)';
+  box.append(label, input, save, cancel);
+  document.body.append(box);
+  input.focus();
+  input.select();
+  setTimeout(() => {
+    const off = (e) => { if (!box.contains(e.target)) return; box.remove(); window.removeEventListener('pointerdown', off, true); };
+    window.addEventListener('pointerdown', off, true);
+  }, 0);
+}
+
 // Quick choice after dropping a generic image onto the pet / desktop.
 export class ImageDropDialog extends Dialog {
   show(dataUrl, name, blockSkin) {

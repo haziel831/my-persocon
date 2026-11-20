@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.37 — 21/11/2026
+Menu do Doll no estilo do Corvo (skills normais × combate em duas colunas, progresso/foco, treinar com cooldown de 2 min reduzido pelo Carisma, piso 45 s). Cooldown anti-spam também no treino manual do Corvo. Renomear Corvo e Doll com nomes refletidos em feeds e toasts. Skin de blocos no Doll (`64×64`/`64×32`) salva no save. `doll.playCombat()` com clipes para idle/attack/cast/shield/dodge/hurt/cheer e 6 skills de combate do Doll integradas em `melee.js`.
+
 ## v1.9.36 — 21/11/2026
 Build de estabilização com o estado atual validado (`npm run check` OK). Sem mudanças funcionais em relação à v1.9.35.
 

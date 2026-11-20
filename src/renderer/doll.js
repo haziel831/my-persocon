@@ -3,6 +3,10 @@
 // With the Crystal Mágico it comes alive (see dollai.js).
 import { DollBrain } from './dollai.js';
 import { icon } from './pixel.js';
+import { DOLL_SKILLS, DOLL_COMBAT_SKILLS, dollData, dollHasSkill, trainRemaining, markTrain, fmtCooldown } from './dollskills.js';
+import { dollName } from './game.js';
+import { renameDialog } from './ui.js';
+import { translate } from './i18n.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
@@ -209,6 +213,108 @@ export class Doll {
     img.src = src;
   }
 
+  menu(x, y) {
+    if (!this.alive || this.held || this.brain?.duo) return;
+    const app = this.app;
+    const d = dollData(app);
+    const el = document.createElement('div');
+    el.className = 'toy-menu crow-profile hitzone';
+    const add = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      el.append(e);
+      return e;
+    };
+    add('div', 'title', dollName(app));
+    add('div', 'crow-stats', `${translate('Treinos')}: ${d.trains || 0}`);
+    const cols = add('div', 'crow-cols');
+    const mkCol = (title, combat) => {
+      const col = document.createElement('div');
+      col.className = 'crow-col';
+      const h = document.createElement('div');
+      h.className = 'crow-sub';
+      h.textContent = title;
+      col.append(h);
+      const list = document.createElement('div');
+      list.className = 'crow-skills';
+      col.append(list);
+      cols.append(col);
+      return { list, combat };
+    };
+    const normal = mkCol(translate('Skills Normais'), false);
+    const combat = mkCol(translate('Skills de Combate'), true);
+    const skills = { ...DOLL_SKILLS, ...DOLL_COMBAT_SKILLS };
+    for (const [id, s] of Object.entries(skills)) {
+      if (!!s.combat !== combat.combat) continue;
+      const known = dollHasSkill(app, id);
+      const row = document.createElement('div');
+      row.className = `crow-skill${known ? ' known' : ' off'}${s.combat ? ' combat' : ''}`;
+      if (d.focus === id) row.classList.add('focus');
+      const head = document.createElement('div');
+      head.className = 'crow-skill-head';
+      const b = document.createElement('b');
+      b.textContent = known ? translate(s.name) : '?';
+      const pct = document.createElement('span');
+      pct.textContent = known ? '✓' : `${Math.min(99, Math.round((d.xp[id] || 0)))}%`;
+      head.append(b, pct);
+      row.append(head);
+      if (known) {
+        const small = document.createElement('small');
+        small.textContent = translate(s.desc);
+        row.append(small);
+      }
+      if (!known) {
+        row.onclick = () => { d.focus = id; app.game.changed(); this.menu(x, y); };
+      }
+      (s.combat ? combat.list : normal.list).append(row);
+    }
+    if (!Object.keys(DOLL_COMBAT_SKILLS).length) add('div', 'crow-note', translate('Em breve'));
+    const left = trainRemaining('doll', app.game);
+    const train = add('button', '', left > 0 ? `${translate('🎓 Treinar')} (${fmtCooldown(left)})` : translate('🎓 Treinar'));
+    train.disabled = left > 0;
+    train.onclick = () => {
+      const id = d.focus || this.brain.nextSkill?.();
+      if (id && this.brain.teachSkill?.(id)) markTrain('doll', app.game);
+      this.menu(x, y);
+    };
+    const rename = add('button', '', translate('✏️ Renomear'));
+    rename.onclick = () => renameDialog(app.game.profile.dollName, (v) => {
+      app.game.profile.dollName = String(v || '').slice(0, 24);
+      app.game.changed();
+    }, translate('Nome do Doll'));
+    const skin = add('button', '', translate('🧱 Skin de blocos (.png)'));
+    skin.onclick = () => this.importBlockSkin();
+    const restore = add('button', '', translate('🔁 Restaurar padrão'));
+    restore.onclick = () => { this.setSkin(null); app.game.dollModel = null; app.game.changed(); };
+    app.toys.openMenu(el, x, y);
+  }
+
+  async importBlockSkin() {
+    const path = await window.petAPI?.pickFile?.(translate('Skin de blocos do Doll'), translate('Skin PNG'), ['png']);
+    if (!path) return;
+    const data = await window.petAPI.readFileData(path);
+    const ok = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img.width === 64 && (img.height === 64 || img.height === 32));
+      img.onerror = () => resolve(false);
+      img.src = data;
+    });
+    if (!ok) {
+      this.app.sound.play('cancel', { volume: 0.4 });
+      this.app.speech?.say(translate('A skin precisa ser 64×64 ou 64×32.'), 3);
+      return;
+    }
+    const slim = this.app.config?.dollSlim === true;
+    const { mcModel } = await import('./mcmodel.js');
+    const files = await mcModel(data, slim);
+    this.app.game.dollSkin = data;
+    this.app.game.dollSlim = !!slim;
+    this.app.game.dollModel = files;
+    this.app.game.changed();
+    this.app.sound.play('ok', { volume: 0.4 });
+  }
+
   ensure() {
     if (this.el) return;
     const el = (this.el = document.createElement('canvas'));
@@ -258,7 +364,8 @@ export class Doll {
       const h = this.held.hist;
       this.held = null;
       if (moved < 5) {
-        if (performance.now() - t0 < 400) this.poke();
+        if (performance.now() - t0 < 400 && this.alive) this.menu(e.clientX, e.clientY);
+        else if (performance.now() - t0 < 400) this.poke();
         return;
       }
       this.brain.task = null;
@@ -276,6 +383,36 @@ export class Doll {
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
+  }
+
+  // Procedural combat animation (works for the default/Minecraft rig and imported models).
+  playCombat(kind = 'combat_idle', durMs = 800, onHit) {
+    const poses = {
+      combat_idle: 'guard',
+      combat_attack: 'attack',
+      combat_cast: 'cast',
+      combat_shield: 'guard',
+      combat_dodge: 'dodge',
+      combat_hurt: 'hurt',
+      combat_cheer: 'cheer',
+    };
+    const pose = poses[kind] || 'guard';
+    this.pose = pose;
+    this.combatAnim = kind;
+    this.lift = kind === 'combat_cheer' ? this.P * 0.25 : kind === 'combat_attack' ? this.P * 0.1 : 0;
+    let fired = false;
+    const hitAt = Math.max(80, durMs * 0.42);
+    const hitTimer = setTimeout(() => { if (!fired) { fired = true; onHit?.(); } }, hitAt);
+    clearTimeout(this._combatEnd);
+    this._combatEnd = setTimeout(() => {
+      clearTimeout(hitTimer);
+      if (!fired) onHit?.();
+      this.pose = null;
+      this.combatAnim = null;
+      this.lift = 0;
+      this.tilt = 0;
+    }, durMs);
+    return true;
   }
 
   hit(x, y) {
