@@ -50,6 +50,7 @@ export class VoiceTTS {
       } catch {}
     }
     s = s.replace(/\s+/g, ' ').trim();
+    if (!s) return '';
     if (opts.chat && c.ttsSpeakUser !== false && opts.user) {
       s = `${opts.user} ${c.lang === 'en' ? 'said:' : 'disse:'} ${s}`;
     }
@@ -81,6 +82,8 @@ export class VoiceTTS {
     if (!this.enabled || this.muted) return false;
     const c = this.app.config;
     if (opts.chat && !this.allowed(opts)) return false;
+    const clean = this.prepareText(text, opts);
+    if (!clean) return false;
     if (opts.chat && !opts.priority) {
       const now = Date.now();
       if (now - this.lastAt < (Number(c.ttsCooldown ?? 20) * 1000)) return false;
@@ -89,8 +92,6 @@ export class VoiceTTS {
       this.lastAt = now;
       if (user) this.userAt.set(user, now);
     }
-    const clean = this.prepareText(text, opts);
-    if (!clean) return false;
     const job = { text: clean, ...opts };
     if (job.priority) this.queue.unshift(job);
     else this.queue.push(job);
@@ -104,6 +105,7 @@ export class VoiceTTS {
     this.reportQueue();
     if (!job) { this.speaking = false; this.stopCurrent(); return; }
     this.speaking = true;
+    let playing = false;
     try {
       const c = this.app.config;
       const calm = isStoic(this.app);
@@ -114,6 +116,7 @@ export class VoiceTTS {
       if (!data) throw new Error('no audio');
       const buf = await (await fetch(data)).arrayBuffer();
       this.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') await this.ctx.resume();
       const src = this.ctx.createBufferSource();
       src.buffer = await this.ctx.decodeAudioData(buf.slice(0));
       src.detune.value = (Number(c.ttsPitch) || 0) * 100;
@@ -146,11 +149,15 @@ export class VoiceTTS {
         this.next();
       };
       this.duck(true);
+      playing = true;
       src.start();
       this.tick();
     } catch {
       this.stopCurrent();
       this.next();
+    } finally {
+      // Never leave the SFX ducked if anything above failed before playback started.
+      if (!playing) this.duck(false);
     }
   }
 

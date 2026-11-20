@@ -467,7 +467,7 @@ export class Toys {
     const up = !!t.up;
     const finish = () => {
       if (!app.pomodoro?.active) t.lampOn = false;
-      if (dollBonus(this.app, 'relaxar', 0) < 1) {
+      if (dollHasSkill(this.app, 'relaxar')) {
         app.pet.adjust?.({ mood: 3 }, 'relaxar');
         dollWave(this.app, 'relaxar', '🤸', '🤸', 180);
       }
