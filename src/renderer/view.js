@@ -465,17 +465,29 @@ export class PetView {
   // Whether the pet is drawn near (x, y), in canvas CSS pixels.
   hitTest(x, y, radius = 3) {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
+    // readPixels is a synchronous GPU stall, and the host asks for the hit ~33x/s: reuse the
+    // last answer while the cursor barely moved (same pixel area, < 60 ms old).
+    const cx = Math.round(x);
+    const cy = Math.round(y);
+    const now = performance.now();
+    const cache = this._hitCache;
+    if (cache && cache.radius === radius && Math.abs(cx - cache.x) < 2 && Math.abs(cy - cache.y) < 2 && now - cache.t < 60) return cache.hit;
     const gl = this.renderer.getContext();
     const d = this.renderer.getPixelRatio();
     const s = Math.max(1, Math.round(radius * d)) * 2 + 1;
     const cw = gl.drawingBufferWidth;
     const ch = gl.drawingBufferHeight;
-    const px = Math.min(Math.max(Math.round(x * d) - (s >> 1), 0), cw - s);
+    const px = Math.min(Math.max(cx * d - (s >> 1), 0), cw - s);
     const py = Math.min(Math.max(Math.round((this.height - y) * d) - (s >> 1), 0), ch - s);
-    const buf = new Uint8Array(s * s * 4);
+    const size = s * s * 4;
+    const buf = this._hitBuf && this._hitBuf.length === size ? this._hitBuf : (this._hitBuf = new Uint8Array(size));
     gl.readPixels(px, py, s, s, gl.RGBA, gl.UNSIGNED_BYTE, buf);
-    for (let i = 3; i < buf.length; i += 4) if (buf[i] > 40) return true;
-    return false;
+    let hit = false;
+    for (let i = 3; i < buf.length; i += 4) {
+      if (buf[i] > 40) { hit = true; break; }
+    }
+    this._hitCache = { x: cx, y: cy, radius, t: now, hit };
+    return hit;
   }
 
   dispose() {

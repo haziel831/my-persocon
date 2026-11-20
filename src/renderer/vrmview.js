@@ -252,6 +252,8 @@ class VrmAnimator {
 
 // A plain .glb (no VRM humanoid): wrapped in a stand-in rig whose "hips" carries the whole model,
 // so the procedural clips bob and sway it, with marker bones for the head, hands and feet.
+const TEXTURE_SLOTS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap'];
+
 function plainRig(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -612,19 +614,43 @@ export class VrmView {
 
   hitTest(x, y, radius = 3) {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
+    // readPixels stalls the GPU: keep the last answer while the cursor barely moved and the
+    // reading is fresh (< 60 ms), and reuse the pixel buffer between calls.
+    const cx = Math.round(x);
+    const cy = Math.round(y);
+    const now = performance.now();
+    const cache = this._hitCache;
+    if (cache && cache.radius === radius && Math.abs(cx - cache.x) < 2 && Math.abs(cy - cache.y) < 2 && now - cache.t < 60) return cache.hit;
     const gl = this.renderer.getContext();
     const d = this.renderer.getPixelRatio();
     const s = Math.max(1, Math.round(radius * d)) * 2 + 1;
-    const px = Math.min(Math.max(Math.round(x * d) - (s >> 1), 0), gl.drawingBufferWidth - s);
+    const px = Math.min(Math.max(cx * d - (s >> 1), 0), gl.drawingBufferWidth - s);
     const py = Math.min(Math.max(Math.round((this.height - y) * d) - (s >> 1), 0), gl.drawingBufferHeight - s);
-    const buf = new Uint8Array(s * s * 4);
+    const size = s * s * 4;
+    const buf = this._hitBuf && this._hitBuf.length === size ? this._hitBuf : (this._hitBuf = new Uint8Array(size));
     gl.readPixels(px, py, s, s, gl.RGBA, gl.UNSIGNED_BYTE, buf);
-    for (let i = 3; i < buf.length; i += 4) if (buf[i] > 40) return true;
-    return false;
+    let hit = false;
+    for (let i = 3; i < buf.length; i += 4) {
+      if (buf[i] > 40) { hit = true; break; }
+    }
+    this._hitCache = { x: cx, y: cy, radius, t: now, hit };
+    return hit;
   }
 
   dispose() {
-    if (!this.vrm.plain) VRMUtils.deepDispose(this.vrm.scene);
+    if (!this.vrm.plain) {
+      VRMUtils.deepDispose(this.vrm.scene);
+    } else {
+      // Plain .glb: deepDispose only knows VRM scenes, so free the GPU resources by hand.
+      this.vrm.scene.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+        for (const m of mats) {
+          for (const slot of TEXTURE_SLOTS) m[slot]?.dispose?.();
+          m.dispose?.();
+        }
+      });
+    }
     this.renderer.dispose();
     this.renderer.forceContextLoss();
   }

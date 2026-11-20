@@ -724,6 +724,7 @@ export async function startPet(files, config) {
 
   // Countdown shown above the pet during the mouse chase.
   const hud = div('hud');
+  let hudSecs = -1; // last whole second written to the DOM
 
   // ---------- cafuné hand, request balloon, held toy, chase bell, countdown ----------
   const patHand = { el: div('pat-hand', `<img src="${icon('hand')}" draggable="false">`), t: 0 };
@@ -838,6 +839,13 @@ export async function startPet(files, config) {
   let dockMoving = false;
   let bagDockMoving = false;
   let dockMenuOff = null;
+  // Cached DOM writes for the dock: only touch the element when a value actually changed.
+  let dockGeo = null;
+  let dockW = 0;
+  let dockH = 0;
+  let dockHint = null;
+  let dockMovingLast = null;
+  let dockHtml = '';
   // Event log under the dock: 5 latest big events, [pt, en] pairs picked at render time.
   const eventLog = new EventLog(config);
   const pushLog = (pt, en, cat = 'general') => { eventLog.push(pt, en, cat); dockT = 0; };
@@ -1125,28 +1133,65 @@ api.onTrayClick?.(() => {
       });
       document.body.append(dockEl);
       dockT = 0;
+      // Fresh element: forget the cached markup/size so it gets built again.
+      dockHtml = '';
+      dockGeo = null;
+      dockW = 0;
+      dockH = 0;
     }
-    dockEl.dataset.pos = pos;
+    if (dockEl.dataset.pos !== pos) dockEl.dataset.pos = pos;
     const k = String(config.statusDockScale ?? 1.3);
-    if (dockEl.style.getPropertyValue('--sdk') !== k) dockEl.style.setProperty('--sdk', k);
+    if (dockEl.style.getPropertyValue('--sdk') !== k) {
+      dockEl.style.setProperty('--sdk', k);
+      dockW = 0; // scale changed: the cached size is stale
+    }
     const at = pos === 'free' && config.statusDockAt;
-    dockEl.style.left = at ? `${Math.round(Math.min(Math.max(0, at.x), innerWidth - dockEl.offsetWidth))}px` : '';
-    dockEl.style.top = at ? `${Math.round(Math.min(Math.max(0, at.y), innerHeight - dockEl.offsetHeight))}px` : '';
-    dockEl.classList.toggle('moving', dockMoving);
-    dockEl.dataset.hint = config.lang === 'en' ? 'Drag to move' : 'Arraste para mover';
+    const geo = at ? `${Math.round(at.x)}|${Math.round(at.y)}|${dockW}|${dockH}|${innerWidth}|${innerHeight}` : 'none';
+    if (geo !== dockGeo) {
+      dockGeo = geo;
+      if (at) {
+        if (!dockW) {
+          dockW = dockEl.offsetWidth;
+          dockH = dockEl.offsetHeight;
+        }
+        dockEl.style.left = `${Math.round(Math.min(Math.max(0, at.x), innerWidth - dockW))}px`;
+        dockEl.style.top = `${Math.round(Math.min(Math.max(0, at.y), innerHeight - dockH))}px`;
+      } else {
+        dockEl.style.left = '';
+        dockEl.style.top = '';
+      }
+    }
+    if (dockMovingLast !== dockMoving) {
+      dockMovingLast = dockMoving;
+      dockEl.classList.toggle('moving', dockMoving);
+    }
+    const hint = config.lang === 'en' ? 'Drag to move' : 'Arraste para mover';
+    if (dockHint !== hint) {
+      dockHint = hint;
+      dockEl.dataset.hint = hint;
+    }
     if ((dockT -= 1) > 0) return;
     dockT = 15;
     const s = pet.stats;
     const bar = (ic, v, col) => `<div class="sd-row"><span>${ic}</span><i><b style="width:${Math.round(Math.max(0, Math.min(100, v)))}%;background:${col}"></b></i></div>`;
     const hideTip = appHidden ? (config.lang === 'en' ? 'Show the app' : 'Mostrar o app') : (config.lang === 'en' ? 'Hide the app' : 'Esconder o app');
-    dockEl.innerHTML = `<div class="sd-name">${(config.name || 'Ninna').replace(/[<>&']/g, '')} · ¥ ${Math.floor(game.coins)} · ${config.lang === 'en' ? 'Wallet' : 'Carteira'} ¥ ${Math.floor(game.profile?.wallet || 0)} · ${config.lang === 'en' ? 'Doing' : 'Fazendo'}: ${String(pet.activity || pet.action || 'idle').replace(/[<>&']/g, '')}`
+    const maxHp = Math.max(1, pet.maxHealth?.() ?? 100);
+    const html = `<div class="sd-name">${(config.name || 'Ninna').replace(/[<>&']/g, '')} · ¥ ${Math.floor(game.coins)} · ${config.lang === 'en' ? 'Wallet' : 'Carteira'} ¥ ${Math.floor(game.profile?.wallet || 0)} · ${config.lang === 'en' ? 'Doing' : 'Fazendo'}: ${String(pet.activity || pet.action || 'idle').replace(/[<>&']/g, '')}`
       + `<button class="sd-hide" type="button" title="${hideTip}" aria-label="${hideTip}">${appHidden ? '😑' : '👁'}</button></div>`
-      + bar('❤️', Math.min(s.health, pet.maxHealth?.() ?? 100), '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
+      + bar('❤️', (Math.min(s.health, maxHp) / maxHp) * 100, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
       + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock();
-    // O feed de ganhos fica logo abaixo da caixinha de XP (ele segue o dock).
-    app.gains?.place?.();
+    // Rebuilding the markup kills the click on the hide button and the selection, so only do it
+    // when something visible actually changed.
+    if (html !== dockHtml) {
+      dockHtml = html;
+      dockEl.innerHTML = html;
+      dockW = 0;
+      dockH = 0;
+      // O feed de ganhos fica logo abaixo da caixinha de XP (ele segue o dock).
+      app.gains?.place?.();
+    }
   }
   // Wishes still pending (up to 3 hours): an icon each, the hover says what she wants.
   function wishChips() {
@@ -1593,6 +1638,8 @@ api.onTrayClick?.(() => {
     }
   };
 
+  let lastRefreshKey = null;
+  let lastRefreshAt = 0;
   function refreshInteractive() {
     // A arena é uma janela normal: tudo nela precisa aceitar clique o tempo todo.
     if (window.__PET_COMBATE__) {
@@ -1601,15 +1648,25 @@ api.onTrayClick?.(() => {
     }
     if (uiOpen() || press) {
       document.body.classList.remove('hover');
+      // Panels closed/open change what is clickable: force a full check on the next tick.
+      lastRefreshKey = null;
       return setInteractive(true);
     }
     // Um jogo em tela cheia cobre a tela: o overlay fica transparente E devolve o mouse
     // (senão o jogo perde o cursor). O título/intro continuam clicáveis (são .hitzone).
     if (canvas.style.visibility === 'hidden') {
       document.body.classList.remove('hover');
+      lastRefreshKey = null;
       misses = 0;
       return setInteractive(false);
     }
+    // Cursor in the same place with the same toggles: the hit result cannot have changed.
+    // The 500 ms fallback re-checks anyway (panels moving without a cursor move).
+    const now = performance.now();
+    const key = `${Math.round(cursor?.x ?? -1)}|${Math.round(cursor?.y ?? -1)}|${Math.round((pet.x ?? 0) / 4)}|${Math.round((pet.y ?? 0) / 4)}|${Math.round(place.left)}|${Math.round(place.top)}|${config.clickThrough ? 1 : 0}|${appHidden ? 1 : 0}|${config.streamer ? 1 : 0}`;
+    if (key === lastRefreshKey && now - lastRefreshAt < 500) return;
+    lastRefreshKey = key;
+    lastRefreshAt = now;
     const zone = !!cursor && [...document.querySelectorAll('.hitzone')].some((el) => {
       if (el.style.display === 'none' || el.style.visibility === 'hidden') return false;
       if (appHidden && !el.closest('.status-dock, .bag-dock, .toy-menu, .her-bag')) return false;
@@ -2052,34 +2109,51 @@ api.onTrayClick?.(() => {
   }
 
   // ---------- frame loop ----------
+  // How much each negative status weighs on the visual "debuff level" (allocated once).
+  const DEBUFF_WEIGHT = { lesao:3, nausea:2.5, fome:2, desidratacao:2, prisao:1.5, exausta:1.2, gripe:1.2, estressada:1.5, abatida:1, suja:0.8, tedio:0.8 };
   let last = performance.now();
   let lastRaf = last;
   let offscreen = false;
   let calmTop = null;
+  let lastHasDebuff = null;
+  let lastDebuffLevel = -1;
+  let menuRect = null;
+  let menuRectT = 0;
   const step = (now) => {
     // rAF timestamps are the frame start, so they can be older than the catch-up timer's clock.
     if (now < last) now = last;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     pet.update(dt);
-  // Negative statuses: occasionally complain; subtle visual class on the body.
-  const hasDebuff = Object.keys(pet.debuffs || {}).length > 0;
-  document.body.classList.toggle('pet-debuffed', hasDebuff);
-  const weight = { lesao:3, nausea:2.5, fome:2, desidratacao:2, prisao:1.5, exausta:1.2, gripe:1.2, estressada:1.5, abatida:1, suja:0.8, tedio:0.8 };
-  const level = Object.keys(pet.debuffs || {}).reduce((a,id)=>a+(weight[id]||1),0);
-  document.body.style.setProperty('--debuff-level', String(level || 0));
-  if (hasDebuff) {
-    pet.complainT = (pet.complainT || 0) + dt;
-    const threshold = 18 + Math.random() * 25;
-    if (!pet.offstage && !pet.dead && !pet.combatMode && !app.melee?.active && pet.complainT >= threshold) {
-      pet.complainT = 0;
-      const en = config.lang === 'en';
-      const lines = en
-        ? ['I feel awful...', 'Something is wrong with me...', 'I do not feel well...', 'Ouch... I hurt...']
-        : ['Tô me sentindo mal...', 'Tem algo de errado comigo...', 'Não estou me sentindo bem...', 'Ai... tô dolorida...'];
-      speech.say(lines[Math.floor(Math.random() * lines.length)], 3.2);
+    // Negative statuses: occasionally complain; subtle visual class on the body.
+    // Only touch the DOM when the state actually changed (the body style is expensive to restyle).
+    const hasDebuff = Object.keys(pet.debuffs || {}).length > 0;
+    if (hasDebuff !== lastHasDebuff) {
+      lastHasDebuff = hasDebuff;
+      document.body.classList.toggle('pet-debuffed', hasDebuff);
     }
-  } else pet.complainT = 0;
+    const level = Object.keys(pet.debuffs || {}).reduce((a,id)=>a+(DEBUFF_WEIGHT[id]||1),0);
+    if (level !== lastDebuffLevel) {
+      lastDebuffLevel = level;
+      document.body.style.setProperty('--debuff-level', String(level || 0));
+    }
+    if (hasDebuff) {
+      pet.complainT = (pet.complainT || 0) + dt;
+      // Rolled once per complaint, not every frame: the wait is uniform 18s..43s.
+      if (pet.complainNext == null) pet.complainNext = 18 + Math.random() * 25;
+      if (!pet.offstage && !pet.dead && !pet.combatMode && !app.melee?.active && pet.complainT >= pet.complainNext) {
+        pet.complainT = 0;
+        pet.complainNext = 18 + Math.random() * 25;
+        const en = config.lang === 'en';
+        const lines = en
+          ? ['I feel awful...', 'Something is wrong with me...', 'I do not feel well...', 'Ouch... I hurt...']
+          : ['Tô me sentindo mal...', 'Tem algo de errado comigo...', 'Não estou me sentindo bem...', 'Ai... tô dolorida...'];
+        speech.say(lines[Math.floor(Math.random() * lines.length)], 3.2);
+      }
+    } else {
+      pet.complainT = 0;
+      pet.complainNext = null;
+    }
     closeup.update(dt, offscreen || appHidden);
     const tp = pet.toyPlay;
     const holdingToy = tp?.hold && tp.t >= tp.holdFrom;
@@ -2152,24 +2226,36 @@ api.onTrayClick?.(() => {
       footsteps(dt);
 
       if (pet.chase && !pet.chase.qte && !hidden) {
-        hud.textContent = `🎾 Pega o mouse! ${Math.ceil(pet.chase.t)}s`;
+        const secs = Math.ceil(pet.chase.t);
+        if (secs !== hudSecs) {
+          hudSecs = secs;
+          const label = `🎾 Pega o mouse! ${secs}s`;
+          hud.textContent = config.lang === 'en' ? translate(label) : label;
+        }
         hud.style.display = 'block';
         const hx = pet.x - hud.offsetWidth / 2;
         const below = pet.y + 6;
         const hy = below + hud.offsetHeight < innerHeight ? below : head.y - hud.offsetHeight - 40;
         hud.style.transform = `translate(${Math.round(Math.min(Math.max(4, hx), innerWidth - hud.offsetWidth - 4))}px, ${Math.round(Math.max(2, hy))}px)`;
       } else {
+        hudSecs = -1;
         hud.style.display = 'none';
       }
 
       // The menu turns see-through while the pet is behind it.
       if (menu.open) {
-        const r = menu.el.getBoundingClientRect();
+        // Measuring forces a layout sync: the rect only moves when the menu itself moves, so
+        // refresh every ~10 frames instead of 60 times per second.
+        if (!menuRect || menuRectT-- <= 0) {
+          menuRect = menu.el.getBoundingClientRect();
+          menuRectT = 10;
+        }
+        const r = menuRect;
         const half = pet.P * 0.35;
         const top = pet.y - Math.max(view.bounds.top, pet.P * 0.5);
         const behind = pet.x + half > r.left && pet.x - half < r.right && pet.y > r.top && top < r.bottom && !hidden;
         menu.el.classList.toggle('ghost', behind);
-      }
+      } else menuRect = null;
     }
   };
   // Safety net: an action whose owner is gone (or a broken timer) would leave the pet standing
