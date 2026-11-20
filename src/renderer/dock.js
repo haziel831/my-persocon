@@ -309,15 +309,15 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     const bar = (ic, v, col) => `<div class="sd-row"><span>${ic}</span><i><b style="width:${Math.round(Math.max(0, Math.min(100, v)))}%;background:${col}"></b></i></div>`;
     const hideTip = isHidden() ? (config.lang === 'en' ? 'Show the app' : 'Mostrar o app') : (config.lang === 'en' ? 'Hide the app' : 'Esconder o app');
     const maxHp = Math.max(1, pet.maxHealth?.() ?? 100);
-    // Focus countdown reuses the buff-chip look; ⏱ is a PxEmoji glyph, never a system emoji.
+    // Pomodoro countdown: own block at the very end of the pinned dock; ⏱ is a PxEmoji glyph.
     const focusText = focusLabel?.();
-    const focusChip = focusText ? `<div class="sd-buffs"><span title="${config.lang === 'en' ? 'Focus session' : 'Sessão de foco'}">⏱ ${focusText}</span></div>` : '';
+    const focusChip = focusText ? `<div class="sd-focus" title="${config.lang === 'en' ? 'Focus session' : 'Sessão de foco'}">⏱ ${String(focusText).replace(/[<>&"]/g, '')}</div>` : '';
     const next = `<div class="sd-name">${(config.name || 'Ninna').replace(/[<>&']/g, '')} · ¥ ${Math.floor(game.coins)} · ${config.lang === 'en' ? 'Wallet' : 'Carteira'} ¥ ${Math.floor(game.profile?.wallet || 0)} · ${config.lang === 'en' ? 'Doing' : 'Fazendo'}: ${String(pet.activity || pet.action || 'idle').replace(/[<>&']/g, '')}`
       + `<button class="sd-hide" type="button" title="${hideTip}" aria-label="${hideTip}">${isHidden() ? '😑' : '👁'}</button></div>`
       + bar('❤️', (Math.min(s.health, maxHp) / maxHp) * 100, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + focusChip + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock();
+      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock() + focusChip;
     // Rebuilding the markup kills the click on the hide button and the selection, so only do it
     // when something visible actually changed.
     if (next !== html) {

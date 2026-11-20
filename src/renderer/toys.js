@@ -13,6 +13,7 @@ import { UPGRADES, upgradeCost, upSize, upRatio, upIcon } from './upgrades.js';
 import { upgradeFx } from './upgradefx.js';
 import { skillPick, skillGain, skillLevel } from './skills.js';
 import { dayPeriod } from './watch.js';
+import { ATTR_XP } from './attrxp.js';
 import { translate } from './i18n.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -245,16 +246,51 @@ export class Toys {
 
   // Right-click on an object: store it, change its look, and options of that object.
   // The Mural shows the latest camera album shots and a short editable note.
+  // Resizes an imported picture down to 256px so it does not bloat save.json.
+  async addMuralImage(dataUrl) {
+    if (!Object.entries(this.app.game.toys).some(([k, t]) => k.split('#')[0] === 'mural' && t.placed)) return false;
+    const src = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(1, 256 / Math.max(1, img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * s));
+        c.height = Math.max(1, Math.round(img.height * s));
+        const g = c.getContext('2d');
+        g.imageSmoothingEnabled = false;
+        g.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+    if (!src) return false;
+    const fun = (this.app.game.profile.fun ||= {});
+    const list = (fun.muralImages ||= []);
+    if (list.length >= 24) list.shift();
+    list.push(src);
+    this.app.game.changed();
+    return true;
+  }
+
+  async addMuralImagePath(path) {
+    const data = await window.petAPI?.readFileData?.(path);
+    return data ? this.addMuralImage(data) : false;
+  }
+
   updateMural(id) {
     const el = this.els.get(id);
     const board = el?.querySelector('.mural-board');
     if (!board) return;
     const t = this.app.game.toys[id] || {};
-    const photos = (this.app.game.profile?.fun?.photos || []).slice(-4).reverse();
-    const sig = photos.map((p) => p.src).join('|') + '::' + (t.note || '');
+    const fun = this.app.game.profile?.fun || {};
+    const album = [...(fun.photos || []), ...(fun.muralImages || [])];
+    const photos = (t.picks?.length ? t.picks.map((i) => album[i]).filter(Boolean) : album.slice(-4).reverse()).slice(0, 4);
+    const sig = `${photos.map((p) => p.src).join('|')}::${t.note || ''}::${!!t.noteHidden}`;
     if (board.dataset.sig === sig) return;
     board.dataset.sig = sig;
     const strip = board.querySelector('.mural-photos');
+    strip.dataset.count = String(photos.length);
     strip.replaceChildren(...photos.map((p) => {
       const im = document.createElement('img');
       im.src = p.src;
@@ -262,8 +298,9 @@ export class Toys {
       return im;
     }));
     const note = board.querySelector('.mural-note');
-    note.textContent = t.note || translate('Clique para editar o post-it');
+    note.textContent = t.note || translate('Clique p/ anotar...');
     note.classList.toggle('empty', !t.note);
+    note.style.display = t.noteHidden ? 'none' : '';
   }
 
   editMuralNote(id) {
@@ -276,7 +313,7 @@ export class Toys {
     input.type = 'text';
     input.maxLength = 80;
     input.value = t.note || '';
-    input.placeholder = translate('Escreva um recado curto...');
+    input.placeholder = translate('Clique p/ anotar...');
     const save = document.createElement('button');
     save.textContent = translate('Salvar');
     save.onclick = () => {
@@ -308,6 +345,102 @@ export class Toys {
     }, 0);
   }
 
+  openMuralPicker(id) {
+    const { app } = this;
+    const t = app.game.toys[id];
+    const fun = app.game.profile?.fun || {};
+    const album = [...(fun.photos || []), ...(fun.muralImages || [])];
+    let picks = [...(t.picks || [])];
+    const modal = document.createElement('div');
+    modal.className = 'mural-picker hitzone';
+    const title = document.createElement('div');
+    title.className = 'qm-title';
+    title.textContent = translate('Escolher fotos do álbum');
+    const grid = document.createElement('div');
+    grid.className = 'mural-pick-grid';
+    const render = () => {
+      grid.replaceChildren(...album.map((p, i) => {
+        const b = document.createElement('button');
+        b.className = `mural-pick${picks.includes(i) ? ' active' : ''}`;
+        const im = document.createElement('img');
+        im.src = p.src;
+        im.alt = '';
+        b.append(im);
+        b.onclick = () => {
+          const at = picks.indexOf(i);
+          if (at >= 0) picks.splice(at, 1);
+          else {
+            if (picks.length >= 4) picks.shift();
+            picks.push(i);
+          }
+          render();
+        };
+        return b;
+      }));
+    };
+    render();
+    const foot = document.createElement('div');
+    foot.className = 'row center';
+    const auto = document.createElement('button');
+    auto.textContent = translate('Automático (últimas)');
+    auto.onclick = () => { t.picks = []; app.game.changed(); this.updateMural(id); modal.remove(); };
+    const ok = document.createElement('button');
+    ok.className = 'primary';
+    ok.textContent = translate('Salvar');
+    ok.onclick = () => { t.picks = picks.slice(0, 4); app.game.changed(); this.updateMural(id); modal.remove(); };
+    const importBtn = document.createElement('button');
+    importBtn.textContent = translate('🖼️ Importar imagem do PC...');
+    importBtn.onclick = async () => {
+      const path = await window.petAPI?.pickFile?.(translate('Imagem para o mural'), translate('Imagem'), ['png', 'jpg', 'jpeg', 'webp', 'gif']);
+      if (!path) return;
+      const okImg = await this.addMuralImagePath(path);
+      app.sound?.play(okImg ? 'ok' : 'cancel', { volume: 0.4 });
+      modal.remove();
+      this.openMuralPicker(id);
+    };
+    foot.append(importBtn, auto, ok);
+    modal.append(title, grid, foot);
+    document.body.append(modal);
+    setTimeout(() => {
+      const off = (e) => {
+        if (modal.contains(e.target)) return;
+        modal.remove();
+        window.removeEventListener('pointerdown', off, true);
+      };
+      window.addEventListener('pointerdown', off, true);
+    }, 0);
+  }
+
+  // On-demand study session at the desk: quick Intelligence XP in exchange for Mood.
+  forceStudy(id) {
+    const { app } = this;
+    const t = app.game.toys[id];
+    const pet = app.pet;
+    if (!t?.placed || t.broken || pet.dead || pet.combatMode || pet.mode !== 'ground' || pet.toyPlay) return false;
+    const up = !!t.up;
+    const finish = () => { if (!app.pomodoro?.active) t.lampOn = false; app.game.changed(); };
+    const begin = () => {
+      t.lampOn = true;
+      app.speech?.say(app.config.lang === 'en' ? 'Ugh, fine, I will study...' : 'Aff, tá bom, eu estudo...', 3);
+      app.emoticons?.show?.('dots', true);
+      pet.playToy({
+        id: `study_${id}`, dur: rand(20, 30), gain: { mood: 0 }, anim: 'sit', pose: 'sit', facing: 'front',
+        onEnd: finish,
+        tick: (dt, tp) => {
+          tp.reach = 0.4;
+          tp.angle = Math.sin(tp.t * 1.5) * 3;
+          tp.next = (tp.next ?? 5) - dt;
+          if (tp.next > 0) return;
+          tp.next = 5;
+          app.game.attrAdd('int', Math.max(1, Math.round(ATTR_XP.int.desk * (up ? 1.6 : 1))), 'Escrivaninha');
+          pet.adjust({ mood: up ? -0.6 : -1.2, energy: -0.3 }, 'estudo');
+          if ((pet.stats?.mood ?? 100) < 15 || (pet.stats?.energy ?? 100) < 15) pet.endToy(true);
+        },
+      });
+    };
+    return !!pet.goTo(t.x, begin);
+  }
+
   contextMenu(id, x, y) {
     this.closeMenu();
     const { game, sound } = this.app;
@@ -329,6 +462,40 @@ export class Toys {
     if (id === 'corvo') {
       this.app.crow?.menu(btn, x, y);
       return this.openMenu(el, x, y);
+    }
+    if (t && FURN[baseId(id)]) {
+      const layer = t.layer || (FURN[baseId(id)]?.back ? 'back' : 'front');
+      const setLayer = (v) => { t.layer = v; game.changed(); };
+      btn(`${layer === 'front' ? '✓ ' : ''}Em frente das outras mobílias`, () => setLayer('front'));
+      btn(`${layer === 'back' ? '✓ ' : ''}Atrás das outras mobílias`, () => setLayer('back'));
+    }
+    if (baseId(id) === 'mural' && t && !t.broken) {
+      const set = (patch) => { Object.assign(t, patch); game.changed(); this.updateMural(id); };
+      const frames = [['cortica', 'Cortiça'], ['madeira', 'Madeira'], ['neon', 'Neon'], ['dourada', 'Dourada'], ['escura', 'Escura']];
+      for (const [key, label] of frames) {
+        const b = btn(`${(t.frame || 'cortica') === key ? '✓ ' : ''}${label}`, () => set({ frame: key }));
+        b.className = (t.frame || 'cortica') === key ? 'active' : '';
+      }
+      for (const [key, label] of [['landscape', 'Paisagem'], ['portrait', 'Retrato']]) {
+        const b = btn(`${(t.orient || 'landscape') === key ? '✓ ' : ''}${label}`, () => set({ orient: key }));
+        b.className = (t.orient || 'landscape') === key ? 'active' : '';
+      }
+      for (const [key, label, size] of [['p', 'P', 0.8], ['m', 'M', 1.1], ['g', 'G', 1.5]]) {
+        const b = btn(`${Math.abs((t.scale || 1) - size) < 0.06 ? '✓ ' : ''}${label}`, () => set({ scale: size }));
+        b.className = Math.abs((t.scale || 1) - size) < 0.06 ? 'active' : '';
+      }
+      btn(t.picks?.length ? `Fotos: ${t.picks.length} escolhidas` : 'Fotos: automáticas', () => this.openMuralPicker(id));
+      btn('✎ Editar recado', () => this.editMuralNote(id));
+      btn(t.noteHidden ? 'Mostrar recado' : 'Ocultar recado', () => set({ noteHidden: !t.noteHidden }));
+    }
+    if (baseId(id) === 'escrivaninha' && t && !t.broken) {
+      const study = btn('📖 Forçar a estudar', () => {
+        sound.play('ok', { volume: 0.4 });
+        if (!this.forceStudy(id)) sound.play('cancel', { volume: 0.4 });
+      });
+      study.title = t.up
+        ? translate('Estudo rápido com XP de Inteligência e pouca perda de Humor')
+        : translate('Treina Inteligência, mas gasta Humor');
     }
     const up = UPGRADES[baseId(id)];
     if (up && t?.placed && !t.up && !t.upgrading && !t.broken) {
@@ -399,7 +566,6 @@ export class Toys {
         btn(game.profile.unknownDone ? '🕹 Inserir o cartucho preto de novo' : '🕹 Inserir o cartucho preto', () => {
           if (!this.app.unknown?.insert?.()) this.app.sound.play('cancel', { volume: 0.4 });
         });
-        btn('👹 Escolher o inimigo do cartucho…', () => setTimeout(() => this.enemyMenu(x, y), 0));
       }
     }
     if (baseId(id) === 'estante' && t) btn('📚 Ver conteúdo da estante', () => this.showShelfContents(id));
@@ -459,37 +625,6 @@ export class Toys {
     if (id === 'impressora') this.printerInfo(el);
     if (t && !t.broken && this.fun.owns(id)) this.fun.menu(baseId(id), btn, el);
     if (t && !itemById(baseId(id))?.fixed && baseId(id) !== 'gameboy_verde') btn('📦 Guardar no inventário', () => game.pickUpToy(id));
-    this.openMenu(el, x, y);
-  }
-
-  // Quem sai do cartucho preto: gosmas, Grim ou os dois. Fica no menu da TV.
-  enemyMenu(x, y) {
-    const { game } = this.app;
-    const el = document.createElement('div');
-    el.className = 'toy-menu hitzone';
-    const btn = (label, fn) => {
-      const b = document.createElement('button');
-      b.textContent = label;
-      b.onclick = (e) => { e.stopPropagation(); this.closeMenu(); fn(); };
-      el.append(b);
-      return b;
-    };
-    const title = document.createElement('div');
-    title.className = 'title';
-    title.textContent = 'Inimigo do cartucho preto';
-    el.append(title);
-    const cur = game.profile.blackEnemy || 'mixed';
-    const opt = (id, label, hint) => {
-      const b = btn(`${cur === id ? '▸ ' : ''}${label}`, () => {
-        if (cur === id) return;
-        game.profile.blackEnemy = id;
-        game.changed();
-      });
-      b.title = hint;
-    };
-    opt('mixed', 'Misturado', 'Gosmas e Grim (o Grim só aparece da onda 4 em diante)');
-    opt('slime', 'Só gosmas', 'A horda original do Unknown');
-    opt('grim', 'Só Grim', 'A horda inteira de Grim (mais duro)');
     this.openMenu(el, x, y);
   }
 
@@ -925,6 +1060,7 @@ export class Toys {
     const live = this.live(key);
     if (live?.ratio) return live.ratio;
     const id = baseId(key);
+    if (id === 'mural' && this.app.game.toys[key]?.orient === 'portrait') return 30 / 22;
     const upgraded = this.app.game.toys[key]?.up || ((id === 'bag' || id === 'food') && this.bagsUp());
     const own = !(upgraded && !this.app.skins?.objects?.[id]) && this.app.skins?.ratio(id);
     if (own) return own;
@@ -2607,16 +2743,33 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const deskLit = b === 'escrivaninha' && !t.broken
         && (t.lampOn || this.app.pomodoro?.active || ['noite', 'madrugada'].includes(dayPeriod()));
       const deskArt = deskLit ? icon(t.up ? 'escrivaninha_up_lamp' : 'escrivaninha_lamp') : null;
-      const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : (deskArt || this.furn.art(b, id)) || item?.img;
+      const muralArt = b === 'mural' ? icon(`mural_${t.frame || 'cortica'}${t.orient === 'portrait' ? '_v' : ''}`) : null;
+      const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : (muralArt || deskArt || this.furn.art(b, id)) || item?.img;
       // Arte importada (ao vivo ou salva) vence upgrade/casino/resourcepack, como já valia no salvo.
       const custom = this.live(b)?.frames?.length || skins?.objects?.[b]?.frames?.length;
       const bagUp = nb && (id === 'bag' || id === 'food') && !custom;
-      const src = (custom ? skins?.art(b, base) : null) || deskArt || (t.up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base) || base;
+      // Machines show their "working" art while in use (dual/firstFrame object skins).
+      const casino = this.app.casino;
+      let artActive = false;
+      if (b === 'gacha' || b === 'slot') artActive = casino?.cur?.id === b || !!casino?.out;
+      else if (b === 'venda_comida' || b === 'venda_bebida' || b === 'cafeteira') artActive = casino?.vend?.cur?.id === b;
+      else if (b === 'impressora') artActive = !!(this.unpacking || game.deliveries?.length);
+      else if (b === 'videogame') artActive = pet.activity === 'jam';
+      else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');
+      else if (b === 'escrivaninha') artActive = !!this.app.pomodoro?.active;
+      const src = (custom ? skins?.art(b, base, artActive) : null) || deskArt || (t.up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive) || base;
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');
       if (img && img.getAttribute('src') !== src) img.src = src;
-      el.classList.toggle('back', !!FURN[b]?.back);
-      if (b === 'mural') this.updateMural(id);
+      const back = t.layer ? t.layer === 'back' : !!FURN[b]?.back;
+      el.classList.toggle('back', back);
+      el.classList.toggle('front', t.layer === 'front');
+      if (b === 'mural') {
+        el.dataset.frame = t.frame || 'cortica';
+        el.classList.toggle('orient-portrait', t.orient === 'portrait');
+        el.classList.toggle('no-note', !!t.noteHidden);
+        this.updateMural(id);
+      }
       const size = this.size(id);
       const tp = pet.toyPlay;
       const inHands = (tp?.id === id && tp.hold && tp.t >= tp.holdFrom && !(FURN[id] && !FURN[id].console)) || this.fun.hides(id);

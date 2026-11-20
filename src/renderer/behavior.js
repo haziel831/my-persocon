@@ -473,7 +473,8 @@ export class Pet {
   // Walks slower when tired.
   tiredMul() {
     const e = this.stats.energy;
-    return e < 15 ? 0.55 : e < 30 ? 0.75 : 1;
+    const base = e < 15 ? 0.55 : e < 30 ? 0.75 : 1;
+    return base * (this.buff('swift') ? 1.25 : 1);
   }
 
   // A Agilidade deixa a corrida mais rápida (Nv 1 = normal, Nv 10 ≈ +63%).

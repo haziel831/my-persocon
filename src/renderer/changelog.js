@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.33', [
+    ['Novos brinquedos e mobílias: Caderno de Desenho (salva no álbum), Aviãozinho de Papel (o Corvo intercepta), Bolhas de Sabão, Mural personalizável, Cafeteira/Estação Energy Neon e Escrivaninha com Abajur', 'New toys and furniture: Drawing Notebook (saves to the album), Paper Airplane (the Crow intercepts), Soap Bubbles, customizable photo board, Coffee/Energy Station and Desk with Lamp'],
+    ['Álbum ampliado para 20 fotos (50 com a Câmera Pro), mangás treinando Inteligência por raridade, estudos na escrivaninha, clima ambiente offline e cenas raras em trio', 'Album expanded to 20 photos (50 with the Pro Camera), manga training Intelligence by rarity, desk study sessions, offline ambient weather and rare trio scenes'],
+    ['Drag-and-drop de arquivos no menu, chroma key e imagens de 2 estados para mobílias, Não Perturbe por janela em foco, interações mais visíveis, correções de clima/trio/áudio e muitas traduções PT/EN', 'File drag-and-drop on the menu, chroma key and two-state art for furniture, Do Not Disturb by foreground window, more visible interactions, weather/trio/audio fixes and many PT/EN translations'],
+  ]],
   ['1.9.32', [
     ['Novos brinquedos e mobílias: Bolhas de Sabão (clique para estourar), Aviãozinho de Papel (o Corvo pode interceptar), Caderno de Desenho (salva no álbum), Mural de Fotos com post-it, Cafeteira/Estação de Chá com Energy Drinks fictícios e Escrivaninha com Abajur que treina Inteligência', 'New toys and furniture: Soap Bubbles (pop them), Paper Airplane (the Crow may intercept), Drawing Notebook (saves to the album), photo board with sticky note, Coffee/Tea Station with fictional Energy Drinks and a Desk with Lamp that trains Intelligence'],
     ['Clima ambiente offline (chuva com guarda-chuva, pétalas, vagalumes e neve), cenas raras em trio com a Boneca e o Corvo e Não Perturbe automático: silence os sons e pause travessuras quando certas janelas estiverem em foco', 'Offline ambient weather (rain with umbrella, petals, fireflies and snow), rare trio scenes with the Doll and Crow, and automatic Do Not Disturb: silence sounds and pause antics while certain windows are focused'],

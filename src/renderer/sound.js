@@ -112,7 +112,9 @@ export class Sound {
   }
 
   applyVolume() {
-    if (this.master) this.master.gain.value = Math.max(0, Math.min(1, this.cfg.volume ?? 0.3));
+    if (!this.master) return;
+    if (this.dnd) { this.master.gain.value = 0; return; }
+    this.master.gain.value = Math.max(0, Math.min(1, this.cfg.volume ?? 0.3));
   }
 
   applyCrowVolume() {

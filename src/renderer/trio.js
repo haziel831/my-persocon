@@ -32,7 +32,8 @@ export class Trio {
     const p = app.pet;
     return !!p && !p.dead && p.mode !== 'held' && !p.combatMode && !app.melee?.active
       && !app.pomodoro?.active && !app.config.anticsOff && app.doll?.alive
-      && app.crow?.owned && !app.crow.away && !app.crow.leaving;
+      && app.crow?.owned && !app.crow.away && !app.crow.leaving
+      && (this.active !== 'rhythm' || p.activity === 'jam');
   }
 
   finish() {

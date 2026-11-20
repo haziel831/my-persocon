@@ -14,7 +14,10 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
-export const ALBUM_MAX = 12;
+export const ALBUM_MAX = 20;
+export const ALBUM_MAX_UP = 50;
+// The album cap depends on whether the instant camera was upgraded.
+export const albumMax = (game) => (game?.toys?.camera?.up ? ALBUM_MAX_UP : ALBUM_MAX);
 
 // ---------- pixel art ----------
 const CUBE = ['#e23c3c', '#3c6be0', '#ffd23f', '#5fd36a', '#ff8a3d', '#f4f1ea'];
@@ -205,7 +208,7 @@ export const FUN_ITEMS = [
   item('aquario', 'mobilia', 'Aquário', 420, 'aquario', { furn: true, noWear: true, gain: { mood: 0.3 }, note: 'Ela alimenta os peixes · sem comida por muito tempo a água fica turva e ela fica triste · clique para pedir que ela alimente' }),
   item('teclado', 'mobilia', 'Teclado musical', 350, 'teclado', { furn: true, gain: { mood: 0.45 }, note: 'Ela toca melodias 8-bit com a voz dela · clique nas teclas para tocar você também' }),
   item('pula_pula', 'mobilia', 'Pula-pula', 380, 'pula_pula', { furn: true, gain: { mood: 0.5, energy: -0.14, hunger: -0.05, thirst: -0.08 }, note: 'Pulos altos: às vezes alcança o topo de uma janela e fica lá em cima · clique para ela pular' }),
-  item('camera', 'fun', 'Câmera instantânea', 300, 'camera', { baggable: true, gain: { mood: 0.35 }, note: `Ela tira fotos da cena, que vão para o Álbum (Perfil) · até ${ALBUM_MAX} fotos` }),
+  item('camera', 'fun', 'Câmera instantânea', 300, 'camera', { baggable: true, gain: { mood: 0.35 }, note: `Ela tira fotos da cena, que vão para o Álbum (Perfil) · até ${ALBUM_MAX} fotos (${ALBUM_MAX_UP} com a Câmera Pro)` }),
   item('bolhas', 'fun', 'Bolhas de Sabão', 120, 'bolhas', { baggable: true, gain: { mood: 0.45 }, note: 'Ela segura a varinha e sopra bolhas · clique nas bolhas para estourar e ela aplaude' }),
   item('aviao', 'fun', 'Aviãozinho de Papel', 100, 'aviao', { baggable: true, gain: { mood: 0.42 }, note: 'Ela dobra e lança o avião pelas janelas · o Corvo pode interceptá-lo no ar' }),
   item('desenho', 'fun', 'Caderno de Desenho', 160, 'desenho', { baggable: true, gain: { mood: 0.4 }, note: 'Ela rabisca mini desenhos pixel art e salva no Álbum (Perfil) · também aparece no Mural' }),
@@ -431,7 +434,7 @@ export class FunToys {
       case 'bambole': return `Bambolê · recorde ${d.hoopBest ? `${d.hoopBest}s` : '—'} · arraste para mover · botão direito para opções`;
       case 'cubo': return `Cubo mágico · recorde ${d.cubeBest ? `${d.cubeBest}s` : '—'} · arraste para mover · botão direito para opções`;
       case 'skate': return this.bandaged() ? 'Skate · ela está com curativo: espera sarar para andar de novo' : null;
-      case 'camera': return `Câmera instantânea · Álbum ${(d.photos || []).length}/${ALBUM_MAX} (Perfil) · arraste para mover · botão direito para opções`;
+      case 'camera': return `Câmera instantânea · Álbum ${(d.photos || []).length}/${albumMax(this.app.game)} (Perfil) · arraste para mover · botão direito para opções`;
       case 'tamagotchi': {
         const m = this.tama();
         return `Tamapet · fome ${Math.round(m.hunger)}% · humor ${Math.round(m.mood)}% · arraste para mover · botão direito para opções`;
@@ -475,7 +478,7 @@ export class FunToys {
     if (id === 'teclado' && this.app.game.toys.teclado?.up) this.synthMenu(btn, el);
     if (id === 'pula_pula') btn('🤸 Pedir para ela pular', () => this.ask(id));
     if (id === 'camera') {
-      info(`📷 Álbum: ${(d.photos || []).length}/${ALBUM_MAX}`);
+      info(`📷 Álbum: ${(d.photos || []).length}/${albumMax(this.app.game)}`);
       btn('📷 Pedir uma foto', () => this.ask(id));
       btn('🖼 Abrir o Álbum', () => {
         this.app.albumTab = true;
@@ -814,7 +817,7 @@ export class FunToys {
     const src = this.makeDrawing();
     const photos = (this.data.photos ||= []);
     photos.push({ src, at: Date.now() });
-    while (photos.length > ALBUM_MAX) photos.shift();
+    while (photos.length > albumMax(this.app.game)) photos.shift();
     this.app.game.changed();
     this.app.sound.sfx?.('ok', 0.6);
     pet.adjust?.({ mood: 6, affection: 1 }, 'desenho');
@@ -2392,7 +2395,7 @@ export class FunToys {
     const d = this.data;
     const photos = (d.photos ||= []);
     photos.push({ src, at: Date.now() });
-    while (photos.length > ALBUM_MAX) photos.shift();
+    while (photos.length > albumMax(this.app.game)) photos.shift();
     this.app.game.changed();
     const h = this.hand();
     const card = document.createElement('div');

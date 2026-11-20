@@ -57,6 +57,7 @@ export class Weather {
       size: rand(2, 5),
       phase: rand(0, Math.PI * 2),
       sway: rand(0.4, 1.4),
+      color: pick(['rgba(255,183,213,0.85)', 'rgba(255,214,232,0.8)', 'rgba(255,158,200,0.8)']),
     };
     if (this.mode === 'chuva') { p.vx = rand(-40, -15); p.vy = rand(280, 460); p.size = rand(8, 16); }
     else if (this.mode === 'neve') { p.vx = rand(-12, 12); p.vy = rand(18, 42); }
@@ -73,7 +74,15 @@ export class Weather {
       p.phase += dt * p.sway;
       p.x += (p.vx + Math.sin(p.phase) * (this.mode === 'neve' || this.mode === 'sakura' ? 14 : 4)) * dt;
       p.y += p.vy * dt;
-      if (p.y > H + 20 || p.x < -30 || p.x > W + 30) Object.assign(p, this.spawn(W, H));
+      if (this.mode === 'vagalumes') {
+        // Fireflies drift in every direction: wrap them around the edges instead of losing them.
+        if (p.x < -10) p.x = W + 10;
+        else if (p.x > W + 10) p.x = -10;
+        if (p.y < -10) p.y = H + 10;
+        else if (p.y > H + 10) p.y = -10;
+      } else if (p.y > H + 20 || p.x < -30 || p.x > W + 30) {
+        Object.assign(p, this.spawn(W, H));
+      }
       if (this.mode === 'chuva') {
         g.strokeStyle = 'rgba(150,195,255,0.35)';
         g.lineWidth = 1;
@@ -85,7 +94,7 @@ export class Weather {
         g.fillStyle = 'rgba(255,255,255,0.8)';
         g.beginPath(); g.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2); g.fill();
       } else if (this.mode === 'sakura') {
-        g.fillStyle = pick(['rgba(255,183,213,0.85)', 'rgba(255,214,232,0.8)', 'rgba(255,158,200,0.8)']);
+        g.fillStyle = p.color;
         g.fillRect(p.x, p.y, p.size, p.size * 0.7);
       } else {
         const glow = 0.35 + 0.35 * Math.sin(t * 2.4 + p.phase);

@@ -362,9 +362,13 @@ export class Unknown {
 
   // ---------- a erupção da TV ----------
 
-  // Quantos Grim entram na horda: `blackEnemy` ('slime' | 'grim' | 'mixed') manda.
-  // No misto entra sempre pelo menos 1 Grim (mais nas ondas altas), sempre deixando uma gosma.
+  // Até o Cristal Negro ser conquistado, o cartucho preto só solta gosmas — nunca Grim.
+  hasCrystal() {
+    return (this.app.game?.inventory?.cristal_negro || 0) > 0;
+  }
+
   grimCount(count) {
+    if (!this.hasCrystal()) return 0;
     const pref = this.app.game?.profile?.blackEnemy || 'mixed';
     if (pref === 'grim') return count;
     if (pref === 'slime') return 0;
@@ -388,7 +392,7 @@ export class Unknown {
     // A vida dos inimigos comuns é reduzida pela metade; no modo misto entram sempre 2+
     // (senão a onda 1, que tem 1 inimigo só, não teria como misturar gosma e Grim).
     const pref = app.game?.profile?.blackEnemy || 'mixed';
-    const total = pref === 'mixed' ? Math.max(2, plan.count) : plan.count;
+    const total = this.hasCrystal() && pref === 'mixed' ? Math.max(2, plan.count) : plan.count;
     const grimN = this.grimCount(total);
     for (let i = 0; i < total; i++) {
       const hp = Math.round(plan.hp * (0.9 + Math.random() * 0.25) * 0.5);

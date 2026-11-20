@@ -14,7 +14,8 @@ const ease = (v) => v * v * (3 - 2 * v);
 const today = () => new Date().toDateString();
 
 // Minimum gap (s) between two of each kind; up to 50% more is added at random.
-const GAP = { attention: 1800, steal: 1800, perch: 900, sound: 420, kick: 1080, bin: 1500, nudge: 1500 };
+// Kept in the 2–5 min range so the interactions are actually visible in a short session.
+const GAP = { attention: 180, steal: 200, perch: 150, sound: 120, kick: 180, bin: 240, nudge: 210 };
 // Player actions that count as paying attention to her.
 const TOUCH = new Set(['pet', 'grab', 'slap', 'chaseStart', 'bought', 'requestDone']);
 export const IX_NAMES = [
@@ -34,14 +35,14 @@ export class Interactions {
   constructor(app) {
     this.app = app;
     this.clock = 0;
-    // Nothing right after starting.
-    this.next = Object.fromEntries(Object.keys(GAP).map((k) => [k, rand(180, 480)]));
-    this.next.steal = rand(600, 1200);
+    // First chances show up a few dozen seconds after launch, not tens of minutes later.
+    this.next = Object.fromEntries(Object.keys(GAP).map((k) => [k, rand(30, 90)]));
+    this.next.steal = rand(45, 100);
     this.next.attention = 0;
-    this.wait = rand(60, 120);
+    this.wait = rand(35, 70);
     this.touchAt = 0;
     // First approach a bit sooner after launch; later gaps are set in tryAttention.
-    this.attentionAfter = rand(360, 600);
+    this.attentionAfter = rand(120, 240);
     this.session = 0;
     this.awayT = 0;
     this.pauseAt = rand(3600, 7200);
@@ -93,9 +94,9 @@ export class Interactions {
     const { pet, minigames, antics, desktopGames } = this.app;
     return !pet.dead && !pet.paused && !pet.leaving && !pet.chase && !pet.activity && !pet.toyPlay && !pet.hook && !pet.eating && !pet.meals.length
       && !pet.ballPlay && !pet.mini && !minigames?.active && !antics?.cur && !desktopGames?.task && !desktopGames?.bubble
-      && !this.cur && !this.task && !this.pending && pet.mode === 'ground' && ['walk', 'idle', 'sit', 'emote'].includes(pet.action)
+      && !this.cur && !this.task && !this.pending && pet.mode === 'ground' && ['walk', 'idle', 'sit', 'emote', 'run'].includes(pet.action)
       && !pet.combatMode
-      && (debug || (!this.app.uiOpen?.() && pet.stats.energy > 15));
+      && (debug || (!this.app.uiOpen?.() && pet.stats.energy > 10));
   }
 
   touched() {
@@ -213,7 +214,7 @@ export class Interactions {
     // Present at the PC (not AFK); typing without mouse still counts as present.
     if (this.clock - this.touchAt < this.attentionAfter || !w || w.away) return false;
     this.next.attention = this.clock + GAP.attention * rand(1, 1.5);
-    this.attentionAfter = rand(480, 900);
+    this.attentionAfter = rand(240, 420);
     return this.attention();
   }
 

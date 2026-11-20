@@ -262,6 +262,15 @@ const SKIN = '#f6cfa6';
 const SKIN_D = '#dca57a';
 
 const DEFS = {
+  // Upgraded instant camera: chrome body, neon stripe and a bigger lens.
+  camera_up: () => sprite(14, 12, ({ rect, circle, px }) => {
+    rect(11, 0, 2, 2, '#ff3ea5');
+    rect(0, 2, 14, 10, '#2c2048'); rect(0, 2, 14, 1, '#5ef0ff');
+    rect(0, 8, 14, 4, '#7a3cff'); rect(2, 10, 10, 1, '#120c24');
+    circle(7, 6, 3, '#5ef0ff'); circle(7, 6, 2, '#120c24'); circle(7, 6, 1, '#ffd23f');
+    rect(1, 3, 3, 2, '#ff3ea5'); rect(10, 3, 3, 2, '#5ef0ff');
+    px(3, 6, '#ffffff'); px(4, 4, '#ffffff');
+  }),
   // Tiny pixel umbrella used during light rain (no emoji, no external art).
   umbrella: () => sprite(30, 16, ({ rect, px }) => {
     rect(2, 5, 26, 2, '#8a5a2b'); rect(4, 3, 22, 2, '#8a5a2b');

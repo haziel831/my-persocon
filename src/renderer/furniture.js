@@ -5,7 +5,8 @@ import { GACHA_PRICE, figureById, paintFigure } from './casinoitems.js';
 import { upIcon, upSize, ARCADE_SCREEN } from './upgrades.js';
 import { ArcadeShooter } from './arcadeshooter.js';
 import { crtFilter, GAMES } from './games.js';
-import { ATTR_XP } from './attrxp.js';
+import { ATTR_XP, MANGA_RARITY_XP } from './attrxp.js';
+import { RARITIES } from './lootitems.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -143,7 +144,12 @@ const TITLES = {
   comedia: ['Gato Chefe', 'Clube dos Preguiçosos', 'Meu Vizinho Ninja', 'Desastre na Cozinha', 'Escola dos Malucos', 'Robô Atrapalhado', 'Férias Caóticas', 'O Herói Desajeitado', 'Pizza Lendária', 'Tio Samurai'],
 };
 const hsl = (h, s, l) => `hsl(${h}, ${s}%, ${l}%)`;
-export const MANGAS = Object.entries(TITLES).flatMap(([genre, list]) => list.map((title, i) => ({ id: `manga_${genre}_${i}`, genre, title, vol: 1 + (i % 3), hue: (i * 37 + genre.length * 50) % 360 })));
+// Fixed rarity per position (0–9): every genre gets the same spread, so saves stay deterministic.
+const MANGA_RARITIES = ['comum', 'comum', 'incomum', 'comum', 'raro', 'incomum', 'comum', 'epico', 'incomum', 'lendario'];
+export const MANGAS = Object.entries(TITLES).flatMap(([genre, list]) => list.map((title, i) => ({
+  id: `manga_${genre}_${i}`, genre, title, vol: 1 + (i % 3), hue: (i * 37 + genre.length * 50) % 360,
+  rarity: MANGA_RARITIES[i],
+})));
 // Capas reais recortadas de Assets/mangas.jfif (40 capas, 10 por gênero, ordem de MANGAS).
 const mangaCover = (idx) => new URL(`./assets/mangas/manga_${String(idx).padStart(2, '0')}.png`, import.meta.url).href;
 export function mangaIcon(m) {
@@ -218,7 +224,7 @@ export const FURN = {
   estante_cartuchos: { size: 0.6, ratio: 118 / 97, back: true },
   alvo: { size: 0.4, ratio: 26 / 22, back: true },
   escrivaninha: { size: 0.62, ratio: 28 / 28, back: true },
-  cafeteira: { size: 0.42, ratio: 24 / 28, back: true },
+  cafeteira: { size: 0.68, ratio: 28 / 24, back: true },
   mural: { size: 0.7, ratio: 22 / 30, back: true },
   globo: { size: 0.16, ratio: 18 / 14, disco: true },
   holofote: { size: 0.2, ratio: 16 / 14, disco: true },
@@ -310,7 +316,7 @@ export const FURN_ITEMS = [
   item('bola_queimada', 'fun', 'Bola de queimada', 70, 'dodgeball', { baggable: true, weapon: 'queimada', gain: { mood: 0.35, energy: -0.1, hunger: -0.04, thirst: -0.07 }, note: 'Arremessos fortes · arma com níveis de arremesso' }),
   ...MANGAS.map((m) => ({
     id: m.id, cat: 'mangas', manga: m, name: `${m.title} vol. ${m.vol}`, price: 25 + m.vol * 10, effects: {},
-    note: `${MANGA_GENRES[m.genre].label} · vai para a Estante`,
+    note: `${MANGA_GENRES[m.genre].label} · ${RARITIES[m.rarity].label} · vai para a Estante`,
     get img() { return mangaIcon(m); },
   })),
 ];
@@ -378,14 +384,29 @@ const paintBrewer = ({ rect, px }, up, brew) => {
     });
   }
 };
+// Mural frames: five distinct looks, each in landscape and portrait.
+export const MURAL_FRAMES = {
+  cortica: { outer: '#8a5a2b', inner: '#c8a06a', board: '#e8dfc0', edge: '#cfc4a0', accent: '#d33c3c' },
+  madeira: { outer: '#5a3818', inner: '#a87e48', board: '#f6efd8', edge: '#d8c49a', accent: '#3c6be0' },
+  neon: { outer: '#120c24', inner: '#7a3cff', board: '#1a1030', edge: '#5ef0ff', accent: '#ff3ea5' },
+  dourada: { outer: '#8a6a1a', inner: '#ffd23f', board: '#fff8d8', edge: '#e8c84a', accent: '#e2475a' },
+  escura: { outer: '#1a1a22', inner: '#3a3a48', board: '#25252e', edge: '#5a5a6a', accent: '#ffd23f' },
+};
+const paintMural = ({ rect, px }, f, vertical) => {
+  const W = vertical ? 22 : 30;
+  const H = vertical ? 30 : 22;
+  rect(0, 0, W, H, f.outer); rect(1, 1, W - 2, H - 2, f.inner);
+  rect(3, 3, W - 6, H - 6, f.board);
+  rect(4, 4, W - 8, 1, f.edge); rect(4, H - 5, W - 8, 1, f.edge);
+  px(Math.floor(W / 2), 1, f.accent); px(Math.floor(W / 2), H - 2, f.accent);
+  px(1, Math.floor(H / 2), f.accent); px(W - 2, Math.floor(H / 2), f.accent);
+};
 defineIcons({
-  mural: (sprite) => sprite(30, 22, ({ rect, px }) => {
-    rect(0, 0, 30, 22, '#8a5a2b'); rect(1, 1, 28, 20, '#c8a06a');
-    for (let i = 0; i < 30; i += 3) px(i, 2, '#a87e48');
-    rect(3, 4, 24, 14, '#e8dfc0'); rect(4, 5, 22, 12, '#f6efd8');
-    rect(4, 5, 22, 1, '#ffffff'); rect(4, 17, 22, 1, '#cfc4a0');
-    px(14, 1, '#d33c3c'); px(15, 1, '#e2475a'); px(14, 20, '#d33c3c');
-  }),
+  mural: (sprite) => sprite(30, 22, (p) => paintMural(p, MURAL_FRAMES.cortica, false)),
+  ...Object.fromEntries(Object.entries(MURAL_FRAMES).flatMap(([key, f]) => [
+    [`mural_${key}`, (sprite) => sprite(30, 22, (p) => paintMural(p, f, false))],
+    [`mural_${key}_v`, (sprite) => sprite(22, 30, (p) => paintMural(p, f, true))],
+  ])),
   cafeteira: (sprite) => sprite(24, 28, (p) => paintBrewer(p, false, false)),
   cafeteira_brew: (sprite) => sprite(24, 28, (p) => paintBrewer(p, false, true)),
   cafeteira_up: (sprite) => sprite(24, 28, (p) => paintBrewer(p, true, false)),
@@ -402,13 +423,15 @@ const coffeeDrink = (id, name, price, effects, extra = {}) => ({
 });
 
 export const COFFEE_ITEMS = [
-  coffeeDrink('cha_quente', 'Chá', 12, { energy: 8, mood: 2 }),
-  coffeeDrink('cafe_forte', 'Café', 18, { energy: 16, mood: 2 }),
-  coffeeDrink('voltmint', 'VoltMint', 38, { energy: 26, mood: 3 }, { energyDrink: true, buff: ['noTired', 180] }),
-  coffeeDrink('neoberry_surge', 'NeoBerry Surge', 46, { energy: 22, mood: 10 }, { energyDrink: true, buff: ['doubleMood', 180] }),
-  coffeeDrink('solaris_zero', 'Solaris Zero', 54, { energy: 24, mood: 4 }, { energyDrink: true, buff: ['noTired', 300] }),
-  coffeeDrink('cybermatcha_rush', 'CyberMatcha Rush', 68, { energy: 28, mood: 6 }, { energyDrink: true, attrXp: { int: 4, con: 2 } }),
-  coffeeDrink('hyperyuzu', 'HyperYuzu', 82, { energy: 36, mood: 8 }, { energyDrink: true, buff: ['shield', 180] }),
+  // Base machine: short, gentle buffs (2.5 min).
+  coffeeDrink('cha_quente', 'Chá', 12, { energy: 8, mood: 2 }, { buffs: [['doubleMood', 150]] }),
+  coffeeDrink('cafe_forte', 'Café', 18, { energy: 16, mood: 2 }, { buffs: [['noTired', 150]] }),
+  // Upgraded machine: exclusive, stronger and longer (5–8 min), one personality per flavour.
+  coffeeDrink('voltmint', 'VoltMint', 38, { energy: 26, mood: 3 }, { energyDrink: true, buffs: [['noTired', 360], ['swift', 360]] }),
+  coffeeDrink('neoberry_surge', 'NeoBerry Surge', 46, { energy: 22, mood: 10 }, { energyDrink: true, buffs: [['doubleMood', 420], ['shield', 300]] }),
+  coffeeDrink('solaris_zero', 'Solaris Zero', 54, { energy: 24, mood: 4 }, { energyDrink: true, buffs: [['noTired', 480], ['luck', 480]] }),
+  coffeeDrink('cybermatcha_rush', 'CyberMatcha Rush', 68, { energy: 28, mood: 6 }, { energyDrink: true, buffs: [['smart', 420], ['noTired', 360]], attrXp: { int: 4, con: 2 } }),
+  coffeeDrink('hyperyuzu', 'HyperYuzu', 82, { energy: 36, mood: 8 }, { energyDrink: true, buffs: [['noTired', 480], ['doubleMood', 480], ['shield', 360]] }),
 ];
 
 defineIcons(Object.fromEntries(COFFEE_ITEMS.map((it) => [it.pix, (sprite) => sprite(12, 16, ({ rect, px }) => {
@@ -875,8 +898,9 @@ export class Furniture {
         }
       },
     });
-    // Reading also trains Inteligência (never coins — XP only).
-    this.app.game.attrAdd?.('int', ATTR_XP.int.manga, 'Mangá');
+    // Reading trains Inteligência: rarer volumes teach more (never coins — XP only).
+    const xp = Math.max(1, Math.round(ATTR_XP.int.manga * (MANGA_RARITY_XP[m.rarity] || 1)));
+    this.app.game.attrAdd?.('int', xp, 'Mangá');
     pet.emit('readManga', { manga: m });
     return true;
   }

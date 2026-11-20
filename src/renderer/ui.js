@@ -1,5 +1,5 @@
 import { PetView } from './view.js';
-import { SHOP_CATEGORIES, ITEMS, STAT_LABELS, BUFF_LABELS, BUFF_ICONS, ATTRS, INFINITE_MONEY, effectText, isEdible, isConsumable, isSellable, sellPrice, isPowerUp, hasTaste, itemById, HER_BAG } from './game.js';
+import { SHOP_CATEGORIES, ITEMS, STAT_LABELS, BUFF_LABELS, BUFF_ICONS, ATTRS, INFINITE_MONEY, effectText, isEdible, isConsumable, isSellable, isEternal, sellPrice, isPowerUp, hasTaste, itemById, HER_BAG } from './game.js';
 import { SKILL_DEFS, COMBAT_ARTS, skillLevel, skillMoves, skillStarted, skillXpFor } from './skills.js';
 import { SWORD_MOVES } from './swordanims.js';
 import { MANEUVERS } from './melee.js';
@@ -7,7 +7,7 @@ import { GAMES } from './games.js';
 import { FILTERS } from './filters.js';
 import { AFFECTION_MAX, FULL_STATS } from './behavior.js';
 import { SOUND_THEMES } from './sound.js';
-import { RP_PARTS, readModel } from './skins.js';
+import { RP_PARTS, readModel, applyChromaKey } from './skins.js';
 import { icon, cartSheetStyle } from './pixel.js';
 import { baseId, FURN } from './furniture.js';
 import { luckOf, FIGURES, GACHA_PRICE } from './casinoitems.js';
@@ -21,10 +21,11 @@ import { IX_NAMES } from './interact.js';
 import { COMBAT_ANIM_NAMES, COMBAT_META } from './combat.js';
 import { CHANGES } from './changelog.js';
 import { REMINDER_SOUNDS } from './closeup.js';
-import { ALBUM_MAX } from './funtoys.js';
+import { albumMax } from './funtoys.js';
 import { logInfo, recentLog } from './logger.js';
 import { attrProgress as attrProg } from './attrxp.js';
 import { DEFAULT_OPTS, PERSONALITY_PRESETS, THEMES, normText, itemFlags, makeCatalogTools, applyCatalogFilter } from './catalog.js';
+import { translate } from './i18n.js';
 
 // Compatibilidade: outros módulos ainda importam estes de ui.js.
 export { DEFAULT_OPTS, PERSONALITY_PRESETS, THEMES };
@@ -261,6 +262,14 @@ export class Menu {
         if (e.button === 2 || (e.button === 0 && e.target.closest('.menu-head') && !e.target.closest('button'))) this.startDrag(e);
       },
       oncontextmenu: (e) => e.preventDefault(),
+      ondragover: (e) => {
+        e.preventDefault();
+        this.el.classList.add('file-over');
+      },
+      ondragleave: (e) => {
+        if (!this.el.contains(e.relatedTarget)) this.el.classList.remove('file-over');
+      },
+      ondrop: (e) => this.onMenuFileDrop(e),
     });
     wireSounds(this.el, this.app.sound);
     this.backdrop.append(this.el);
@@ -404,7 +413,9 @@ export class Menu {
     this.applySize();
     const { app } = this;
     const view = `${this.category}/${this.shopCat}/${this.invCat}`;
-    const scrolls = view === this.lastView ? [...this.el.querySelectorAll('.panel, .panel *')].filter((e) => e.scrollTop).map((e) => [e.className, e.scrollTop]) : [];
+    // Preserve scroll positions and expanded groups across re-renders of the same panel.
+    const scrollNodes = view === this.lastView ? [...this.el.querySelectorAll('.panel, .panel *')] : [];
+    const scrolls = scrollNodes.map((e, i) => [i, e.scrollTop]).filter(([, top]) => top > 0);
     this.lastView = view;
     this.el.replaceChildren(
       h('div.menu-head', {},
@@ -437,9 +448,9 @@ export class Menu {
         h('button.link', { onclick: () => app.quit() }, 'Sair')),
     );
     this.fold(this.el.querySelector('.panel'));
-    for (const [cls, top] of scrolls) {
-      const el = [...this.el.querySelectorAll('.panel, .panel *')].find((e) => e.className === cls);
-      if (el) el.scrollTop = top;
+    const afterNodes = [...this.el.querySelectorAll('.panel, .panel *')];
+    for (const [i, top] of scrolls) {
+      if (afterNodes[i]) afterNodes[i].scrollTop = top;
     }
     if (this.anchor) this.place();
     this.applyFlash();
@@ -488,8 +499,55 @@ export class Menu {
     }
   }
 
-  tile(icon, label, hint, onclick, { disabled = false, active = false } = {}) {
-    return h(`button.tile${active ? '.active' : ''}`, { onclick, disabled }, h('span.icon', {}, icon), h('span.label', {}, label), hint && h('span.hint', {}, hint));
+  tile(icon, label, hint, onclick, { disabled = false, active = false, cls = '' } = {}) {
+    return h(`button.tile${active ? '.active' : ''}${cls ? `.${cls}` : ''}`, { onclick, disabled }, h('span.icon', {}, icon), h('span.label', {}, label), hint && h('span.hint', {}, hint));
+  }
+
+  // Accepts a real file dropped on the menu (click-through is off while it is open).
+  onMenuFileDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.el.classList.remove('file-over');
+    const files = [...(e.dataTransfer?.files || [])];
+    if (files.length) files.forEach((f) => this.handleDroppedFile(f));
+  }
+
+  handleDroppedFile(file) {
+    const name = file.name || '';
+    if (/\.(png|jpe?g|webp|gif)$/i.test(name)) {
+      const r = new FileReader();
+      r.onload = () => {
+        Promise.resolve(this.app.toys?.addMuralImage?.(String(r.result))).then((ok) => {
+          this.fileNote = ok ? translate('Imagem adicionada ao Mural') : translate('Sem Mural colocado — abra o editor de mobília');
+          if (!ok) this.app.openObjects?.();
+          this.app.sound?.play(ok ? 'ok' : 'cancel', { volume: 0.4 });
+          this.render();
+        });
+      };
+      r.readAsDataURL(file);
+      return;
+    }
+    if (file.path) this.app.handleDropPath?.(file.path);
+    else {
+      this.fileNote = translate('Solte o arquivo na janela ou use o botão para escolher.');
+      this.render();
+    }
+  }
+
+  async pickDropFile() {
+    const path = await window.petAPI?.pickFile?.(translate('Soltar ou escolher arquivo'), translate('Arquivo'),
+      ['mid', 'midi', 'vrm', 'glb', 'zip', 'png', 'jpg', 'jpeg', 'webp', 'gif']);
+    if (!path) return;
+    if (/\.(png|jpe?g|webp|gif)$/i.test(path)) {
+      const ok = await this.app.toys?.addMuralImagePath?.(path);
+      this.fileNote = ok ? translate('Imagem adicionada ao Mural') : translate('Sem Mural colocado — abra o editor de mobília');
+      if (!ok) this.app.openObjects?.();
+      this.app.sound?.play(ok ? 'ok' : 'cancel', { volume: 0.4 });
+    } else {
+      this.app.handleDropPath?.(path);
+      this.fileNote = translate('Arquivo aberto');
+    }
+    this.render();
   }
 
   acoes() {
@@ -503,7 +561,8 @@ export class Menu {
     if (this.giving) return this.walletPanel();
     if (this.reminding) return this.remindersPanel();
     const alarms = (app.config.reminders || []).filter((r) => r.on).length;
-    return h('div.grid', {},
+    return h('div', {}, h('div.grid', {},
+      this.tile('📥', 'Soltar ou escolher arquivo', 'MIDI / Modelo / Skin / Imagem · arraste para o menu', () => this.pickDropFile()),
       this.tile('👛', 'Carteira dela', `¥ ${app.game.profile.wallet || 0} na carteira · dar moedas`, () => { this.giving = true; this.render(); }, { disabled: dead }),
       this.tile('⏰', 'Lembretes e alarmes', alarms ? `${alarms} ativo(s) · ela vem bater na tela` : 'Ela vem bater na tela para lembrar', () => { this.reminding = true; this.render(); }, { disabled: dead }),
       this.tile('🤚', 'Cafuné', 'Segure e esfregue o cursor na Persocon · incentiva o que ela faz', () => { this.done(); this.app.setHand('pat'); }, { disabled: dead }),
@@ -512,7 +571,7 @@ export class Menu {
         () => { if (pet.putToSleep()) this.done(); }, { disabled: dead || pet.action === 'sleep' || pet.stats.energy > 70 }),
       this.tile('🛁', 'Dar banho', `Higiene ${Math.round(pet.stats.hygiene)}% · espuma e bolhas`, () => { this.done(); setTimeout(() => app.care.bath(), 80); }, { disabled: dead || pet.toyPlay?.id === 'banho' }),
       this.tile('🛋', 'Editar mobília', placed ? 'Arrastar, girar e espelhar' : 'Coloque algo do Inventário', () => { this.close(); app.editFurniture(); }, { disabled: !placed }),
-    );
+    ), this.fileNote ? h('div.note', {}, this.fileNote) : null);
   }
 
   // The Persocon's own wallet: the player gives coins (Humor and Afeição), she bets them at the machines.
@@ -693,12 +752,12 @@ export class Menu {
     const got = r ? r.achievements().filter((a) => a.done).length : 0;
     const figs = this.app.game.figures || [];
     const photos = this.app.game.profile.fun?.photos || [];
-    const tabs = segmented([['perfil', '👤 Perfil'], ['missoes', `📅 Missões ${done}/3`], ['conquistas', `🏆 Conquistas ${got}/${r?.achievements().length || 0}`], ['colecao', `🧸 Coleção ${figs.length}/${FIGURES.length}`], ['album', `📷 Álbum ${photos.length}/${ALBUM_MAX}`]], tab,
+    const tabs = segmented([['perfil', '👤 Perfil'], ['missoes', `📅 Missões ${done}/3`], ['conquistas', `🏆 Conquistas ${got}/${r?.achievements().length || 0}`], ['colecao', `🧸 Coleção ${figs.length}/${FIGURES.length}`], ['album', `📷 Álbum ${photos.length}/${albumMax(app.game)}`]], tab,
       (id) => { this.perfilTab = id; this.render(); });
     tabs.classList.add('wrap');
     if (tab === 'album') {
       return [tabs,
-        h('div.note', {}, `Fotos tiradas pela Persocon com a Câmera instantânea (até ${ALBUM_MAX}; quando enche, a mais antiga sai). Clique numa foto para ampliar.`),
+        h('div.note', {}, `Fotos tiradas pela Persocon com a Câmera instantânea (até ${albumMax(app.game)}; quando enche, a mais antiga sai). Clique numa foto para ampliar.`),
         photos.length
           ? h('div.album', {}, photos.map((p, i) => [p, i]).reverse().map(([p, i]) => {
             const card = h('div.photo', { title: new Date(p.at).toLocaleString() },
@@ -998,6 +1057,11 @@ export class Menu {
     if (['cartuchos', 'comidas', 'bebidas', 'sobremesas', 'medicina'].includes(this.shopCat)) list.sort((a, b) => (a.price || 0) - (b.price || 0));
     if (DEMO) list.sort((a, b) => demoLocked(a.id) - demoLocked(b.id));
     const price = (item) => (INFINITE_MONEY && item.price ? `¥ ∞` : item.price ? `¥ ${item.price * n}` : 'Grátis');
+    const TRAIN = {
+      boneco_treino: { label: '🏋 Treinar Força', title: 'Mandar ela treinar no Boneco (Força)' },
+      pula_pula: { label: '🤸 Treinar Agilidade', title: 'Mandar ela treinar no pula-pula (Agilidade)' },
+      escrivaninha: { label: '🧠 Treinar Inteligência', title: 'Iniciar uma sessão de foco na escrivaninha', study: true },
+    };
     const body = list.length
       ? h('div.items', {}, list.map((item) =>
           h('div.item', { 'data-item': item.id, 'data-name': normText(item.name), 'data-flags': itemFlags(game, item) },
@@ -1006,18 +1070,19 @@ export class Menu {
               game.pending(item.id) ? h('span.count', {}, game.queued(item.id) ? 'na fila da impressora' : 'impresso, a guardar') : null,
               game.toys[item.id]?.broken ? h('span.count.warn', {}, 'quebrado') : null),
             h('span.item-fx', {}, effectText(item)),
-            item.id === 'boneco_treino' || item.id === 'pula_pula'
-              ? h('button.buy', {
-                  disabled: !(game.toys[item.id]?.placed && !game.toys[item.id]?.broken),
-                  title: game.toys[item.id]?.placed && !game.toys[item.id]?.broken
-                    ? (item.id === 'boneco_treino' ? 'Mandar ela treinar no Boneco (Força)' : 'Mandar ela treinar no pula-pula (Agilidade)')
-                    : 'Compre e coloque na área de trabalho primeiro',
-                  onclick: () => {
-                    this.app.sound?.play?.('blip', { volume: 0.4 });
-                    this.app.toys?.callFurn?.(item.id);
-                  },
-                }, item.id === 'boneco_treino' ? '🏋 Treinar Força' : '🤸 Treinar Agilidade')
-              : null,
+            (TRAIN[item.id] ? (() => {
+              const spec = TRAIN[item.id];
+              const ready = game.toys[item.id]?.placed && !game.toys[item.id]?.broken;
+              return h('button.train-btn', {
+                disabled: !ready,
+                title: ready ? spec.title : 'Compre e coloque na área de trabalho primeiro',
+                onclick: () => {
+                  this.app.sound?.play?.('blip', { volume: 0.4 });
+                  if (spec.study) this.app.pomodoro?.start?.('25/5');
+                  else this.app.toys?.callFurn?.(item.id);
+                },
+              }, spec.label);
+            })() : null),
             demoLocked(item.id)
               ? h('button.buy', { disabled: true }, '🔒 Versão completa')
               : h('button.buy', { onclick: () => { this.flashItem(item.id); game.buy(item.id, n); }, disabled: !game.canBuy(item, n) }, `${price(item)}${n > 1 ? ` (×${n})` : ''}`))))
@@ -1057,8 +1122,8 @@ export class Menu {
       // Buttons L→R: extras → Vender → Usar (Usar is rightmost / first from the right).
       return h('div.item', { 'data-item': item.id, 'data-name': normText(item.name), 'data-flags': itemFlags(game, item) },
         itemIcon(item),
-        h('span.item-name', {}, item.name, h('span.count', {}, `×${count}`), tasteTag(game, item)),
-        h('span.item-fx', {}, effectText(item)),
+        h('span.item-name', {}, item.name, h('span.count', {}, `×${count}`), isEternal(item) ? h('span.count', {}, '🔒') : null, tasteTag(game, item)),
+        h('span.item-fx', {}, effectText(item), isEternal(item) ? ` · ${translate('Protegido: não vende nem sai do inventário')}` : ''),
         HER_BAG && game.canBag?.(item.id) && !item.bagSlots && h('button.buy', {
           onclick: () => {
             if (game.bagStore(item.id)) {
@@ -1177,7 +1242,9 @@ export class Menu {
     const sellNote = canSellAny
       ? h('div.note', {}, '💰 Comidas, bebidas, mobília (várias), PowerUps e prêmios: venda pela metade do valor. Guarde da área de trabalho antes.')
       : null;
-    return [tabs, this.catalogTools('inv'), bagNote, sellQty, sellNote, actions, h('div.items', {}, body)];
+    const protectedNote = owned.some((e) => isEternal(e.item))
+      ? h('div.note', {}, translate('🔒 Cartucho Preto e Cristal Negro ficam no Especial para sempre: não vendem, não descartam e não vão para a bolsa.')) : null;
+    return [tabs, this.catalogTools('inv'), bagNote, protectedNote, sellQty, sellNote, actions, h('div.items', {}, body)];
   }
 
   modelo() {
@@ -1281,12 +1348,27 @@ export class Menu {
         : 'Dicas aparecem nos primeiros dias. Desligue aqui ou no botão "Não mostrar dicas" de cada cartão.'),
       h('div.group', {}, 'Presets de personalidade'),
       h('div.grid', {}, PERSONALITY_PRESETS.map((p) => this.tile(p.icon, p.name, p.desc, () => {
+        // Remember the previous value of every field this preset is about to change.
+        this._prevPresetPatch = Object.fromEntries(Object.keys(p.patch).map((k) => [
+          k, app.config[k] == null ? app.config[k] : JSON.parse(JSON.stringify(app.config[k])),
+        ]));
         app.applyConfigPatch(p.patch);
         app.sound.play('ok');
         this.presetNote = `Predefinição aplicada: ${p.name}`;
         this.render();
-      }))),
-      this.presetNote ? h('div.note', {}, this.presetNote) : null,
+      }, { cls: 'preset' }))),
+      this.presetNote ? h('div.row', {},
+        h('span.note', {}, this.presetNote),
+        this._prevPresetPatch ? h('button.link', {
+          onclick: () => {
+            app.applyConfigPatch(this._prevPresetPatch);
+            this._prevPresetPatch = null;
+            this.presetNote = 'Predefinição desfeita';
+            app.sound.play('cancel', { volume: 0.4 });
+            this.render();
+          },
+        }, translate('Desfazer')) : null,
+      ) : null,
       h('div.group', {}, 'Não Perturbe'),
       toggle({ label: 'Ativar automaticamente', value: c.dndEnabled !== false, onchange: (v) => app.setOption('dndEnabled', v) }),
       h('div.row', {}, h('span.label', {}, 'Apps/janelas'), h('input.text', {
@@ -1314,6 +1396,28 @@ export class Menu {
       toggle({ label: 'Pedir atenção (bater na tela) quando esquecida', value: c.askAttention !== false, onchange: (v) => app.setOption('askAttention', v) }),
       toggle({ label: 'Lembretes de pausa (água/alongar a cada 1-2 h)', value: c.breakReminder !== false, onchange: (v) => app.setOption('breakReminder', v) }),
       h('div.note', {}, 'O Modo foco e o Streamer Mode desligam as interações com o desktop/cursor. Ícones empurrados de verdade voltam ao lugar em segundos.'),
+      (() => {
+        const blocked = [
+          c.streamer && 'Streamer Mode',
+          (c.focus || app.pomodoro?.active) && 'Modo Foco',
+          app.dndActive && 'Não Perturbe',
+          (app.melee?.active || app.pet?.combatMode) && 'Combate',
+        ].filter(Boolean);
+        return blocked.length ? h('div.note.warn', {}, `Bloqueando agora: ${blocked.join(', ')}.`) : null;
+      })(),
+      h('div.group', {}, 'Testar interação'),
+      h('div.grid', {}, [
+        ['steal', 'Roubar cursor'], ['kick', 'Brincar com ícone'],
+        ['perch', 'Sentar na janela'], ['attention', 'Pedir atenção'],
+      ].map(([kind, label]) => h('button', {
+        onclick: () => {
+          this.close();
+          setTimeout(() => {
+            const ok = app.interact?.trigger(kind);
+            app.sound?.play(ok ? 'ok' : 'cancel', { volume: 0.4 });
+          }, 160);
+        },
+      }, label))),
       toggle({ label: 'Clicar através da Persocon e dos objetos', value: !!c.clickThrough, onchange: (v) => app.setOption('clickThrough', v) }),
       h('div.note', {}, 'Com "clicar através", abra o menu pelo ícone da bandeja.'),
       h('div.group', {}, 'Emoticons'),
@@ -2347,8 +2451,7 @@ function hexToRgb(hex) {
 // (O tamanho NÃO é assado: ele é aplicado na hora de desenhar o objeto, para
 //  o tamanho escolhido valer no objeto de verdade, na área de trabalho.)
 export async function bake(frames, rot, flip, transparent = null) {
-  const key = transparent?.on ? transparent.color : null;
-  const tol = transparent?.tolerance ?? 48;
+  const key = transparent?.on ? (transparent.color || 'auto') : null;
   if (!rot && !flip && !key) return frames;
   const out = [];
   for (const src of frames) {
@@ -2365,17 +2468,8 @@ export async function bake(frames, rot, flip, transparent = null) {
     g.rotate((rot * Math.PI) / 180);
     if (flip) g.scale(-1, 1);
     g.drawImage(img, -iw / 2, -ih / 2);
-    // A cor escolhida fica transparente (com a tolerância ao redor).
-    if (key) {
-      const [tr, tg, tb] = hexToRgb(key);
-      const d = g.getImageData(0, 0, c.width, c.height);
-      const px = d.data;
-      for (let i = 0; i < px.length; i += 4) {
-        if (px[i + 3] < 8) continue;
-        if (Math.abs(px[i] - tr) <= tol && Math.abs(px[i + 1] - tg) <= tol && Math.abs(px[i + 2] - tb) <= tol) px[i + 3] = 0;
-      }
-      g.putImageData(d, 0, 0);
-    }
+    // Chroma key: auto/cor escolhida, com opção de limitar ao fundo conectado às bordas.
+    if (key) applyChromaKey(c, { color: key, tol: transparent.tolerance ?? 24, edgeOnly: transparent.edgeOnly !== false });
     out.push(c.toDataURL('image/png'));
   }
   return out;
@@ -2436,14 +2530,27 @@ export class ObjectsDialog extends Dialog {
     return this.app.skins?.art(id, base) || base;
   }
 
-  async pickImage() {
-    const path = await window.petAPI.pickFile('Imagem do objeto', 'Imagem', ['png', 'gif', 'webp', 'apng']);
+  async pickImage(working = false) {
+    const path = await window.petAPI.pickFile(working ? 'Imagem funcionando' : 'Imagem do objeto', 'Imagem', ['png', 'gif', 'webp', 'apng']);
     if (!path) return;
     const data = await window.petAPI.readFileData(path);
     const { decodeAnimated } = await import('./skins.js');
     const anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data).catch(() => null) : null;
+    const decoded = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100] };
     const old = this.app.skins.objects[this.sel] || {};
-    this.draft = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100], rot: 0, flip: false, speed: 1, scale: old.scale || 1, transparent: { color: '#ff00ff', on: false, tolerance: 48 } };
+    if (working && this.draft && this.draft.kind !== '3d') {
+      this.draft.active = decoded;
+      this.draft.mode = 'dual';
+      this.draft.activeSrc = decoded.src;
+    } else {
+      this.draft = {
+        ...decoded, rot: 0, flip: false, speed: 1, scale: old.scale || 1,
+        mode: old.mode === 'dual' ? 'dual' : old.mode === 'firstFrame' && decoded.src.length > 1 ? 'firstFrame' : 'single',
+        active: old.active ? { ...old.active } : null,
+        transparent: { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
+      };
+      this.previewActive = false;
+    }
     this.baked = null;
     this.bakeKey = '';
     this.render();
@@ -2507,7 +2614,18 @@ export class ObjectsDialog extends Dialog {
       }
       : {};
     this.snapshot = null; // aplicado: o objeto na área de trabalho já é o salvo
-    await this.app.skins.setObject(id, { kind: d.kind, frames, delays: d.delays, speed: d.speed || 1, ratio: first.height / first.width, region, hitbox, ...hbPx, scale: d.scale || 1 });
+    await this.app.skins.setObject(id, {
+      kind: d.kind, mode: d.mode || 'single', frames, delays: d.delays, speed: d.speed || 1,
+      ratio: first.height / first.width, region, hitbox, ...hbPx, scale: d.scale || 1,
+      ...(d.mode === 'dual' && d.active?.src?.length ? {
+        active: {
+          kind: d.active.kind,
+          frames: this.baked?.activeFrames?.length ? this.baked.activeFrames : d.active.src,
+          delays: this.baked?.activeDelays || d.active.delays || [100],
+          speed: d.speed || 1,
+        },
+      } : {}),
+    });
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
     this.draft = null;
     this.baked = null;
@@ -2530,7 +2648,8 @@ export class ObjectsDialog extends Dialog {
     const d = this.draft;
     if (!d || d.kind === '3d') { this.baked = null; this.syncLive(); return; }
     const t = d.transparent || {};
-    const key = `${d.rot}|${d.flip}|${t.color}|${t.on}|${t.tolerance}|${d.src.length}`;
+    const activeKey = d.mode === 'dual' && d.active?.src?.length ? `|${d.active.src.length}` : '';
+    const key = `${d.rot}|${d.flip}|${t.color}|${t.on}|${t.tolerance}|${d.src.length}${activeKey}`;
     if (this.bakeKey === key) { this.syncLive(); return; }
     this.bakeKey = key;
     this.syncLive();
@@ -2538,11 +2657,26 @@ export class ObjectsDialog extends Dialog {
     this.bakeT = setTimeout(async () => {
       try {
         const frames = await bake(d.src, d.rot, d.flip, d.transparent);
+        const activeFrames = d.mode === 'dual' && d.active?.src?.length
+          ? await bake(d.active.src, d.rot, d.flip, d.transparent) : null;
         if (this.draft !== d) return;
-        this.baked = { frames, delays: d.delays };
+        this.baked = { frames, delays: d.delays, activeFrames, activeDelays: d.active?.delays };
         this.render();
       } catch { /* a prévia fica com a imagem original */ }
     }, 140);
+  }
+
+  // Frames/delays shown right now (preview toggle for dual-state machines).
+  draftFrames() {
+    const d = this.draft;
+    if (!d) return { frames: null, delays: [100] };
+    const active = this.previewActive && d.mode === 'dual' && d.active?.src?.length;
+    const src = active ? d.active.src : d.src;
+    const baked = active ? this.baked?.activeFrames : this.baked?.frames;
+    return {
+      frames: d.kind === '3d' ? src : (baked?.length ? baked : src) || null,
+      delays: active ? (this.baked?.activeDelays || d.active.delays || [100]) : (d.delays || [100]),
+    };
   }
 
   // O objeto de verdade na área de trabalho acompanha tudo enquanto o diálogo está aberto
@@ -2551,8 +2685,7 @@ export class ObjectsDialog extends Dialog {
     const d = this.draft;
     const toys = this.app.toys;
     if (!d) { toys.livePreview = null; this.liveRatio = null; this.liveSeq = 0; return; }
-    const baked = this.baked?.frames?.length ? this.baked.frames : null;
-    const frames = d.kind === '3d' ? (d.src || null) : (baked || d.src || null);
+    const { frames } = this.draftFrames();
     const first = frames?.[0];
     // A proporção vem do quadro final (o que vale no desktop); recarrega só quando os quadros mudam.
     const ratioKey = first ? `${frames.length}|${first.length}|${this.bakeKey || d.src?.length || 0}` : 'none';
@@ -2572,8 +2705,7 @@ export class ObjectsDialog extends Dialog {
     const d = this.draft;
     const toys = this.app.toys;
     if (!d) { toys.livePreview = null; return; }
-    const baked = this.baked?.frames?.length ? this.baked.frames : null;
-    const frames = d.kind === '3d' ? (d.src || null) : (baked || d.src || null);
+    const { frames, delays } = this.draftFrames();
     toys.livePreview = {
       id: this.sel,
       scale: d.scale || 1,
@@ -2581,7 +2713,8 @@ export class ObjectsDialog extends Dialog {
       flip: false,
       speed: d.speed || 1,
       frames: frames || null,
-      delays: d.delays || [100],
+      delays,
+      mode: 'single', // o preview já mostra o estado escolhido pelo toggle
       ratio: this.liveRatio || null,
     };
   }
@@ -2604,23 +2737,33 @@ export class ObjectsDialog extends Dialog {
     if (x < 0 || y < 0 || x >= c.width || y >= c.height) return;
     const p = g.getImageData(x, y, 1, 1).data;
     const hex = `#${[p[0], p[1], p[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-    const t = d.transparent || (d.transparent = { color: hex, on: true, tolerance: 48 });
+    const t = d.transparent || (d.transparent = { color: hex, on: true, tolerance: 24, edgeOnly: true });
     t.color = hex;
     t.on = true;
     this.render();
     this.refreshBake();
   }
 
-  // A cor de transparência: qual cor some da imagem importada.
+  // Chroma key: remove a flat background from static frames and animated GIFs/APNGs.
   colorControl(d) {
-    const t = d.transparent || (d.transparent = { color: '#ff00ff', on: false, tolerance: 48 });
-    const input = h('input', { type: 'color', value: t.color, oninput: (e) => { t.color = e.target.value; this.refreshBake(); } });
+    const t = d.transparent || (d.transparent = { color: 'auto', on: false, tolerance: 24, edgeOnly: true });
+    const input = h('input', { type: 'color', value: t.color === 'auto' ? '#000000' : t.color, oninput: (e) => { t.color = e.target.value; this.refreshBake(); } });
+    const presets = [
+      ['auto', 'Auto (cantos)'], ['#000000', 'Preto'], ['#ffffff', 'Branco'],
+      ['#00ff00', 'Verde'], ['#ff00ff', 'Magenta'],
+    ].map(([value, label]) => h(`button.chip${t.color === value ? '.active' : ''}`, {
+      onclick: () => { t.color = value; this.render(); this.refreshBake(); },
+    }, translate(label)));
     return h('div.obj-color', {},
-      h('div.row', {}, h('span.label', {}, 'Cor de transparência'), input,
-        h('label.row.toggle', {}, h('span.label', {}, 'Remover'),
+      h('div.row', {}, h('span.label', {}, translate('Remover fundo (Chroma Key)')),
+        h('label.row.toggle', {}, h('span.label', {}, translate('Ativo')),
           h('input', { type: 'checkbox', checked: !!t.on, onchange: (e) => { t.on = e.target.checked; this.refreshBake(); } }), h('span.switch'))),
-      slider({ label: 'Tolerância', min: 0, max: 120, step: 4, value: t.tolerance ?? 48, format: (v) => `${v}`, oninput: (v) => { t.tolerance = v; this.refreshBake(); } }),
-      h('small.muted', {}, 'Clique na prévia para pegar a cor de um pixel (conta-gotas).'));
+      h('div.chips', {}, presets),
+      h('div.row', {}, h('span.label', {}, translate('Cor personalizada')), input),
+      slider({ label: translate('Tolerância'), min: 0, max: 100, step: 1, value: t.tolerance ?? 24, format: (v) => `${v}`, oninput: (v) => { t.tolerance = v; this.refreshBake(); } }),
+      h('label.row.toggle', {}, h('span.label', {}, translate('Apenas bordas (preservar interior)')),
+        h('input', { type: 'checkbox', checked: t.edgeOnly !== false, onchange: (e) => { t.edgeOnly = e.target.checked; this.refreshBake(); } }), h('span.switch')),
+      h('small.muted', {}, translate('Clique na prévia para pegar a cor de um pixel (conta-gotas).')));
   }
 
   // O hitbox atual do objeto: o rascunho (arraste/alças), o do arquivo importado ou o salvo.
@@ -2688,8 +2831,7 @@ export class ObjectsDialog extends Dialog {
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
     // A prévia fica fixa (100%): é a referência estática para o conta-gotas de transparência e o hitbox.
     // O tamanho em edição aparece no objeto de verdade, na área de trabalho.
-    const baked = this.baked?.frames?.length ? this.baked.frames : null;
-    const srcFrames = baked || (d ? d.src : null);
+    const { frames: srcFrames, delays: srcDelays } = this.draftFrames();
     const shown = srcFrames ? srcFrames[0] : this.current(id);
     const previewW = 200;
     const img = h('img.obj-preview', { src: shown || '', draggable: false, style: { width: `${previewW}px` } });
@@ -2705,11 +2847,16 @@ export class ObjectsDialog extends Dialog {
         if (!img.isConnected) return;
         i = (i + 1) % srcFrames.length;
         img.src = srcFrames[i];
-        setTimeout(tick, (d?.delays?.[i] || 100) / (d?.speed || 1));
+        setTimeout(tick, (srcDelays[i] || 100) / (d?.speed || 1));
       };
       setTimeout(tick, 100);
     }
-    const stage = h('div.obj-stage', {}, img);
+    const previewToggle = d && d.mode === 'dual' ? h('div.row', {},
+      h('span.label', {}, translate('Pré-visualizar')),
+      segmented([['idle', translate('Parada')], ['active', translate('Funcionando')]],
+        this.previewActive ? 'active' : 'idle',
+        (v) => { this.previewActive = v === 'active'; this.syncLive(); this.render(); })) : null;
+    const stage = h('div.obj-stage', {}, previewToggle, img);
     // A caixa do hitbox: a parte da imagem que realmente responde ao clique. Com o
     // "Mostrar hitbox" ligado ela aparece na prévia; nos arquivos importados (imagem/GIF)
     // dá para arrastar a caixa e as 4 alças para ajustar.
@@ -2791,6 +2938,15 @@ export class ObjectsDialog extends Dialog {
         slider({ label: 'Inclinação', min: -60, max: 60, step: 5, value: d.tilt, format: (v) => `${v}°`, onchange: (v) => { d.tilt = v; rerender(); } }),
         toggle({ label: 'Girando (animado)', value: d.spin, onchange: (v) => { d.spin = v; rerender(); } }));
     } else if (d) {
+      const modes = [['single', translate('Mesma imagem sempre')]];
+      if (d.src.length > 1) modes.push(['firstFrame', translate('Parada = 1º frame')]);
+      modes.push(['dual', translate('2 imagens (Parada + Funcionando)')]);
+      controls.push(
+        h('div.row', {}, h('span.label', {}, translate('Modo de animação')),
+          segmented(modes, d.mode || 'single', (v) => { d.mode = v; this.previewActive = false; this.syncLive(); this.render(); })),
+        d.mode === 'dual' && !d.active?.src?.length
+          ? h('div.note', {}, translate('Importe a imagem da máquina funcionando para concluir o modo duplo.')) : null,
+      );
       const hbDraft = this.hbCurrent(id, d);
       const hbNow = hbDraft || { x: 0.2, y: 0.2, w: 0.6, h: 0.6 };
       const numRow = (label, key, patchKey) => h('label.row.hb-num', {},
@@ -2835,6 +2991,7 @@ export class ObjectsDialog extends Dialog {
       id === 'videogame' && h('div.note', {}, 'Arraste sobre a imagem para marcar onde fica a tela da TV.'),
       h('div.row', {},
         h('button', { onclick: () => this.pickImage() }, '🖼 Imagem / GIF'),
+        d && d.mode === 'dual' ? h('button', { onclick: () => this.pickImage(true) }, translate('⚡ Imagem funcionando')) : null,
         h('button', { onclick: () => this.pick3d() }, '🧊 Modelo 3D'),
         has && h('button', { onclick: async () => {
           await app.skins.setObject(id, null);

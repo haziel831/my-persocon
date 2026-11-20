@@ -119,7 +119,9 @@ input.text:focus { border-color: var(--accent); }
 }
 .tile .icon { grid-row: span 3; font-size: 19px; text-align: center; color: var(--accent); }
 .tile .label { font-weight: 600; }
-.tile .hint { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .hint { color: var(--muted); font-size: 11px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tile.preset { align-items: start; }
+.tile.preset .hint { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; display: block; }
 .tile.active { border-color: var(--accent); background: var(--accent-soft); }
 .tile.info { background: transparent; border: 1px dashed var(--line); cursor: default; }
 .tile.big { grid-template-columns: 1fr; text-align: center; justify-items: center; padding: 22px 14px; row-gap: 4px; }
@@ -147,6 +149,7 @@ input.text:focus { border-color: var(--accent); }
 .menu > .panel { flex: 1 1 auto; min-height: 110px; }
 .menu.ghost:not(:hover):not(.dragging) { opacity: 0.3; }
 .menu.dragging { cursor: move; }
+.menu.file-over { outline: 2px dashed var(--accent); outline-offset: 3px; background: var(--accent-soft, var(--bg)); }
 .menu-head { cursor: move; }
 @keyframes menu-in { from { opacity: 0; transform: translateY(4px) scale(0.98); } }
 .menu-head { display: grid; grid-template-columns: 36px 1fr; grid-template-rows: auto auto; column-gap: 8px; row-gap: 5px; align-items: center; }
@@ -189,6 +192,7 @@ input.text:focus { border-color: var(--accent); }
 @keyframes konami-toast { 0% { opacity: 0; transform: translate(-50%, -6px); } 12%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .row .seg { flex: 1; }
 .note { color: var(--muted); font-size: 11px; }
+.note.warn { color: #ff9aa5; }
 /* Catálogo: busca e filtros rápidos (a fonte de emoji vem primeiro em toda a pilha). */
 .catalog-tools { display: grid; gap: 6px; margin: 2px 0 8px; }
 .catalog-search {
@@ -224,15 +228,30 @@ body.file-drop #pet { filter: drop-shadow(0 0 10px var(--accent)); }
   from { opacity: 1; transform: translate(0, 0) scale(1); }
   to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
 }
-/* Mural: photo strip + editable sticky note. The frame itself keeps the normal toy behaviour. */
-.mural-board { position: absolute; left: 13%; right: 13%; top: 20%; bottom: 16%; display: flex; flex-direction: column; gap: 4%; pointer-events: none; }
-.mural-photos { display: flex; gap: 2px; flex: 1; min-height: 0; overflow: hidden; }
-.mural-photos img { flex: 1; min-width: 0; object-fit: cover; image-rendering: pixelated; border: 1px solid #8a5a2b; background: #f4f1ea; }
+/* Mural: smart photo grid + compact sticky note. Frame look comes from the selected sprite. */
+.mural-board { position: absolute; left: 13%; right: 13%; top: 18%; bottom: 14%; display: flex; flex-direction: column; gap: 4%; pointer-events: none; }
+.mural-photos { display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 2px; flex: 1; min-height: 0; overflow: hidden; }
+.mural-photos[data-count="2"] { grid-template-columns: 1fr 1fr; }
+.toy.orient-portrait .mural-photos[data-count="2"] { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+.mural-photos[data-count="3"], .mural-photos[data-count="4"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.mural-photos img { width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: cover; image-rendering: pixelated; border: 1px solid rgba(0,0,0,.35); background: #f4f1ea; }
+.mural-photos:empty { border: 1px dashed rgba(120,90,40,.45); background: rgba(255,255,255,.25); }
 .mural-note {
-  pointer-events: auto; font: 10px PxEmoji, system-ui, sans-serif; background: #fff59a; color: #3a2f1a;
-  border: 1px solid #c9a227; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text;
+  pointer-events: auto; font: 10px/1.2 PxEmoji, system-ui, sans-serif; background: #fff59a; color: #3a2f1a;
+  border: 1px solid #c9a227; padding: 2px 4px; cursor: text; overflow: hidden;
+  white-space: normal; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  max-height: 2.5em; flex: none;
 }
 .mural-note.empty { color: #8a7a45; font-style: italic; }
+.toy[data-frame="neon"] { filter: drop-shadow(0 0 6px rgba(94,240,255,.7)); }
+.toy[data-frame="dourada"] { filter: drop-shadow(0 0 3px rgba(255,210,63,.8)); }
+.toy[data-frame="escura"] { filter: brightness(.85) contrast(1.15); }
+.toy.no-note .mural-note { display: none; }
+.mural-picker { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 80; width: min(420px, 90vw); max-height: 80vh; overflow: auto; padding: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.5); font-family: PxEmoji, system-ui, sans-serif; }
+.mural-pick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0; }
+.mural-pick { padding: 2px; border: 2px solid transparent; border-radius: 4px; background: rgba(0,0,0,.2); }
+.mural-pick img { display: block; width: 100%; image-rendering: pixelated; }
+.mural-pick.active { border-color: var(--accent); }
 .mural-edit {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 80;
   display: flex; gap: 6px; padding: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
@@ -263,6 +282,8 @@ button.item:hover { background: var(--panel-hover); }
 .item-fx { grid-column: 2; color: var(--muted); font-size: 11px; }
 .item .buy { grid-column: 3; grid-row: 1 / span 2; padding: 5px 12px; }
 .item .buy ~ .buy { grid-column: 4; margin-left: 6px; }
+/* Training shortcuts live on their own row so the name/description keep the full card width. */
+.item .train-btn { grid-column: 2 / -1; grid-row: 3; justify-self: start; margin-top: 4px; padding: 4px 10px; }
 .empty { display: grid; justify-items: center; gap: 8px; padding: 14px 0; color: var(--muted); text-align: center; }
 .empty .back { justify-self: start; }
 .empty-icon { font-size: 34px; font-family: PxEmoji, sans-serif; }
@@ -396,6 +417,9 @@ body.love-glitch { animation: love-shake 0.7s steps(7); }
 .pat-hand, .bell, .held-toy, .held-sword, .request, .countdown, .toy, .gb-screen, .music-note { position: absolute; left: 0; top: 0; display: none; will-change: transform; }
 .pat-hand, .bell, .held-toy, .held-sword, .countdown, .gb-screen, .music-note, .request { pointer-events: none; }
 .pat-hand img, .bell img, .held-toy img, .held-sword img, .toy img { display: block; width: 100%; height: 100%; object-fit: fill; image-rendering: pixelated; }
+/* Imported machine art must never gain an opaque card behind its transparent pixels. */
+.toy img, .toy canvas, .item-icon img { background: transparent; }
+.obj-color .chips { margin: 4px 0; }
 /* Casco do port�til na m�o: manter propor��o do sprite (n�o esticar). */
 .held-toy img, .held-sword img { height: auto; object-fit: contain; }
 /* Espada equipada: pendurada pela empunhadura (cintura) ou na m�o durante a luta. */
@@ -988,6 +1012,7 @@ button.mini { font-size: 11px; padding: 2px 6px; margin-left: auto; }
 
 /* ---- furniture, doll, minigames ---- */
 .toy.back { z-index: -1; }
+.toy.front { z-index: 8; }
 .laser-scan { position: fixed; pointer-events: none; z-index: 6; overflow: hidden; }
 .laser-scan::before, .laser-scan::after { content: ''; position: absolute; left: -4%; right: -4%; height: 2px; border-radius: 2px; }
 .laser-scan::before { background: #5ef0ff; box-shadow: 0 0 6px 2px #5ef0ff, 0 0 14px 4px rgba(94,240,255,0.5); animation: laserSweep 1.2s ease-in-out forwards; }
@@ -1220,6 +1245,13 @@ body.app-hidden .bag-dock { opacity: 1; }
 .sd-row b { display: block; height: 100%; }
 .sd-row:has(em) { grid-template-columns: calc(16px * var(--k)) 1fr auto; }
 .sd-row em { font-style: normal; font-size: 0.85em; opacity: 0.85; }
+.sd-focus {
+  margin-top: 6px; padding: 4px 6px; text-align: center; border-radius: 7px;
+  font: 600 calc(12px * var(--k, 1)) PxEmoji, system-ui, sans-serif;
+  color: #fff4c8; background: linear-gradient(90deg, rgba(122, 60, 255, 0.85), rgba(255, 62, 165, 0.8));
+  border: 1px solid rgba(94, 240, 255, 0.75); letter-spacing: 0.5px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 8px rgba(122, 60, 255, 0.35);
+}
 .sd-buffs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .sd-buffs span { padding: 0 4px; border-radius: 6px; background: rgba(255, 210, 63, 0.18); border: 1px solid rgba(255, 210, 63, 0.5); font-size: 0.9em; white-space: nowrap; }
 .sd-debuffs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }

@@ -26,6 +26,63 @@ export const RP_PARTS = [
   ['janelas', 'Janelas (tema)'], ['itens', 'Itens e comidas'], ['sons', 'Sons'], ['musicas', 'Músicas'], ['mobilia', 'Mobília e bolsas'],
 ];
 
+// Pure chroma key for imported object art. `edgeOnly` flood-fills from the borders so interior
+// pixels of the same colour (machine outlines, dark screens) are preserved.
+export function applyChromaKey(canvas, { color = 'auto', tol = 24, edgeOnly = true } = {}) {
+  const g = canvas?.getContext?.('2d');
+  if (!g || !canvas.width || !canvas.height) return canvas;
+  const w = canvas.width;
+  const h = canvas.height;
+  const image = g.getImageData(0, 0, w, h);
+  const p = image.data;
+  const at = (x, y) => (y * w + x) * 4;
+  let hex = color;
+  if (color === 'auto') {
+    const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+    let r = 0; let gg = 0; let b = 0; let n = 0;
+    for (const [x, y] of corners) {
+      const i = at(x, y);
+      if (p[i + 3] < 8) continue;
+      r += p[i]; gg += p[i + 1]; b += p[i + 2]; n++;
+    }
+    if (!n) return canvas;
+    const toHex = (v) => Math.round(v / n).toString(16).padStart(2, '0');
+    hex = `#${toHex(r)}${toHex(gg)}${toHex(b)}`;
+  }
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);
+  if (!m) return canvas;
+  const tr = parseInt(m[1], 16);
+  const tg = parseInt(m[2], 16);
+  const tb = parseInt(m[3], 16);
+  const limit = Math.max(0, Math.min(100, Number(tol) || 0));
+  const hit = (i) => p[i + 3] > 8 && Math.max(Math.abs(p[i] - tr), Math.abs(p[i + 1] - tg), Math.abs(p[i + 2] - tb)) <= limit;
+  if (edgeOnly) {
+    const seen = new Uint8Array(w * h);
+    const stack = [];
+    const push = (x, y) => {
+      if (x < 0 || y < 0 || x >= w || y >= h) return;
+      const idx = y * w + x;
+      if (seen[idx]) return;
+      seen[idx] = 1;
+      if (!hit(idx * 4)) return;
+      stack.push(idx);
+    };
+    for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+    for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+    while (stack.length) {
+      const idx = stack.pop();
+      const x = idx % w;
+      const y = (idx / w) | 0;
+      p[idx * 4 + 3] = 0;
+      push(x - 1, y); push(x + 1, y); push(x, y - 1); push(x, y + 1);
+    }
+  } else {
+    for (let i = 0; i < p.length; i += 4) if (hit(i)) p[i + 3] = 0;
+  }
+  g.putImageData(image, 0, 0);
+  return canvas;
+}
+
 const loadImg = (src) => new Promise((ok, fail) => {
   const i = new Image();
   i.onload = () => ok(i);
@@ -225,19 +282,30 @@ export class Skins {
   }
 
   // Current image of an object (animated objects cycle through their frames).
-  // A live edit (Visual dos objetos dialog) takes priority over the saved config.
-  art(id, fallback) {
+  // `active` asks for the "working" art of dual-state machines; live edits take priority.
+  art(id, fallback, active = false) {
     const live = this.app.toys?.live?.(id);
     const o = live?.frames?.length ? live : this.objects[id];
-    if (o?.frames?.length) {
-      if (o.frames.length === 1) return o.frames[0];
-      const total = o.delays.reduce((a, b) => a + b, 0) / (o.speed || 1);
-      let t = performance.now() % total;
-      for (let i = 0; i < o.frames.length; i++) {
-        t -= o.delays[i] / (o.speed || 1);
-        if (t < 0) return o.frames[i];
+    const frameOf = (set, frozen = false) => {
+      if (!set?.frames?.length) return null;
+      if (frozen || set.frames.length === 1) return set.frames[0];
+      const delays = set.delays?.length ? set.delays : [100];
+      const speed = set.speed || o?.speed || 1;
+      const total = delays.reduce((a, b) => a + b, 0) / speed;
+      let t = total > 0 ? performance.now() % total : 0;
+      for (let i = 0; i < set.frames.length; i++) {
+        t -= (delays[i] || 100) / speed;
+        if (t < 0) return set.frames[i];
       }
-      return o.frames[0];
+      return set.frames[0];
+    };
+    if (active && o?.mode === 'dual') {
+      const a = frameOf(o.active);
+      if (a) return a;
+    }
+    if (o?.frames?.length) {
+      if (!active && o.mode === 'firstFrame') return frameOf(o, true);
+      return frameOf(o);
     }
     const rp = this.rp;
     if (rp?.tex?.[id] && ((rp.parts.mobilia && rp.furn?.includes(id)) || (rp.parts.itens && !rp.furn?.includes(id)))) return rp.tex[id];

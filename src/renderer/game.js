@@ -58,8 +58,10 @@ export const BUFF_LABELS = {
   luck: 'Sorte +5% (Gacha/Slot/caixas)',
   deal: 'Trato: comida ruim sem Humor',
   behaved: 'Comportada (sem cursor/ícones)',
+  swift: 'Pés ligeiros (velocidade +25%)',
+  smart: 'Mente afiada (XP de atributo +50%)',
 };
-export const BUFF_ICONS = { noHunger: '🍔', doubleMood: '😊', noTired: '⚡', shield: '🛡️', coinMagnet: '🧲', luck: '🍀', deal: '✊', behaved: '🗿' };
+export const BUFF_ICONS = { noHunger: '🍔', doubleMood: '😊', noTired: '⚡', shield: '🛡️', coinMagnet: '🧲', luck: '🍀', deal: '✊', behaved: '🗿', swift: '💨', smart: '🧠' };
 
 // Cartridge prices fixed per game (1.9.4).
 const CART_PRICES = {
@@ -97,12 +99,12 @@ export const ITEMS = [
   // O cartucho preto misterioso: sem nome, de graça, e só faz alguma coisa na TV com console.
   // Fica guardado na aba Especial (compra única): pode ser usado em todas as ondas.
   { id: 'cart_unknown', cat: 'especiais', cart: 'unknown', name: 'Cartucho Preto', price: 0, effects: {}, mystery: true,
-    special: true, unsellable: true, canSell: false,
+    special: true, unsellable: true, canSell: false, eternal: true,
     note: 'O que quer que ele seja, só a TV aceita ele. Pode ser inserido quantas vezes quiser.',
     get img() { return cartridge('#000000', 'unknown', 'gb'); } },
   // O Cristal Negro: cai do "Unknown" e fica guardado para uso futuro.
   { id: 'cristal_negro', cat: 'especiais', name: 'Cristal Negro', price: 0, effects: {}, special: true,
-    unsellable: true, canSell: false, note: 'Saiu do Unknown. Não vende e não se descarta.',
+    unsellable: true, canSell: false, eternal: true, note: 'Saiu do Unknown. Não vende e não se descarta.',
     img: new URL('./assets/items/black_crystal.png', import.meta.url).href },
   ...FOOD_ITEMS,
   ...MED_ITEMS,
@@ -168,7 +170,10 @@ export const shopValue = (item) => {
   if (item.cat === 'premios' || item.loot) return LOOT_VALUE[item.rarity] || 50;
   return 0;
 };
+// Itens do enredo (Cartucho Preto e Cristal Negro) nunca saem do inventário.
+export const isEternal = (item) => !!item?.eternal;
 export const isSellable = (item) => {
+  if (isEternal(item)) return false;
   if (!item || item.fixed) return false;
   // Itens marcados como invendíveis (o Cristal Negro) nunca podem ser vendidos.
   if (item.unsellable || item.canSell === false) return false;
@@ -499,7 +504,7 @@ export class Game {
 
   // Put an owned baggable item (or 1 food/drink) into her personal bag. Returns false if full / invalid.
   bagStore(id) {
-    if (!HER_BAG) return false;
+    if (!HER_BAG || isEternal(itemById(id))) return false;
     const item = itemById(id);
     if (!item || !this.canBag(id)) return false;
     const supply = this.isBagSupply(item);
@@ -609,6 +614,7 @@ export class Game {
   // right away: this is called with every point of Energy spent.
   // source: where the XP came from (the XP log shows it: "Força (Treino Pesado)").
   attrAdd(id, amount, source = '') {
+    if (amount > 0 && this.pet?.buff?.('smart')) amount = Math.round(amount * 1.5);
     const xp = (this.profile.attrXp ||= {});
     const before = this.profile.attrs[id] ?? 1;
     xp[id] = Math.max(0, (xp[id] || 0) + amount);
@@ -911,6 +917,7 @@ export class Game {
   }
 
   take(id) {
+    if (isEternal(itemById(id))) return;
     this.inventory[id]--;
     if (!this.inventory[id]) delete this.inventory[id];
     this.changed();

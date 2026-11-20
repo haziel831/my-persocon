@@ -72,6 +72,15 @@ export const ATTR_XP = {
   },
 };
 
+// Reading a manga trains Inteligência by its rarity: rarer volumes teach more.
+export const MANGA_RARITY_XP = {
+  comum: 1,
+  incomum: 1.5,
+  raro: 2.2,
+  epico: 3,
+  lendario: 4,
+};
+
 // De onde veio o XP (o log mostra: "+4 XP em Força (Treino Pesado)").
 export const ATTR_SOURCES = {
   climb: 'Escalada',
