@@ -82,6 +82,7 @@
     <div class="row"><button class="act" id="reload-voices">🔄 Recarregar vozes</button><span class="note" id="voices-status"></span></div>
     <label class="field wide"><span>Voz</span><select id="voice" data-key="ttsVoice" data-type="text"></select></label>
     <div class="row"><button class="act" id="preview-voice">🔊 Prévia da voz</button></div>
+    <div class="note" id="tts-error" hidden></div>
     <label class="field"><span>Velocidade</span><input type="range" data-key="ttsSpeed" data-type="range" min="0.7" max="1.4" step="0.05"><span class="val"></span></label>
     <label class="field"><span>Volume da Voz</span><input type="range" data-key="ttsVolume" data-type="range" min="0" max="1" step="0.05"><span class="val"></span></label>
     <label class="field"><span>Tom (semitons)</span><input type="range" data-key="ttsPitch" data-type="range" min="-6" max="6" step="1"><span class="val"></span></label>
@@ -238,7 +239,7 @@ $$('[data-key]').forEach(input => {
   });
 });
 // Fields whose value is not (yet) part of /state are simply never rewritten while edited.
-['#channel', '#say', '#redeems', '#coins-n', '#brb-on', '#redeem-test'].forEach(sel => {
+['#channel', '#say', '#redeems', '#coins-n', '#brb-on'].forEach(sel => {
   const input = $(sel);
   input.addEventListener('input', () => { input.dataset.dirty = '1'; });
   input.addEventListener('change', () => { input.dataset.dirty = '1'; });
@@ -293,12 +294,21 @@ $('#weather').onclick = (e) => { const b=e.target.closest('[data-weather]'); if 
 
 function fillRedeems(map) {
   const sel = $('#redeem-test');
-  if (sel === document.activeElement || sel.dataset.dirty === '1') return;
+  if (document.activeElement === sel) return;
   const names = Object.keys(map || {});
   if (sel.dataset.names === names.join('\u0000')) return;
+  const previous = sel.value;
   sel.dataset.names = names.join('\u0000');
   sel.replaceChildren(...names.map(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; return o; }));
+  if (names.includes(previous)) sel.value = previous;
 }
+
+const voiceInfo = (v) => typeof v === 'string'
+  ? { id:v, name:v, lang:'' }
+  : { id:String(v.id || v.name || ''), name:String(v.name || v.id || ''), lang:String(v.lang || '') };
+const voiceLang = (v) => { const i = voiceInfo(v); return (i.lang || i.id.split('_')[0]).toLowerCase(); };
+const voiceRank = (v) => { const l = voiceLang(v); return l === 'pt-br' ? 0 : l === 'en-us' ? 1 : 2; };
+const voiceLabel = (v) => { const i = voiceInfo(v); return `${i.name} (${i.lang || i.id})`; };
 
 function render() {
   const c = state.config || {};
@@ -314,18 +324,25 @@ function render() {
   $('#endpoint').value = location.origin + '/event';
   setIfIdle($('#redeems'), state.redeemsText || Object.entries(c.streamRedeems||{}).map(([n,v])=>`${n}=${v.action}:${v.coins||0}`).join('\n'));
   fillRedeems(c.streamRedeems);
-  const voices = state.voices || [];
+  const voices = [...(state.voices || [])].sort((a, b) =>
+    voiceRank(a) - voiceRank(b) || voiceInfo(a).name.localeCompare(voiceInfo(b).name));
   const vsel = $('#voice');
-  const signature = voices.map(v => typeof v === 'string' ? v : (v.id || v.name)).join('\u0000');
+  const signature = voices.map(v => voiceInfo(v).id).join('\u0000');
   if (voices.length && vsel !== document.activeElement && vsel.dataset.signature !== signature) {
     vsel.dataset.signature = signature;
+    const previous = vsel.value;
     vsel.replaceChildren(...voices.map(v => {
       const o=document.createElement('option');
-      o.value=typeof v==='string'?v:(v.id||v.name);
-      o.textContent=typeof v==='string'?v:(v.name||v.id);
+      o.value=voiceInfo(v).id;
+      o.textContent=voiceLabel(v);
       return o;
     }));
+    if ([...vsel.options].some(o => o.value === previous)) vsel.value = previous;
   }
+  const errorEl = $('#tts-error');
+  errorEl.textContent = state.ttsError || '';
+  errorEl.hidden = !state.ttsError;
+  errorEl.style.color = '#ff8fa0';
   const voiceValues = [...vsel.options].map(o => o.value);
   if (c.ttsVoice && voiceValues.includes(c.ttsVoice)) setIfIdle(vsel, c.ttsVoice);
   else if (voiceValues.length && !voiceValues.includes(vsel.value)) vsel.value = voiceValues[0];

@@ -3,6 +3,8 @@ import { isStoic } from './persona.js';
 
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu;
+const LANG_BY_PREFIX = { a: 'en-us', b: 'en-gb', p: 'pt-br', j: 'ja', e: 'es', f: 'fr-fr', h: 'hi', i: 'it', z: 'zh' };
+const langForVoice = (voice, fallback) => LANG_BY_PREFIX[String(voice || '').split('_')[0].charAt(0).toLowerCase()] || fallback;
 
 export class VoiceTTS {
   constructor(app) {
@@ -13,6 +15,8 @@ export class VoiceTTS {
     this.ctx = null;
     this.current = null;
     this.muted = false; // quick mute: balloons and alerts keep working
+    this.lastError = '';
+    this.gen = 0;
     this.lastAt = 0;
     this.userAt = new Map();
   }
@@ -109,21 +113,27 @@ export class VoiceTTS {
     this.reportQueue();
     if (!job) { this.speaking = false; this.stopCurrent(); return; }
     this.speaking = true;
+    const gen = ++this.gen;
     let playing = false;
     try {
       const c = this.app.config;
       const calm = isStoic(this.app);
-      const lang = job.lang || (c.lang === 'en' ? 'en-us' : 'pt-br');
       const chosen = String(job.voice || c.ttsVoice || '').trim();
+      const fallbackLang = c.lang === 'en' ? 'en-us' : 'pt-br';
+      const lang = job.lang || langForVoice(chosen, fallbackLang);
       const voice = chosen || (lang.startsWith('en') ? 'af_nicole' : 'pf_dora');
       const speed = job.speed ?? c.ttsSpeed ?? (calm ? 0.88 : 1);
       const data = await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed);
+      if (gen !== this.gen) return; // superseded by a newer preview/selection
       if (!data) throw new Error('no audio');
-      const buf = await (await fetch(data)).arrayBuffer();
+      const base64 = String(data).slice(String(data).indexOf(',') + 1);
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       this.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
       if (this.ctx.state === 'suspended') await this.ctx.resume();
       const src = this.ctx.createBufferSource();
-      src.buffer = await this.ctx.decodeAudioData(buf.slice(0));
+      src.buffer = await this.ctx.decodeAudioData(bytes.buffer);
       src.detune.value = (Number(c.ttsPitch) || 0) * 100;
       const chain = [src];
       const filter = c.ttsFilter || 'natural';
@@ -155,14 +165,20 @@ export class VoiceTTS {
       };
       this.duck(true);
       playing = true;
+      this.lastError = '';
       src.start();
       this.tick();
-    } catch {
+      this.app.pushStreamerState?.();
+    } catch (err) {
+      this.lastError = String(err?.message || err || 'erro desconhecido');
+      console.error('[tts]', err);
+      window.petAPI?.log?.('tts error:', this.lastError);
+      this.app.pushStreamerState?.();
       this.stopCurrent();
       this.next();
     } finally {
       // Never leave the SFX ducked if anything above failed before playback started.
-      if (!playing) this.duck(false);
+      if (!playing && gen === this.gen) this.duck(false);
     }
   }
 
@@ -181,7 +197,9 @@ export class VoiceTTS {
   }
 
   stopCurrent() {
+    this.gen = (this.gen || 0) + 1;
     if (this.current) {
+      this.current.src.onended = null; // never let an old source advance the queue
       try { this.current.src.stop(); } catch {}
       this.current = null;
     }
@@ -189,9 +207,14 @@ export class VoiceTTS {
     this.duck(false);
   }
 
-  // Immediate audition: cancels whatever is playing, ignores chat cooldowns.
+  // Immediate audition: cancels whatever is playing, ignores chat cooldowns and quick mute.
   preview(text, voice) {
-    if (!this.enabled || this.muted) return false;
+    if (!this.enabled) {
+      this.lastError = this.app.config.lang === 'en' ? 'Kokoro voice is off' : 'Voz Kokoro desligada';
+      console.error('[tts]', this.lastError);
+      this.app.pushStreamerState?.();
+      return false;
+    }
     const clean = this.prepareText(text);
     if (!clean) return false;
     this.stopCurrent();

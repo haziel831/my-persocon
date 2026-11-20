@@ -1855,10 +1855,12 @@ api.onTrayClick?.(() => {
       twitch: !!app.twitch?.connected,
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
+      ttsError: app.tts?.lastError || '',
       voices: voiceCache,
       voicesStatus: voiceStatus,
     }).catch?.(() => {});
   }
+  app.pushStreamerState = pushStreamerState;
   if (window.__PET_STREAMER__) loadVoices(config.ttsDir);
 
   api.onStreamerRpc?.((p) => {

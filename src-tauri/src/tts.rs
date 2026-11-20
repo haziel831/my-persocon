@@ -65,10 +65,18 @@ fn request(s: &mut Session, mut payload: Value) -> Result<Value, String> {
 }
 
 fn lang_for(voice: &str, lang: &str) -> String {
+    // The voice ID carries the real language (pf_dora, af_nicole, am_eric, jf_alpha...).
+    // React to its prefix first; the caller's lang is only a fallback.
+    let prefix = voice.split('_').next().unwrap_or("").to_ascii_lowercase();
+    let detected = match prefix.chars().next().unwrap_or(' ') {
+        'a' => Some("en-us"), 'b' => Some("en-gb"), 'p' => Some("pt-br"),
+        'j' => Some("ja"), 'e' => Some("es"), 'f' => Some("fr-fr"),
+        'h' => Some("hi"), 'i' => Some("it"), 'z' => Some("zh"),
+        _ => None,
+    };
+    if let Some(value) = detected { return value.to_string(); }
     if !lang.trim().is_empty() { return lang.to_string(); }
-    match voice.chars().next().unwrap_or('p').to_ascii_lowercase() {
-        'a' => "en-us", 'b' => "en-gb", 'j' => "ja", 'e' => "es", 'f' => "fr-fr", 'i' => "it", _ => "pt-br",
-    }.to_string()
+    "pt-br".to_string()
 }
 
 pub fn voices(dir: &Path) -> Result<Value, String> {
