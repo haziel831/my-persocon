@@ -1,6 +1,9 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.36', [
+    ['Build de estabilização após as correções de cooldown das skills do Doll, menu do dock e feed de ganhos', 'Stabilization build after the Doll skill cooldown, dock menu and gains feed fixes'],
+  ]],
   ['1.9.35', [
     ['Correções pós-lançamento: cooldowns das skills do Doll ficam só em memória (não travam mais após reiniciar o app), ensino valida se o Doll está vivo e nome da skill é traduzido', 'Post-release fixes: Doll skill cooldowns stay in memory (no longer stuck after restarting), teaching validates the Doll is alive and skill names are translated'],
     ['O dock ignora cliques rápidos nos botões de Chat/XP/Foco e seu tooltip é traduzido; o feed de ganhos não quebra mais quando um evento chega sem item', 'The dock ignores double-clicks on Chat/XP/Focus buttons and its tooltip is translated; the gains feed no longer crashes when an event has no item'],

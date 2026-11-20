@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.36 — 21/11/2026
+Build de estabilização com o estado atual validado (`npm run check` OK). Sem mudanças funcionais em relação à v1.9.35.
+
 ## v1.9.35 — 21/11/2026
 Correções rápidas sobre a 1.9.34: cooldowns das skills do Doll em `Map` em memória (com `Date.now()`) e `d.cool` removido de saves antigos; `teachDollSkill` exige Doll vivo e traduz o nome da skill; `dblclick` do dock ignora os botões de Chat/XP/Foco e o tooltip do dock é traduzido; `gains.js` usa optional chaining em `data.item`.
 
