@@ -44,7 +44,7 @@ export const TEXT = {
     tutorialTitle: 'Tutorial',
     tutorial: [
       ['Seu Persocon', 'Ele vive no seu desktop: anda sobre as janelas, escala as bordas e dorme quando cansa. Arraste-o com o mouse para levá-lo a qualquer lugar.'],
-      ['Cuidados', 'Fique de olho em Fome, Sede, Energia, Humor e Higiene. Clique nele para fazer cafuné. Botão direito abre o menu; duplo clique abre o menu rápido.'],
+      ['Cuidados', 'Fique de olho em Fome, Sede, Energia, Humor e Higiene. Clique nele para fazer cafuné. Botão direito abre o menu; passe o mouse e aperte X para o menu rápido.'],
       ['Desejos', 'Às vezes aparece um balão com o que ele quer (comida, brinquedo, banho…). Atender o desejo rende mais humor e afeição do que o normal.'],
       ['Moedas', 'Você ganha moedas com o tempo, com lootboxes e na sorte do gacha e da slot. Ele também tem uma carteira própria, que só você pode encher (Perfil).'],
       ['Compras e inventário', 'Tudo o que você compra na Shop sai pela Impressora 3D, um item de cada vez. O Persocon pega cada item e guarda no Inventário (botão direito → Inventário). De lá você usa, coloca no desktop ou guarda de volta.'],
@@ -116,7 +116,7 @@ export const TEXT = {
     tutorialTitle: 'Tutorial',
     tutorial: [
       ['Your Persocon', 'It lives on your desktop: walks on windows, climbs their edges and sleeps when tired. Drag it with the mouse to take it anywhere.'],
-      ['Care', 'Keep an eye on Hunger, Thirst, Energy, Mood and Hygiene. Click it to pat. Right click opens the menu; double click opens the quick menu.'],
+      ['Care', 'Keep an eye on Hunger, Thirst, Energy, Mood and Hygiene. Click it to pat. Right click opens the menu; hover and press X for the quick menu.'],
       ['Wishes', 'Sometimes a bubble shows what it wants (food, a toy, a bath…). Granting the wish gives more mood and affection than usual.'],
       ['Coins', 'You earn coins over time, from lootboxes and with luck at the gacha and the slot. It also has its own wallet, which only you can fill (Profile).'],
       ['Shopping and inventory', 'Everything you buy in the Shop comes out of the 3D Printer, one item at a time. Your Persocon picks up each item and stores it in the Inventory (right click → Inventory). From there you use it, place it on the desktop or store it again.'],

@@ -1651,6 +1651,17 @@ api.onTrayClick?.(() => {
   window.addEventListener('pointerup', endPress);
   window.addEventListener('pointercancel', endPress);
   window.addEventListener('keydown', (e) => {
+    // Quick Menu: mouse over the Persocon + X (replaces the old click gesture).
+    if ((e.key === 'x' || e.key === 'X') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const tgt = e.target;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      if (cursor && hitPet(cursor.x, cursor.y) && !pet.closeup && !pet.combatMode && !app.intro?.busy) {
+        e.preventDefault();
+        if (quick.open) quick.close();
+        else if (!uiOpen()) quick.show(cursor.x, cursor.y);
+        return;
+      }
+    }
     // Porta do menu de debug (só com o debug ligado): Ctrl+Shift+D abre as Opções no Debug.
     if (config.debug && e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
       e.preventDefault();

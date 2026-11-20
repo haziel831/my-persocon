@@ -1349,7 +1349,7 @@ export class Crow {
   // Right-click menu (called from toys.contextMenu with its button helper).
   menu(btn, x, y) {
     btn('📋 Perfil e habilidades', () => this.profile(x, y));
-    const rename = btn('✏️ Renomear', () => renameDialog(this.app.game.profile.crowName, (v) => {
+    btn('✏️ Renomear', () => renameDialog(this.app.game.profile.crowName, (v) => {
       this.app.game.profile.crowName = String(v || '').slice(0, 24);
       this.app.game.changed();
     }, translate('Nome do Corvo')));

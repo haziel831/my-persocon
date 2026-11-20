@@ -39,7 +39,7 @@ const EN = {
   'Parar de assistir': 'Stop watching', 'Assistir': 'Watch', 'Senta e assiste ao vídeo atrás dela': 'Sits and watches the video behind her',
   // ---- focus (Pomodoro) ----
   'Foco': 'Focus', 'Pausa': 'Break', 'Sessão de foco': 'Focus session', 'Clique para encerrar o modo foco': 'Click to end focus mode', 'Modo Foco (Pomodoro)': 'Focus Mode (Pomodoro)',
-  'Clique: menu · 2×: rápido · botão direito: opções · segurar direito: mover': 'Click: menu · double: quick · right click: options · hold right: move',
+  'Clique: menu · X: rápido · botão direito: opções · segurar direito: mover': 'Click: menu · X: quick · right click: options · hold right: move',
   // ---- Doll skills ----
   'Curador de Mangás': 'Manga Curator', 'Massagem & Alongamento': 'Massage & Stretch', 'Soneca em Dupla': 'Nap Together',
   'DJ Miniatura': 'Mini DJ', 'Guarda-Chuva em Dupla': 'Umbrella Together', 'Ajudante do Mural': 'Board Helper',
@@ -803,7 +803,6 @@ const EN = {
     'Listen to Music and Watch modes use the PC sound. While hunger, thirst and energy stay above 50% she keeps going; if they drop she cares for herself and comes back. On her own, she also stops after a while.',
   'Começar Ouvir Música / Assistir sozinho': 'Start Listen to Music / Watch mode on her own',
   'Os atributos começam em 0 e serão usados em breve.': 'Attributes start at 0 and will be used soon.',
-  'Clique: menu · 2×: rápido · botão direito: opções · segurar direito: mover': 'Click: menu · 2×: quick menu · right button: options · hold right: move',
   '→ bolsa dela': '→ her bag', 'Bolsa dela cheia': 'Her bag is full',
   'Vai para a bolsa dela (ícone na tela) · ela usa e guarda sozinha': 'Goes to her bag (on-screen icon) · she uses and stores it herself',
   'Ela também tem mochila própria: "Dar a ela" guarda na bolsa dela (ícone na tela).': 'She also has her own backpack: "Give to her" keeps it in her bag (on-screen icon).',

@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.39 — 21/11/2026
+Correção do menu de botão direito do Corvo (`crowName(this.app)` e `app` declarado no `contextMenu`), remoção de variável não usada e varredura de escopo. Menu rápido da Persocon passou a abrir com mouse sobre ela + tecla **X** (sem duplo clique), com `preventDefault` e proteção para inputs/modificadores; textos de dicas, intro e tooltip do dock atualizados.
+
 ## v1.9.38 — 21/11/2026
 Correções de interface: menu do Doll passa a abrir com botão direito; as 12 skills normais voltaram a aparecer (a comparação de coluna estava errada) e as linhas agora têm barra de progresso, ícone e contador como no perfil do Corvo — os dois perfis ficaram visualmente parecidos. O menu rápido da Persocon agora é **hover + X**, sem duplo clique. Nome personalizado do Corvo refletido em perfil, menu, combate, gains e logs.
 

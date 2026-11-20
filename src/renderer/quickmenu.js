@@ -1,4 +1,4 @@
-// Quick Menu: opened by double-clicking the pet or a piece of furniture. Quick on/off switches.
+// Quick Menu: opened with X while hovering the pet (or by clicking a piece of furniture).
 import { itemById, HER_BAG } from './game.js';
 export class QuickMenu {
   constructor(app) {

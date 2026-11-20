@@ -1,6 +1,10 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.39', [
+    ['Corrigido o menu de botão direito do Corvo, que quebrava com um `ReferenceError` no nome personalizado', 'Fixed the Crow right-click menu, which broke with a `ReferenceError` on the custom name'],
+    ['Menu rápido da Persocon agora abre ao passar o mouse nela e pressionar X, sem clique duplo — dicas e intro atualizadas', 'The Persocon quick menu now opens by hovering over her and pressing X, with no double-click — tips and intro updated'],
+  ]],
   ['1.9.38', [
     ['Menu do Doll agora abre com botão direito, mostra as 12 skills normais e as 6 de combate com barras de progresso iguais às do Corvo, e tem a mesma aparência dos dois perfis', 'The Doll menu now opens with right click, shows all 12 normal skills and 6 combat skills with progress bars like the Crow, and both profiles share the same look'],
     ['Menu rápido da Persocon mudou: passe o mouse por cima dela e pressione X em vez de dar duplo clique', 'The Persocon quick menu changed: hover over her and press X instead of double-clicking'],

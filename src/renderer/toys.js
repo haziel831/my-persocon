@@ -452,7 +452,8 @@ export class Toys {
 
   contextMenu(id, x, y) {
     this.closeMenu();
-    const { game, sound } = this.app;
+    const app = this.app;
+    const { game, sound } = app;
     const t = game.toys[id];
     const el = document.createElement('div');
     el.className = 'toy-menu hitzone';
@@ -465,7 +466,7 @@ export class Toys {
     };
     const title = document.createElement('div');
     title.className = 'title';
-    title.textContent = id === 'corvo' ? crowName(app) : (t?.up && UPGRADES[baseId(id)]?.name) || itemById(baseId(id))?.name || id;
+    title.textContent = id === 'corvo' ? crowName(this.app) : (t?.up && UPGRADES[baseId(id)]?.name) || itemById(baseId(id))?.name || id;
     if (id === 'corvo') title.prepend(Object.assign(document.createElement('img'), { src: icon('crow'), className: 'crow-ico', draggable: false }));
     el.append(title);
     if (id === 'corvo') {

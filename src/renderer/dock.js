@@ -223,7 +223,7 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     if (!el) {
       el = document.createElement('div');
       el.className = 'status-dock hitzone';
-      el.title = translate('Clique: menu · 2×: rápido · botão direito: opções · segurar direito: mover');
+      el.title = translate('Clique: menu · X: rápido · botão direito: opções · segurar direito: mover');
       let rmb = null;
       el.addEventListener('click', (e) => {
         if (moving || rmb?.moved) return;
