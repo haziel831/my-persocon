@@ -184,7 +184,7 @@ export async function startStreamerControl(config) {
 
     body.append(el('h3', '', translate('Chat: permissões e frequência')));
     addSelect('Quem pode falar', 'ttsWho', [
-      ['all', 'Todos'], ['subs', 'Subs & VIPs'], ['mods', 'Apenas Mods'], ['alerts_only', 'Só Alertas e Pontos'],
+      ['all', 'Todos'], ['followers', 'Seguidores+'], ['subs', 'Subs & VIPs'], ['mods', 'Apenas Mods'], ['alerts_only', 'Só Alertas e Pontos'],
     ], 'all');
     addSlider('Cooldown global do chat (s)', 'ttsCooldown', 0, 120, 5, 20, (v) => `${v}s`);
     addSlider('Cooldown por usuário (s)', 'ttsUserCooldown', 0, 120, 5, 30, (v) => `${v}s`);

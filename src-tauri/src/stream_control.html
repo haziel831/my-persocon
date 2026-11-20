@@ -79,7 +79,9 @@
   <div class="card">
     <label class="toggle"><input type="checkbox" data-key="ttsEnabled" data-type="bool"> 🗣️ Voz Kokoro (TTS offline)</label>
     <label class="field wide"><span>Pasta do TTS</span><input type="text" data-key="ttsDir" data-type="text"></label>
+    <div class="row"><button class="act" id="reload-voices">🔄 Recarregar vozes</button><span class="note" id="voices-status"></span></div>
     <label class="field wide"><span>Voz</span><select id="voice" data-key="ttsVoice" data-type="text"></select></label>
+    <div class="row"><button class="act" id="preview-voice">🔊 Prévia da voz</button></div>
     <label class="field"><span>Velocidade</span><input type="range" data-key="ttsSpeed" data-type="range" min="0.7" max="1.4" step="0.05"><span class="val"></span></label>
     <label class="field"><span>Volume da Voz</span><input type="range" data-key="ttsVolume" data-type="range" min="0" max="1" step="0.05"><span class="val"></span></label>
     <label class="field"><span>Tom (semitons)</span><input type="range" data-key="ttsPitch" data-type="range" min="-6" max="6" step="1"><span class="val"></span></label>
@@ -115,7 +117,11 @@
     <label class="toggle"><input type="checkbox" data-key="streamTtsSpeak" data-type="bool"> Falar respostas no TTS</label>
     <label class="field wide"><span>Palavras bloqueadas</span><input type="text" data-key="streamBlockedWords" data-type="text"></label>
     <label class="field wide"><span>Quem pode falar</span><select data-key="ttsWho" data-type="text">
-      <option value="all">Todos</option><option value="subs">Subs &amp; VIPs</option><option value="mods">Apenas Mods</option><option value="alerts_only">Só Alertas e Pontos</option></select></label>
+      <option value="all">Todos</option><option value="followers">Seguidores+</option><option value="subs">Subs &amp; VIPs</option><option value="mods">Apenas Mods</option><option value="alerts_only">Só Alertas e Pontos</option></select></label>
+    <p class="note" id="followers-note" hidden>
+      <span data-lang="pt">Reconhece Subs/VIPs/Mods + seguidores da live/ponte local (no chat direto da Twitch, ative /followers para filtrar seguidores antigos).</span>
+      <span data-lang="en">Recognizes Subs/VIPs/Mods + followers from the live/bridge (in direct Twitch chat, enable /followers to filter older followers).</span>
+    </p>
     <label class="field"><span>Cooldown global (s)</span><input type="range" data-key="ttsCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
     <label class="field"><span>Cooldown por usuário (s)</span><input type="range" data-key="ttsUserCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
     <label class="field wide"><span>Usuários ignorados</span><input type="text" data-key="ttsIgnoredUsers" data-type="text"></label>
@@ -191,6 +197,17 @@ let muted = false;
 
 const rpc = (payload) => fetch('/rpc', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).catch(()=>{});
 const toast = (msg) => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.classList.remove('show'),1800); };
+// Polling must never steal focus or erase text the user is still editing.
+const setIfIdle = (input, value, isBool = false) => {
+  const next = isBool ? !!value : String(value ?? '');
+  const cur = isBool ? input.checked : input.value;
+  if (input === document.activeElement) return;
+  if (input.dataset.dirty === '1') {
+    if (cur === next) delete input.dataset.dirty; // state caught up with the local edit
+    return;
+  }
+  if (cur !== next) { if (isBool) input.checked = next; else input.value = next; }
+};
 const fmt = (input) => {
   const span = input.parentElement.querySelector('.val');
   if (!span) return;
@@ -207,13 +224,38 @@ $$('nav button').forEach(b => b.onclick = () => {
 });
 
 $$('[data-key]').forEach(input => {
+  input.addEventListener('input', () => {
+    input.dataset.dirty = '1';
+    if (input.dataset.type === 'range') fmt(input);
+  });
   input.addEventListener('change', () => {
+    input.dataset.dirty = '1';
     const value = input.dataset.type === 'bool' ? input.checked : input.dataset.type === 'range' ? Number(input.value) : input.value;
     rpc({ cmd:'setOption', key:input.dataset.key, value });
+    if (input.dataset.key === 'ttsDir') loadVoices(value);
+    if (input.dataset.key === 'ttsVoice') previewVoice(value);
     if (input.dataset.key === 'ttsSpeed' || input.dataset.key === 'streamPersona') toast('Voz atualizada');
   });
-  if (input.dataset.type === 'range') input.addEventListener('input', () => fmt(input));
 });
+// Fields whose value is not (yet) part of /state are simply never rewritten while edited.
+['#channel', '#say', '#redeems', '#coins-n', '#brb-on', '#redeem-test'].forEach(sel => {
+  const input = $(sel);
+  input.addEventListener('input', () => { input.dataset.dirty = '1'; });
+  input.addEventListener('change', () => { input.dataset.dirty = '1'; });
+});
+
+const loadVoices = (dir) => rpc({ cmd:'ttsLoadVoices', dir:dir || state.config?.ttsDir || '' });
+const previewVoice = (voice) => rpc({ cmd:'ttsPreview', voice:voice || $('#voice').value });
+$('#reload-voices').onclick = () => loadVoices($('[data-key=ttsDir]').value);
+$('#preview-voice').onclick = () => previewVoice($('#voice').value);
+function connectTwitch() {
+  const channel = ($('#channel').value || '').trim().replace(/^#+/, '');
+  if (!channel) { toast('Digite o canal da Twitch'); return; }
+  $('#channel').dataset.dirty = '1';
+  rpc({ cmd:'setOption', key:'twitchChannel', value:channel });
+  rpc({ cmd:'twitchConnect', channel });
+  toast('Conectando ao chat...');
+}
 
 $('#chroma').onclick = (e) => { const b=e.target.closest('[data-bg]'); if (b) rpc({cmd:'setOption',key:'streamerBg',value:b.dataset.bg}); };
 $('#mute').onclick = () => { muted=!muted; rpc({cmd:'ttsMute'}); $('#mute').classList.toggle('primary',muted); $('#mute').textContent = muted ? '🔇 Mudo (ligado)' : '🔇 Mudo rápido'; };
@@ -222,7 +264,8 @@ $('#clear').onclick = () => rpc({cmd:'ttsClear'});
 $('#exit').onclick = () => rpc({cmd:'exitStreamer'});
 $('#test-voice').onclick = () => rpc({cmd:'ttsTest'});
 $('#test-persona').onclick = () => rpc({cmd:'say',text:'Pausa na transmissão... já voltamos.'});
-$('#twitch-connect').onclick = () => rpc({cmd:'twitchConnect',channel:$('#channel').value});
+$('#twitch-connect').onclick = connectTwitch;
+$('#channel').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connectTwitch(); } });
 $('#twitch-disconnect').onclick = () => rpc({cmd:'twitchDisconnect'});
 $('#sim').onclick = (e) => { const b=e.target.closest('[data-alert]'); if (b) rpc({cmd:'testAlert',event:{type:b.dataset.alert,user:'Viewer',amount:100}}); };
 $('#say-btn').onclick = () => { rpc({cmd:'say',text:$('#say').value}); $('#say').value=''; };
@@ -249,7 +292,11 @@ $('#toys').onclick = (e) => { const b=e.target.closest('[data-toy]'); if (b) rpc
 $('#weather').onclick = (e) => { const b=e.target.closest('[data-weather]'); if (b) rpc({cmd:'weather',kind:b.dataset.weather}); };
 
 function fillRedeems(map) {
-  const sel = $('#redeem-test'); const names = Object.keys(map || {});
+  const sel = $('#redeem-test');
+  if (sel === document.activeElement || sel.dataset.dirty === '1') return;
+  const names = Object.keys(map || {});
+  if (sel.dataset.names === names.join('\u0000')) return;
+  sel.dataset.names = names.join('\u0000');
   sel.replaceChildren(...names.map(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; return o; }));
 }
 
@@ -262,23 +309,42 @@ function render() {
   $('#st-brb').textContent = state.brb ? 'Ligado' : 'Desligado';
   $('#queue').textContent = 'Fila: ' + (state.tts?.queue ?? 0);
   if (muted !== state.tts?.muted) { muted = !!state.tts?.muted; $('#mute').classList.toggle('primary',muted); $('#mute').textContent = muted ? '🔇 Mudo (ligado)' : '🔇 Mudo rápido'; }
-  $('#channel').value = c.twitchChannel || '';
+  setIfIdle($('#channel'), c.twitchChannel || '');
   $('#twitch-state').textContent = state.twitch ? 'Conectado #' + (c.twitchChannel||'') : 'Desconectado';
   $('#endpoint').value = location.origin + '/event';
-  $('#redeems').value = state.redeemsText || Object.entries(c.streamRedeems||{}).map(([n,v])=>`${n}=${v.action}:${v.coins||0}`).join('\n');
+  setIfIdle($('#redeems'), state.redeemsText || Object.entries(c.streamRedeems||{}).map(([n,v])=>`${n}=${v.action}:${v.coins||0}`).join('\n'));
   fillRedeems(c.streamRedeems);
   const voices = state.voices || [];
   const vsel = $('#voice');
-  if (voices.length && vsel.options.length !== voices.length) {
-    vsel.replaceChildren(...voices.map(v => { const o=document.createElement('option'); o.value=typeof v==='string'?v:(v.id||v.name); o.textContent=typeof v==='string'?v:(v.name||v.id); return o; }));
+  const signature = voices.map(v => typeof v === 'string' ? v : (v.id || v.name)).join('\u0000');
+  if (voices.length && vsel !== document.activeElement && vsel.dataset.signature !== signature) {
+    vsel.dataset.signature = signature;
+    vsel.replaceChildren(...voices.map(v => {
+      const o=document.createElement('option');
+      o.value=typeof v==='string'?v:(v.id||v.name);
+      o.textContent=typeof v==='string'?v:(v.name||v.id);
+      return o;
+    }));
   }
-  $('#brb-on').checked = !!state.brb;
+  const voiceValues = [...vsel.options].map(o => o.value);
+  if (c.ttsVoice && voiceValues.includes(c.ttsVoice)) setIfIdle(vsel, c.ttsVoice);
+  else if (voiceValues.length && !voiceValues.includes(vsel.value)) vsel.value = voiceValues[0];
+  const vs = $('#voices-status');
+  const info = state.voicesStatus || {};
+  vs.textContent = info.text || '';
+  vs.style.color = info.ok === false ? '#ff8fa0' : '#7ee7a8';
+  setIfIdle($('#brb-on'), !!state.brb, true);
+  const followersNote = $('#followers-note');
+  followersNote.hidden = c.ttsWho !== 'followers';
+  followersNote.querySelectorAll('[data-lang]').forEach(s => s.hidden = (s.dataset.lang === 'en') !== (c.lang === 'en'));
   $$('[data-key]').forEach(input => {
-    if (input === document.activeElement) return;
     const v = c[input.dataset.key];
-    if (input.dataset.type === 'bool') input.checked = v !== false && (v === undefined ? true : !!v);
-    else if (v !== undefined) input.value = v;
-    if (input.dataset.type === 'range') fmt(input);
+    if (input.dataset.type === 'bool') {
+      setIfIdle(input, v === undefined ? true : v !== false && !!v, true);
+    } else if (v !== undefined) {
+      setIfIdle(input, v);
+      if (input.dataset.type === 'range') fmt(input);
+    }
   });
 }
 

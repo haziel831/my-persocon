@@ -78,7 +78,10 @@ export class TwitchChat {
     for (const [a, b] of this.emoteSpans(t.emotes).sort((x, y) => y[0] - x[0])) {
       text = text.slice(0, a) + ' ' + text.slice(b + 1);
     }
-    this.app.tts?.enqueue?.(text, { chat: true, user, badges: t.badges || '' });
+    this.app.tts?.enqueue?.(text, {
+      chat: true, user, badges: t.badges || '',
+      follower: t.follower === '1' || t.follower === 'true' || this.app.knownFollowers?.has(String(user || '').toLowerCase()),
+    });
   }
 
   message(raw) {

@@ -75,6 +75,10 @@ export class VoiceTTS {
     const has = (name) => badges.split(',').some((b) => b.split('/')[0] === name);
     if (who === 'mods') return has('broadcaster') || has('moderator');
     if (who === 'subs') return has('broadcaster') || has('moderator') || has('vip') || has('subscriber') || has('founder');
+    if (who === 'followers') {
+      const privileged = has('broadcaster') || has('moderator') || has('vip') || has('subscriber') || has('founder');
+      return privileged || !!opts.follower || !!this.app.knownFollowers?.has(user);
+    }
     return true;
   }
 
@@ -110,7 +114,8 @@ export class VoiceTTS {
       const c = this.app.config;
       const calm = isStoic(this.app);
       const lang = job.lang || (c.lang === 'en' ? 'en-us' : 'pt-br');
-      const voice = job.voice || c.ttsVoice || (lang.startsWith('en') ? (calm ? 'af_nicole' : 'af_heart') : 'pf_dora');
+      const chosen = String(job.voice || c.ttsVoice || '').trim();
+      const voice = chosen || (lang.startsWith('en') ? 'af_nicole' : 'pf_dora');
       const speed = job.speed ?? c.ttsSpeed ?? (calm ? 0.88 : 1);
       const data = await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed);
       if (!data) throw new Error('no audio');
@@ -182,6 +187,18 @@ export class VoiceTTS {
     }
     this.mouthLevel = 0;
     this.duck(false);
+  }
+
+  // Immediate audition: cancels whatever is playing, ignores chat cooldowns.
+  preview(text, voice) {
+    if (!this.enabled || this.muted) return false;
+    const clean = this.prepareText(text);
+    if (!clean) return false;
+    this.stopCurrent();
+    this.queue.unshift({ text: clean, voice, test: true });
+    this.speaking = false;
+    this.next();
+    return true;
   }
 
   skip() {

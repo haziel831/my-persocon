@@ -12,10 +12,13 @@ export class StreamAlerts {
   push(event) {
     if (!event || !event.type) return;
     if (event.type === 'follow') {
-      this.follows.push(this.app ? String(event.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40) : 'alguém');
+      const user = this.app ? String(event.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40) : 'alguém';
+      this.follows.push(user);
+      this.app?.rememberFollower?.(user);
       this.flushSoon();
       return;
     }
+    if (event.follower === true) this.app?.rememberFollower?.(event.user);
     this.queue.push(event);
     if (this.queue.length > 6) this.queue.shift();
     this.flushSoon();

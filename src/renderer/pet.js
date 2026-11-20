@@ -553,6 +553,17 @@ export async function startPet(files, config) {
   app.tts = new VoiceTTS(app);
   app.twitch = new TwitchChat(app);
   app.streamAlerts = new StreamAlerts(app);
+  app.knownFollowers = new Set((config.streamFollowers || []).map((s) => String(s).toLowerCase()));
+  let followerSaveTimer = null;
+  app.rememberFollower = (user) => {
+    const name = String(user || '').trim().toLowerCase();
+    if (!name || name === 'alguém' || app.knownFollowers.has(name)) return;
+    app.knownFollowers.add(name);
+    clearTimeout(followerSaveTimer);
+    followerSaveTimer = setTimeout(() => {
+      app.setOption?.('streamFollowers', [...app.knownFollowers].slice(-500));
+    }, 800);
+  };
   if (!config.streamPersona) config.streamPersona = defaultPersona(app);
   api.onStreamEvent?.((ev) => app.streamAlerts.push(ev));
   const care = new Care(app);
@@ -1819,18 +1830,25 @@ api.onTrayClick?.(() => {
   // Snapshot for the browser-based control panel (Rust serves it at GET /state).
   let statePushAt = 0;
   let voiceCache = [];
-  let voiceFetchAt = 0;
+  let voiceStatus = { ok: false, text: '' };
+  function loadVoices(dir) {
+    const target = dir || config.ttsDir || '';
+    Promise.resolve(api.ttsVoices?.(target)).then((v) => {
+      voiceCache = Array.isArray(v) ? v : v?.voices || [];
+      voiceStatus = voiceCache.length
+        ? { ok: true, text: config.lang === 'en' ? `${voiceCache.length} voices loaded` : `${voiceCache.length} vozes carregadas` }
+        : { ok: false, text: config.lang === 'en' ? 'No voices found' : 'Nenhuma voz encontrada' };
+    }).catch((e) => {
+      voiceCache = [];
+      const err = config.lang === 'en' ? 'TTS not found in this folder' : 'TTS não encontrado nesta pasta';
+      voiceStatus = { ok: false, text: e?.message ? `${err}: ${e.message}` : err };
+    }).finally(() => pushStreamerState(true));
+  }
   function pushStreamerState(force = false) {
     if (!window.__PET_STREAMER__) return;
     const now = Date.now();
     if (!force && now - statePushAt < 900) return;
     statePushAt = now;
-    if (!voiceCache.length && now - voiceFetchAt > 60_000) {
-      voiceFetchAt = now;
-      api.ttsVoices?.(config.ttsDir || '').then((v) => {
-        voiceCache = Array.isArray(v) ? v : v?.voices || [];
-      }).catch(() => {});
-    }
     api.streamerPushState?.({
       config,
       coins: game.coins,
@@ -1838,8 +1856,10 @@ api.onTrayClick?.(() => {
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
       voices: voiceCache,
+      voicesStatus: voiceStatus,
     }).catch?.(() => {});
   }
+  if (window.__PET_STREAMER__) loadVoices(config.ttsDir);
 
   api.onStreamerRpc?.((p) => {
     if (!p || !window.__PET_STREAMER__) return;
@@ -1855,6 +1875,8 @@ api.onTrayClick?.(() => {
     else if (p.type === 'clearTts') app.tts?.clear?.();
     else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
     else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });
+    else if (p.type === 'ttsLoadVoices') loadVoices(p.dir);
+    else if (p.type === 'ttsPreview') app.tts?.preview?.(config.lang === 'en' ? 'Hello... testing this voice.' : 'Olá... testando esta voz.', p.voice);
     else if (p.type === 'ttsState') app.tts?.reportQueue?.();
     else if (p.type === 'twitchConnect') app.twitch?.connect?.(p.channel);
     else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
