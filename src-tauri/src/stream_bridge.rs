@@ -6,17 +6,39 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
 static STOP: Mutex<Option<TcpListener>> = Mutex::new(None);
+static STATE: Mutex<Value> = Mutex::new(Value::Null);
+const CONTROL_HTML: &str = include_str!("stream_control.html");
+
+// Snapshot pushed by the stage window and polled by the browser control panel.
+pub fn set_state(next: Value) {
+    let mut state = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Value::Object(patch) = &next {
+        if let Value::Object(old) = &mut *state {
+            for (k, v) in patch { old.insert(k.clone(), v.clone()); }
+            return;
+        }
+    }
+    *state = next;
+}
+
+pub fn state() -> Value {
+    STATE.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
 
 fn send(mut stream: TcpStream, status: &str, body: &str) {
     let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
 }
 
 fn options(mut stream: TcpStream) {
-    let _ = write!(stream, "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, X-Token\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    let _ = write!(stream, "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, X-Token\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+}
+
+fn send_body(mut stream: TcpStream, status: &str, content_type: &str, body: &str) {
+    let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
 }
 
 fn find_bytes(hay: &[u8], needle: &[u8]) -> Option<usize> {
@@ -75,7 +97,32 @@ fn read_request(stream: &mut TcpStream) -> Option<String> {
 fn handle(mut stream: TcpStream, app: AppHandle, token: String) {
     let req = match read_request(&mut stream) { Some(r) => r, None => return };
     let first = req.lines().next().unwrap_or("");
-    if first.starts_with("OPTIONS /event") { return options(stream); }
+    if first.starts_with("OPTIONS ") { return options(stream); }
+    if first.starts_with("GET /state") {
+        return send_body(stream, "200 OK", "application/json; charset=utf-8", &state().to_string());
+    }
+    if first.starts_with("GET /") {
+        return send_body(stream, "200 OK", "text/html; charset=utf-8", CONTROL_HTML);
+    }
+    if first.starts_with("POST /rpc") {
+        let head_end = req.find("\r\n\r\n").map(|p| p + 4).unwrap_or(req.len());
+        let body = req[head_end..].trim();
+        let mut payload: Value = match serde_json::from_str::<Value>(body) {
+            Ok(v) if v.is_object() => v,
+            _ => return send(stream, "400 Bad Request", "{\"ok\":false}"),
+        };
+        if let Some(obj) = payload.as_object_mut() {
+            if !obj.contains_key("type") {
+                if let Some(cmd) = obj.remove("cmd") { obj.insert("type".into(), cmd); }
+            }
+        }
+        if let Some(w) = app.get_webview_window("stream") {
+            let _ = w.emit("streamer-rpc", payload);
+        } else {
+            let _ = app.emit("streamer-rpc", payload);
+        }
+        return send(stream, "200 OK", "{\"ok\":true}");
+    }
     if !first.starts_with("POST /event") { return send(stream, "404 Not Found", "{\"ok\":false}"); }
     let head_end = req.find("\r\n\r\n").map(|p| p + 4).unwrap_or(req.len());
     let head = &req.as_bytes()[..head_end];

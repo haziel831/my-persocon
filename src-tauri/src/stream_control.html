@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Persocon · Controle Streamer</title>
+<style>
+  :root { --bg:#14121e; --panel:#1d1a2b; --fg:#f3eefa; --muted:#a9a0bd; --accent:#ff4fb8; --accent2:#49d8ff; --line:#37304c; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.4 system-ui,sans-serif; }
+  header { position:sticky; top:0; z-index:5; padding:12px 16px; background:linear-gradient(90deg,#2a0a45,#14121e); border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:17px; }
+  #status { margin-top:6px; color:var(--muted); font-size:12px; display:flex; flex-wrap:wrap; gap:12px; }
+  #status b { color:var(--accent2); }
+  nav { display:flex; gap:4px; padding:8px 10px 0; flex-wrap:wrap; }
+  nav button { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px 8px 0 0; padding:8px 12px; cursor:pointer; font-size:13px; }
+  nav button.on { background:var(--panel); color:var(--fg); border-color:var(--accent); }
+  main { padding:14px 16px 40px; }
+  section { display:none; }
+  section.on { display:block; }
+  h2 { font-size:14px; margin:18px 0 8px; color:var(--accent2); border-bottom:1px solid var(--line); padding-bottom:4px; }
+  h3 { font-size:13px; margin:14px 0 6px; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0 10px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+  button.act { background:#2a2440; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:7px 10px; cursor:pointer; }
+  button.act:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#160a20; border:0; font-weight:700; }
+  button.danger { border-color:#e2475a; }
+  .bar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; position:sticky; top:66px; z-index:4; background:rgba(20,18,30,.94); padding:8px; border:1px solid var(--line); border-radius:10px; }
+  .bar .queue { margin-left:auto; font-weight:700; }
+  label.toggle { display:flex; gap:8px; align-items:center; margin:5px 0; cursor:pointer; }
+  label.field { display:grid; grid-template-columns:170px 1fr 52px; gap:8px; align-items:center; margin:5px 0; }
+  label.field.wide { grid-template-columns:170px 1fr; }
+  input[type=range] { width:100%; }
+  input[type=text], select, textarea { background:#100e19; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:7px; width:100%; }
+  textarea { resize:vertical; min-height:60px; }
+  .val { text-align:right; color:var(--muted); font-size:11px; }
+  .note { color:var(--muted); font-size:11px; }
+  .toast { position:fixed; right:16px; bottom:16px; background:#2a2440; border:1px solid var(--accent); padding:10px 14px; border-radius:8px; opacity:0; transition:opacity .25s; pointer-events:none; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Persocon · Controle Streamer</h1>
+  <div id="status">
+    <span>Modo: <b id="st-mode">—</b></span>
+    <span>Moedas: <b id="st-coins">—</b></span>
+    <span>Twitch: <b id="st-twitch">—</b></span>
+    <span>Fila TTS: <b id="st-queue">—</b></span>
+    <span>BRB: <b id="st-brb">—</b></span>
+  </div>
+</header>
+<nav id="nav">
+  <button class="on" data-tab="streamer">🎥 Streamer</button>
+  <button data-tab="acoes">⚡ Ações</button>
+  <button data-tab="clima">🌦️ Clima</button>
+  <button data-tab="opcoes">⚙️ Opções</button>
+</nav>
+<main>
+<section id="tab-streamer" class="on">
+  <div class="bar">
+    <button class="act" id="mute">🔇 Mudo rápido</button>
+    <button class="act" id="skip">⏭ Pular fala</button>
+    <button class="act" id="clear">🗑️ Limpar fila</button>
+    <button class="act danger" id="exit">Sair do Streamer</button>
+    <span class="queue" id="queue">Fila: 0</span>
+  </div>
+
+  <h2>Fundo Chroma Key</h2>
+  <div class="row" id="chroma">
+    <button class="act" data-bg="verde">Verde</button>
+    <button class="act" data-bg="azul">Azul</button>
+    <button class="act" data-bg="magenta">Magenta</button>
+  </div>
+  <label class="toggle"><input type="checkbox" data-key="streamerClean" data-type="bool"> Palco limpo (ocultar Dock/UI na janela do OBS)</label>
+
+  <h2>🗣️ Voz Kokoro (TTS offline)</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="ttsEnabled" data-type="bool"> 🗣️ Voz Kokoro (TTS offline)</label>
+    <label class="field wide"><span>Pasta do TTS</span><input type="text" data-key="ttsDir" data-type="text"></label>
+    <label class="field wide"><span>Voz</span><select id="voice" data-key="ttsVoice" data-type="text"></select></label>
+    <label class="field"><span>Velocidade</span><input type="range" data-key="ttsSpeed" data-type="range" min="0.7" max="1.4" step="0.05"><span class="val"></span></label>
+    <label class="field"><span>Volume da Voz</span><input type="range" data-key="ttsVolume" data-type="range" min="0" max="1" step="0.05"><span class="val"></span></label>
+    <label class="field"><span>Tom (semitons)</span><input type="range" data-key="ttsPitch" data-type="range" min="-6" max="6" step="1"><span class="val"></span></label>
+    <label class="field wide"><span>Filtro de timbre</span><select data-key="ttsFilter" data-type="text">
+      <option value="natural">Natural</option><option value="warm">Suave/Quente</option><option value="wired">Lo-Fi / The Wired</option></select></label>
+    <label class="field wide"><span>Personalidade</span><select data-key="streamPersona" data-type="text">
+      <option value="padrao">Padrão (animada)</option><option value="estoica">Estóica (calma)</option></select></label>
+    <label class="toggle"><input type="checkbox" data-key="ttsDucking" data-type="bool"> Ducking de áudio</label>
+    <div class="row"><button class="act primary" id="test-voice">🔊 Testar voz com filtros</button><button class="act" id="test-persona">🔊 Testar frase estóica</button></div>
+  </div>
+
+  <h2>Filtros de texto</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreCommands" data-type="bool"> Ignorar comandos (! / $)</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreLinks" data-type="bool"> Ignorar links</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreEmotes" data-type="bool"> Ignorar emotes</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsDedupeChars" data-type="bool"> Compactar repetições</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsSpeakUser" data-type="bool"> Falar o nome do viewer</label>
+    <label class="field"><span>Máx. de caracteres</span><input type="range" data-key="ttsMaxChars" data-type="range" min="60" max="250" step="10"><span class="val"></span></label>
+    <label class="field wide"><span>Dicionário de pronúncia</span><textarea data-key="ttsPronounce" data-type="text" placeholder="um por linha: termo = como ler"></textarea></label>
+  </div>
+
+  <h2>Chat da Twitch</h2>
+  <div class="card">
+    <div class="row">
+      <input type="text" id="channel" placeholder="canal" style="max-width:220px">
+      <button class="act primary" id="twitch-connect">Conectar</button>
+      <button class="act" id="twitch-disconnect">Desconectar</button>
+      <span class="note" id="twitch-state">Desconectado</span>
+    </div>
+    <label class="toggle"><input type="checkbox" data-key="streamKeywords" data-type="bool"> Reagir a palavras-chave</label>
+    <label class="toggle"><input type="checkbox" data-key="streamCommands" data-type="bool"> Permitir comandos !</label>
+    <label class="toggle"><input type="checkbox" data-key="streamTtsSpeak" data-type="bool"> Falar respostas no TTS</label>
+    <label class="field wide"><span>Palavras bloqueadas</span><input type="text" data-key="streamBlockedWords" data-type="text"></label>
+    <label class="field wide"><span>Quem pode falar</span><select data-key="ttsWho" data-type="text">
+      <option value="all">Todos</option><option value="subs">Subs &amp; VIPs</option><option value="mods">Apenas Mods</option><option value="alerts_only">Só Alertas e Pontos</option></select></label>
+    <label class="field"><span>Cooldown global (s)</span><input type="range" data-key="ttsCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
+    <label class="field"><span>Cooldown por usuário (s)</span><input type="range" data-key="ttsUserCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
+    <label class="field wide"><span>Usuários ignorados</span><input type="text" data-key="ttsIgnoredUsers" data-type="text"></label>
+  </div>
+
+  <h2>Ponte local de alertas</h2>
+  <div class="card">
+    <div class="row"><input type="text" id="endpoint" readonly><button class="act" id="copy">Copiar</button></div>
+    <label class="toggle"><input type="checkbox" id="bridge-on"> Servidor do painel ativo</label>
+    <div class="row" id="sim">
+      <button class="act" data-alert="follow">Testar Follow</button>
+      <button class="act" data-alert="sub">Testar Sub</button>
+      <button class="act" data-alert="raid">Testar Raid</button>
+      <button class="act" data-alert="bits">Testar Bits</button>
+    </div>
+    <div class="row"><input type="text" id="say" placeholder="Fazer ela falar..."><button class="act" id="say-btn">🔊</button></div>
+  </div>
+
+  <h2>Pontos do Canal</h2>
+  <div class="card">
+    <textarea id="redeems" placeholder="nome da recompensa=acao:moedas"></textarea>
+    <div class="row"><button class="act primary" id="redeems-save">Salvar</button><select id="redeem-test"></select><button class="act" id="redeem-run">Testar resgate</button></div>
+  </div>
+
+  <h2>☕ Modo Volto Já (BRB)</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" id="brb-on"> ☕ Modo Volto Já (BRB)</label>
+    <label class="field wide"><span>Texto da plaquinha</span><input type="text" data-key="streamBrbText" data-type="text"></label>
+  </div>
+
+  <h2>Moedas e queda do céu</h2>
+  <div class="card">
+    <div class="row"><input type="number" id="coins-n" value="50" min="1"><button class="act" id="coins-add">Dar moedas</button><button class="act" id="drop">Dropar item do céu</button></div>
+  </div>
+</section>
+
+<section id="tab-acoes">
+  <h2>Ações rápidas</h2>
+  <div class="row" id="modes">
+    <button class="act" data-mode="jam">Dançar</button><button class="act" data-mode="eat">Comer</button>
+    <button class="act" data-mode="sleep">Dormir</button><button class="act" data-mode="study">Estudar</button>
+    <button class="act" data-mode="pat">Cafuné</button><button class="act" data-mode="bath">Banho</button>
+  </div>
+  <h2>Brinquedos</h2>
+  <div class="row" id="toys">
+    <button class="act" data-toy="bolhas">Bolhas de Sabão</button><button class="act" data-toy="aviao">Aviãozinho</button>
+    <button class="act" data-toy="trio">Show do Trio</button>
+  </div>
+</section>
+
+<section id="tab-clima">
+  <h2>Clima ambiente</h2>
+  <div class="row" id="weather">
+    <button class="act" data-weather="chuva">Chuva</button><button class="act" data-weather="sakura">Pétalas</button>
+    <button class="act" data-weather="vagalumes">Vagalumes</button><button class="act" data-weather="neve">Neve</button>
+    <button class="act" data-weather="off">Desligar</button>
+  </div>
+</section>
+
+<section id="tab-opcoes">
+  <h2>Opções</h2>
+  <label class="field wide"><span>Idioma</span><select data-key="lang" data-type="text"><option value="pt">Português</option><option value="en">English</option></select></label>
+  <label class="toggle"><input type="checkbox" data-key="sound" data-type="bool"> Som</label>
+  <p class="note">Este painel roda no navegador e se comunica com a janela do palco via HTTP local. Feche esta aba quando terminar; reabra pelo ícone da bandeja.</p>
+</section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+let state = { config: {} };
+let muted = false;
+
+const rpc = (payload) => fetch('/rpc', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).catch(()=>{});
+const toast = (msg) => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.classList.remove('show'),1800); };
+const fmt = (input) => {
+  const span = input.parentElement.querySelector('.val');
+  if (!span) return;
+  const v = Number(input.value);
+  if (input.dataset.key === 'ttsSpeed') span.textContent = v.toFixed(2) + '×';
+  else if (input.dataset.key === 'ttsVolume') span.textContent = Math.round(v*100) + '%';
+  else if (input.min === '0' && input.max === '1') span.textContent = Math.round(v*100) + '%';
+  else span.textContent = (v > 0 && input.min === '-6' ? '+' : '') + v + (input.dataset.key.includes('Cooldown') ? 's' : '');
+};
+
+$$('nav button').forEach(b => b.onclick = () => {
+  $$('nav button').forEach(x => x.classList.toggle('on', x === b));
+  $$('main section').forEach(s => s.classList.toggle('on', s.id === 'tab-' + b.dataset.tab));
+});
+
+$$('[data-key]').forEach(input => {
+  input.addEventListener('change', () => {
+    const value = input.dataset.type === 'bool' ? input.checked : input.dataset.type === 'range' ? Number(input.value) : input.value;
+    rpc({ cmd:'setOption', key:input.dataset.key, value });
+    if (input.dataset.key === 'ttsSpeed' || input.dataset.key === 'streamPersona') toast('Voz atualizada');
+  });
+  if (input.dataset.type === 'range') input.addEventListener('input', () => fmt(input));
+});
+
+$('#chroma').onclick = (e) => { const b=e.target.closest('[data-bg]'); if (b) rpc({cmd:'setOption',key:'streamerBg',value:b.dataset.bg}); };
+$('#mute').onclick = () => { muted=!muted; rpc({cmd:'ttsMute'}); $('#mute').classList.toggle('primary',muted); $('#mute').textContent = muted ? '🔇 Mudo (ligado)' : '🔇 Mudo rápido'; };
+$('#skip').onclick = () => rpc({cmd:'ttsSkip'});
+$('#clear').onclick = () => rpc({cmd:'ttsClear'});
+$('#exit').onclick = () => rpc({cmd:'exitStreamer'});
+$('#test-voice').onclick = () => rpc({cmd:'ttsTest'});
+$('#test-persona').onclick = () => rpc({cmd:'say',text:'Pausa na transmissão... já voltamos.'});
+$('#twitch-connect').onclick = () => rpc({cmd:'twitchConnect',channel:$('#channel').value});
+$('#twitch-disconnect').onclick = () => rpc({cmd:'twitchDisconnect'});
+$('#sim').onclick = (e) => { const b=e.target.closest('[data-alert]'); if (b) rpc({cmd:'testAlert',event:{type:b.dataset.alert,user:'Viewer',amount:100}}); };
+$('#say-btn').onclick = () => { rpc({cmd:'say',text:$('#say').value}); $('#say').value=''; };
+$('#copy').onclick = () => navigator.clipboard?.writeText($('#endpoint').value);
+$('#bridge-on').onchange = () => toast('O servidor já está ativo enquanto o app roda');
+$('#coins-add').onclick = () => rpc({cmd:'coins',n:Number($('#coins-n').value)||0});
+$('#drop').onclick = () => rpc({cmd:'skyDrop',id:'maca'});
+$('#redeems-save').onclick = () => {
+  const map = {};
+  for (const line of $('#redeems').value.split('\n')) {
+    const [name, rest] = line.split('='); if (!name || !rest) continue;
+    const [action, coins] = rest.split(':');
+    map[name.trim()] = { action:(action||'').trim(), coins:Number(coins)||0 };
+  }
+  rpc({cmd:'setOption',key:'streamRedeems',value:map}); fillRedeems(map); toast('Resgates salvos');
+};
+$('#redeem-run').onclick = () => {
+  const name = $('#redeem-test').value; if (!name) return;
+  rpc({cmd:'testAlert',event:{type:'redeem',user:'Viewer',reward:name,text:'Olá, chat!'}});
+};
+$('#brb-on').onchange = () => { const on=$('#brb-on').checked; rpc({cmd:'brb',value:on,text:$('[data-key=streamBrbText]').value}); toast(on?'BRB ligado':'BRB desligado'); };
+$('#modes').onclick = (e) => { const b=e.target.closest('[data-mode]'); if (b) rpc({cmd:'startMode',mode:b.dataset.mode}); };
+$('#toys').onclick = (e) => { const b=e.target.closest('[data-toy]'); if (b) rpc({cmd:'callToy',id:b.dataset.toy}); };
+$('#weather').onclick = (e) => { const b=e.target.closest('[data-weather]'); if (b) rpc({cmd:'weather',kind:b.dataset.weather}); };
+
+function fillRedeems(map) {
+  const sel = $('#redeem-test'); const names = Object.keys(map || {});
+  sel.replaceChildren(...names.map(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; return o; }));
+}
+
+function render() {
+  const c = state.config || {};
+  $('#st-mode').textContent = c.streamer ? 'Streamer' : 'Jogo Normal';
+  $('#st-coins').textContent = state.coins ?? '—';
+  $('#st-twitch').textContent = state.twitch ? 'Conectado' : 'Desconectado';
+  $('#st-queue').textContent = state.tts?.queue ?? 0;
+  $('#st-brb').textContent = state.brb ? 'Ligado' : 'Desligado';
+  $('#queue').textContent = 'Fila: ' + (state.tts?.queue ?? 0);
+  if (muted !== state.tts?.muted) { muted = !!state.tts?.muted; $('#mute').classList.toggle('primary',muted); $('#mute').textContent = muted ? '🔇 Mudo (ligado)' : '🔇 Mudo rápido'; }
+  $('#channel').value = c.twitchChannel || '';
+  $('#twitch-state').textContent = state.twitch ? 'Conectado #' + (c.twitchChannel||'') : 'Desconectado';
+  $('#endpoint').value = location.origin + '/event';
+  $('#redeems').value = state.redeemsText || Object.entries(c.streamRedeems||{}).map(([n,v])=>`${n}=${v.action}:${v.coins||0}`).join('\n');
+  fillRedeems(c.streamRedeems);
+  const voices = state.voices || [];
+  const vsel = $('#voice');
+  if (voices.length && vsel.options.length !== voices.length) {
+    vsel.replaceChildren(...voices.map(v => { const o=document.createElement('option'); o.value=typeof v==='string'?v:(v.id||v.name); o.textContent=typeof v==='string'?v:(v.name||v.id); return o; }));
+  }
+  $('#brb-on').checked = !!state.brb;
+  $$('[data-key]').forEach(input => {
+    if (input === document.activeElement) return;
+    const v = c[input.dataset.key];
+    if (input.dataset.type === 'bool') input.checked = v !== false && (v === undefined ? true : !!v);
+    else if (v !== undefined) input.value = v;
+    if (input.dataset.type === 'range') fmt(input);
+  });
+}
+
+async function poll() {
+  try { const r = await fetch('/state'); if (r.ok) state = await r.json(); render(); } catch {}
+}
+poll(); setInterval(poll, 1000);
+</script>
+</body>
+</html>

@@ -12,7 +12,9 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
+    ffi::OsStr,
     fs,
+    os::windows::ffi::OsStrExt,
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     sync::{
@@ -30,6 +32,8 @@ use tauri::{
     WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
+use windows_sys::Win32::UI::Shell::ShellExecuteW;
+use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
 // Zip imports (resourcepacks) must not be allowed to exhaust memory, even if the archive lies
 // about its uncompressed sizes or is deliberately malformed.
@@ -875,6 +879,49 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
     Ok(win)
 }
 
+fn wide(s: &str) -> Vec<u16> {
+    OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+}
+
+// Opens the local control panel in the user's default browser (Brave, Edge...) with no console.
+fn open_url_in_browser(url: &str) {
+    let operation = wide("open");
+    let file = wide(url);
+    let r = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            operation.as_ptr(),
+            file.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    if (r as isize) <= 32 {
+        logfile::line("ERROR", "streamer", &format!("não foi possível abrir {url}"));
+    }
+}
+
+fn bridge_address(config: &Value) -> (u16, String) {
+    let port = config.get("streamBridgePort").and_then(Value::as_u64).unwrap_or(48321) as u16;
+    let token = config.get("bridgeToken").and_then(Value::as_str).unwrap_or("").to_string();
+    (port, token)
+}
+
+fn ensure_streamer_control(app: &AppHandle, config: &Value) {
+    let (port, token) = bridge_address(config);
+    if let Err(e) = stream_bridge::start(app.clone(), port, token) {
+        logfile::line("ERROR", "streamer", &format!("ponte local: {e}"));
+    }
+    open_url_in_browser(&format!("http://127.0.0.1:{port}/"));
+}
+
+#[tauri::command]
+fn streamer_push_state(state: Value) -> Result<(), String> {
+    stream_bridge::set_state(state);
+    Ok(())
+}
+
 #[tauri::command]
 fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Result<(), String> {
     if STREAMER_BUSY.swap(true, Ordering::AcqRel) {
@@ -903,9 +950,9 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                     }
                 }
                 if !value {
-                    if let Some(w) = handle.get_webview_window("stream-ctrl") {
-                        let _ = w.destroy();
-                    }
+                    let mut cfg = config.clone();
+                    cfg["streamer"] = json!(false);
+                    stream_bridge::set_state(json!({ "config": cfg }));
                 }
                 match build_window(&handle, value, false, false, &config) {
                     Ok(_) => {
@@ -915,7 +962,7 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                             }
                         }
                         if value && !was {
-                            let _ = open_streamer_control(handle.clone());
+                            ensure_streamer_control(&handle, &config);
                         }
                     }
                     Err(e) => {
@@ -937,42 +984,24 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
     Ok(())
 }
 
-// Second monitor control panel for Streamer Mode (normal window, no WebGL).
+// Reopens the control panel in the browser (tray menu / renderer helper).
 #[tauri::command]
-fn open_streamer_control(app: AppHandle) -> Result<(), String> {
+fn open_streamer_control(app: AppHandle, state: State<'_, PetState>) -> Result<(), String> {
     if !STREAMER.load(Ordering::Relaxed) { return Ok(()); }
-    if app.get_webview_window("stream-ctrl").is_some() {
-        if let Some(w) = app.get_webview_window("stream-ctrl") {
-            let _ = w.set_focus();
-        }
-        return Ok(());
-    }
-    let win = WebviewWindowBuilder::new(
-        &app,
-        "stream-ctrl",
-        WebviewUrl::App("index.html".into()),
-    )
-    .title("My Persocon - Controle Streamer")
-    .decorations(true)
-    .resizable(true)
-    .transparent(false)
-    .skip_taskbar(false)
-    .inner_size(520.0, 720.0)
-    .center()
-    .initialization_script("window.__PET_STREAMER_CTRL__ = true;")
-    .build()
-    .map_err(|e| e.to_string())?;
-    let _ = win.set_focus();
+    let config = lock_config(&state).clone();
+    ensure_streamer_control(&app, &config);
     Ok(())
 }
 
 // Relay commands/state between the stage ("stream") and the control panel ("stream-ctrl").
 #[tauri::command]
 fn streamer_rpc(app: AppHandle, target: String, payload: Value) -> Result<(), String> {
-    let label = if target == "stream" { "stream" } else if target == "stream-ctrl" { "stream-ctrl" } else {
+    // The old WebView2 control window is gone: both aliases deliver to the stage window,
+    // which forwards state to the browser panel through streamer_push_state.
+    if target != "stream" && target != "stream-ctrl" {
         return Err("alvo inválido".into());
-    };
-    if let Some(w) = app.get_webview_window(label) {
+    }
+    if let Some(w) = app.get_webview_window("stream") {
         let _ = w.emit("streamer-rpc", payload);
     }
     Ok(())
@@ -1167,10 +1196,11 @@ fn log_lines(lines: Vec<String>) {
 fn tray_menu<R: tauri::Runtime, M: Manager<R>>(m: &M, en: bool) -> tauri::Result<Menu<R>> {
     let t = |pt: &'static str, en_text: &'static str| if en { en_text } else { pt };
     let streamer = MenuItem::with_id(m, "streamer", t("Streamer Mode (liga/desliga)", "Streamer Mode (on/off)"), true, None::<&str>)?;
+    let control = MenuItem::with_id(m, "open_control", t("Abrir Controle Streamer (navegador)", "Open Streamer Control (browser)"), true, None::<&str>)?;
     let through = MenuItem::with_id(m, "through", t("Clicar através (liga/desliga)", "Click through (on/off)"), true, None::<&str>)?;
     let show_app = MenuItem::with_id(m, "show_app", t("Mostrar app de novo", "Show app again"), true, None::<&str>)?;
     let quit = MenuItem::with_id(m, "quit", t("Sair", "Quit"), true, None::<&str>)?;
-    Menu::with_items(m, &[&streamer, &through, &show_app, &quit])
+    Menu::with_items(m, &[&streamer, &control, &through, &show_app, &quit])
 }
 
 // Keeps the overlay covering the chosen monitor's work area and streams window geometry
@@ -1386,6 +1416,7 @@ fn main() {
             set_streamer,
             open_streamer_control,
             streamer_rpc,
+            streamer_push_state,
             tts_voices,
             tts_speak,
             tts_stop,
@@ -1421,7 +1452,11 @@ fn main() {
         ])
         .setup(move |app| {
             let _ = APP.set(app.handle().clone());
-            build_window(app, STREAMER.load(Ordering::Relaxed), preview, combate, &config)?;
+            let streamer_at_start = STREAMER.load(Ordering::Relaxed);
+            build_window(app, streamer_at_start, preview, combate, &config)?;
+            if streamer_at_start && !preview && !combate {
+                ensure_streamer_control(app.handle(), &config);
+            }
             if !preview && !combate {
                 let menu = tray_menu(app, lang_en)?;
                 let mut tray = TrayIconBuilder::with_id("main").tooltip(APP_NAME).menu(&menu).on_menu_event(
@@ -1432,6 +1467,9 @@ fn main() {
                             let _ = app.emit("tray_click", ());
                         } else if event.id() == "streamer" {
                             let _ = app.emit("streamer", !STREAMER.load(Ordering::Relaxed));
+                        } else if event.id() == "open_control" {
+                            let conf = lock_config(&app.state::<PetState>()).clone();
+                            ensure_streamer_control(app, &conf);
                         } else if event.id() == "through" {
                             let _ = app.emit("click-through", ());
                         }
