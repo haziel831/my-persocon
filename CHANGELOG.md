@@ -7,6 +7,11 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.31 — 20/11/2026
+**Arrastar e soltar arquivos.** A janela agora aceita arquivos soltos sobre a Persocon. `.mid`/`.midi` são lidos via `read_file_data` e tocados no sintetizador (com `songImport` e reação musical); `.vrm`/`.glb`/`.zip` entram direto no `inspectModel`, pulando o diálogo de arquivo; `.png` de 64×64 ou 64×32 abre o preview de skin com a opção de importar como skin Minecraft.
+
+O destaque visual é um brilho suave na Persocon mais uma dica curta na tela, ambos com `pointer-events: none` — o click-through continua intacto quando não há drag ativo. Textos e erros em PT/EN passam por `translate()`.
+
 ## v1.9.30 — 19/11/2026
 **Modo Foco (Pomodoro).** Novo `focus.js`: sessões 25/5 e 50/10 com contador no dock, pausa/retomada/cancelamento no menu rápido e no painel Brincar. Durante o foco ela fica sentada e quieta, a Boneca senta ao lado, travessuras/roubo de cursor são bloqueados. Ao concluir: chime, `dollReact`, fala sugerindo água/descanso, afeção + humor + XP de Constituição — **nenhuma moeda**.
 

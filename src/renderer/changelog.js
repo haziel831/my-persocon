@@ -1,6 +1,10 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.31', [
+    ['Arraste arquivos para cima da Persocon: `.mid`/`.midi` tocam direto no sintetizador com reação musical, `.vrm`/`.glb`/`.zip` abrem o fluxo de inspeção de modelo e `.png` de skin 64×64/64×32 abre o preview para importar', 'Drop files right onto the Persocon: `.mid`/`.midi` play straight in the synthesizer with a musical reaction, `.vrm`/`.glb`/`.zip` open the model inspection flow, and 64×64/64×32 `.png` skins open the preview for import'],
+    ['Enquanto o arquivo é arrastado, a Persocon ganha um brilho discreto e uma dica curta na tela; soltar um arquivo inválido mostra uma fala de erro em PT/EN', 'While a file is dragged over her, the Persocon gets a subtle glow and a short on-screen hint; dropping an unsupported file shows a PT/EN error line'],
+  ]],
   ['1.9.30', [
     ['Novo Modo Foco (Pomodoro): sessões de 25/5 ou 50/10 com a Persocon sentada e a Boneca ao lado em pose calma, sem travessuras, com contador no dock, aviso sonoro e recompensa de afeção, humor e XP de Constituição — nunca moedas', 'New Focus Mode (Pomodoro): 25/5 or 50/10 sessions with the Persocon sitting and the Doll calmly beside her, no antics, a dock countdown, a gentle chime and affection, mood and Constitution XP — never coins'],
     ['Presets rápidos de personalidade nas Opções (Calma, Travessa, Estudo/Trabalho e Streamer), rotina diária que saúda uma vez por período real do dia, e busca com filtros rápidos na Loja e no Inventário (acentos e maiúsculas ignorados)', 'Quick personality presets in Options (Calm, Playful, Study/Work and Streamer), a daily routine that greets once per real time-of-day period, and search with quick filters in the Shop and Inventory (accents and case ignored)'],
