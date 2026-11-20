@@ -223,7 +223,7 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     if (!el) {
       el = document.createElement('div');
       el.className = 'status-dock hitzone';
-      el.title = 'Clique: menu · 2×: rápido · botão direito: opções · segurar direito: mover';
+      el.title = translate('Clique: menu · 2×: rápido · botão direito: opções · segurar direito: mover');
       let rmb = null;
       el.addEventListener('click', (e) => {
         if (moving || rmb?.moved) return;
@@ -240,7 +240,7 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
       });
       el.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        if (moving || e.target.closest('.sd-log-toggle')) return;
+        if (moving || e.target.closest('.sd-log-toggle, .sd-chat-toggle, .sd-xp-toggle, .sd-focus')) return;
         const r = el.getBoundingClientRect();
         app.quick?.show?.(r.left + r.width / 2, r.bottom);
       });

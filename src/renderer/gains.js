@@ -16,7 +16,9 @@ export class Gains {
       // O XP tem a caixinha dele (abaixo do Chat): o feed não repete.
       if (type === 'attrXp') return;
       if (type !== 'medicine' && type !== 'ate') return;
-      for (const [b, s] of data.item.buffs || (data.item.buff ? [data.item.buff] : [])) this.show(`+${Math.round(s / 60)} min`, 'buff', BUFF_LABELS[b] || b, BUFF_ICONS[b]);
+      const item = data?.item;
+      if (!item) return;
+      for (const [b, s] of item.buffs || (item.buff ? [item.buff] : [])) this.show(`+${Math.round(s / 60)} min`, 'buff', BUFF_LABELS[b] || b, BUFF_ICONS[b]);
     });
   }
 

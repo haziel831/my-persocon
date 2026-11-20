@@ -39,6 +39,7 @@ const EN = {
   'Parar de assistir': 'Stop watching', 'Assistir': 'Watch', 'Senta e assiste ao vídeo atrás dela': 'Sits and watches the video behind her',
   // ---- focus (Pomodoro) ----
   'Foco': 'Focus', 'Pausa': 'Break', 'Sessão de foco': 'Focus session', 'Clique para encerrar o modo foco': 'Click to end focus mode', 'Modo Foco (Pomodoro)': 'Focus Mode (Pomodoro)',
+  'Clique: menu · 2×: rápido · botão direito: opções · segurar direito: mover': 'Click: menu · double: quick · right click: options · hold right: move',
   // ---- Doll skills ----
   'Curador de Mangás': 'Manga Curator', 'Massagem & Alongamento': 'Massage & Stretch', 'Soneca em Dupla': 'Nap Together',
   'DJ Miniatura': 'Mini DJ', 'Guarda-Chuva em Dupla': 'Umbrella Together', 'Ajudante do Mural': 'Board Helper',

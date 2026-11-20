@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.35 — 21/11/2026
+Correções rápidas sobre a 1.9.34: cooldowns das skills do Doll em `Map` em memória (com `Date.now()`) e `d.cool` removido de saves antigos; `teachDollSkill` exige Doll vivo e traduz o nome da skill; `dblclick` do dock ignora os botões de Chat/XP/Foco e o tooltip do dock é traduzido; `gains.js` usa optional chaining em `data.item`.
+
 ## v1.9.34 — 21/11/2026
 **Atributos e ensino.** Carisma (`cha`) e Percepção (`per`) entram no Perfil. `teachSpeedMul()` usa o Carisma para acelerar o XP e a duração do ensino do Corvo e do Doll. Consoles dão Inteligência (com leve desgaste de Força/Constituição), Alvo/Arcade dão Destreza e Percepção (mais no upgrade) e Aquário/ Aquário de Koi dão Carisma.
 

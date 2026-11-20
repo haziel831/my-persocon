@@ -1,5 +1,9 @@
 // Doll skills: 100% outside combat, no coins. Hidden until learned, like the Crow's.
 import { teachSpeedMul } from './attrxp.js';
+import { translate } from './i18n.js';
+
+// Cooldowns vivem só em memória: performance.now()/Date.now() nunca entram no save.json.
+const COOLDOWNS = new Map();
 
 export const DOLL_SKILLS = {
   curador: { name: 'Curador de Mangás', desc: 'Escolhe os mangás mais raros para a Persocon ler' },
@@ -16,7 +20,11 @@ export const DOLL_SKILLS = {
   plaquinha: { name: 'Assistente de Palco', desc: 'Erguenta plaquinhas fofas em emotes e no Streamer Mode' },
 };
 
-export const dollData = (app) => (app.game.profile.dollSkills ||= { focus: null, xp: {}, learned: [], trains: 0 });
+export const dollData = (app) => {
+  const d = (app.game.profile.dollSkills ||= { focus: null, xp: {}, learned: [], trains: 0 });
+  if (d.cool) delete d.cool; // saves antigos: cooldown persistido travava as skills
+  return d;
+};
 export const dollHasSkill = (app, id) => (app.game.profile.dollSkills?.learned || []).includes(id);
 export const dollReady = (app) => !!app.doll?.alive && !app.pomodoro?.active;
 
@@ -28,10 +36,9 @@ export function dollBonus(app, id, mult = 1.15) {
 // Skill reaction with a cooldown (seconds), so ambient effects do not spam.
 export function dollWave(app, id, text, ic = '✨', cooldown = 180) {
   if (!dollReady(app) || !dollHasSkill(app, id)) return false;
-  const d = dollData(app);
-  d.cool ||= {};
-  if (performance.now() < (d.cool[id] || 0)) return false;
-  d.cool[id] = performance.now() + cooldown * 1000;
+  const now = Date.now();
+  if (now < (COOLDOWNS.get(id) || 0)) return false;
+  COOLDOWNS.set(id, now + cooldown * 1000);
   dollUseSkill(app, id, text, ic);
   return true;
 }
@@ -45,6 +52,7 @@ export function dollUseSkill(app, id, text, ic = '✨') {
 
 // Short teaching session by the Persocon; Carisma makes it faster and yields cha XP.
 export function teachDollSkill(app, id) {
+  if (!app.doll?.alive) return false;
   const d = dollData(app);
   if (!DOLL_SKILLS[id] || dollHasSkill(app, id)) return false;
   const rate = teachSpeedMul(app.game);
@@ -57,7 +65,8 @@ export function teachDollSkill(app, id) {
     d.learned.push(id);
     d.focus = null;
     app.sound?.sfx?.('levelup');
-    app.speech?.say(app.config.lang === 'en' ? `The Doll learned: ${DOLL_SKILLS[id].name}!` : `O Doll aprendeu: ${DOLL_SKILLS[id].name}!`, 3.5);
+    const skillName = translate(DOLL_SKILLS[id].name);
+    app.speech?.say(app.config.lang === 'en' ? `The Doll learned: ${skillName}!` : `O Doll aprendeu: ${skillName}!`, 3.5);
   }
   app.game.changed();
   return true;

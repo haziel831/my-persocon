@@ -1,6 +1,10 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.35', [
+    ['Correções pós-lançamento: cooldowns das skills do Doll ficam só em memória (não travam mais após reiniciar o app), ensino valida se o Doll está vivo e nome da skill é traduzido', 'Post-release fixes: Doll skill cooldowns stay in memory (no longer stuck after restarting), teaching validates the Doll is alive and skill names are translated'],
+    ['O dock ignora cliques rápidos nos botões de Chat/XP/Foco e seu tooltip é traduzido; o feed de ganhos não quebra mais quando um evento chega sem item', 'The dock ignores double-clicks on Chat/XP/Focus buttons and its tooltip is translated; the gains feed no longer crashes when an event has no item'],
+  ]],
   ['1.9.34', [
     ['Novos atributos Carisma e Percepção: o Carisma acelera o ensino de Corvo e Doll, e as mobílias treinam atributos (consoles → Inteligência, Alvo → Destreza/Percepção, Aquário → Carisma)', 'New Charisma and Perception attributes: Charisma speeds up teaching the Crow and Doll, and furniture trains attributes (consoles → Intelligence, Target → Dexterity/Perception, Aquarium → Charisma)'],
     ['Sistema de Skills do Doll com 12 habilidades fora de combate, ensinadas pela Persocon e ativadas em mangás, estudos, sonecas, música, chuva, mural, aquário, alvo, Tamapet, clima, janelas e palco', 'Doll Skill system with 12 non-combat abilities taught by the Persocon and triggered by manga, study, naps, music, rain, board, aquarium, target, Tamapet, weather, windows and stage'],
