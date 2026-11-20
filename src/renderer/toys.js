@@ -14,6 +14,7 @@ import { upgradeFx } from './upgradefx.js';
 import { skillPick, skillGain, skillLevel } from './skills.js';
 import { dayPeriod } from './watch.js';
 import { ATTR_XP } from './attrxp.js';
+import { DOLL_SKILLS, dollHasSkill, dollData, dollBonus, dollWave } from './dollskills.js';
 import { translate } from './i18n.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -418,7 +419,14 @@ export class Toys {
     const pet = app.pet;
     if (!t?.placed || t.broken || pet.dead || pet.combatMode || pet.mode !== 'ground' || pet.toyPlay) return false;
     const up = !!t.up;
-    const finish = () => { if (!app.pomodoro?.active) t.lampOn = false; app.game.changed(); };
+    const finish = () => {
+      if (!app.pomodoro?.active) t.lampOn = false;
+      if (dollBonus(this.app, 'relaxar', 0) < 1) {
+        app.pet.adjust?.({ mood: 3 }, 'relaxar');
+        dollWave(this.app, 'relaxar', '🤸', '🤸', 180);
+      }
+      app.game.changed();
+    };
     const begin = () => {
       t.lampOn = true;
       app.speech?.say(app.config.lang === 'en' ? 'Ugh, fine, I will study...' : 'Aff, tá bom, eu estudo...', 3);
@@ -555,6 +563,22 @@ export class Toys {
         this.app.doll?.setScale?.(1);
       });
       if (game.gear.cristal) btn(game.dollAwake !== false ? '😴 Fazer o Doll dormir (parar de se mexer)' : '✨ Acordar o Doll', () => this.app.doll?.setAwake(game.dollAwake === false));
+      const learned = Object.keys(DOLL_SKILLS).filter((s) => dollHasSkill(app, s));
+      if (learned.length) {
+        const sub = document.createElement('div');
+        sub.className = 'menu-sub';
+        for (const s of learned) sub.append(Object.assign(document.createElement('div'), { textContent: `✓ ${translate(DOLL_SKILLS[s].name)}` }));
+        el.append(sub);
+      }
+      btn('🎓 Ensinar skill ao Doll', () => {
+        const next = this.app.doll?.brain?.nextSkill?.();
+        if (!next) return sound.play('cancel', { volume: 0.4 });
+        this.app.doll?.brain?.teachSkill?.(next);
+        sound.play('ok', { volume: 0.4 });
+        const d = dollData(app);
+        const pct = Math.min(99, Math.round((d.xp[next] || 0)));
+        app.speech?.say(`${translate(DOLL_SKILLS[next].name)} · ${pct}%`, 3);
+      });
     }
     if (id === 'videogame' && t && !t.broken) {
       const tw = this.app.tvWatch;
@@ -1344,7 +1368,15 @@ export class Toys {
       pet.playToy({
         id, dur: rand(15, 130), gain, scale, hold: backArt(id), holdFrom: 0.9, holdSize, pickAnim, cart, console: id, fromBag: true,
         anim: sit ? 'sit' : 'idle', pose: sit ? 'sit' : 'stand',
-        onEnd: (i, tp) => { game.playedCart(cart, tp?.t || 0); game.playedConsole?.(id, tp?.t || 0); },
+        onEnd: (i, tp) => {
+          game.playedCart(cart, tp?.t || 0);
+          game.playedConsole?.(id, tp?.t || 0);
+          game.attrAdd?.('int', Math.round(ATTR_XP.int.console * (id === 'gameboy' ? 1 : 1.4)), 'Videogame');
+          const softer = dollBonus(this.app, 'relaxar', 0.5);
+          game.attrDecay?.('str', 0.5 * softer, 'Videogame');
+          game.attrDecay?.('con', 0.5 * softer, 'Videogame');
+          if (softer < 1) dollWave(this.app, 'relaxar', '🤸', '🤸', 180);
+        },
         tick: (dt, tp) => { this.gameboyTick(dt, tp, pet); this.furn.snack(dt, tp, pet); },
       });
       return;
@@ -1473,6 +1505,12 @@ export class Toys {
       const endGb = (interrupted, tp) => {
         game.playedCart(cart, tp?.t || 0);
         game.playedConsole?.(id, tp?.t || 0);
+        const pro = !!game.toys[id]?.up;
+        game.attrAdd?.('int', Math.round((pro ? ATTR_XP.int.consolePro : ATTR_XP.int.console) * (id === 'videogame' ? 1.6 : 1)), 'Videogame');
+        const softer = dollBonus(this.app, 'relaxar', 0.5);
+        game.attrDecay?.('str', (pro ? 0.8 : 0.5) * softer, 'Videogame');
+        game.attrDecay?.('con', (pro ? 0.8 : 0.5) * softer, 'Videogame');
+        if (softer < 1) dollWave(this.app, 'relaxar', '🤸', '🤸', 180);
         end(interrupted);
       };
       // With the cushion out, she always sits on it to play handhelds.
@@ -2680,6 +2718,12 @@ export class Toys {
       this.muralCool = rand(180, 420);
       const key = Object.keys(game.toys).find((k) => k.split('#')[0] === 'mural' && game.toys[k].placed && !game.toys[k].broken);
       const t = key && game.toys[key];
+      if (t && dollHasSkill(this.app, 'enfeitar') && !hidden) {
+        if (dollWave(this.app, 'enfeitar', '✨', '✨', 300)) {
+          this.app.furn?.floatText?.(t.x, t.y - 20, '✨');
+          pet.adjust?.({ mood: 3, affection: 1 }, 'enfeitar');
+        }
+      }
       if (t && !hidden && pet.mode === 'ground' && !pet.dead && Math.abs(pet.x - t.x) < this.P * 4) {
         this.app.emoticons?.show?.('love', true);
         const lines = ['Olha as fotos no mural... que lembranças boas!', 'Tô com saudade desses dias... obrigada por tirar as fotos!'];

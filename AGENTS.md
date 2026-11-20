@@ -55,7 +55,7 @@ Stack: Tauri 2 + WebView2, ES modules puros, three.js, sem bundler. Rust em `src
 - `weather.js` clima ambiente offline (chuva/pétalas/vagalumes/neve) · `tvwatch.js` Assistir na TV · `watch.js`, `modes.js` atividades · `music.js`, `synth.js`, `sound.js` (sfx)
 - `catalog.js` opções/presets/temas e busca da loja/inventário · `game.js` itens/loja/uso · `lootitems.js`, `casino.js`, `casinoitems.js`, `vending.js`, `vendupitems.js`, `upgrades.js`, `upgradefx.js`, `rewards.js`, `gains.js`
 - `games.js`, `minigames.js`, `arcadeshooter.js` minigames (`crtFilter`)
-- `trio.js` cenas cooperativas raras (Persocon + Boneca + Corvo) · `doll.js` + `dollai.js` boneca · `crow.js` corvo · `antics.js` travessuras · `care.js` cuidados · `medicons.js`
+- `dollskills.js` skills do Doll fora de combate · `trio.js` cenas cooperativas raras (Persocon + Boneca + Corvo) · `doll.js` + `dollai.js` boneca · `crow.js` corvo · `antics.js` travessuras · `care.js` cuidados · `medicons.js`
 - `interact.js` arrastar/clique · `ui.js` menus/painéis · `quickmenu.js` · `dock.js` status dock · `focus.js` Modo Foco/Pomodoro · `title.js`, `intro.js` abertura
 - `pixel.js` sprites + `glyphIcon` · `emoticons.js` · `fx.js`, `filters.js` · `desktop.js`, `world.js` janelas/chão
 - Modelos 3D: `model.js`, `mcmodel.js`, `molang.js`, `vrmview.js`, `view.js`, `hairphys.js` (ossos `HairPhys*`), `preview.js`, `skins.js`, `animation.js`, `genanims.js`

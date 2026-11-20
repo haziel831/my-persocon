@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.34', [
+    ['Novos atributos Carisma e Percepção: o Carisma acelera o ensino de Corvo e Doll, e as mobílias treinam atributos (consoles → Inteligência, Alvo → Destreza/Percepção, Aquário → Carisma)', 'New Charisma and Perception attributes: Charisma speeds up teaching the Crow and Doll, and furniture trains attributes (consoles → Intelligence, Target → Dexterity/Perception, Aquarium → Charisma)'],
+    ['Sistema de Skills do Doll com 12 habilidades fora de combate, ensinadas pela Persocon e ativadas em mangás, estudos, sonecas, música, chuva, mural, aquário, alvo, Tamapet, clima, janelas e palco', 'Doll Skill system with 12 non-combat abilities taught by the Persocon and triggered by manga, study, naps, music, rain, board, aquarium, target, Tamapet, weather, windows and stage'],
+    ['Diálogo para imagens soltas (Mural / skin de objeto / skin de blocos), sprites redesenhados da Cafeteira e Escrivaninha, feed de ganhos acima do dock e relógio do foco clicável', 'Dialog for dropped images (board / object skin / block skin), redesigned Coffee Station and Desk sprites, gains feed above the dock and a clickable focus clock'],
+  ]],
   ['1.9.33', [
     ['Novos brinquedos e mobílias: Caderno de Desenho (salva no álbum), Aviãozinho de Papel (o Corvo intercepta), Bolhas de Sabão, Mural personalizável, Cafeteira/Estação Energy Neon e Escrivaninha com Abajur', 'New toys and furniture: Drawing Notebook (saves to the album), Paper Airplane (the Crow intercepts), Soap Bubbles, customizable photo board, Coffee/Energy Station and Desk with Lamp'],
     ['Álbum ampliado para 20 fotos (50 com a Câmera Pro), mangás treinando Inteligência por raridade, estudos na escrivaninha, clima ambiente offline e cenas raras em trio', 'Album expanded to 20 photos (50 with the Pro Camera), manga training Intelligence by rarity, desk study sessions, offline ambient weather and rare trio scenes'],

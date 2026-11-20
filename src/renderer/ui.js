@@ -39,8 +39,8 @@ const ATTR_DESC = {
   dex: { pt: 'Aumenta a precisão e o crítico dos golpes e a esquiva/bloqueio no combate. Treina esquivando e bloqueando golpes durante as lutas.', en: 'Raises accuracy and critical chance of strikes, and your evade/block in combat. Trained by dodging and blocking attacks during fights.' },
   agi: { pt: 'Aumenta a velocidade de corrida, a altura dos pulos no pula-pula e a chance de um golpe extra gratuito no mesmo turno (Nv 4+: +8% por nível). Treina jogando no pula-pula (flips rendem bônus), correndo de verdade (pega-pega/perseguição), arremessando e pegando a Bola de Queimada, com o gancho, rodando no bambolê, de skate, pegando ou escapando no pega-pega e ao terminar sessões de treino.', en: 'Raises movement speed, how high she jumps on the trampoline and the chance of a free extra strike in the same turn (Nv 4+: +8% per level). Trained by playing on the trampoline (flips give a bonus), real running (tag/chase), throwing and catching the Dodgeball, the hookshot, the hula hoop, skating, catching or escaping in tag, and finishing training sessions.' },
   will: { pt: 'Resiste aos status negativos e segura o Humor mais alto. Por enquanto ela ainda não muda o jogo.', en: 'Resists negative statuses and keeps Mood higher. For now it does not change the game.' },
-  per: { pt: 'Melhora a atenção no que acontece ao redor. Por enquanto ela ainda não muda o jogo.', en: 'Improves attention to what happens around her. For now it does not change the game.' },
-  cha: { pt: 'Ajuda a ganhar Afeição e a negociar as trocas. Por enquanto ela ainda não muda o jogo.', en: 'Helps earn Affection and negotiate trades. For now it does not change the game.' },
+  per: { pt: 'Melhora a atenção e a mira. Treina no Alvo, no Arcade de Tiro e observando o clima (vagalumes, pétalas, neve).', en: 'Improves attention and aim. Trained at the Target, the Shooting Arcade and by watching the weather (fireflies, petals, snow).' },
+  cha: { pt: 'Ajuda a ganhar Afeição e acelera o ensino/treino de outros personagens (Corvo e Doll). Treina no Aquário, com emotes, música e interações sociais.', en: 'Helps earn Affection and speeds up teaching/training other characters (Crow and Doll). Trained at the Aquarium, with emotes, music and social interactions.' },
   int: { pt: 'Ajuda a aprender mais rápido e a se concentrar. Treina lendo mangás na Estante e estudando na Escrivaninha com Abajur, principalmente em sessões de Modo Foco. A Escrivaninha Estúdio Neon treina mais rápido e recupera Energia enquanto ela estuda ou faz pausas.', en: 'Helps her learn faster and stay focused. Trained by reading manga on the Bookshelf and studying at the Desk with Lamp, especially during Focus Mode sessions. The Neon Studio Desk trains faster and restores Energy while she studies or takes breaks.' },
 };
 // Promo codes (Opções › Outros), case-insensitive. once: redeemed a single time per save.
@@ -2437,6 +2437,37 @@ class Dialog {
   }
 }
 
+// Quick choice after dropping a generic image onto the pet / desktop.
+export class ImageDropDialog extends Dialog {
+  show(dataUrl, name, blockSkin) {
+    this.open(translate('O que fazer com esta imagem?'));
+    const note = this.note || '';
+    const btn = (label, fn) => h('button', { onclick: () => { this.close(); fn(); } }, label);
+    this.frame(
+      h('div', {},
+        h('img', { src: dataUrl, alt: '', style: { display: 'block', maxWidth: '220px', maxHeight: '140px', margin: '0 auto 8px', imageRendering: 'pixelated' } }),
+        h('div.muted', {}, name || ''),
+        note ? h('div.note', {}, note) : null,
+        h('div.note', {}, translate('Escolha onde a imagem deve ser usada.')),
+      ),
+      h('div.row.wrap', {},
+        btn(translate('🖼️ Colocar no Mural'), async () => {
+          const ok = await this.app.toys?.addMuralImage?.(dataUrl);
+          this.app.sound?.play(ok ? 'ok' : 'cancel', { volume: 0.4 });
+          if (!ok) this.app.speech?.say(translate('Não há um Mural posicionado na área de trabalho.'), 3);
+          else this.app.speech?.say(translate('Imagem adicionada ao Mural.'), 3);
+        }),
+        btn(translate('🎨 Usar como skin de objeto'), () => new ObjectsDialog(this.app).show(null, { kind: 'img', src: dataUrl })),
+        blockSkin ? btn(translate('🧱 Importar como skin de blocos'), () => {
+          this.app.openImport();
+          setTimeout(() => this.app.importDialog?.stepSkin?.(dataUrl, name || 'Skin'), 60);
+        }) : null,
+        h('button', { onclick: () => this.close() }, translate('✕ Cancelar')),
+      ),
+    );
+  }
+}
+
 const OBJ_EXTRA = [['bag', 'Bolsa de cartuchos', 'bag'], ['food', 'Inventário', 'backpack']];
 
 // '#rrggbb' (ou #rgb) em [r, g, b].
@@ -2521,7 +2552,14 @@ export class ObjectsDialog extends Dialog {
     if (this.showHb === undefined) this.showHb = true;
     this.captureSnapshot();
     if (preset?.kind === '3d') await this.load3d(preset.data, preset.rot);
-    else this.render();
+    else if (preset?.kind === 'img') {
+      this.draft = {
+        kind: 'img', src: preset.frames || [preset.src], delays: preset.delays || [100], rot: 0, flip: false,
+        speed: 1, scale: 1, transparent: { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
+      };
+      this.render();
+      this.refreshBake();
+    } else this.render();
   }
 
   current(id) {

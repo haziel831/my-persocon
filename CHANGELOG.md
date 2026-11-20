@@ -7,6 +7,13 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.34 — 21/11/2026
+**Atributos e ensino.** Carisma (`cha`) e Percepção (`per`) entram no Perfil. `teachSpeedMul()` usa o Carisma para acelerar o XP e a duração do ensino do Corvo e do Doll. Consoles dão Inteligência (com leve desgaste de Força/Constituição), Alvo/Arcade dão Destreza e Percepção (mais no upgrade) e Aquário/ Aquário de Koi dão Carisma.
+
+**Skills do Doll.** Doze habilidades fora de combate, ocultas até aprendidas, com progresso no save, ensino pela Persocon e efeitos reais (mangá, relaxamento, soneca, DJ, guarda-chuva, mural, peixes, alvo, Tamapet, clima, janelas e palco).
+
+**Interface e correções.** Diálogo para imagens soltas, sprites redesenhados da Cafeteira/Estação Neon e da Escrivaninha/Estúdio Neon, feed de ganhos sempre abaixo do dock e botão de encerrar o Pomodoro no relógio.
+
 ## v1.9.33 — 21/11/2026
 **Conteúdo novo.** Caderno de Desenho (desenhos pixel art no álbum), Aviãozinho de Papel com interceptação do Corvo, Bolhas de Sabão clicáveis, Mural com moldura/orientação/fotos próprias via drag-and-drop, Cafeteira com Energy Drinks e power-ups, Escrivaninha com “Forçar a estudar”, câmera com álbum de 20/50 fotos e mangás treinando Inteligência por raridade.
 

@@ -3,6 +3,7 @@
 import { icon, emojiOnly } from './pixel.js';
 import { MANGAS, mangaCoverIcon, BALLS, baseId } from './furniture.js';
 import { isFocus } from './focusmode.js';
+import { DOLL_SKILLS, dollData, dollHasSkill, teachDollSkill, dollWave, dollBonus } from './dollskills.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -398,10 +399,52 @@ export class DollBrain {
     } else sit();
   }
 
+  // ---------- skills (outside combat) ----------
+
+  teachSkill(id) {
+    return teachDollSkill(this.app, id);
+  }
+
+  nextSkill() {
+    const d = dollData(this.app);
+    if (d.focus && !dollHasSkill(this.app, d.focus)) return d.focus;
+    return Object.keys(DOLL_SKILLS).find((id) => !dollHasSkill(this.app, id)) || null;
+  }
+
+  // Ambient skill effects, checked once a second from the Doll brain.
+  skillTick(dt) {
+    const app = this.app;
+    const pet = app.pet;
+    if (!this.doll?.alive || !pet || pet.dead) return;
+    this.skillCool = (this.skillCool ?? 0) - dt;
+    if (this.skillCool > 0) return;
+    this.skillCool = 1;
+    if (/sleep/.test(pet.action) && dollHasSkill(app, 'cochilo')) {
+      pet.adjust?.({ energy: 0.06 }, 'cochilo');
+      dollWave(app, 'cochilo', '+energia', '💤', 60);
+    }
+    if (app.config.streamer && dollHasSkill(app, 'plaquinha')) {
+      dollWave(app, 'plaquinha', pick(['♥', '✨', '👏']), '✨', 120);
+      app.game.attrAdd?.('cha', 0.2, 'Social');
+    }
+    if (app.weather?.active === 'chuva' && dollHasSkill(app, 'guarda_chuva')) {
+      dollWave(app, 'guarda_chuva', '☂', '☂', 120);
+      pet.adjust?.({ mood: 0.08, affection: 0.02 }, 'guarda_chuva');
+    }
+    if (['sakura', 'vagalumes', 'neve'].includes(app.weather?.active) && dollHasSkill(app, 'caca_clima')) {
+      if (dollWave(app, 'caca_clima', '✨', '✨', 90)) app.game.attrAdd?.('per', 0.4, 'Clima');
+    }
+    if (pet.activity === 'jam' && dollHasSkill(app, 'dj')) {
+      dollWave(app, 'dj', '🎵', '🎵', 120);
+      app.game.attrAdd?.('cha', 0.25, 'Música');
+    }
+  }
+
   // ---------- brain ----------
 
   update(dt, grounded, hidden) {
     const d = this.doll;
+    this.skillTick(dt);
     this.ph += dt;
     this.bubbleT -= dt;
     if (!this.app.game.profile.dollMet) {

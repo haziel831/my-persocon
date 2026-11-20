@@ -610,6 +610,11 @@ export class Game {
     return target;
   }
 
+  // Safe decay: never below zero, never used for the eternal storyline items.
+  attrDecay(id, amount, source = '') {
+    return this.attrAdd(id, -Math.abs(amount), source);
+  }
+
   // Gains attribute XP (the level goes up on its own). The save is marked dirty, not written
   // right away: this is called with every point of Energy spent.
   // source: where the XP came from (the XP log shows it: "Força (Treino Pesado)").

@@ -7,6 +7,7 @@ import { ArcadeShooter } from './arcadeshooter.js';
 import { crtFilter, GAMES } from './games.js';
 import { ATTR_XP, MANGA_RARITY_XP } from './attrxp.js';
 import { RARITIES } from './lootitems.js';
+import { dollBonus, dollWave, dollHasSkill } from './dollskills.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -223,8 +224,8 @@ export const FURN = {
   estante: { size: 0.6, ratio: 118 / 97, back: true },
   estante_cartuchos: { size: 0.6, ratio: 118 / 97, back: true },
   alvo: { size: 0.4, ratio: 26 / 22, back: true },
-  escrivaninha: { size: 0.62, ratio: 28 / 28, back: true },
-  cafeteira: { size: 0.68, ratio: 28 / 24, back: true },
+  escrivaninha: { size: 0.8, ratio: 36 / 48, back: true },
+  cafeteira: { size: 0.88, ratio: 42 / 32, back: true },
   mural: { size: 0.7, ratio: 22 / 30, back: true },
   globo: { size: 0.16, ratio: 18 / 14, disco: true },
   holofote: { size: 0.2, ratio: 16 / 14, disco: true },
@@ -344,46 +345,89 @@ defineIcons({ estante_icon: (sprite) => sprite(24, 30, ({ rect }) => {
 }) });
 
 // Desk with lamp: the lit variant is used at night/dawn and during a focus session.
-const paintDesk = ({ rect, px }, lit) => {
-  rect(1, 7, 26, 3, '#8a5a2b'); rect(1, 7, 26, 1, '#b0793f');
-  rect(3, 10, 3, 15, '#6e4520'); rect(22, 10, 3, 15, '#6e4520');
-  rect(2, 22, 24, 3, '#5a3818'); rect(2, 24, 24, 1, '#3c2610');
-  rect(7, 2, 13, 5, '#2a2a33'); rect(8, 3, 11, 3, lit ? '#3c6be0' : '#141824');
-  rect(9, 4, 9, 1, lit ? '#8ea6ee' : '#2a3550');
-  rect(4, 10, 8, 2, '#d8c49a'); rect(5, 11, 6, 1, '#f0e2bb');
-  rect(18, 1, 1, 6, '#555'); rect(16, 6, 5, 1, '#c9c6c0');
-  rect(17, 7, 3, 1, lit ? '#ffd23f' : '#8a8577');
+const paintDesk = ({ rect, px }, lit, up) => {
+  const wood = up ? '#1a1330' : '#8a5a2b';
+  const woodHi = up ? '#3a2a58' : '#b0793f';
+  const woodLo = up ? '#100c20' : '#5a3818';
+  // Tampo chanfrado (3 tons + contorno).
+  rect(0, 11, 48, 3, '#1d1a26'); rect(1, 9, 46, 3, wood); rect(1, 9, 46, 1, woodHi);
+  rect(2, 12, 44, 2, woodLo);
+  // Pés e gaveteiro lateral.
+  rect(3, 14, 4, 19, wood); rect(3, 14, 1, 19, woodHi); rect(41, 14, 4, 19, wood); rect(41, 14, 1, 19, woodHi);
+  rect(7, 14, 10, 16, woodLo); rect(8, 15, 8, 14, wood);
+  [17, 22, 27].forEach((y) => { rect(10, y, 5, 1, '#c9c6d0'); px(12, y, '#8a909e'); });
+  // Caderno aberto, lápis e pilha de livros.
+  rect(18, 7, 12, 3, '#f4f1ea'); rect(19, 6, 10, 2, '#fffdf6'); rect(23, 6, 1, 3, '#c9c6d0');
+  rect(31, 8, 6, 1, '#ffd23f'); px(37, 8, '#e2475a');
+  rect(36, 6, 7, 2, '#3c6be0'); rect(36, 4, 7, 2, '#e2475a'); rect(37, 2, 6, 2, '#7fd8a0');
+  // Abajur articulado.
+  rect(43, 2, 2, 7, '#8a909e'); rect(40, 1, 7, 1, '#c9c6d0');
+  rect(38, 2, 6, 3, up ? '#2c2048' : '#8a5a2b'); rect(38, 2, 6, 1, up ? '#5ef0ff' : '#b0793f');
+  rect(39, 5, 4, 2, lit ? (up ? '#5ef0ff' : '#ffd23f') : '#8a8577');
   if (lit) {
-    rect(13, 8, 10, 8, '#ffe9a0'); rect(14, 9, 8, 6, '#fff4c8');
-    rect(15, 10, 6, 4, '#ffffff');
-    px(12, 8, '#ffd23f'); px(24, 8, '#ffd23f');
+    rect(20, 9, 18, 3, up ? 'rgba(94,240,255,0.35)' : 'rgba(255,210,63,0.35)');
+    rect(23, 8, 12, 2, up ? 'rgba(94,240,255,0.5)' : 'rgba(255,244,200,0.6)');
+    px(37, 4, '#ffffff'); px(39, 3, '#ffffff');
+  }
+  if (up) {
+    rect(1, 12, 46, 1, lit ? '#ff3ea5' : '#7a3cff');
+    rect(2, 28, 44, 1, '#5ef0ff');
   }
 };
 defineIcons({
-  escrivaninha: (sprite) => sprite(28, 28, (p) => paintDesk(p, false)),
-  escrivaninha_lamp: (sprite) => sprite(28, 28, (p) => paintDesk(p, true)),
+  escrivaninha: (sprite) => sprite(48, 36, (p) => paintDesk(p, false, false)),
+  escrivaninha_lamp: (sprite) => sprite(48, 36, (p) => paintDesk(p, true, false)),
+  escrivaninha_up: (sprite) => sprite(52, 38, (p) => paintDesk(p, false, true)),
+  escrivaninha_up_lit: (sprite) => sprite(52, 38, (p) => paintDesk(p, true, true)),
 });
 
 // Coffee/tea station: the two brew frames add a little animated steam.
 const paintBrewer = ({ rect, px }, up, brew) => {
-  const body = up ? '#2c2048' : '#d8d4cc';
-  const edge = up ? '#ff3ea5' : '#8a8577';
-  rect(3, 6, 18, 18, body); rect(2, 7, 20, 16, body);
-  rect(3, 6, 18, 2, up ? '#5ef0ff' : '#f4f1ea');
-  rect(4, 9, 16, 4, up ? '#120c24' : '#3b3b46');
-  rect(5, 10, 14, 2, up ? '#ffd23f' : '#c8553d');
-  rect(6, 15, 12, 6, up ? '#1a1030' : '#f4f1ea');
-  rect(9, 16, 6, 4, up ? '#7a3cff' : '#5a3818');
-  rect(3, 22, 18, 3, up ? '#120c24' : '#8a8577');
-  rect(6, 25, 12, 2, up ? '#ff3ea5' : '#5a5550');
-  px(20, 11, up ? '#5ef0ff' : '#d33c3c'); px(20, 13, up ? '#ffd23f' : '#3c6be0');
+  const W = up ? 34 : 32;
+  const body = up ? '#1a1030' : '#d8d4cc';
+  const bodyHi = up ? '#2c2048' : '#f4f1ea';
+  const bodyLo = up ? '#120c24' : '#8a8577';
+  const accent = up ? '#ff3ea5' : '#c8553d';
+  // Contorno + corpo.
+  rect(0, 6, W, 32, '#1d1a26');
+  rect(1, 7, W - 2, 29, body); rect(1, 7, W - 2, 2, bodyHi); rect(1, 34, W - 2, 2, bodyLo);
+  if (up) {
+    rect(1, 7, W - 2, 1, '#5ef0ff');
+    rect(2, 10, 3, 24, '#7a3cff'); rect(W - 5, 10, 3, 24, '#ff3ea5');
+    rect(4, 4, W - 8, 3, '#120c24'); rect(5, 4, W - 10, 1, '#5ef0ff');
+    rect(8, 5, 3, 1, '#ffd23f'); rect(14, 5, 3, 1, '#5ef0ff'); rect(20, 5, 3, 1, '#ff3ea5');
+  } else {
+    rect(2, 7, W - 4, 2, '#f4f1ea');
+    rect(3, 4, W - 6, 3, '#8a5a2b'); rect(3, 4, W - 6, 1, '#b0793f');
+  }
+  // Painel / display.
+  rect(4, 12, W - 8, 7, up ? '#120c24' : '#3b3b46');
+  rect(5, 13, W - 10, 5, up ? '#2c2048' : '#5b5e70');
+  rect(6, 14, 8, 2, up ? '#5ef0ff' : '#ffd23f');
+  px(W - 6, 14, brew ? (up ? '#5ef0ff' : '#7fd8a0') : (up ? '#ff3ea5' : '#d33c3c'));
+  // Bico extrator + bandeja + xícara.
+  rect(7, 21, 7, 2, bodyLo); rect(9, 23, 3, 4, '#8a909e');
+  rect(5, 29, W - 10, 3, '#c9c6d0'); rect(5, 31, W - 10, 1, '#8a909e');
+  rect(11, 26, 6, 4, '#f4f1ea'); rect(12, 27, 4, 2, '#5a3818'); rect(17, 27, 2, 2, '#f4f1ea');
+  // Jarra de chá ao lado.
+  rect(W - 9, 18, 6, 10, '#b5793a'); rect(W - 8, 17, 4, 2, '#d8a86a'); rect(W - 7, 15, 2, 2, '#8a5a2b');
+  // Gavetinha (base madeira / bandeja neon).
+  rect(4, 35, W - 8, 3, up ? '#2c2048' : '#8a5a2b'); rect(7, 36, W - 14, 1, up ? '#5ef0ff' : '#c9a06a');
   if (brew) {
-    [[8, 4], [12, 2], [16, 4], [20, 1]].forEach(([x, y]) => {
+    rect(10, 25, 1, 3, up ? '#5ef0ff' : '#6a3a1a');
+    [[8, 9], [12, 6], [16, 8], [20, 4]].forEach(([x, y], i) => {
       px(x, y, up ? '#5ef0ff' : '#ffffff');
-      px(x + 1, y - 1, up ? '#ff9a3d' : '#d8d4cc');
+      px(x + 1, y - 1, i % 2 ? '#ff9a3d' : '#d8d4cc');
     });
+    if (up) { rect(6, 30, W - 12, 1, 'rgba(94,240,255,0.55)'); px(4, 29, '#ffffff'); px(W - 5, 30, '#5ef0ff'); }
   }
 };
+defineIcons({
+  cafeteira: (sprite) => sprite(32, 42, (p) => paintBrewer(p, false, false)),
+  cafeteira_brew: (sprite) => sprite(32, 42, (p) => paintBrewer(p, false, true)),
+  cafeteira_up: (sprite) => sprite(34, 48, (p) => paintBrewer(p, true, false)),
+  cafeteira_up_brew: (sprite) => sprite(34, 48, (p) => paintBrewer(p, true, true)),
+});
 // Mural frames: five distinct looks, each in landscape and portrait.
 export const MURAL_FRAMES = {
   cortica: { outer: '#8a5a2b', inner: '#c8a06a', board: '#e8dfc0', edge: '#cfc4a0', accent: '#d33c3c' },
@@ -407,10 +451,6 @@ defineIcons({
     [`mural_${key}`, (sprite) => sprite(30, 22, (p) => paintMural(p, f, false))],
     [`mural_${key}_v`, (sprite) => sprite(22, 30, (p) => paintMural(p, f, true))],
   ])),
-  cafeteira: (sprite) => sprite(24, 28, (p) => paintBrewer(p, false, false)),
-  cafeteira_brew: (sprite) => sprite(24, 28, (p) => paintBrewer(p, false, true)),
-  cafeteira_up: (sprite) => sprite(24, 28, (p) => paintBrewer(p, true, false)),
-  cafeteira_up_brew: (sprite) => sprite(24, 28, (p) => paintBrewer(p, true, true)),
 });
 
 // Drinks sold ONLY by the cafeteira. `legacy` keeps them out of the common shop and vending
@@ -875,7 +915,11 @@ export class Furniture {
       pet.emit('figurePlay', { figure: f });
       return true;
     }
-    const m = MANGAS.find((x) => x.id === pick(mangas)?.manga);
+    const ownedMangas = mangas.map((e) => MANGAS.find((x) => x.id === e.manga)).filter(Boolean);
+    const order = { lendario: 5, epico: 4, raro: 3, incomum: 2, comum: 1 };
+    const m = dollHasSkill(this.app, 'curador') && ownedMangas.length
+      ? ownedMangas.slice().sort((a, b) => (order[b.rarity] || 0) - (order[a.rarity] || 0))[0]
+      : MANGAS.find((x) => x.id === pick(mangas)?.manga);
     if (!m) return false;
     const g = MANGA_GENRES[m.genre];
     pet.playToy({
@@ -899,6 +943,7 @@ export class Furniture {
       },
     });
     // Reading trains Inteligência: rarer volumes teach more (never coins — XP only).
+    if (dollHasSkill(this.app, 'curador')) dollWave(this.app, 'curador', '📚', '📚', 180);
     const xp = Math.max(1, Math.round(ATTR_XP.int.manga * (MANGA_RARITY_XP[m.rarity] || 1)));
     this.app.game.attrAdd?.('int', xp, 'Mangá');
     pet.emit('readManga', { manga: m });
@@ -1156,6 +1201,11 @@ export class Furniture {
     pet.adjust({ mood: Math.min(15, tg.score / 40) });
     pet.love?.(Math.min(6, tg.score / 100));
     pet.emit('versusEnd', { pet: 0, player: tg.score, record: tg.score > best });
+    const up = !!game.toys.alvo?.up;
+    const mul = (up ? 1.8 : 1) * dollBonus(this.app, 'olheiro', 1.2);
+    game.attrAdd?.('dex', Math.round(ATTR_XP.dex.target * mul), 'Alvo');
+    game.attrAdd?.('per', Math.round(ATTR_XP.per.arcade * mul), 'Alvo');
+    if (dollWave(this.app, 'olheiro', '🎯', '🎯', 180)) game.attrAdd?.('cha', 0.2, 'Social');
     this.app.uiChanged();
   }
 

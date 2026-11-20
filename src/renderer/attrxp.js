@@ -64,13 +64,36 @@ export const ATTR_XP = {
   dex: {
     dodge: 0.4,
     block: 0.2,
+    target: 0.8,
+    arcade: 1.2,
   },
   int: {
     manga: 1.5,
     desk: 2,
     focus: 6,
+    console: 1.2,
+    consolePro: 2,
+  },
+  cha: {
+    aquario: 0.8,
+    aquarioUp: 1.4,
+    emote: 0.4,
+    music: 0.6,
+    teach: 1,
+    social: 0.5,
+  },
+  per: {
+    target: 0.8,
+    arcade: 1.2,
+    weather: 0.3,
   },
 };
+
+// Carisma acelera o ensino de outros personagens (Corvo, Doll): XP e duração da sessão.
+export function teachSpeedMul(game) {
+  const lvl = game?.attrLevel?.('cha') || 1;
+  return Math.min(2.2, 1 + (lvl - 1) * 0.12);
+}
 
 // Reading a manga trains Inteligência by its rarity: rarer volumes teach more.
 export const MANGA_RARITY_XP = {
@@ -100,6 +123,17 @@ export const ATTR_SOURCES = {
   manga: 'Mangá',
   desk: 'Escrivaninha',
   focus: 'Foco',
+  console: 'Videogame',
+  consolePro: 'Videogame Neon',
+  target: 'Alvo',
+  arcade: 'Arcade de Tiro',
+  aquario: 'Aquário',
+  aquarioUp: 'Aquário de Koi',
+  emote: 'Emote',
+  music: 'Música',
+  teach: 'Ensino',
+  social: 'Social',
+  weather: 'Clima',
 };
 
 // O XP em que o nível começa.

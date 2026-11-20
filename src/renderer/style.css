@@ -1251,7 +1251,10 @@ body.app-hidden .bag-dock { opacity: 1; }
   color: #fff4c8; background: linear-gradient(90deg, rgba(122, 60, 255, 0.85), rgba(255, 62, 165, 0.8));
   border: 1px solid rgba(94, 240, 255, 0.75); letter-spacing: 0.5px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 8px rgba(122, 60, 255, 0.35);
+  cursor: pointer; transition: filter 0.15s, transform 0.15s;
 }
+.sd-focus:hover { filter: brightness(1.2); transform: translateY(-1px); }
+.sd-focus:active { transform: translateY(0); filter: brightness(0.95); }
 .sd-buffs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .sd-buffs span { padding: 0 4px; border-radius: 6px; background: rgba(255, 210, 63, 0.18); border: 1px solid rgba(255, 210, 63, 0.5); font-size: 0.9em; white-space: nowrap; }
 .sd-debuffs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
@@ -1293,7 +1296,7 @@ body.app-hidden .bag-dock { opacity: 1; }
 .debuff-pop { position: fixed; z-index: 30; display: flex; align-items: center; gap: 4px; padding: 3px 8px; background: rgba(40, 6, 10, 0.92); border: 1px solid rgba(226, 60, 60, 0.9); border-radius: 6px; color: #ffb0b0; font: 700 calc(12px * var(--sdk, 1.3)) PxEmoji, system-ui, sans-serif; box-shadow: 0 0 12px rgba(226, 60, 60, 0.55); pointer-events: none; transform: translate(-50%, -50%); animation: debuff-pop 2.8s ease-out forwards; }
 .debuff-pop img { width: calc(22px * var(--sdk, 1.3)); height: calc(22px * var(--sdk, 1.3)); image-rendering: pixelated; }
 @keyframes debuff-pop { 0% { opacity: 0; transform: translate(-50%, -20%) scale(0.7); } 12% { opacity: 1; transform: translate(-50%, -60%) scale(1.08); } 22% { transform: translate(-50%, -50%) scale(1); } 74% { opacity: 1; } 80% { opacity: 0.55; } 85% { opacity: 1; } 91% { opacity: 0.45; } 100% { opacity: 0; transform: translate(-50%, -170%) scale(0.95); } }
-.gains { position: fixed; z-index: 9; display: flex; flex-direction: column-reverse; gap: 4px; pointer-events: none; max-width: 260px; }
+.gains { position: fixed; z-index: 11; display: flex; flex-direction: column-reverse; gap: 4px; pointer-events: none; max-width: 260px; }
 .gains.down { flex-direction: column; }
 .gain-row { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border-radius: 8px; background: rgba(20, 18, 30, 0.86); color: #eef0f6; border: 2px solid #ffd23f;
   font: 600 12px PxEmoji, system-ui, sans-serif; box-shadow: 2px 2px 0 rgba(0,0,0,0.35); animation: gain-in 0.35s cubic-bezier(0.2, 1.6, 0.4, 1); transition: opacity 0.5s, transform 0.5s; }

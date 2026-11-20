@@ -1,6 +1,7 @@
 import { Combat } from './combat.js';
 import { ATTR_XP } from './attrxp.js';
 import { dayPeriod } from './watch.js';
+import { dollBonus, dollWave } from './dollskills.js';
 import { isFocus } from './focusmode.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -1427,6 +1428,10 @@ export class Pet {
       : this.pickClip(kind === 'laugh' ? ['rir', 'comemorar'] : ['comemorar', 'danca'], this.emotes.length ? this.emotes : ['jump']);
     this.anim(clip, { restart: true, facing: kind === 'tense' ? this.watchFacing ?? 'front' : 'front' });
     this.adjust({ mood: { scare: -1, sad: -0.5, tense: 0.5 }[kind] ?? 3 });
+    if (dollBonus(this.app, 'plaquinha', 0) < 1) {
+      dollWave(this.app, 'plaquinha', pick(['♥', '✨', '👏']), '✨', 90);
+      this.app?.game?.attrAdd?.('cha', 0.2, 'Social');
+    }
     this.emit('react', { kind });
   }
 
@@ -2900,6 +2905,14 @@ export class Pet {
     this.frame = (this.frame || 0) + 1;
     this.awake += dt;
     this.clock += dt;
+    if (this.mode === 'wall' && dollBonus(this.app, 'explorador', 0) < 1) {
+      this._dollAgiT = (this._dollAgiT || 0) + dt;
+      if (this._dollAgiT > 5) {
+        this._dollAgiT = 0;
+        this.app?.game?.attrAdd?.('agi', 1, 'Guia de Janelas');
+        dollWave(this.app, 'explorador', '🪟', '🪟', 180);
+      }
+    }
     // Combat clips: the hit frame and the return to the fighting stance.
     this.combatAnim?.update(dt);
     // A agachada antes do pulo: o vy só entra quando ela acaba de levantar.

@@ -227,6 +227,11 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
       let rmb = null;
       el.addEventListener('click', (e) => {
         if (moving || rmb?.moved) return;
+        if (e.target.closest('.sd-focus')) {
+          e.stopPropagation();
+          app.pomodoro?.cancel?.();
+          return;
+        }
         if (e.target.closest('.sd-hide') || isHidden()) return setHidden(!isHidden());
         if (e.target.closest('.sd-log-toggle')) { app.setOption('logOff', !config.logOff); invalidate(); return; }
         if (e.target.closest('.sd-chat-toggle')) { app.setOption('chatLogOff', !config.chatLogOff); invalidate(); return; }
@@ -311,7 +316,8 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     const maxHp = Math.max(1, pet.maxHealth?.() ?? 100);
     // Pomodoro countdown: own block at the very end of the pinned dock; ⏱ is a PxEmoji glyph.
     const focusText = focusLabel?.();
-    const focusChip = focusText ? `<div class="sd-focus" title="${config.lang === 'en' ? 'Focus session' : 'Sessão de foco'}">⏱ ${String(focusText).replace(/[<>&"]/g, '')}</div>` : '';
+    const focusTip = translate('Clique para encerrar o modo foco');
+    const focusChip = focusText ? `<button type="button" class="sd-focus hitzone" title="${focusTip}">⏱ ${String(focusText).replace(/[<>&"]/g, '')}</button>` : '';
     const next = `<div class="sd-name">${(config.name || 'Ninna').replace(/[<>&']/g, '')} · ¥ ${Math.floor(game.coins)} · ${config.lang === 'en' ? 'Wallet' : 'Carteira'} ¥ ${Math.floor(game.profile?.wallet || 0)} · ${config.lang === 'en' ? 'Doing' : 'Fazendo'}: ${String(pet.activity || pet.action || 'idle').replace(/[<>&']/g, '')}`
       + `<button class="sd-hide" type="button" title="${hideTip}" aria-label="${hideTip}">${isHidden() ? '😑' : '👁'}</button></div>`
       + bar('❤️', (Math.min(s.health, maxHp) / maxHp) * 100, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')

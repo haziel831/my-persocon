@@ -7,6 +7,7 @@ import { ATTR_XP } from './attrxp.js';
 import { KOI } from './upgrades.js';
 import { dollReact } from './watch.js';
 import { isFocus } from './focusmode.js';
+import { dollBonus, dollWave } from './dollskills.js';
 import { VOICES, MonoVoice, echoBus, parseMidi, songLength, SynthPlayer } from './synth.js';
 import { KEYBOARD_SONGS as SONGS, SYNTH_SONGS, songLabel } from './swsongs.js';
 
@@ -1896,7 +1897,12 @@ export class FunToys {
     pet.dir = t.x < pet.x ? -1 : 1;
     const clean = k.murk > 30;
     pet.playToy({
-      id, dur: clean ? rand(13, 17) : rand(7, 10), gain: it.gain, scale, hold: icon('racao'), holdSize: 0.08, holdFrom: 0, anim: 'idle', facing: pet.side(), clean, onEnd: end,
+      id, dur: clean ? rand(13, 17) : rand(7, 10), gain: it.gain, scale, hold: icon('racao'), holdSize: 0.08, holdFrom: 0, anim: 'idle', facing: pet.side(), clean,
+      onEnd: (i, tp) => {
+        const up = !!this.app.game.toys.aquario?.up;
+        this.app.game.attrAdd?.('cha', Math.round(ATTR_XP.cha.aquario * (up ? 1.7 : 1)), 'Aquário');
+        end(i, tp);
+      },
       tick: (dt, tp) => this.tankTick(dt, tp, pet),
     });
   }
@@ -2723,10 +2729,21 @@ export class FunToys {
       m.hunger = Math.max(0, m.hunger - h * 6);
       m.mood = Math.max(0, m.mood - h * 5);
       if (game.toys.tamagotchi.placed && (m.hunger < 25 || m.mood < 25) && !pet.dead) {
-        this.tamaNag = (this.tamaNag ?? 90) - 1;
-        if (this.tamaNag <= 0) {
-          this.tamaNag = rand(180, 320);
-          this.say('tamaHungry');
+        if (dollBonus(this.app, 'baba_tamapet', 0) < 1 && (pet.toyPlay || pet.activity || pet.action === 'sleep')) {
+          m.hunger = Math.min(100, m.hunger + 12);
+          m.mood = Math.min(100, m.mood + 12);
+          dollWave(this.app, 'baba_tamapet', '🐾', '🐾', 180);
+        } else {
+          this.tamaNag = (this.tamaNag ?? 90) - 1;
+          if (this.tamaNag <= 0) {
+            this.tamaNag = rand(180, 320);
+            this.say('tamaHungry');
+          }
+        }
+      }
+      if (game.toys.aquario?.placed && dollBonus(this.app, 'alimentar_peixes', 0) < 1) {
+        if (dollWave(this.app, 'alimentar_peixes', '🐠', '🐠', 240)) {
+          this.app.game.attrAdd?.('cha', 0.2, 'Social');
         }
       }
     }

@@ -15,6 +15,7 @@ import { ITEMS, itemById } from './game.js';
 import { LOOT_ITEMS } from './lootitems.js';
 import { defineIcons, icon, emojiOnly } from './pixel.js';
 import { CONSOLE_SLOTS } from './furniture.js';
+import { ATTR_XP, teachSpeedMul } from './attrxp.js';
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -1597,10 +1598,12 @@ export class Crow {
     const d = this.data;
     if ((duo.next -= dt) > 0) return;
     if (duo.round >= 4) {
-      const gain = d.focus ? Math.round(5 + duo.hits * 4 + rand(0, 3)) : 0;
+      const rate = teachSpeedMul(game);
+      const gain = d.focus ? Math.round((5 + duo.hits * 4 + rand(0, 3)) * rate) : 0;
       d.trains = (d.trains || 0) + 1;
       pet.adjust({ mood: 6, energy: -3 });
       pet.love?.(1);
+      game.attrAdd?.('cha', Math.max(1, Math.round(ATTR_XP.cha.teach * rate)), 'Ensino');
       if (d.focus) {
         d.xp[d.focus] = (d.xp[d.focus] || 0) + gain;
         this.float(`+${gain}%`);
@@ -1626,7 +1629,7 @@ export class Crow {
     }
     duo.shown = false;
     duo.round++;
-    duo.next = 1.1;
+    duo.next = 1.1 / teachSpeedMul(game);
     const prog = d.focus ? (d.xp[d.focus] || 0) / XP : 1;
     if (chance(0.4 + prog * 0.45)) {
       duo.hits++;

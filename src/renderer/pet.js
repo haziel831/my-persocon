@@ -2,7 +2,7 @@ import { PetView } from './view.js';
 import { World } from './world.js';
 import { Pet, AFFECTION_LEAVE, AFFECTION_MAX, DEBUFFS } from './behavior.js';
 import { Emoticons } from './emoticons.js';
-import { Menu, ImportDialog, ObjectsDialog, showGameOver, prefLabel } from './ui.js';
+import { Menu, ImportDialog, ObjectsDialog, ImageDropDialog, showGameOver, prefLabel } from './ui.js';
 import { DEFAULT_OPTS } from './catalog.js';
 import { Game, ITEMS, TASTE_MOOD, TASTE_RANK, BUFF_LABELS, BUFF_ICONS, itemById, HER_BAG } from './game.js';
 import { demoLocked, demoGameLocked, shortVersion } from './edition.js';
@@ -1779,7 +1779,7 @@ api.onTrayClick?.(() => {
   api.onStreamer((on) => on !== !!config.streamer && app.setOption('streamer', on));
 
   // ---------- drag & drop files onto the pet ----------
-  const dropHint = () => translate('Solte aqui na Persocon');
+  const dropHint = () => translate('Solte imagem, MIDI (.mid) ou modelo (.vrm/.glb/.zip)');
   const sayDrop = (pt) => app.speech?.say(translate(pt), 3);
   const skinSizeOk = (dataUrl) => new Promise((resolve) => {
     const img = new Image();
@@ -1794,6 +1794,8 @@ api.onTrayClick?.(() => {
     if (as === 'url') r.readAsDataURL(file);
     else r.readAsArrayBuffer(file);
   });
+  const imageExt = (e) => ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(e);
+  const showImageDialog = async (data, name) => new ImageDropDialog(app).show(data, name, await skinSizeOk(data));
   let lastDomDrop = 0;
   app.handleDropPath = async (path) => {
     const name = String(path || '').split(/[\\/]/).pop() || '';
@@ -1807,12 +1809,9 @@ api.onTrayClick?.(() => {
       } else if (['vrm', 'glb', 'zip'].includes(ext)) {
         importDialog.openPath(path);
         sayDrop('Modelo aberto para importação.');
-      } else if (ext === 'png') {
+      } else if (imageExt(ext)) {
         const data = await api.readFileData(path);
-        if (!await skinSizeOk(data)) throw new Error('skin');
-        importDialog.show();
-        await importDialog.stepSkin(data, name.replace(/\.png$/i, ''));
-        sayDrop('Skin de blocos aberta.');
+        await showImageDialog(data, name.replace(/\.[^.]+$/, ''));
       } else {
         throw new Error('ext');
       }
@@ -1853,12 +1852,9 @@ api.onTrayClick?.(() => {
       if (ext === 'mid' || ext === 'midi') {
         app.toys?.fun?.storeMidi(file.name.replace(/\.midi?$/i, ''), await readAs(file, 'buf'));
         sayDrop('Música importada! Ela vai tocar.');
-      } else if (ext === 'png') {
+      } else if (imageExt(ext)) {
         const data = await readAs(file, 'url');
-        if (!await skinSizeOk(data)) throw new Error('skin');
-        importDialog.show();
-        await importDialog.stepSkin(data, file.name.replace(/\.png$/i, ''));
-        sayDrop('Skin de blocos aberta.');
+        await showImageDialog(data, file.name.replace(/\.[^.]+$/, ''));
       } else {
         // Models need a local path: Tauri's native drop event handles those.
         sayDrop('Arquivo não suportado.');

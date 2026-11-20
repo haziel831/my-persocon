@@ -46,22 +46,27 @@ export class Gains {
     setTimeout(() => row.remove(), this.life + 500);
   }
 
-  // Sits right under the XP box (in the dock) when it is shown, otherwise bottom-right.
+  // Always follows the whole pinned dock (Chat, XP and ⏱ Focus included), never overlapping it.
   place() {
     const dock = document.querySelector('.status-dock');
-    // A caixinha de XP fica no fim do dock: o feed entra logo abaixo dela.
-    const xp = document.querySelector('.sd-xp');
-    const anchor = xp?.getClientRects().length ? xp : dock;
     const s = this.el.style;
     s.left = s.right = s.top = s.bottom = '';
-    if (anchor?.getClientRects().length) {
-      const r = anchor.getBoundingClientRect();
+    const gh = this.el.getBoundingClientRect().height || 40;
+    if (dock?.getClientRects().length) {
+      const r = dock.getBoundingClientRect();
       const left = r.left + r.width / 2 < innerWidth / 2;
       if (left) s.left = `${Math.round(r.left)}px`;
       else s.right = `${Math.round(innerWidth - r.right)}px`;
-      if (r.top > innerHeight / 2) s.bottom = `${Math.round(innerHeight - r.top + 6)}px`;
-      else s.top = `${Math.round(r.bottom + 6)}px`;
-      this.el.classList.toggle('down', r.top <= innerHeight / 2);
+      const below = r.bottom + 6;
+      const spaceBelow = innerHeight - below;
+      // Prefer just below the dock; if it is pinned near the bottom, go just above its top.
+      if (spaceBelow >= gh + 8 || spaceBelow >= r.top) {
+        s.top = `${Math.round(below)}px`;
+        this.el.classList.add('down');
+      } else {
+        s.bottom = `${Math.round(innerHeight - r.top + 6)}px`;
+        this.el.classList.remove('down');
+      }
     } else {
       s.right = '12px';
       s.bottom = '64px';
