@@ -56,6 +56,7 @@ export class Sound {
     this.crowVol = 1;
     this.crowFlapVol = 1;
     this.dnd = false; // transient Do Not Disturb: silences everything without touching config
+    this.ducked = false; // TTS is talking: SFX and music dip so the voice is clear
     try {
       this.ctx = new AudioContext();
       this.master = this.ctx.createGain();
@@ -114,7 +115,17 @@ export class Sound {
   applyVolume() {
     if (!this.master) return;
     if (this.dnd) { this.master.gain.value = 0; return; }
-    this.master.gain.value = Math.max(0, Math.min(1, this.cfg.volume ?? 0.3));
+    const vol = Math.max(0, Math.min(1, this.cfg.volume ?? 0.3));
+    this.master.gain.value = this.ducked ? vol * 0.35 : vol;
+  }
+
+  // Smooth duck/restore around Kokoro speech (does not touch the saved volume).
+  setDucking(on) {
+    if (!this.master || !!on === !!this.ducked) return;
+    this.ducked = !!on;
+    if (this.dnd) return;
+    const vol = Math.max(0, Math.min(1, this.cfg.volume ?? 0.3));
+    this.master.gain.setTargetAtTime(this.ducked ? vol * 0.35 : vol, this.ctx.currentTime, this.ducked ? 0.08 : 0.2);
   }
 
   applyCrowVolume() {

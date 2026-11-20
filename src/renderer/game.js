@@ -233,7 +233,8 @@ export class Game {
     setInterval(() => this.flushAttrGain(), 1000);
     // Coins per minute while alive: 1, +1 when happy, +1 when well cared for (max 180/hour).
     setInterval(() => {
-      if (pet.dead) return;
+      // Streamer Mode uses its own isolated wallet fed by channel points / live events.
+      if (window.__PET_STREAMER__ || pet.dead) return;
       const s = pet.stats;
       const cared = s.health >= 60 && s.hunger >= 40 && (s.thirst ?? 100) >= 40 && (s.hygiene ?? 100) >= 40;
       // Affection speeds it up: up to x3 at the maximum. Furniture and fun stuff on the desktop add more.
@@ -343,7 +344,8 @@ export class Game {
     // Purchases waiting for the 3D printer, in order (the first one is printing): [{ id, n, t, dur }].
     this.queue = save?.queue || [];
     // Every game has the 3D printer: purchases come out of it.
-    if (!this.toys.impressora) this.toys.impressora = { uses: 0, maxUses: 0, broken: false, placed: true, x: null, display: 0 };
+    // Streamer Mode never uses the 3D printer: items fall from the sky instead.
+    if (!window.__PET_STREAMER__ && !this.toys.impressora) this.toys.impressora = { uses: 0, maxUses: 0, broken: false, placed: true, x: null, display: 0 };
     this.repairToys();
     this.ensureDesktopBuddy();
     this.ensureSyntoyoToy();
@@ -770,6 +772,12 @@ export class Game {
     if (!item || !this.canBuy(item, n)) return null;
     this.pay((item.price || 0) * n);
     this.profile.purchases = (this.profile.purchases || 0) + 1;
+    // Streamer Mode: nothing goes through the printer; items drop from the sky on stage.
+    if (window.__PET_STREAMER__) {
+      for (let i = 0; i < n; i++) this.toys?.skyDrop?.(id, { fromUser: true });
+      this.pet.bought(item);
+      return item;
+    }
     // Arena de teste: sem fila da impressora — o item cai direto no inventário.
     if (COMBATE) {
       this.deliveries.push({ id, n, x: null, display: null });

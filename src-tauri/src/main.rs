@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio;
+mod tts;
+mod stream_bridge;
 mod desktop;
 mod logfile;
 mod model_io;
@@ -592,16 +594,26 @@ fn demo_save() -> bool {
     DEMO_SAVE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+fn streamer_save() -> bool {
+    STREAMER.load(Ordering::Relaxed)
+}
+
 fn save_name() -> &'static str {
-    if demo_save() { "save-demo.json" } else { "save.json" }
+    if streamer_save() { "save-streamer.json" }
+    else if demo_save() { "save-demo.json" }
+    else { "save.json" }
 }
 
 fn backup_name(i: usize) -> String {
-    if demo_save() { format!("save-demo-{i}.json") } else { format!("save-{i}.json") }
+    if streamer_save() { format!("save-streamer-{i}.json") }
+    else if demo_save() { format!("save-demo-{i}.json") }
+    else { format!("save-{i}.json") }
 }
 
 fn new_game_mark() -> &'static str {
-    if demo_save() { "new-game-demo.flag" } else { "new-game.flag" }
+    if streamer_save() { "new-game-streamer.flag" }
+    else if demo_save() { "new-game-demo.flag" }
+    else { "new-game.flag" }
 }
 
 #[tauri::command]
@@ -615,7 +627,8 @@ fn load_save(state: State<PetState>, demo: Option<bool>) -> Option<Value> {
         let backups = state.data.join("backups");
         (1..=SAVE_BACKUPS).find_map(|i| read(backups.join(backup_name(i))))
             // Saves from before the split were shared: the Demo picks up the old one once.
-            .or_else(|| if demo_save() { read(state.data.join("save.json")) } else { None })
+            // Streamer Mode must never read the main save.
+            .or_else(|| if demo_save() && !streamer_save() { read(state.data.join("save.json")) } else { None })
     })
 }
 
@@ -800,7 +813,7 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
         "window.__PET_COMBATE__ = true;".to_string()
     } else if streamer {
         format!(
-            "document.documentElement.style.background='{bg}';document.body&&(document.body.style.background='{bg}');"
+            "window.__PET_STREAMER__ = true;document.documentElement.style.background='{bg}';document.body&&(document.body.style.background='{bg}');"
         )
     } else {
         String::new()
@@ -889,12 +902,20 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                         let _ = w.destroy();
                     }
                 }
+                if !value {
+                    if let Some(w) = handle.get_webview_window("stream-ctrl") {
+                        let _ = w.destroy();
+                    }
+                }
                 match build_window(&handle, value, false, false, &config) {
                     Ok(_) => {
                         if !(was && value) {
                             if let Some(w) = handle.get_webview_window(window_label(!value)) {
                                 let _ = w.destroy();
                             }
+                        }
+                        if value && !was {
+                            let _ = open_streamer_control(handle.clone());
                         }
                     }
                     Err(e) => {
@@ -913,6 +934,76 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
             STREAMER_BUSY.store(false, Ordering::Release);
         }
     });
+    Ok(())
+}
+
+// Second monitor control panel for Streamer Mode (normal window, no WebGL).
+#[tauri::command]
+fn open_streamer_control(app: AppHandle) -> Result<(), String> {
+    if !STREAMER.load(Ordering::Relaxed) { return Ok(()); }
+    if app.get_webview_window("stream-ctrl").is_some() {
+        if let Some(w) = app.get_webview_window("stream-ctrl") {
+            let _ = w.set_focus();
+        }
+        return Ok(());
+    }
+    let win = WebviewWindowBuilder::new(
+        &app,
+        "stream-ctrl",
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("My Persocon - Controle Streamer")
+    .decorations(true)
+    .resizable(true)
+    .transparent(false)
+    .skip_taskbar(false)
+    .inner_size(520.0, 720.0)
+    .center()
+    .initialization_script("window.__PET_STREAMER_CTRL__ = true;")
+    .build()
+    .map_err(|e| e.to_string())?;
+    let _ = win.set_focus();
+    Ok(())
+}
+
+// Relay commands/state between the stage ("stream") and the control panel ("stream-ctrl").
+#[tauri::command]
+fn streamer_rpc(app: AppHandle, target: String, payload: Value) -> Result<(), String> {
+    let label = if target == "stream" { "stream" } else if target == "stream-ctrl" { "stream-ctrl" } else {
+        return Err("alvo inválido".into());
+    };
+    if let Some(w) = app.get_webview_window(label) {
+        let _ = w.emit("streamer-rpc", payload);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn tts_voices(dir: Option<String>) -> Result<Value, String> {
+    let path = PathBuf::from(dir.filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "D:\\Program Files\\Offline TTS".into()));
+    tauri::async_runtime::spawn_blocking(move || tts::voices(&path)).await.unwrap_or_else(|e| Err(e.to_string()))
+}
+
+#[tauri::command]
+async fn tts_speak(dir: Option<String>, text: String, voice: String, lang: String, speed: Option<f32>) -> Result<String, String> {
+    let path = PathBuf::from(dir.filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "D:\\Program Files\\Offline TTS".into()));
+    tauri::async_runtime::spawn_blocking(move || tts::speak(&path, &text, &voice, &lang, speed.unwrap_or(1.0))).await.unwrap_or_else(|e| Err(e.to_string()))
+}
+
+#[tauri::command]
+async fn tts_stop() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(tts::shutdown).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn stream_bridge_start(port: Option<u16>, token: Option<String>) -> Result<(), String> {
+    let app = APP.get().cloned().ok_or("app indisponível")?;
+    stream_bridge::start(app, port.unwrap_or(48321), token.unwrap_or_default())
+}
+
+#[tauri::command]
+fn stream_bridge_stop() -> Result<(), String> {
+    stream_bridge::stop();
     Ok(())
 }
 
@@ -1293,6 +1384,13 @@ fn main() {
             make_report,
             set_interactive,
             set_streamer,
+            open_streamer_control,
+            streamer_rpc,
+            tts_voices,
+            tts_speak,
+            tts_stop,
+            stream_bridge_start,
+            stream_bridge_stop,
             focus_window,
             clipboard_text,
             watch_keys,

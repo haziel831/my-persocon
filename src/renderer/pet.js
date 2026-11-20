@@ -18,6 +18,10 @@ import { createDock } from './dock.js';
 import { Pomodoro } from './focus.js';
 import { Weather } from './weather.js';
 import { Trio } from './trio.js';
+import { VoiceTTS } from './tts.js';
+import { TwitchChat } from './twitchchat.js';
+import { StreamAlerts } from './streamalerts.js';
+import { defaultPersona, personaLine } from './persona.js';
 import './statusicons.js';
 import { baseId } from './furniture.js';
 import { Ball } from './ball.js';
@@ -280,6 +284,26 @@ export async function startPet(files, config) {
       app.uiChanged?.();
     },
     files,
+    showMenu(x, y) {
+      menu.show(x, y);
+    },
+    setBrb(on, message = '') {
+      document.body.classList.toggle('brb-on', !!on);
+      let sign = document.querySelector('.brb-sign');
+      if (on) {
+        if (!sign) {
+          sign = document.createElement('div');
+          sign.className = 'brb-sign hitzone';
+          document.body.append(sign);
+        }
+        sign.textContent = message || (config.lang === 'en' ? 'Be right back!' : 'Volto já!');
+      } else if (sign) sign.remove();
+      if (on && pet.mode === 'ground') pet.startGround('sit');
+      else if (!on && pet.action === 'sit') pet.chooseNext?.();
+      if (on && config.streamer) {
+        speech.say(personaLine(app, 'brb'), 3.5);
+      }
+    },
     openMenu(cat) {
       menu.show(Math.min(pet.x + pet.P * 0.4, innerWidth - 380), Math.max(40, pet.y - pet.P));
       if (cat) menu.select(cat);
@@ -449,6 +473,12 @@ export async function startPet(files, config) {
   const modes = new Modes(app);
   const ball = new Ball(app);
   const speech = new Speech(app);
+  const speechSay = speech.say.bind(speech);
+  speech.say = (text, life, ttsOpts) => {
+    const r = speechSay(text, life);
+    if (window.__PET_STREAMER__ && config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(text, ttsOpts);
+    return r;
+  };
   app.speechHistory = [];
   // Lines said straight from other modules are Portuguese; the balloon types them letter by
   // letter, so it is translated up front instead of by the page translator.
@@ -520,6 +550,11 @@ export async function startPet(files, config) {
   app.pomodoro = new Pomodoro(app);
   app.weather = new Weather(app);
   app.trio = new Trio(app);
+  app.tts = new VoiceTTS(app);
+  app.twitch = new TwitchChat(app);
+  app.streamAlerts = new StreamAlerts(app);
+  if (!config.streamPersona) config.streamPersona = defaultPersona(app);
+  api.onStreamEvent?.((ev) => app.streamAlerts.push(ev));
   const care = new Care(app);
   app.display = () => display;
   const modelKey = () => config.modelDir || 'models/MyPersocon';
@@ -1553,7 +1588,7 @@ api.onTrayClick?.(() => {
       else lastClick = { t: now, x: press.x, y: press.y };
       return;
     }
-    // Menu rápido agora é com a tecla X sobre ela (duplo clique só vale no combate).
+    // Menu rápido fica no status fixo (2× clique); clique duplo na Persocon só vale no combate.
     lastClick = { t: now, x: press.x, y: press.y };
     if (pet.toyPlay?.versus) return;
     pet.pat();
@@ -1575,9 +1610,8 @@ api.onTrayClick?.(() => {
       return;
     }
     if (pet.unconscious) return;   // INCONSCIENTE: nada de menu na pós-derrota
-    if (!uiOpen() && !press && !app.intro?.busy && !pet.closeup && hitPet(e.clientX, e.clientY)) {
-      // COMBAT_MODE: the menu (manual commands) is locked during the fight.
-      if (pet.combatMode) return;
+    // Right click on the Persocon always opens the main menu (unless a drag is in progress).
+    if (!press && !app.intro?.busy && !pet.closeup && !pet.combatMode && hitPet(e.clientX, e.clientY)) {
       sound.play('blip', { volume: 0.5 });
       menu.show(e.clientX, e.clientY);
     }
@@ -1651,17 +1685,6 @@ api.onTrayClick?.(() => {
   window.addEventListener('pointerup', endPress);
   window.addEventListener('pointercancel', endPress);
   window.addEventListener('keydown', (e) => {
-    // Quick Menu: mouse over the Persocon + X (replaces the old click gesture).
-    if ((e.key === 'x' || e.key === 'X') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      const tgt = e.target;
-      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
-      if (cursor && hitPet(cursor.x, cursor.y) && !pet.closeup && !pet.combatMode && !app.intro?.busy) {
-        e.preventDefault();
-        if (quick.open) quick.close();
-        else if (!uiOpen()) quick.show(cursor.x, cursor.y);
-        return;
-      }
-    }
     // Porta do menu de debug (só com o debug ligado): Ctrl+Shift+D abre as Opções no Debug.
     if (config.debug && e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
       e.preventDefault();
@@ -1792,6 +1815,27 @@ api.onTrayClick?.(() => {
   let streamerOn = false;
   let streamerSolidOn = streamerSolid();
   api.onStreamer((on) => on !== !!config.streamer && app.setOption('streamer', on));
+  // Commands from the second-monitor control window.
+  api.onStreamerRpc?.((p) => {
+    if (!p || !window.__PET_STREAMER__) return;
+    if (p.type === 'openMenu') app.openMenu?.(p.cat);
+    else if (p.type === 'coins') game.earn(p.n || 0, 'Pontos do canal');
+    else if (p.type === 'drop') app.toys?.skyDrop?.(p.id || 'maca', { fromUser: true });
+    else if (p.type === 'cleanStage') {
+      config.streamerClean = p.value;
+      document.body.classList.toggle('stream-clean', !!p.value);
+    }
+    else if (p.type === 'say') speech.say(p.text, 3.5);
+    else if (p.type === 'skipTts') app.tts?.skip?.();
+    else if (p.type === 'clearTts') app.tts?.clear?.();
+    else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
+    else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });
+    else if (p.type === 'ttsState') app.tts?.reportQueue?.();
+    else if (p.type === 'twitchConnect') app.twitch?.connect?.(p.channel);
+    else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
+    else if (p.type === 'simulate') app.streamAlerts?.push?.(p.event);
+    else if (p.type === 'brb') app.setBrb?.(p.value, p.text);
+  });
 
   // ---------- drag & drop files onto the pet ----------
   const dropHint = () => translate('Solte imagem, MIDI (.mid) ou modelo (.vrm/.glb/.zip)');
@@ -2068,6 +2112,7 @@ api.onTrayClick?.(() => {
       app.pomodoro.update(dt);
       app.weather.update(dt, hidden, canvas.style.visibility === 'hidden');
       app.trio.update(dt);
+      window.__PET_TTS_LEVEL__ = app.tts.mouthLevel;
       updateDock();
       speech.update(dt, calm, quiet);
       fx.update(dt, head, quiet);

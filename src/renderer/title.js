@@ -293,6 +293,7 @@ export class TitleScreen {
     const items = [
       ['continue', T.menu.continue, () => this.close(this.onContinue), !this.canContinue],
       ['new', T.menu.newGame, () => this.newGame()],
+      ['streamer', T.menu.streamer, () => this.startStreamer()],
       ['options', T.menu.options, () => this.app.openOptions?.()],
       ['tutorial', T.menu.tutorial, () => this.pages(T.tutorialTitle, T.tutorial)],
       ['credits', T.menu.credits, () => this.credits()],
@@ -420,6 +421,22 @@ export class TitleScreen {
     yes.onclick = () => { this.closeSub(); this.close(this.onNewGame); };
     actions.append(no, yes);
     this.sheet(T.menu.newGame, body, actions);
+  }
+
+  startStreamer() {
+    const T = this.T;
+    const body = el('div', 'title-sheet-body', '');
+    body.append(el('p', '', T.streamerTip || T.menu.streamer));
+    const actions = el('div', 'title-sheet-actions');
+    const no = el('button', '', T.no);
+    const yes = el('button', 'primary', T.yes);
+    no.onclick = () => this.closeSub();
+    yes.onclick = () => {
+      this.closeSub();
+      this.app.setOption?.('streamer', true);
+    };
+    actions.append(no, yes);
+    this.sheet(T.menu.streamer, body, actions);
   }
 
   close(then) {

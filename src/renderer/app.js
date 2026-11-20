@@ -10,7 +10,11 @@ let files = await window.petAPI.loadModel();
 if (files?.mcSkin) files = await (await import('./mcmodel.js')).mcModel(files.mcSkin, files.slim);
 await fonts;
 
-if (window.__PET_PREVIEW__) {
+if (window.__PET_STREAMER_CTRL__) {
+  // Second monitor: no 3D, no pet loop — just the control panel.
+  const { startStreamerControl } = await import('./streamctrl.js');
+  await startStreamerControl(config);
+} else if (window.__PET_PREVIEW__) {
   const { runPreview } = await import('./preview.js');
   await runPreview(files, config);
 } else {

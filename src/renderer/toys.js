@@ -413,6 +413,51 @@ export class Toys {
     }, 0);
   }
 
+  // Streamer Mode: items fall from the top of the stage instead of coming out of the printer.
+  skyDrop(itemId, { fromUser = false, toInventory = false } = {}) {
+    const item = itemById(itemId);
+    if (!item) return false;
+    const src = item.img || icon('item');
+    const el = document.createElement('div');
+    el.className = 'sky-drop hitzone';
+    el.title = item.name;
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = '';
+    el.append(img);
+    document.body.append(el);
+    const size = Math.round(this.P * (item.furn ? 1.4 : 0.6));
+    const x = Math.round(Math.random() * Math.max(80, innerWidth - size - 80)) + 40;
+    const floor = this.floorY ? this.floorY() - size : innerHeight - size - 20;
+    el.style.width = el.style.height = `${size}px`;
+    el.style.left = `${x}px`;
+    el.style.top = '-60px';
+    this.app.sound?.sfx?.('whoosh', 0.5);
+    requestAnimationFrame(() => {
+      el.style.transition = 'top 1.1s cubic-bezier(.3,.05,.6,1)';
+      el.style.top = `${Math.round(floor)}px`;
+    });
+    const land = () => {
+      el.removeEventListener('transitionend', land);
+      el.remove();
+      this.app.sound?.sfx?.('clink', 0.6);
+      this.app.fx?.spark?.(x + size / 2, floor + size / 2);
+      const stageToy = !!item.furn || (!!item.toy && !item.baggable);
+      if (toInventory || !stageToy) {
+        this.app.game.inventory[itemId] = (this.app.game.inventory[itemId] || 0) + 1;
+        this.app.game.changed();
+        this.app.speech?.say(this.app.config.lang === 'en' ? 'Ooh, a drop! Into the inventory!' : 'Uhuu, caiu do céu! Guardei no inventário!', 3);
+      } else {
+        this.placeToy(itemId);
+        if (fromUser) this.app.speech?.say(this.app.config.lang === 'en' ? 'Placed! You can drag it around.' : 'Chegou! Pode arrastar e editar.', 3);
+      }
+      this.app.emoticons?.show?.('happy', true);
+    };
+    el.addEventListener('transitionend', land);
+    setTimeout(() => { if (el.isConnected) land(); }, 1600);
+    return true;
+  }
+
   // On-demand study session at the desk: quick Intelligence XP in exchange for Mood.
   forceStudy(id) {
     const { app } = this;

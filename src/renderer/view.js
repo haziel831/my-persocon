@@ -435,6 +435,12 @@ export class PetView {
   }
 
   update(dt) {
+    const mouth = Math.max(0, Math.min(1, globalThis.__PET_TTS_LEVEL__ || 0));
+    if (mouth > 0.03 && this.model?.head) {
+      this.model.head.position.y = (this._headY ?? (this._headY = this.model.head.position.y)) + Math.sin(performance.now() / 45) * mouth * 0.02;
+    } else if (this._headY !== undefined && this.model?.head) {
+      this.model.head.position.y = this._headY;
+    }
     this.updateYaw(dt);
     this.animator.update(dt);
     if (this.hold) this.applyHold();

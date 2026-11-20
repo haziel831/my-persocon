@@ -223,10 +223,12 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     if (!el) {
       el = document.createElement('div');
       el.className = 'status-dock hitzone';
-      el.title = translate('Clique: menu · X: rápido · botão direito: opções · segurar direito: mover');
+      el.title = translate('Clique: menu · 2×: menu rápido · botão direito: opções');
       let rmb = null;
+      let clickTimer = null;
+      const internal = (t) => t.closest('.sd-hide, .sd-log-toggle, .sd-chat-toggle, .sd-xp-toggle, .sd-focus, .sd-log-f, button, input');
       el.addEventListener('click', (e) => {
-        if (moving || rmb?.moved) return;
+        if (moving || rmb?.moved || e.button !== 0) return;
         if (e.target.closest('.sd-focus')) {
           e.stopPropagation();
           app.pomodoro?.cancel?.();
@@ -236,13 +238,22 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
         if (e.target.closest('.sd-log-toggle')) { app.setOption('logOff', !config.logOff); invalidate(); return; }
         if (e.target.closest('.sd-chat-toggle')) { app.setOption('chatLogOff', !config.chatLogOff); invalidate(); return; }
         if (e.target.closest('.sd-xp-toggle')) { app.setOption('xpLogOff', !config.xpLogOff); invalidate(); return; }
-        app.openMenu();
+        if (internal(e.target)) return;
+        clearTimeout(clickTimer);
+        const x = e.clientX;
+        const y = e.clientY;
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+          app.showMenu?.(x, y);
+        }, 220);
       });
       el.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        if (moving || e.target.closest('.sd-log-toggle, .sd-chat-toggle, .sd-xp-toggle, .sd-focus')) return;
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        if (moving || internal(e.target)) return;
         const r = el.getBoundingClientRect();
-        app.quick?.show?.(r.left + r.width / 2, r.bottom);
+        app.quick?.show?.(e.clientX || r.left + r.width / 2, e.clientY || r.bottom);
       });
       el.addEventListener('pointerdown', (e) => {
         e.stopPropagation();

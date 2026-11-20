@@ -454,9 +454,15 @@ export class VrmView {
       if (this.mood > 80) target.relaxed = 0.35;
       else if (this.mood < 30) target.sad = 0.4;
     }
-    for (const n of names) {
+    const mouth = Math.max(0, Math.min(1, globalThis.__PET_TTS_LEVEL__ || 0));
+    if (mouth > 0.03) {
+      target.aa = Math.min(1, mouth * 1.3);
+      target.oh = Math.max(0, mouth - 0.45) * 1.4;
+    } else { target.aa = 0; target.oh = 0; }
+    for (const n of [...names, 'aa', 'oh']) {
+      if (!em.getExpression(n)) continue;
       const cur = em.getValue(n) ?? 0;
-      em.setValue(n, cur + ((target[n] || 0) - cur) * Math.min(1, dt * 8));
+      em.setValue(n, cur + ((target[n] || 0) - cur) * Math.min(1, dt * 12));
     }
     this.blinkT -= dt;
     let blink = 0;
