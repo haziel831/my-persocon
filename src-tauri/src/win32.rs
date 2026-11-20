@@ -55,6 +55,11 @@ unsafe fn class_name(hwnd: HWND) -> String {
     String::from_utf16_lossy(&buf[..n.max(0) as usize])
 }
 
+/// Handle of the real foreground window (not our own overlay), used to detect focus changes.
+pub fn foreground_hwnd() -> isize {
+    unsafe { GetForegroundWindow() as isize }
+}
+
 /// Cheap identifier for the foreground window: lowercase title plus window class.
 /// No path, no process enumeration — call this only when the foreground HWND changes.
 pub fn foreground_title() -> Option<String> {

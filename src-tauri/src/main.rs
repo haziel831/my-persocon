@@ -1106,7 +1106,7 @@ fn start_world_polling(app: AppHandle) {
             thread::sleep(Duration::from_millis(30));
             tick += 1;
             let Some(win) = app.get_webview_window(window_label(STREAMER.load(Ordering::Relaxed))) else { continue };
-            let hwnd = win.hwnd().map(|h| h.0 as isize).unwrap_or(0);
+            let hwnd = win32::foreground_hwnd();
             if hwnd != last_hwnd {
                 last_hwnd = hwnd;
                 active_app = win32::foreground_title();
