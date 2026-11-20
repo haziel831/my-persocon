@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.40 — 21/11/2026
+Ecossistema de **Modo Streamer**: save isolado (`save-streamer.json`), janela de controle no 2º monitor, fundo chroma key e palco limpo. **Voz Kokoro offline** com fila única, lip-sync em tempo real, pré-processamento de texto (comandos/links/emotes/repetições), dicionário de pronúncia, permissões e cooldowns do chat, filtros de timbre, ducking de áudio e personalidade estóica da Aghata. **Chat da Twitch** anônimo (sem OAuth) com reações, comandos e leitura de badges. **Ponte HTTP local** em `127.0.0.1:48321` para Streamer.bot/SAMMI/OBS, com simulador de alertas. **Pontos do Canal** mapeáveis para moedas, itens do céu, mural, clima, brinquedos e TTS, além do modo **Volto Já (BRB)**. Menu rápido da Persocon agora abre com duplo clique no dock.
+
 ## v1.9.39 — 21/11/2026
 Correção do menu de botão direito do Corvo (`crowName(this.app)` e `app` declarado no `contextMenu`), remoção de variável não usada e varredura de escopo. Menu rápido da Persocon passou a abrir com mouse sobre ela + tecla **X** (sem duplo clique), com `preventDefault` e proteção para inputs/modificadores; textos de dicas, intro e tooltip do dock atualizados.
 

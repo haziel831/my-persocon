@@ -1,6 +1,12 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['1.9.40', [
+    ['Modo Streamer completo: save isolado, janela de controle no 2º monitor, fundo chroma key, palco limpo e ajustes de moedas e itens que caem do céu', 'Full Streamer Mode: isolated save, control window on the second monitor, chroma key background, clean stage and channel coins/sky drops'],
+    ['Voz Kokoro offline com fila, lip-sync, filtros de texto, dicionário de pronúncia, ducking e personalidade estóica da Aghata', 'Offline Kokoro voice with a queue, lip sync, text filters, pronunciation dictionary, ducking and Aghata’s stoic persona'],
+    ['Chat da Twitch sem token (reações e comandos), ponte local de alertas em 127.0.0.1, simulador, resgates de Pontos do Canal e modo Volto Já', 'Token-free Twitch chat (reactions and commands), local alert bridge on 127.0.0.1, simulator, channel point redeems and BRB mode'],
+    ['Menu rápido da Persocon passou a abrir com duplo clique no status dock', 'The Persocon quick menu now opens with a double-click on the status dock'],
+  ]],
   ['1.9.39', [
     ['Corrigido o menu de botão direito do Corvo, que quebrava com um `ReferenceError` no nome personalizado', 'Fixed the Crow right-click menu, which broke with a `ReferenceError` on the custom name'],
     ['Menu rápido da Persocon agora abre ao passar o mouse nela e pressionar X, sem clique duplo — dicas e intro atualizadas', 'The Persocon quick menu now opens by hovering over her and pressing X, with no double-click — tips and intro updated'],
