@@ -226,7 +226,7 @@ export const FURN = {
   alvo: { size: 0.4, ratio: 26 / 22, back: true },
   escrivaninha: { size: 0.8, ratio: 36 / 48, back: true },
   cafeteira: { size: 0.88, ratio: 42 / 32, back: true },
-  vitrine_doces: { size: 0.62, ratio: 28 / 19, back: true },
+  vitrine_doces: { size: 0.62, ratio: 25 / 20, back: true },
   mesa_cafe: { size: 0.58, ratio: 28 / 19, back: true },
   mural: { size: 0.7, ratio: 22 / 30, back: true },
   globo: { size: 0.16, ratio: 18 / 14, disco: true },
@@ -298,13 +298,13 @@ export const FURN_ITEMS = [
     furn: true, noWear: true, gain: { mood: 0.08, energy: 0.03 },
     note: 'Chá e Café pela carteira dela · nunca dá reação ruim · com upgrade vira a Estação Energy Neon',
   }),
-  item('vitrine_doces', 'mobilia', 'Vitrine de Doces', 260, 'cafe_espresso', {
+  item('vitrine_doces', 'mobilia', 'Máquina de Espresso', 260, 'cafe_espresso', {
     furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
-    note: 'Vitrine de cafeteria com doces e café · combina com a Cafeteira e com as pausas do Pomodoro',
+    note: 'Máquina de espresso decorativa e interativa · combina com a Cafeteira e com as pausas do Pomodoro',
   }),
-  item('mesa_cafe', 'mobilia', 'Mesa de Cafeteria', 220, 'cafe_machine', {
+  item('mesa_cafe', 'mobilia', 'Cafeteira Clássica', 220, 'cafe_machine', {
     furn: true, noWear: true, gain: { mood: 0.1, energy: 0.04 },
-    note: 'Mesinha com café e xícaras para pausas tranquilas · nunca dá reação ruim',
+    note: 'Cafeteira de filtro clássica, decorativa e interativa · nunca dá reação ruim',
   }),
   item('escrivaninha', 'mobilia', 'Escrivaninha com Abajur', 260, 'escrivaninha', {
     furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
@@ -509,6 +509,14 @@ defineIcons(Object.fromEntries(COFFEE_ITEMS.map((it) => [it.pix, (sprite) => spr
     px(4, 4, '#ffffff'); px(4, 11, '#ffffff'); rect(3, 14, 6, 1, '#8a909e');
   }
 })])));
+
+// Cafeteira drinks use the real cup/pot/glass sprites from the same pack.
+defineIcons({
+  cd_cha_quente: () => cafeArt('coffee-pot.png'),
+  cd_cafe_forte: () => cafeArt('cup.png'),
+  cd_voltmint: () => cafeArt('drink.png'),
+  cd_neoberry_surge: () => cafeArt('glass.png'),
+});
 
 defineIcons({
   dummy: (sprite) => sprite(16, 28, ({ rect, circle, px }) => {
