@@ -112,6 +112,9 @@ const EN = {
   'Aff, tá bom, eu estudo...': 'Ugh, fine, I will study...',
   // ---- cafeteira / energy station ----
   'Cafeteira / Estação de Chá': 'Coffee / Tea Station', 'Estação Energy Neon': 'Neon Energy Station',
+  'Vitrine de Doces': 'Dessert display', 'Mesa de Cafeteria': 'Cafe table',
+  'Vitrine de cafeteria com doces e café · combina com a Cafeteira e com as pausas do Pomodoro': 'Cafe display case with sweets and coffee · matches the Coffee Station and Pomodoro breaks',
+  'Mesinha com café e xícaras para pausas tranquilas · nunca dá reação ruim': 'Small table with coffee and cups for quiet breaks · never gives a bad reaction',
   'Chá e Café pela carteira dela · nunca dá reação ruim · com upgrade vira a Estação Energy Neon': 'Tea and Coffee from her own wallet · she never reacts badly · upgrade turns it into the Neon Energy Station',
   'Cardápio exclusivo de Energy Drinks fictícios, todos pela carteira dela e sem reação ruim': 'Exclusive menu of fictional Energy Drinks, all paid from her wallet and never badly received',
   'Máquina maior, cardápio exclusivo de Energy Drinks fictícios e power-ups fortes, todos pela carteira dela': 'Taller machine, exclusive fictional Energy Drinks and stronger power-ups, all paid from her wallet',

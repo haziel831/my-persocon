@@ -226,6 +226,8 @@ export const FURN = {
   alvo: { size: 0.4, ratio: 26 / 22, back: true },
   escrivaninha: { size: 0.8, ratio: 36 / 48, back: true },
   cafeteira: { size: 0.88, ratio: 42 / 32, back: true },
+  vitrine_doces: { size: 0.62, ratio: 28 / 19, back: true },
+  mesa_cafe: { size: 0.58, ratio: 28 / 19, back: true },
   mural: { size: 0.7, ratio: 22 / 30, back: true },
   globo: { size: 0.16, ratio: 18 / 14, disco: true },
   holofote: { size: 0.2, ratio: 16 / 14, disco: true },
@@ -295,6 +297,14 @@ export const FURN_ITEMS = [
   item('cafeteira', 'mobilia', 'Cafeteira / Estação de Chá', 300, 'cafeteira', {
     furn: true, noWear: true, gain: { mood: 0.08, energy: 0.03 },
     note: 'Chá e Café pela carteira dela · nunca dá reação ruim · com upgrade vira a Estação Energy Neon',
+  }),
+  item('vitrine_doces', 'mobilia', 'Vitrine de Doces', 260, 'cafe_espresso', {
+    furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
+    note: 'Vitrine de cafeteria com doces e café · combina com a Cafeteira e com as pausas do Pomodoro',
+  }),
+  item('mesa_cafe', 'mobilia', 'Mesa de Cafeteria', 220, 'cafe_machine', {
+    furn: true, noWear: true, gain: { mood: 0.1, energy: 0.04 },
+    note: 'Mesinha com café e xícaras para pausas tranquilas · nunca dá reação ruim',
   }),
   item('escrivaninha', 'mobilia', 'Escrivaninha com Abajur', 260, 'escrivaninha', {
     furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
@@ -427,6 +437,16 @@ defineIcons({
   cafeteira_brew: (sprite) => sprite(32, 42, (p) => paintBrewer(p, false, true)),
   cafeteira_up: (sprite) => sprite(34, 48, (p) => paintBrewer(p, true, false)),
   cafeteira_up_brew: (sprite) => sprite(34, 48, (p) => paintBrewer(p, true, true)),
+});
+// Real sprites copied from the café item pack (nearest-neighbour, transparent PNGs).
+const cafeArt = (file) => new URL(`./assets/cafe/${file}`, import.meta.url).href;
+defineIcons({
+  cafe_machine: () => cafeArt('coffee-machine.png'),
+  cafe_espresso: () => cafeArt('espresso-machine.png'),
+  cafe_pot: () => cafeArt('coffee-pot.png'),
+  cafe_cup: () => cafeArt('cup.png'),
+  cafe_drink: () => cafeArt('drink.png'),
+  cafe_glass: () => cafeArt('glass.png'),
 });
 // Mural frames: five distinct looks, each in landscape and portrait.
 export const MURAL_FRAMES = {
