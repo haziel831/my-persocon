@@ -343,9 +343,8 @@ export class Game {
     this.deliveries = save?.deliveries || [];
     // Purchases waiting for the 3D printer, in order (the first one is printing): [{ id, n, t, dur }].
     this.queue = save?.queue || [];
-    // Every game has the 3D printer: purchases come out of it.
-    // Streamer Mode never uses the 3D printer: items fall from the sky instead.
-    if (!window.__PET_STREAMER__ && !this.toys.impressora) this.toys.impressora = { uses: 0, maxUses: 0, broken: false, placed: true, x: null, display: 0 };
+    // Every game has the 3D printer: purchases come out of it (including Streamer Mode).
+    if (!this.toys.impressora) this.toys.impressora = { uses: 0, maxUses: 0, broken: false, placed: true, x: null, display: 0 };
     this.repairToys();
     this.ensureDesktopBuddy();
     this.ensureSyntoyoToy();
@@ -772,12 +771,6 @@ export class Game {
     if (!item || !this.canBuy(item, n)) return null;
     this.pay((item.price || 0) * n);
     this.profile.purchases = (this.profile.purchases || 0) + 1;
-    // Streamer Mode: nothing goes through the printer; items drop from the sky on stage.
-    if (window.__PET_STREAMER__) {
-      for (let i = 0; i < n; i++) this.toys?.skyDrop?.(id, { fromUser: true });
-      this.pet.bought(item);
-      return item;
-    }
     // Arena de teste: sem fila da impressora — o item cai direto no inventário.
     if (COMBATE) {
       this.deliveries.push({ id, n, x: null, display: null });
