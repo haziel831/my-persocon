@@ -81,8 +81,8 @@ export async function startStreamerControl(config) {
     coins.append(drop);
     body.append(coins);
 
-    // --- Kokoro TTS ---
-    body.append(el('h3', '', translate('🗣️ Voz Kokoro (TTS offline)')));
+    // --- Offline TTS (Estúdio) ---
+    body.append(el('h3', '', translate('🗣️ Voz offline (Estúdio TTS)')));
     const addToggle = (label, key, def = true) => {
       const b = el('input'); b.type = 'checkbox'; b.checked = config[key] ?? def;
       b.onchange = () => window.petAPI?.saveConfig?.({ [key]: b.checked });

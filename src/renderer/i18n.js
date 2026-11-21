@@ -296,7 +296,7 @@ const EN = {
   'Palco limpo (ocultar Dock/UI na janela do OBS)': 'Clean stage (hide Dock/UI in the OBS window)',
   'Moedas do Canal': 'Channel coins', 'Dropar item do céu': 'Drop item from the sky',
   'Resetar save do Streamer': 'Reset Streamer save', 'Sair do Modo Streamer': 'Exit Streamer Mode',
-  '🗣️ Voz Kokoro (TTS offline)': '🗣️ Kokoro voice (offline TTS)', '🔊 Testar voz': '🔊 Test voice', '⏭ Pular fala': '⏭ Skip speech',
+  '🗣️ Voz offline (Estúdio TTS)': '🗣️ Offline voice (TTS Studio)', '🔊 Testar voz': '🔊 Test voice', '⏭ Pular fala': '⏭ Skip speech',
   'Conectar': 'Connect', 'Desconectado': 'Disconnected', 'Reagir a palavras-chave': 'React to keywords',
   'Permitir comandos !': 'Allow ! commands', 'Falar respostas no TTS': 'Speak replies with TTS',
   'Palavras bloqueadas': 'Blocked words', 'Ponte local de alertas': 'Local alert bridge', 'Copiar': 'Copy',

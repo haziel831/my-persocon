@@ -1336,7 +1336,7 @@ export class Menu {
       }, label))),
       slider({ label: 'Intensidade', min: 0, max: 2, step: 0.05, value: c.filterStrength ?? 1, format: (v) => `${Math.round(v * 100)}%`,
         oninput: (v) => app.setOption('filterStrength', v) }),
-      h('div.group', {}, '🗣️ Voz Kokoro (Offline)'),
+      h('div.group', {}, '🗣️ Voz offline (Estúdio TTS)'),
       h('div.row', {}, h('span.label', {}, 'Preset de voz'), segmented([
         ['', 'Padrão'], ['aghata', 'Aghata — Lain/Rei'],
       ], c.voicePreset || '', (v) => {

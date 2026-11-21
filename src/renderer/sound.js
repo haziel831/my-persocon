@@ -119,7 +119,7 @@ export class Sound {
     this.master.gain.value = this.ducked ? vol * 0.35 : vol;
   }
 
-  // Smooth duck/restore around Kokoro speech (does not touch the saved volume).
+  // Smooth duck/restore around offline TTS speech (does not touch the saved volume).
   setDucking(on) {
     if (!this.master || !!on === !!this.ducked) return;
     this.ducked = !!on;

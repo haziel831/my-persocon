@@ -1,7 +1,7 @@
 {
   "id": "aghata",
   "name": "Aghata — Lain/Rei (PT-BR)",
-  "engine": "kokoro-v1.0 (voxforge-neural.py)",
+  "engine": "Offline TTS Studio (motor neural local, voxforge-neural.py)",
   "source": "https://offlinetts.com/voice-maker/packs/",
   "note": "Convex blend of real Kokoro style vectors. pf_dora keeps Brazilian Portuguese pronunciation; jf_nezumi and af_nicole bring the soft, low, slightly ethereal anime timbre. Phonemes still come from lang=pt-br.",
   "voice": "pf_dora",
@@ -10,8 +10,8 @@
   "pitch": -1,
   "filter": "warm",
   "blend": [
-    { "voice": "pf_dora", "weight": 0.6 },
-    { "voice": "jf_nezumi", "weight": 0.25 },
+    { "voice": "pf_dora", "weight": 0.55 },
+    { "voice": "jf_nezumi", "weight": 0.3 },
     { "voice": "af_nicole", "weight": 0.15 }
   ]
 }

@@ -49,7 +49,7 @@ Stack: Tauri 2 + WebView2, ES modules puros, three.js, sem bundler. Rust em `src
 
 ## Mapa — `src/renderer` (lógica)
 
-- `app.js` entrada · `streamctrl.js` painel legado (a aba agora é HTML servido pelo Rust em `stream_control.html`) · `tts.js` voz Kokoro · `twitchchat.js` chat Twitch · `streamalerts.js` alertas locais · `persona.js` falas estóicas/padrão da live · `pet.js` orquestra tudo (loop, eventos, desejos, mãos) · `behavior.js` stats/humor/ações/física (`adjust`, `moodGain`, `updateRequest`)
+- `app.js` entrada · `streamctrl.js` painel legado (a aba agora é HTML servido pelo Rust em `stream_control.html`) · `tts.js` voz offline (Estúdio TTS) · `twitchchat.js` chat Twitch · `streamalerts.js` alertas locais · `persona.js` falas estóicas/padrão da live · `pet.js` orquestra tudo (loop, eventos, desejos, mãos) · `behavior.js` stats/humor/ações/física (`adjust`, `moodGain`, `updateRequest`)
 - `speech.js` falas/balões · `i18n.js` textos PT/EN · `names.js`, `introtext.js`, `tips.js`, `changelog.js`
 - `toys.js` brinquedos/objetos (BOUNCY, TV) · `funtoys.js` brinquedos especiais · `furniture.js` mobília · `ball.js` bola
 - `weather.js` clima ambiente offline (chuva/pétalas/vagalumes/neve) · `tvwatch.js` Assistir na TV · `watch.js`, `modes.js` atividades · `music.js`, `synth.js`, `sound.js` (sfx)

@@ -7,8 +7,8 @@ export const VOICE_PRESETS = {
   aghata: {
     voice: 'pf_dora',
     blend: [
-      { voice: 'pf_dora', weight: 0.6 },
-      { voice: 'jf_nezumi', weight: 0.25 },
+      { voice: 'pf_dora', weight: 0.55 },
+      { voice: 'jf_nezumi', weight: 0.3 },
       { voice: 'af_nicole', weight: 0.15 },
     ],
     speed: 0.88,
