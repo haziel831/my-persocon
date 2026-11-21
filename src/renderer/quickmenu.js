@@ -14,6 +14,7 @@ export class QuickMenu {
   show(x, y) {
     const { app } = this;
     this.close();
+    app.closeAllMenus?.();
     const el = document.createElement('div');
     el.className = 'quick-menu hitzone';
     el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -107,6 +108,8 @@ export class QuickMenu {
     const out = (e) => { if (!el.contains(e.target)) this.close(); };
     this._out = out;
     setTimeout(() => this.el === el && addEventListener('pointerdown', out, true), 0);
+    this._key = (e) => { if (e.key === 'Escape') this.close(); };
+    window.addEventListener('keydown', this._key);
     app.sound.play('blip', { volume: 0.5 });
     app.uiChanged();
   }
@@ -193,6 +196,10 @@ export class QuickMenu {
     if (this._out) {
       removeEventListener('pointerdown', this._out, true);
       this._out = null;
+    }
+    if (this._key) {
+      window.removeEventListener('keydown', this._key);
+      this._key = null;
     }
     if (this.el) {
       this.el.remove();

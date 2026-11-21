@@ -10,6 +10,7 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
   let t = 0;
   let menuEl = null;
   let menuOff = null;
+  let menuKey = null;
   let moving = false;
   // Cached DOM writes: only touch the element when a value actually changed.
   let movingLast = null;
@@ -28,12 +29,15 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     menuEl.remove();
     menuEl = null;
     window.removeEventListener('pointerdown', menuOff, true);
+    if (menuKey) window.removeEventListener('keydown', menuKey);
+    menuKey = null;
     app.uiChanged();
   }
 
   // Right-click on the docked status: always on top, click through, move it, close it.
   function openMenu(x, y) {
     closeMenu();
+    app.closeAllMenus?.();
     const m = document.createElement('div');
     m.className = 'toy-menu hitzone';
     const title = document.createElement('div');
@@ -73,6 +77,8 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     menuEl = m;
     menuOff = (e) => !m.contains(e.target) && closeMenu();
     setTimeout(() => menuEl === m && window.addEventListener('pointerdown', menuOff, true), 0);
+    menuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
+    window.addEventListener('keydown', menuKey);
     sound.play('blip', { volume: 0.4 });
     app.uiChanged();
   }
@@ -354,9 +360,13 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     closeMenu,
     // The bag menu shares the same outside-click dismissal as the status menu.
     setMenu: (m, off) => {
+      closeMenu();
+      app.closeAllMenus?.();
       menuEl = m;
       menuOff = off;
       setTimeout(() => menuEl === m && window.addEventListener('pointerdown', menuOff, true), 0);
+      menuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
+      window.addEventListener('keydown', menuKey);
     },
     setMoving: (v) => { moving = !!v; },
     get el() { return el; },

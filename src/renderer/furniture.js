@@ -514,8 +514,11 @@ defineIcons(Object.fromEntries(COFFEE_ITEMS.map((it) => [it.pix, (sprite) => spr
 defineIcons({
   cd_cha_quente: () => cafeArt('coffee-pot.png'),
   cd_cafe_forte: () => cafeArt('cup.png'),
-  cd_voltmint: () => cafeArt('drink.png'),
-  cd_neoberry_surge: () => cafeArt('glass.png'),
+  cd_voltmint: () => new URL('./assets/consumables/sodas/soda_01.png', import.meta.url).href,
+  cd_neoberry_surge: () => new URL('./assets/consumables/sodas/soda_02.png', import.meta.url).href,
+  cd_solaris_zero: () => new URL('./assets/consumables/sodas/soda_03.png', import.meta.url).href,
+  cd_cybermatcha_rush: () => new URL('./assets/consumables/sodas/soda_04.png', import.meta.url).href,
+  cd_hyperyuzu: () => new URL('./assets/consumables/sodas/soda_05.png', import.meta.url).href,
 });
 
 defineIcons({

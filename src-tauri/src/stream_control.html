@@ -91,6 +91,7 @@
     <label class="field wide"><span>Personalidade</span><select data-key="streamPersona" data-type="text">
       <option value="padrao">Padrão (animada)</option><option value="estoica">Estóica (calma)</option></select></label>
     <label class="toggle"><input type="checkbox" data-key="ttsDucking" data-type="bool"> Ducking de áudio</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsVisualizer" data-type="bool"> Mostrar equalizador de voz</label>
     <div class="row"><button class="act primary" id="test-voice">🔊 Testar voz com filtros</button><button class="act" id="test-persona">🔊 Testar frase estóica</button></div>
   </div>
 
@@ -132,6 +133,8 @@
   <div class="card">
     <div class="row"><input type="text" id="endpoint" readonly><button class="act" id="copy">Copiar</button></div>
     <label class="toggle"><input type="checkbox" id="bridge-on"> Servidor do painel ativo</label>
+    <label class="toggle"><input type="checkbox" data-key="followPins" data-type="bool"> Pendurar nomes de Follow no palco</label>
+    <div class="row"><button class="act" id="clear-pins">🧹 Limpar nomes pendurados</button></div>
     <div class="row" id="sim">
       <button class="act" data-alert="follow">Testar Follow</button>
       <button class="act" data-alert="sub">Testar Sub</button>
@@ -144,7 +147,8 @@
   <h2>Pontos do Canal</h2>
   <div class="card">
     <textarea id="redeems" placeholder="nome da recompensa=acao:moedas"></textarea>
-    <div class="row"><button class="act primary" id="redeems-save">Salvar</button><select id="redeem-test"></select><button class="act" id="redeem-run">Testar resgate</button></div>
+    <div class="row"><button class="act primary" id="redeems-save">Salvar</button><button class="act" id="redeems-presets">✨ Carregar presets sugeridos</button><select id="redeem-test"></select><button class="act" id="redeem-run">Testar resgate</button></div>
+    <p class="note">Ações: moedas, sky_drop, mural_note, bolhas, aviao, trio, pagar_cafe, dar_lanche, cafune, desenho, clima, susto, tts_say · formato: nome=acao:moedas</p>
   </div>
 
   <h2>☕ Modo Volto Já (BRB)</h2>
@@ -268,6 +272,7 @@ $('#test-persona').onclick = () => rpc({cmd:'say',text:'Pausa na transmissão...
 $('#twitch-connect').onclick = connectTwitch;
 $('#channel').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connectTwitch(); } });
 $('#twitch-disconnect').onclick = () => rpc({cmd:'twitchDisconnect'});
+$('#clear-pins').onclick = () => rpc({ cmd: 'clearPins' });
 $('#sim').onclick = (e) => { const b=e.target.closest('[data-alert]'); if (b) rpc({cmd:'testAlert',event:{type:b.dataset.alert,user:'Viewer',amount:100}}); };
 $('#say-btn').onclick = () => { rpc({cmd:'say',text:$('#say').value}); $('#say').value=''; };
 $('#copy').onclick = () => navigator.clipboard?.writeText($('#endpoint').value);
@@ -282,6 +287,15 @@ $('#redeems-save').onclick = () => {
     map[name.trim()] = { action:(action||'').trim(), coins:Number(coins)||0 };
   }
   rpc({cmd:'setOption',key:'streamRedeems',value:map}); fillRedeems(map); toast('Resgates salvos');
+};
+$('#redeems-presets').onclick = () => {
+  $('#redeems').value = [
+    'Moedas=moedas:50', 'Item do céu=sky_drop:0', 'Recado no mural=mural_note:0',
+    'Bolhas=bolhas:0', 'Aviãozinho=aviao:0', 'Trio=trio:0', 'Pagar café=pagar_cafe:0',
+    'Dar lanche=dar_lanche:0', 'Cafuné=cafune:0', 'Desenho=desenho:0', 'Clima=clima:0',
+    'Susto=susto:0', 'Falar mensagem=tts_say:0',
+  ].join('\n');
+  toast('Presets carregados — clique em Salvar');
 };
 $('#redeem-run').onclick = () => {
   const name = $('#redeem-test').value; if (!name) return;

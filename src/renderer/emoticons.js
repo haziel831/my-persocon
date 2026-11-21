@@ -41,6 +41,19 @@ const EMOTES = {
   peace: 86, // victory hand (rock-paper-scissors)
 };
 
+// Alternative themes: one PNG per emote, or one 16px sheet (13x5 cells).
+const PIXY_URL = new URL('./assets/emotes/pixymoji/', import.meta.url).href;
+const PIXEL16_URL = new URL('./assets/emotes/pixel16.png', import.meta.url).href;
+const PIXY = {
+  interrobang: 'exclamation-question-mark.png', question: 'red-question-mark.png', dizzy: 'dizzy.png',
+  sparkle: 'sparkles.png', hearts: 'pink-heart.png', blush: 'flushed-face.png', sleep: 'sleeping-face.png',
+  dots: 'zzz.png', scribble: 'thinking-face.png', anger: 'anger-symbol.png', storm: 'disappointed-face.png',
+  brokenheart: 'broken-heart.png', note: 'speaker-high.png', medal: 'first-place-medal.png', star: 'star.png',
+  sweat: 'sweat-droplets.png', arrow: 'backhand-index-pointing-right.png', hand: 'waving-hand.png',
+  bowl: 'shallow-pan-of-food.png', drink: 'glass-of-milk.png', laugh: 'face-with-tears-of-joy.png',
+  shock: 'exploding-head.png', rainbow: 'rainbow.png', peace: 'ok-hand.png',
+};
+
 const CATEGORIES = {
   surprise: ['interrobang'],
   help: ['question'],
@@ -159,10 +172,30 @@ export class Emoticons {
   apply(name) {
     const group = this.images.get(name);
     if (group == null) return;
+    const theme = this.cfg.emoteTheme || 'pipo';
+    const el = this.el;
+    if (theme === 'pixymoji' || theme === 'pixel16') {
+      el.classList.add('emote-static');
+      el.style.width = `${this.size}px`;
+      el.style.height = `${this.size}px`;
+      if (theme === 'pixymoji') {
+        el.style.backgroundImage = `url("${PIXY_URL}${PIXY[name] || 'star.png'}")`;
+        el.style.backgroundSize = 'contain';
+        el.style.backgroundPosition = 'center';
+      } else {
+        const idx = Math.max(0, Object.keys(EMOTES).indexOf(name));
+        const scale = this.size / 16;
+        el.style.backgroundImage = `url("${PIXEL16_URL}")`;
+        el.style.backgroundSize = `${13 * scale}px ${5 * scale}px`;
+        el.style.backgroundPosition = `${-(idx % 13) * scale}px ${-Math.floor(idx / 13) * scale}px`;
+      }
+      return;
+    }
+    el.classList.remove('emote-static');
+    el.style.backgroundImage = '';
     const k = this.size / FRAME;
     const x = -((group % SHEET_COLS) * GROUP) * k;
     const y = -Math.floor(group / SHEET_COLS) * FRAME * k;
-    const el = this.el;
     el.style.width = `${this.size}px`;
     el.style.height = `${this.size}px`;
     el.style.backgroundSize = `${SHEET_W * k}px ${SHEET_H * k}px`;

@@ -702,6 +702,7 @@ export class Toys {
   // Shows a menu/popup at x,y; it closes on any click outside it.
   openMenu(el, x, y) {
     this.closeMenu();
+    this.app.closeAllMenus?.();
     el.style.left = `${Math.min(x, innerWidth - 230)}px`;
     el.style.top = `${Math.min(y, innerHeight - 220)}px`;
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -713,6 +714,8 @@ export class Toys {
     this.menuOff = (e) => !el.contains(e.target) && this.closeMenu();
     setTimeout(() => this.menuEl === el && window.addEventListener('pointerdown', this.menuOff, true), 0);
     window.addEventListener('blur', this.menuOff);
+    this.menuKey = (e) => { if (e.key === 'Escape') this.closeMenu(); };
+    window.addEventListener('keydown', this.menuKey);
     this.app.uiChanged();
   }
 
@@ -743,6 +746,7 @@ export class Toys {
   // Double click on a piece of furniture: a small menu with just "Editar esta mobília".
   quickEdit(id, x, y) {
     this.closeMenu();
+    this.app.closeAllMenus?.();
     const el = document.createElement('div');
     el.className = 'toy-menu hitzone';
     const title = document.createElement('div');
@@ -761,6 +765,8 @@ export class Toys {
     this.menuOff = (e) => !el.contains(e.target) && this.closeMenu();
     setTimeout(() => this.menuEl === el && window.addEventListener('pointerdown', this.menuOff, true), 0);
     window.addEventListener('blur', this.menuOff);
+    this.menuKey = (e) => { if (e.key === 'Escape') this.closeMenu(); };
+    window.addEventListener('keydown', this.menuKey);
     this.app.uiChanged();
   }
 
@@ -776,6 +782,8 @@ export class Toys {
     this.menuEl = null;
     window.removeEventListener('pointerdown', this.menuOff, true);
     window.removeEventListener('blur', this.menuOff);
+    if (this.menuKey) window.removeEventListener('keydown', this.menuKey);
+    this.menuKey = null;
     this.app.uiChanged();
   }
 

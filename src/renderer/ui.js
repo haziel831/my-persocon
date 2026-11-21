@@ -325,10 +325,13 @@ export class Menu {
     const { x, y } = this.anchor;
     this.el.style.left = fit(x + 6, r.width, innerWidth) + 'px';
     this.el.style.top = fit(y - r.height / 2, r.height, innerHeight) + 'px';
+    this._key = (e) => { if (e.key === 'Escape') this.close(); };
+    window.addEventListener('keydown', this._key);
   }
 
   close() {
     if (!this.el) return;
+    if (this._key) { window.removeEventListener('keydown', this._key); this._key = null; }
     this.app.stopPreview?.();
     clearInterval(this.ticker);
     // A caixinha de atributo que ficou aberta: some com o menu.
@@ -1333,6 +1336,41 @@ export class Menu {
       }, label))),
       slider({ label: 'Intensidade', min: 0, max: 2, step: 0.05, value: c.filterStrength ?? 1, format: (v) => `${Math.round(v * 100)}%`,
         oninput: (v) => app.setOption('filterStrength', v) }),
+      h('div.group', {}, '🗣️ Voz Kokoro (Offline)'),
+      toggle({ label: 'Ativar voz no jogo normal', value: c.offlineTts === true, onchange: (v) => app.setOption('offlineTts', v) }),
+      toggle({ label: 'Falar em eventos importantes', value: c.offlineTtsEvents !== false, onchange: (v) => app.setOption('offlineTtsEvents', v) }),
+      toggle({ label: 'Falar em interações diretas', value: c.offlineTtsInteract !== false, onchange: (v) => app.setOption('offlineTtsInteract', v) }),
+      toggle({ label: 'Falar em conversas aleatórias', value: c.offlineTtsChatter === true, onchange: (v) => app.setOption('offlineTtsChatter', v) }),
+      slider({ label: 'Intervalo das conversas', min: 1, max: 15, step: 1, value: c.offlineTtsChatterMin ?? 4, format: (v) => `${v} min`,
+        oninput: (v) => app.setOption('offlineTtsChatterMin', v) }),
+      h('div.row', {}, h('span.label', {}, 'Pasta do TTS'), h('input.text', {
+        value: c.ttsDir || 'D:\\Program Files\\Offline TTS',
+        onchange: (e) => app.setOption('ttsDir', e.target.value),
+      }), h('button', { onclick: () => { app.loadOfflineVoices?.(c.ttsDir); this.render(); } }, '🔄 Carregar vozes')),
+      h('div.row', {}, h('span.label', {}, 'Voz'), h('select', {
+        onchange: (e) => { app.setOption('ttsVoice', e.target.value); app.tts?.preview?.('Olá... testando esta voz.', e.target.value); },
+      }, (app.offlineVoices || []).map((v) => {
+        const id = typeof v === 'string' ? v.replace(/^neural:/, '') : String(v.id || v.name || '').replace(/^neural:/, '');
+        const lang = typeof v === 'string' ? '' : (v.lang || '');
+        return h('option', { value: id, selected: id === c.ttsVoice }, `${typeof v === 'string' ? id : (v.name || id)} (${lang || id})`);
+      }))),
+      h('div.row', {}, h('button', { onclick: () => app.tts?.preview?.('Olá... testando esta voz.', c.ttsVoice) }, '🔊 Testar voz')),
+      slider({ label: 'Velocidade', min: 0.7, max: 1.4, step: 0.05, value: c.ttsSpeed ?? 1, format: (v) => `${v.toFixed(2)}×`,
+        oninput: (v) => app.setOption('ttsSpeed', v) }),
+      slider({ label: 'Volume da Voz', min: 0, max: 1, step: 0.05, value: c.ttsVolume ?? 0.85, format: (v) => `${Math.round(v*100)}%`,
+        oninput: (v) => app.setOption('ttsVolume', v) }),
+      slider({ label: 'Tom (semitons)', min: -6, max: 6, step: 1, value: c.ttsPitch ?? 0, format: (v) => `${v > 0 ? '+' : ''}${v}`,
+        oninput: (v) => app.setOption('ttsPitch', v) }),
+      h('div.row', {}, h('span.label', {}, 'Filtro de timbre'), segmented([
+        ['natural', 'Natural'], ['warm', 'Quente'], ['wired', 'Wired'],
+      ], c.ttsFilter || 'natural', (v) => app.setOption('ttsFilter', v))),
+      h('div.row', {}, h('span.label', {}, 'Personalidade de voz'), segmented([
+        ['padrao', 'Padrão'], ['estoica', 'Estóica'],
+      ], c.streamPersona || 'padrao', (v) => app.setOption('streamPersona', v))),
+      toggle({ label: 'Audio Ducking', value: c.ttsDucking !== false, onchange: (v) => app.setOption('ttsDucking', v) }),
+      toggle({ label: 'Mostrar equalizador de voz', value: c.ttsVisualizer !== false, onchange: (v) => app.setOption('ttsVisualizer', v) }),
+      toggle({ label: `Modo "Esperando você voltar" quando ausente`, value: c.awayCozy !== false, onchange: (v) => app.setOption('awayCozy', v) }),
+      app.tts?.lastError ? h('div.note', { style: { color: '#ff8fa0' } }, app.tts.lastError) : null,
       h('div.group', {}, 'Ajuda'),
       toggle({
         label: 'Mostrar dicas e tutoriais na tela',
@@ -1421,6 +1459,9 @@ export class Menu {
       toggle({ label: 'Clicar através da Persocon e dos objetos', value: !!c.clickThrough, onchange: (v) => app.setOption('clickThrough', v) }),
       h('div.note', {}, 'Com "clicar através", abra o menu pelo ícone da bandeja.'),
       h('div.group', {}, 'Emoticons'),
+      h('div.row', {}, h('span.label', {}, 'Tema'), segmented([
+        ['pipo', 'Pipoya'], ['pixymoji', 'Pixymoji'], ['pixel16', 'Pixel 16×16'],
+      ], c.emoteTheme || 'pipo', (v) => { app.setOption('emoteTheme', v); app.previewEmoticon?.(); this.render(); })),
       toggle({ label: 'Mostrar', value: c.emoticons !== false, onchange: (v) => app.setOption('emoticons', v) }),
       slider({ label: 'Frequência', min: 0.2, max: 3, step: 0.1, value: c.emoticonRate ?? 1, format: (v) => `${v.toFixed(1)}×`,
         oninput: (v) => app.setOption('emoticonRate', v) }),

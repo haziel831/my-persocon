@@ -6,6 +6,7 @@ export class StreamAlerts {
     this.app = app;
     this.queue = [];
     this.follows = [];
+    this.pins = [];
     this.timer = null;
   }
 
@@ -15,6 +16,7 @@ export class StreamAlerts {
       const user = this.app ? String(event.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40) : 'alguém';
       this.follows.push(user);
       this.app?.rememberFollower?.(user);
+      if (window.__PET_STREAMER__ && this.app?.config?.followPins !== false) this.pinFollow(user);
       this.flushSoon();
       return;
     }
@@ -74,9 +76,41 @@ export class StreamAlerts {
         app.speech?.say(personaLine(app, 'toy', { user, id }), 3, { priority: true });
         break;
       }
+      case 'pagar_cafe': {
+        const drink = cfg.item || 'cafe_forte';
+        app.game.inventory[drink] = (app.game.inventory[drink] || 0) + 1;
+        app.game.changed?.();
+        app.toys?.callFurn?.('cafeteira');
+        app.speech?.say(personaLine(app, 'coffee', { user }), 3, { priority: true });
+        break;
+      }
+      case 'dar_lanche': {
+        const food = cfg.item || 'maca';
+        app.game.inventory[food] = (app.game.inventory[food] || 0) + 1;
+        app.game.changed?.();
+        app.speech?.say(personaLine(app, 'snack', { user }), 3, { priority: true });
+        break;
+      }
+      case 'cafune':
+        app.setHand?.('pat');
+        app.emoticons?.show?.('love', true);
+        app.speech?.say(personaLine(app, 'pat', { user }), 3, { priority: true });
+        break;
+      case 'desenho': {
+        const key = Object.keys(app.game.toys || {}).find((k) => k.split('#')[0] === 'mural' && app.game.toys[k].placed);
+        if (key) { app.game.toys[key].note = `♥ ${user}`; app.game.changed?.(); app.toys?.updateMural?.(key); }
+        app.speech?.say(personaLine(app, 'draw', { user }), 4, { priority: true });
+        break;
+      }
+      case 'susto':
+        app.pet?.react?.('scare');
+        app.speech?.say(personaLine(app, 'scare'), 3, { priority: true });
+        break;
       case 'clima': {
-        const kind = ['chuva', 'sakura', 'neve', 'vagalumes'].find((k) => text.toLowerCase().includes(k) || cfg.climate === k);
-        if (kind && app.weather) { app.weather.start(kind); app.weather.until = Date.now() + 120000; }
+        const all = ['chuva', 'sakura', 'neve', 'vagalumes'];
+        const kind = all.find((k) => text.toLowerCase().includes(k) || cfg.climate === k)
+          || all[Math.floor(Math.random() * all.length)];
+        if (app.weather) { app.weather.start(kind); app.weather.until = Date.now() + 120000; }
         break;
       }
       case 'tts_say':
@@ -84,6 +118,82 @@ export class StreamAlerts {
         break;
       default: break;
     }
+  }
+
+  pinFollow(user) {
+    const card = document.createElement('div');
+    card.className = 'follow-pin';
+    const art = document.createElement('canvas');
+    art.width = 24; art.height = 24;
+    const g = art.getContext('2d');
+    g.fillStyle = '#ff4fb8'; g.fillRect(9, 8, 6, 8); g.fillRect(7, 10, 10, 4);
+    g.fillStyle = '#ffd23f'; g.fillRect(11, 4, 2, 4); g.fillRect(4, 11, 3, 2); g.fillRect(17, 11, 3, 2);
+    const label = document.createElement('span');
+    label.textContent = `♥ ${String(user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40)}`;
+    card.append(art, label);
+    document.body.append(card);
+    const slot = this.pins.length;
+    card.style.left = `${Math.round(12 + (slot % 10) * (Math.min(120, innerWidth / 10)))}px`;
+    card.style.top = '6px';
+    this.pins.push(card);
+    while (this.pins.length > 10) {
+      const old = this.pins.shift();
+      old.classList.add('leaving');
+      setTimeout(() => old.remove(), 500);
+    }
+  }
+
+  clearPins() {
+    for (const card of this.pins) card.remove();
+    this.pins.length = 0;
+  }
+
+  subShow(user) {
+    const app = this.app;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'sub-show-canvas';
+    canvas.width = innerWidth; canvas.height = innerHeight;
+    document.body.append(canvas);
+    const g = canvas.getContext('2d');
+    const colors = ['#ff3ea5', '#5ef0ff', '#a855f7'];
+    const t0 = performance.now();
+    const beams = Array.from({ length: 6 }, (_, i) => ({ x: (i + 0.5) * canvas.width / 6, dir: i % 2 ? 1 : -1, c: colors[i % 3] }));
+    app.sound?.playSubSynthwave?.(10);
+    app.startMode?.('jam');
+    const draw = (now) => {
+      const t = (now - t0) / 1000;
+      if (t >= 10 || !canvas.isConnected) {
+        canvas.remove();
+        app.modes?.stop?.();
+        return;
+      }
+      g.clearRect(0, 0, canvas.width, canvas.height);
+      for (const b of beams) {
+        const a = 0.12 + 0.08 * Math.sin(t * Math.PI * 2 * (136 / 60) + b.x);
+        g.fillStyle = b.c; g.globalAlpha = a;
+        g.beginPath(); g.moveTo(b.x, -20);
+        g.lineTo(b.x + b.dir * (90 + 140 * Math.sin(t * 2)), canvas.height);
+        g.lineTo(b.x + b.dir * (30 + 60 * Math.sin(t * 2)), canvas.height);
+        g.closePath(); g.fill();
+      }
+      g.globalAlpha = 1;
+      if (Math.random() < 0.35) {
+        g.fillStyle = colors[Math.floor(Math.random() * 3)];
+        const x = Math.random() * canvas.width, y = Math.random() * canvas.height * 0.6;
+        for (let i = 0; i < 18; i++) {
+          const ang = (i / 18) * Math.PI * 2;
+          g.fillRect(x + Math.cos(ang) * Math.random() * 30, y + Math.sin(ang) * Math.random() * 30, 3, 3);
+        }
+      }
+      g.font = '700 42px PxEmoji, system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.shadowColor = '#ff3ea5'; g.shadowBlur = 24;
+      g.fillStyle = '#fff';
+      g.fillText(String(user || '').replace(/[<>&"']/g, '').slice(0, 40), canvas.width / 2, 100 + Math.sin(t * 4) * 6);
+      g.shadowBlur = 0;
+      requestAnimationFrame(draw);
+    };
+    requestAnimationFrame(draw);
   }
 
   react(ev) {
@@ -101,6 +211,7 @@ export class StreamAlerts {
         app.pet?.react?.('cheer');
         app.fx?.confettiRain?.(18);
         app.crow?.say?.('🎉', 2);
+        if (window.__PET_STREAMER__ && app.config.subShow !== false) this.subShow(user);
         line = personaLine(app, 'sub', { user });
         break;
       case 'raid':

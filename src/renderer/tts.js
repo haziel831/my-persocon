@@ -16,6 +16,7 @@ export class VoiceTTS {
     this.current = null;
     this.muted = false; // quick mute: balloons and alerts keep working
     this.lastError = '';
+    this.lastChatterAt = 0;
     this.gen = 0;
     this.lastAt = 0;
     this.userAt = new Map();
@@ -23,7 +24,25 @@ export class VoiceTTS {
 
   get enabled() {
     const c = this.app.config;
-    return !!window.__PET_STREAMER__ && c.ttsEnabled !== false;
+    return (!!window.__PET_STREAMER__ && c.ttsEnabled !== false)
+      || (!window.__PET_STREAMER__ && c.offlineTts === true);
+  }
+
+  // Classified triggers for the normal game (idle chatter has its own cooldown).
+  enqueueFor(kind, text, opts = {}) {
+    if (window.__PET_STREAMER__) return this.enqueue(text, opts);
+    const c = this.app.config;
+    if (!c.offlineTts || this.app.dndActive || c.sound === false || this.app.pomodoro?.focusing) return false;
+    if (kind === 'events' && this.idleNow) kind = 'chatter';
+    if (kind === 'events' && c.offlineTtsEvents === false) return false;
+    if (kind === 'interact' && c.offlineTtsInteract === false) return false;
+    if (kind === 'chatter') {
+      if (c.offlineTtsChatter !== true) return false;
+      const gap = (Number(c.offlineTtsChatterMin ?? 4) * 60) * 1000;
+      if (Date.now() - (this.lastChatterAt || 0) < gap) return false;
+      this.lastChatterAt = Date.now();
+    }
+    return this.enqueue(text, opts);
   }
 
   // Turns raw text (or a chat line) into a clean, pronounceable sentence.
@@ -209,12 +228,7 @@ export class VoiceTTS {
 
   // Immediate audition: cancels whatever is playing, ignores chat cooldowns and quick mute.
   preview(text, voice) {
-    if (!this.enabled) {
-      this.lastError = this.app.config.lang === 'en' ? 'Kokoro voice is off' : 'Voz Kokoro desligada';
-      console.error('[tts]', this.lastError);
-      this.app.pushStreamerState?.();
-      return false;
-    }
+    // Explicit test always plays, even with TTS off / DND / sound muted.
     const clean = this.prepareText(text);
     if (!clean) return false;
     this.stopCurrent();

@@ -170,3 +170,14 @@ defineIcons({
     rect(3, 7, 7, 3, K); rect(3, 6, 7, 1, V); rect(4, 10, 5, 1, K); px(4, 5, '#ffffff'); px(8, 8, C); px(5, 9, '#ffffff');
   }),
 });
+
+// Real soda can sprites cut from food_sodas.jfif (transparent PNG, nearest-neighbour in CSS).
+const SODA = (n) => new URL(`./assets/consumables/sodas/soda_${n}.png`, import.meta.url).href;
+defineIcons({
+  soda_01: () => SODA('01'), soda_02: () => SODA('02'), soda_03: () => SODA('03'),
+  soda_04: () => SODA('04'), soda_05: () => SODA('05'),
+  vu_soda_neon: () => SODA('02'), vu_cafe_nebula: () => SODA('05'),
+  vm_melon_soda: () => SODA('03'), vm_cafe_lata: () => SODA('04'),
+  vm_choco_quente: () => new URL('./assets/cafe/drink.png', import.meta.url).href,
+  vm_ramune: () => new URL('./assets/cafe/glass.png', import.meta.url).href,
+});

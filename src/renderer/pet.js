@@ -476,7 +476,11 @@ export async function startPet(files, config) {
   const speechSay = speech.say.bind(speech);
   speech.say = (text, life, ttsOpts) => {
     const r = speechSay(text, life);
-    if (window.__PET_STREAMER__ && config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(text, ttsOpts);
+    if (window.__PET_STREAMER__) {
+      if (config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(text, ttsOpts);
+    } else {
+      app.tts?.enqueueFor?.('events', text, ttsOpts);
+    }
     return r;
   };
   app.speechHistory = [];
@@ -491,9 +495,11 @@ export async function startPet(files, config) {
       const raw = speech[k].bind(speech);
       speech[k] = (...args) => {
         own = true;
+        if (k === 'idle' && app.tts) app.tts.idleNow = true;
         try {
           return raw(...args);
         } finally {
+          if (k === 'idle' && app.tts) app.tts.idleNow = false;
           own = false;
         }
       };
@@ -551,6 +557,11 @@ export async function startPet(files, config) {
   app.weather = new Weather(app);
   app.trio = new Trio(app);
   app.tts = new VoiceTTS(app);
+  const eq = document.createElement('div');
+  eq.className = 'tts-eq';
+  for (let i = 0; i < 5; i++) eq.append(document.createElement('i'));
+  eq.style.display = 'none';
+  document.body.append(eq);
   app.twitch = new TwitchChat(app);
   app.streamAlerts = new StreamAlerts(app);
   app.knownFollowers = new Set((config.streamFollowers || []).map((s) => String(s).toLowerCase()));
@@ -922,6 +933,13 @@ export async function startPet(files, config) {
     focusLabel: () => app.pomodoro?.label ?? null,
   });
   app.dock = dock;
+  // One place that dismisses every contextual popup (used when another menu opens).
+  app.closeAllMenus = () => {
+    toys.closeMenu?.();
+    dock.closeMenu?.();
+    quick.close?.();
+    menu.close?.();
+  };
   const pushLog = (pt, en, cat = 'general') => { eventLog.push(pt, en, cat); dock.invalidate(); };
   const toggleLogFilter = (cat) => {
     config.logFilter = { ...(config.logFilter || {}), [cat]: !(config.logFilter?.[cat] ?? true) };
@@ -1825,7 +1843,13 @@ api.onTrayClick?.(() => {
   }
   let streamerOn = false;
   let streamerSolidOn = streamerSolid();
-  api.onStreamer((on) => on !== !!config.streamer && app.setOption('streamer', on));
+  api.onStreamer((on) => {
+    if (!on) {
+      app.streamAlerts?.clearPins?.();
+      sound.stopSubSynthwave?.();
+    }
+    if (on !== !!config.streamer) app.setOption('streamer', on);
+  });
   // Commands from the second-monitor control window.
   // Snapshot for the browser-based control panel (Rust serves it at GET /state).
   let statePushAt = 0;
@@ -1842,7 +1866,7 @@ api.onTrayClick?.(() => {
       voiceCache = [];
       const err = config.lang === 'en' ? 'TTS not found in this folder' : 'TTS não encontrado nesta pasta';
       voiceStatus = { ok: false, text: e?.message ? `${err}: ${e.message}` : err };
-    }).finally(() => pushStreamerState(true));
+    }).finally(() => { app.offlineVoices = voiceCache; pushStreamerState(true); });
   }
   function pushStreamerState(force = false) {
     if (!window.__PET_STREAMER__) return;
@@ -1861,6 +1885,7 @@ api.onTrayClick?.(() => {
     }).catch?.(() => {});
   }
   app.pushStreamerState = pushStreamerState;
+  app.loadOfflineVoices = loadVoices;
   if (window.__PET_STREAMER__) loadVoices(config.ttsDir);
 
   api.onStreamerRpc?.((p) => {
@@ -1875,6 +1900,7 @@ api.onTrayClick?.(() => {
     else if (p.type === 'say') speech.say(p.text, 3.5);
     else if (p.type === 'skipTts') app.tts?.skip?.();
     else if (p.type === 'clearTts') app.tts?.clear?.();
+    else if (p.type === 'clearPins') app.streamAlerts?.clearPins?.();
     else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
     else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });
     else if (p.type === 'ttsLoadVoices') loadVoices(p.dir);
@@ -2171,6 +2197,18 @@ api.onTrayClick?.(() => {
       app.weather.update(dt, hidden, canvas.style.visibility === 'hidden');
       app.trio.update(dt);
       window.__PET_TTS_LEVEL__ = app.tts.mouthLevel;
+      const eqOn = !!app.tts?.speaking && !hidden && config.ttsVisualizer !== false;
+      eq.style.display = eqOn ? 'flex' : 'none';
+      if (eqOn) {
+        eq.style.left = `${Math.round(pet.x + pet.P * 0.72)}px`;
+        eq.style.top = `${Math.round(pet.y - pet.P * 0.95)}px`;
+        const now = performance.now();
+        const level = app.tts.mouthLevel;
+        for (let i = 0; i < eq.children.length; i++) {
+          const v = 0.25 + level * (0.55 + 0.45 * Math.sin(now / 90 + i * 1.3));
+          eq.children[i].style.height = `${Math.round(4 + v * 20)}px`;
+        }
+      }
       pushStreamerState();
       updateDock();
       speech.update(dt, calm, quiet);

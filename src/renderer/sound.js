@@ -642,6 +642,61 @@ export class Sound {
       case 'cheer': for (let i = 0; i < 5; i++) T('square', 1300 + (i % 2) * 300, 1300 + (i % 2) * 300, i * 0.05, 0.04, v * 0.35); break;
     }
   }
+
+  // 10-second procedural outrun/synthwave stinger for Sub shows (fully stopped at the end).
+  playSubSynthwave(durSec = 10) {
+    this.stopSubSynthwave();
+    if (!this.enabled) return;
+    const ctx = this.ctx;
+    const t0 = ctx.currentTime + 0.02;
+    const nodes = [];
+    const beat = 60 / 136;
+    const bus = ctx.createGain();
+    bus.gain.value = 0.5;
+    bus.connect(this.master);
+    nodes.push(bus);
+    const note = (freq, at, dur, type = 'sawtooth', vol = 0.12, cutoff = 1600) => {
+      const osc = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      filter.type = 'lowpass'; filter.frequency.setValueAtTime(cutoff, at);
+      filter.frequency.linearRampToValueAtTime(cutoff * 0.4, at + dur);
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.linearRampToValueAtTime(vol, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      osc.connect(filter).connect(gain).connect(bus);
+      osc.start(at); osc.stop(at + dur + 0.02);
+      nodes.push(osc, filter, gain);
+    };
+    const bass = [55, 55, 65.4, 55, 73.4, 55, 82.4, 65.4];
+    const lead = [440, 523.25, 659.25, 523.25, 587.33, 659.25, 783.99, 659.25];
+    const steps = Math.floor(durSec / beat);
+    for (let i = 0; i < steps; i++) {
+      const at = t0 + i * beat;
+      note(bass[i % bass.length], at, beat * 0.9, 'sawtooth', 0.16, 900);
+      if (i % 4 === 0 || i % 4 === 2) {
+        const k = ctx.createOscillator(); const kg = ctx.createGain();
+        k.type = 'sine'; k.frequency.setValueAtTime(140, at); k.frequency.exponentialRampToValueAtTime(45, at + 0.12);
+        kg.gain.setValueAtTime(0.35, at); kg.gain.exponentialRampToValueAtTime(0.001, at + 0.14);
+        k.connect(kg).connect(bus); k.start(at); k.stop(at + 0.16); nodes.push(k, kg);
+      }
+      if (i % 2 === 1) this.noise(at, 0.09, 0.16, 3200, bus);
+      note(lead[i % lead.length], at, beat * 0.45, 'square', 0.07, 5000);
+    }
+    note(261.63, t0 + steps * beat, 1.2, 'sawtooth', 0.16, 2200);
+    this._subShow = { nodes, bus, until: t0 + durSec + 1.5 };
+    setTimeout(() => this.stopSubSynthwave(), (durSec + 1.6) * 1000);
+  }
+
+  stopSubSynthwave() {
+    const show = this._subShow;
+    if (!show) return;
+    this._subShow = null;
+    try { show.bus.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.05); } catch {}
+    for (const node of show.nodes) { try { node.stop?.(); } catch {} try { node.disconnect?.(); } catch {} }
+    setTimeout(() => { try { show.bus.disconnect(); } catch {} }, 300);
+  }
 }
 
 const RON_VOICE = new Set(['caw', 'caw2', 'caw3', 'squawk', 'coo', 'learn', 'gift']);

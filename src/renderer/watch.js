@@ -2,6 +2,7 @@
 // (with her riding on it, or not), lots of windows or none at all, the player going away and coming
 // back, the mouse racing around. The Persocon comments and acts it out; the living Doll reacts too.
 import { isFocus } from './focusmode.js';
+import { personaLine } from './persona.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -151,12 +152,28 @@ export class DesktopWatch {
       case 'playerAway':
         if (calm) antics?.tryStart(this.pet.stats.energy < 60 ? 'doze' : 'tap');
         dollReact(this.app, '💤', 'sleep', 8);
+        if (!window.__PET_STREAMER__ && this.app.config.awayCozy !== false && !this.pet.combatMode && !this.app.pomodoro?.focusing) {
+          let sign = document.querySelector('.away-sign');
+          if (!sign) {
+            sign = document.createElement('div');
+            sign.className = 'away-sign';
+            sign.textContent = this.app.config.lang === 'en' ? 'Waiting for you...' : 'Esperando você voltar...';
+            document.body.append(sign);
+          }
+        }
         break;
-      case 'playerBack':
+      case 'playerBack': {
+        document.querySelector('.away-sign')?.remove();
         if (calm) antics?.tryStart('hops');
         this.float('♥');
         dollReact(this.app, '🎉', 'cheer', 2);
+        if (!window.__PET_STREAMER__) {
+          const line = personaLine(this.app, 'back');
+          this.app.speech?.say(line, 3);
+          this.app.tts?.enqueueFor?.('interact', line);
+        }
         break;
+      }
       case 'cursorFast':
         this.float('😵');
         dollReact(this.app, '😵', null);
