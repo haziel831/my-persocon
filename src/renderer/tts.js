@@ -100,23 +100,31 @@ export class VoiceTTS {
   }
 
   // Badge / ignore-list gate for lines coming from the chat.
-  allowed(opts) {
+  denyReason(opts) {
     const c = this.app.config;
     const user = String(opts.user || '').toLowerCase();
+    const login = String(opts.login || opts.user || '').toLowerCase();
     const ignored = String(c.ttsIgnoredUsers ?? 'nightbot, streamelements, streamlabs, moobot, fossabot')
       .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
-    if (user && ignored.includes(user)) return false;
-    const who = c.ttsWho || 'all';
-    if (who === 'alerts_only') return false;
+    if ((user && ignored.includes(user)) || (login && ignored.includes(login))) return 'ignorado';
     const badges = String(opts.badges || '');
     const has = (name) => badges.split(',').some((b) => b.split('/')[0] === name);
-    if (who === 'mods') return has('broadcaster') || has('moderator');
-    if (who === 'subs') return has('broadcaster') || has('moderator') || has('vip') || has('subscriber') || has('founder');
+    const channel = String(c.twitchChannel || '').replace(/^#/, '').toLowerCase();
+    if (has('broadcaster') || (!!channel && (login === channel || user === channel))) return '';
+    const who = c.ttsWho || 'all';
+    if (who === 'alerts_only') return 'Só Alertas';
+    if (who === 'mods') return (has('moderator')) ? '' : 'Apenas Mods';
+    if (who === 'subs') return (has('moderator') || has('vip') || has('subscriber') || has('founder')) ? '' : 'Subs & VIPs';
     if (who === 'followers') {
-      const privileged = has('broadcaster') || has('moderator') || has('vip') || has('subscriber') || has('founder');
-      return privileged || !!opts.follower || !!this.app.knownFollowers?.has(user);
+      const privileged = has('moderator') || has('vip') || has('subscriber') || has('founder');
+      const known = !!opts.follower || !!this.app.knownFollowers?.has(user) || !!this.app.knownFollowers?.has(login);
+      return (privileged || known) ? '' : 'Seguidores+';
     }
-    return true;
+    return '';
+  }
+
+  allowed(opts) {
+    return !this.denyReason(opts);
   }
 
   enqueue(text, opts = {}) {
@@ -127,9 +135,9 @@ export class VoiceTTS {
     if (!clean) return false;
     if (opts.chat && !opts.priority) {
       const now = Date.now();
-      if (now - this.lastAt < (Number(c.ttsCooldown ?? 20) * 1000)) return false;
-      const user = String(opts.user || '').toLowerCase();
-      if (user && now - (this.userAt.get(user) || 0) < (Number(c.ttsUserCooldown ?? 30) * 1000)) return false;
+      if (now - this.lastAt < (Number(c.ttsCooldown ?? 5) * 1000)) return false;
+      const user = String(opts.login || opts.user || '').toLowerCase();
+      if (user && now - (this.userAt.get(user) || 0) < (Number(c.ttsUserCooldown ?? 15) * 1000)) return false;
       this.lastAt = now;
       if (user) this.userAt.set(user, now);
     }

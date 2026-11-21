@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v1.9.41 — 21/11/2026
+**Correções no Modo Streamer e Painel do Navegador.** RPC da ponte local (`POST /rpc`) alinhado entre `stream_control.html`, `stream_bridge.rs` e `pet.js` para moedas, queda do céu, alertas de teste, skip/clear de TTS e Pontos do Canal. **Pontos do Canal:** botão "Carregar presets sugeridos" salva imediatamente via RPC e atualiza o `<select>` com `Nome (acao)` sem ser sobrescrito pelo polling. **Alertas:** botões de teste (`Follow`, `Sub`, `Raid`, `Bits`) funcionando com opção "Frases aleatórias de agradecimento e efeitos" (banco variado PT/EN para Aghata e Ninna, partículas de coração, chuva de moedas/confete e show Synthwave). **Chat da Twitch:** parser IRCv3 e `PONG` corrigidos, `broadcaster` sempre permitido, respostas de palavras-chave/comandos enviadas ao TTS, padrões de cooldown `5s`/`15s` e mini log ao vivo das últimas 5 mensagens no painel.
+
 ## v1.9.40 — 21/11/2026
 Ecossistema de **Modo Streamer**: save isolado (`save-streamer.json`), janela de controle no 2º monitor, fundo chroma key e palco limpo. **Voz Kokoro offline** com fila única, lip-sync em tempo real, pré-processamento de texto (comandos/links/emotes/repetições), dicionário de pronúncia, permissões e cooldowns do chat, filtros de timbre, ducking de áudio e personalidade estóica da Aghata. **Chat da Twitch** anônimo (sem OAuth) com reações, comandos e leitura de badges. **Ponte HTTP local** em `127.0.0.1:48321` para Streamer.bot/SAMMI/OBS, com simulador de alertas. **Pontos do Canal** mapeáveis para moedas, itens do céu, mural, clima, brinquedos e TTS, além do modo **Volto Já (BRB)**. Menu rápido da Persocon agora abre com duplo clique no dock.
 

@@ -917,6 +917,11 @@ fn ensure_streamer_control(app: &AppHandle, config: &Value) {
 }
 
 #[tauri::command]
+fn streamer_take_rpc() -> Result<Vec<Value>, String> {
+    Ok(stream_bridge::take_rpcs())
+}
+
+#[tauri::command]
 fn streamer_push_state(state: Value) -> Result<(), String> {
     stream_bridge::set_state(state);
     Ok(())
@@ -1416,6 +1421,7 @@ fn main() {
             set_streamer,
             open_streamer_control,
             streamer_rpc,
+            streamer_take_rpc,
             streamer_push_state,
             tts_voices,
             tts_speak,

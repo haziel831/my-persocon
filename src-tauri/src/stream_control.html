@@ -50,6 +50,7 @@
     <span>Fila TTS: <b id="st-queue">—</b></span>
     <span>BRB: <b id="st-brb">—</b></span>
   </div>
+  <div class="note" id="rpc-status"></div>
 </header>
 <nav id="nav">
   <button class="on" data-tab="streamer">🎥 Streamer</button>
@@ -129,6 +130,10 @@
     <label class="field"><span>Cooldown global (s)</span><input type="range" data-key="ttsCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
     <label class="field"><span>Cooldown por usuário (s)</span><input type="range" data-key="ttsUserCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
     <label class="field wide"><span>Usuários ignorados</span><input type="text" data-key="ttsIgnoredUsers" data-type="text"></label>
+    <div style="margin-top:8px">
+      <div class="note" style="margin-bottom:4px">Últimas mensagens do chat</div>
+      <div id="twitch-log" style="background:#100e19;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12px;max-height:120px;overflow:auto"><span class="note">Nenhuma mensagem recebida ainda.</span></div>
+    </div>
   </div>
 
   <h2>Ponte local de alertas</h2>
@@ -136,6 +141,7 @@
     <div class="row"><input type="text" id="endpoint" readonly><button class="act" id="copy">Copiar</button></div>
     <label class="toggle"><input type="checkbox" id="bridge-on"> Servidor do painel ativo</label>
     <label class="toggle"><input type="checkbox" data-key="followPins" data-type="bool"> Pendurar nomes de Follow no palco</label>
+    <label class="toggle"><input type="checkbox" data-key="streamRandomAlerts" data-type="bool"> Frases aleatórias de agradecimento e efeitos</label>
     <div class="row"><button class="act" id="clear-pins">🧹 Limpar nomes pendurados</button></div>
     <div class="row" id="sim">
       <button class="act" data-alert="follow">Testar Follow</button>
@@ -202,7 +208,14 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 let state = { config: {} };
 let muted = false;
 
-const rpc = (payload) => fetch('/rpc', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).catch(()=>{});
+const rpc = (payload) => {
+  const msg = { ...payload, _rid: (window._rpcSeq = (window._rpcSeq || 0) + 1) };
+  return fetch('/rpc', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(msg) })
+    .then(r => r.json()).then(j => {
+      const el = $('#rpc-status');
+      if (el) el.textContent = j.ok ? `RPC ok: ${msg.cmd || msg.type || '?'}` : 'RPC falhou';
+    }).catch(() => { const el = $('#rpc-status'); if (el) el.textContent = 'RPC falhou'; });
+};
 const toast = (msg) => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.classList.remove('show'),1800); };
 // Polling must never steal focus or erase text the user is still editing.
 const setIfIdle = (input, value, isBool = false) => {
@@ -278,49 +291,86 @@ $('#twitch-connect').onclick = connectTwitch;
 $('#channel').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connectTwitch(); } });
 $('#twitch-disconnect').onclick = () => rpc({cmd:'twitchDisconnect'});
 $('#clear-pins').onclick = () => rpc({ cmd: 'clearPins' });
-$('#sim').onclick = (e) => { const b=e.target.closest('[data-alert]'); if (b) rpc({cmd:'testAlert',event:{type:b.dataset.alert,user:'Viewer',amount:100}}); };
+$('#sim').onclick = (e) => {
+  const b = e.target.closest('[data-alert]');
+  if (!b) return;
+  const type = b.dataset.alert;
+  const event = { type, user: 'ViewerTeste' };
+  if (type === 'bits') event.amount = 100;
+  if (type === 'raid') event.viewers = 15;
+  rpc({ cmd: 'testAlert', event });
+  toast('Alerta de ' + type + ' disparado!');
+};
 $('#say-btn').onclick = () => { rpc({cmd:'say',text:$('#say').value}); $('#say').value=''; };
 $('#copy').onclick = () => navigator.clipboard?.writeText($('#endpoint').value);
 $('#bridge-on').onchange = () => toast('O servidor já está ativo enquanto o app roda');
-$('#coins-add').onclick = () => rpc({cmd:'coins',n:Number($('#coins-n').value)||0});
-$('#drop').onclick = () => rpc({cmd:'skyDrop',id:'maca'});
-$('#redeems-save').onclick = () => {
+$('#coins-add').onclick = () => { rpc({cmd:'coins',n:Number($('#coins-n').value)||0}); toast('Moedas enviadas!'); };
+$('#drop').onclick = () => { rpc({cmd:'skyDrop',id:'maca'}); toast('Item solto do céu!'); };
+function parseRedeemsText(raw) {
   const map = {};
-  for (const line of $('#redeems').value.split('\n')) {
-    const [name, rest] = line.split('='); if (!name || !rest) continue;
+  for (const line of String(raw || '').split('\n')) {
+    const eq = line.indexOf('=');
+    if (eq < 1) continue;
+    const name = line.slice(0, eq).trim();
+    const rest = line.slice(eq + 1).trim();
+    if (!name || !rest) continue;
     const [action, coins] = rest.split(':');
-    map[name.trim()] = { action:(action||'').trim(), coins:Number(coins)||0 };
+    const act = (action || '').trim();
+    if (!act) continue;
+    map[name] = { action: act, coins: Number(coins) || 0 };
   }
-  rpc({cmd:'setOption',key:'streamRedeems',value:map}); fillRedeems(map); toast('Resgates salvos');
+  return map;
+}
+function refreshRewardSelect(sourceMap) {
+  const sel = $('#redeem-test');
+  if (document.activeElement === sel) return;
+  const textMap = parseRedeemsText($('#redeems').value);
+  const map = Object.keys(textMap).length ? textMap : (sourceMap || state.config?.streamRedeems || {});
+  const entries = Object.entries(map);
+  const sig = entries.map(([n, v]) => `${n}=${v?.action || ''}`).join('\u0000');
+  if (sel.dataset.sig === sig) return;
+  const previous = sel.value;
+  sel.dataset.sig = sig;
+  sel.replaceChildren(...entries.map(([n, v]) => {
+    const o = document.createElement('option');
+    o.value = n;
+    o.textContent = v?.action ? `${n} (${v.action})` : n;
+    return o;
+  }));
+  if (entries.some(([n]) => n === previous)) sel.value = previous;
+}
+$('#redeems').addEventListener('input', () => refreshRewardSelect());
+$('#redeems-save').onclick = () => {
+  const map = parseRedeemsText($('#redeems').value);
+  $('#redeems').dataset.dirty = '1';
+  rpc({ cmd: 'setOption', key: 'streamRedeems', value: map });
+  refreshRewardSelect(map);
+  toast('Resgates salvos');
 };
 $('#redeems-presets').onclick = () => {
-  $('#redeems').value = [
+  const presets = [
     'Moedas=moedas:50', 'Item do céu=sky_drop:0', 'Recado no mural=mural_note:0',
     'Bolhas=bolhas:0', 'Aviãozinho=aviao:0', 'Trio=trio:0', 'Pagar café=pagar_cafe:0',
     'Dar lanche=dar_lanche:0', 'Cafuné=cafune:0', 'Desenho=desenho:0', 'Clima=clima:0',
     'Susto=susto:0', 'Falar mensagem=tts_say:0',
-  ].join('\n');
-  toast('Presets carregados — clique em Salvar');
+  ];
+  $('#redeems').value = presets.join('\n');
+  $('#redeems').dataset.dirty = '1';
+  const map = parseRedeemsText($('#redeems').value);
+  rpc({ cmd: 'setOption', key: 'streamRedeems', value: map });
+  refreshRewardSelect(map);
+  toast('Presets carregados e salvos');
 };
 $('#redeem-run').onclick = () => {
-  const name = $('#redeem-test').value; if (!name) return;
-  rpc({cmd:'testAlert',event:{type:'redeem',user:'Viewer',reward:name,text:'Olá, chat!'}});
+  const name = $('#redeem-test').value;
+  if (!name) { toast('Nenhuma recompensa selecionada'); return; }
+  rpc({ cmd: 'testAlert', event: { type: 'redeem', user: 'ViewerTeste', reward: name, text: 'Olá, chat!' } });
+  toast('Resgate testado: ' + name);
 };
 $('#brb-on').onchange = () => { const on=$('#brb-on').checked; rpc({cmd:'brb',value:on,text:$('[data-key=streamBrbText]').value}); toast(on?'BRB ligado':'BRB desligado'); };
 $('#modes').onclick = (e) => { const b=e.target.closest('[data-mode]'); if (b) rpc({cmd:'startMode',mode:b.dataset.mode}); };
 $('#toys').onclick = (e) => { const b=e.target.closest('[data-toy]'); if (b) rpc({cmd:'callToy',id:b.dataset.toy}); };
 $('#weather').onclick = (e) => { const b=e.target.closest('[data-weather]'); if (b) rpc({cmd:'weather',kind:b.dataset.weather}); };
-
-function fillRedeems(map) {
-  const sel = $('#redeem-test');
-  if (document.activeElement === sel) return;
-  const names = Object.keys(map || {});
-  if (sel.dataset.names === names.join('\u0000')) return;
-  const previous = sel.value;
-  sel.dataset.names = names.join('\u0000');
-  sel.replaceChildren(...names.map(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; return o; }));
-  if (names.includes(previous)) sel.value = previous;
-}
 
 const cleanVoiceId = (s) => String(s || '').replace(/^neural:/, '').trim();
 const voiceInfo = (v) => typeof v === 'string'
@@ -343,7 +393,25 @@ function render() {
   $('#twitch-state').textContent = state.twitch ? 'Conectado #' + (c.twitchChannel||'') : 'Desconectado';
   $('#endpoint').value = location.origin + '/event';
   setIfIdle($('#redeems'), state.redeemsText || Object.entries(c.streamRedeems||{}).map(([n,v])=>`${n}=${v.action}:${v.coins||0}`).join('\n'));
-  fillRedeems(c.streamRedeems);
+  refreshRewardSelect(c.streamRedeems);
+  const logBox = $('#twitch-log');
+  const logs = Array.isArray(state.recentChat) ? state.recentChat : [];
+  if (!logs.length) {
+    logBox.innerHTML = '<span class="note">Nenhuma mensagem recebida ainda.</span>';
+  } else {
+    logBox.replaceChildren(...logs.map(item => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:6px;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)';
+      const left = document.createElement('span');
+      left.textContent = `${item.user}: ${item.text}`;
+      const right = document.createElement('span');
+      right.className = 'note';
+      right.style.color = String(item.status).startsWith('ignorado') ? '#ff8fa0' : '#7ee7a8';
+      right.textContent = item.status;
+      row.append(left, right);
+      return row;
+    }));
+  }
   const voices = [...(state.voices || [])].sort((a, b) =>
     voiceRank(a) - voiceRank(b) || voiceInfo(a).name.localeCompare(voiceInfo(b).name));
   const vsel = $('#voice');
@@ -375,7 +443,9 @@ function render() {
   followersNote.hidden = c.ttsWho !== 'followers';
   followersNote.querySelectorAll('[data-lang]').forEach(s => s.hidden = (s.dataset.lang === 'en') !== (c.lang === 'en'));
   $$('[data-key]').forEach(input => {
-    const v = c[input.dataset.key];
+    let v = c[input.dataset.key];
+    if (v === undefined && input.dataset.key === 'ttsCooldown') v = 5;
+    if (v === undefined && input.dataset.key === 'ttsUserCooldown') v = 15;
     if (input.dataset.type === 'bool') {
       setIfIdle(input, v === undefined ? true : v !== false && !!v, true);
     } else if (v !== undefined) {

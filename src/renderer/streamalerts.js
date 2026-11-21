@@ -16,7 +16,9 @@ export class StreamAlerts {
       const user = this.app ? String(event.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40) : 'alguém';
       this.follows.push(user);
       this.app?.rememberFollower?.(user);
-      if (window.__PET_STREAMER__ && this.app?.config?.followPins !== false) this.pinFollow(user);
+      if (window.__PET_STREAMER__ && this.app?.config?.streamRandomAlerts !== false && this.app?.config?.followPins !== false) {
+        this.pinFollow(user);
+      }
       this.flushSoon();
       return;
     }
@@ -111,13 +113,15 @@ export class StreamAlerts {
         const kind = all.find((k) => text.toLowerCase().includes(k) || cfg.climate === k)
           || all[Math.floor(Math.random() * all.length)];
         if (app.weather) { app.weather.start(kind); app.weather.until = Date.now() + 120000; }
+        app.speech?.say(personaLine(app, 'climate', { kind }), 3, { priority: true });
         break;
       }
       case 'tts_say':
-        app.tts?.enqueue(`${user} disse: ${text}`);
+        app.tts?.enqueue?.(`${user} disse: ${text}`, { priority: true });
         break;
-      default: break;
+      default: return false;
     }
+    return true;
   }
 
   pinFollow(user) {
@@ -200,32 +204,45 @@ export class StreamAlerts {
     const app = this.app;
     if (!app) return;
     const user = String(ev.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40);
+    const rich = app.config.streamRandomAlerts !== false;
     let line = '';
     switch (ev.type) {
       case 'follow':
-        app.pet?.react?.('cheer');
-        app.doll?.brain?.say?.('♥', 2);
-        line = personaLine(app, 'follow', { user });
+        if (rich) {
+          app.pet?.react?.('cheer');
+          app.doll?.brain?.say?.('♥', 2);
+          app.fx?.followHearts?.(6);
+        }
+        line = personaLine(app, 'follow', { user }, { simple: !rich });
         break;
       case 'sub':
-        app.pet?.react?.('cheer');
-        app.fx?.confettiRain?.(18);
-        app.crow?.say?.('🎉', 2);
-        if (window.__PET_STREAMER__ && app.config.subShow !== false) this.subShow(user);
-        line = personaLine(app, 'sub', { user });
+        if (rich) {
+          app.pet?.react?.('cheer');
+          app.fx?.confettiRain?.(18);
+          app.crow?.say?.('🎉', 2);
+          if (window.__PET_STREAMER__ && app.config.subShow !== false) this.subShow(user);
+        }
+        line = personaLine(app, 'sub', { user }, { simple: !rich });
         break;
       case 'raid':
-        app.pet?.react?.('cheer');
-        app.fx?.confettiRain?.(28);
-        line = personaLine(app, 'raid', { user });
+        if (rich) {
+          app.pet?.react?.('cheer');
+          app.fx?.confettiRain?.(28);
+        }
+        line = personaLine(app, 'raid', { user, viewers: ev.viewers || 15 }, { simple: !rich });
         break;
       case 'bits':
-        app.pet?.react?.('cheer');
-        line = personaLine(app, 'bits', { user, amount: ev.amount || 0 });
+        if (rich) {
+          app.pet?.react?.('cheer');
+          app.fx?.coinRain?.(20);
+          app.sound?.play?.('coin', { volume: 0.75 });
+        }
+        line = personaLine(app, 'bits', { user, amount: ev.amount || 0 }, { simple: !rich });
         break;
       case 'redeem':
-        this.redeem(ev);
-        line = personaLine(app, 'redeem', { user, reward: ev.reward || (app.config.lang === 'en' ? 'surprise' : 'surpresa') });
+        if (!this.redeem(ev)) {
+          line = personaLine(app, 'redeem', { user, reward: ev.reward || (app.config.lang === 'en' ? 'surprise' : 'surpresa') });
+        }
         break;
       case 'say':
         line = String(ev.text || '').replace(/[<>&"']/g, '').slice(0, 140);

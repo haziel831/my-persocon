@@ -87,6 +87,40 @@ export class Fx {
     setTimeout(() => el.remove(), 1500);
   }
 
+  confettiRain(n = 30) {
+    this.app.rewards?.confettiRain?.(Math.max(40, n * 3));
+  }
+
+  followHearts(n = 6) {
+    if (typeof document === 'undefined') return;
+    const { head, pet } = this.app;
+    if (!head || !pet) return;
+    for (let i = 0; i < n; i++) {
+      setTimeout(() => this.heart('affection', head, i % 2 === 0), i * 90);
+    }
+    this.sparks(head.x, head.y, { count: 14, color: 'pink', angle: -Math.PI / 2, spread: Math.PI * 1.4, reach: pet.P * 0.7 });
+  }
+
+  coinRain(n = 18) {
+    if (typeof document === 'undefined') return;
+    const { pet } = this.app;
+    const cx = pet ? pet.x : window.innerWidth / 2;
+    const cy = pet ? pet.y - pet.P * 0.55 : window.innerHeight * 0.6;
+    const P = pet ? pet.P : 96;
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('div');
+      el.className = 'fx-spark';
+      el.style.left = `${Math.round(cx + (Math.random() - 0.5) * P * 1.8)}px`;
+      el.style.top = `${Math.round(cy - P * (0.2 + Math.random() * 0.7))}px`;
+      el.style.background = ['#ffd23f', '#fff3a1', '#ffb703'][i % 3];
+      el.style.boxShadow = '0 0 6px 2px rgba(255, 210, 63, 0.75)';
+      el.style.setProperty('--dx', `${Math.round((Math.random() - 0.5) * P * 0.8)}px`);
+      el.style.setProperty('--dy', `${Math.round(P * (0.45 + Math.random() * 0.7))}px`);
+      document.body.append(el);
+      setTimeout(() => el.remove(), 1400);
+    }
+  }
+
   potion(item) {
     const { head, pet, sound } = this.app;
     if (!item || !head) return;

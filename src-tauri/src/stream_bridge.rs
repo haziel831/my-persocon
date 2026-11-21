@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, Manager};
 static RUNNING: AtomicBool = AtomicBool::new(false);
 static STOP: Mutex<Option<TcpListener>> = Mutex::new(None);
 static STATE: Mutex<Value> = Mutex::new(Value::Null);
+static RPC_QUEUE: Mutex<Vec<Value>> = Mutex::new(Vec::new());
 const CONTROL_HTML: &str = include_str!("stream_control.html");
 
 // Snapshot pushed by the stage window and polled by the browser control panel.
@@ -27,6 +28,19 @@ pub fn set_state(next: Value) {
 
 pub fn state() -> Value {
     STATE.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+// Browser-originated commands are queued here as well as emitted as Tauri events,
+// so a missed listener can never swallow a button click from the control panel.
+pub fn push_rpc(payload: Value) {
+    let mut q = RPC_QUEUE.lock().unwrap_or_else(|e| e.into_inner());
+    q.push(payload);
+    if q.len() > 64 { q.remove(0); }
+}
+
+pub fn take_rpcs() -> Vec<Value> {
+    let mut q = RPC_QUEUE.lock().unwrap_or_else(|e| e.into_inner());
+    std::mem::take(&mut *q)
 }
 
 fn send(mut stream: TcpStream, status: &str, body: &str) {
@@ -113,9 +127,12 @@ fn handle(mut stream: TcpStream, app: AppHandle, token: String) {
         };
         if let Some(obj) = payload.as_object_mut() {
             if !obj.contains_key("type") {
-                if let Some(cmd) = obj.remove("cmd") { obj.insert("type".into(), cmd); }
+                if let Some(cmd) = obj.remove("cmd").or_else(|| obj.remove("action")) {
+                    obj.insert("type".into(), cmd);
+                }
             }
         }
+        push_rpc(payload.clone());
         if let Some(w) = app.get_webview_window("stream") {
             let _ = w.emit("streamer-rpc", payload);
         } else {

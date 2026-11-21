@@ -1878,6 +1878,7 @@ api.onTrayClick?.(() => {
       config,
       coins: game.coins,
       twitch: !!app.twitch?.connected,
+      recentChat: app.twitch?.recentLog || [],
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
       ttsError: app.tts?.lastError || '',
@@ -1889,18 +1890,24 @@ api.onTrayClick?.(() => {
   app.loadOfflineVoices = loadVoices;
   if (window.__PET_STREAMER__) loadVoices(config.ttsDir);
 
-  api.onStreamerRpc?.((p) => {
+  const handledRpc = new Set();
+  function handleRpc(p) {
     if (!p || !window.__PET_STREAMER__) return;
+    if (p._rid != null) {
+      if (handledRpc.has(p._rid)) return;
+      handledRpc.add(p._rid);
+      if (handledRpc.size > 200) handledRpc.clear();
+    }
     if (p.type === 'openMenu') app.openMenu?.(p.cat);
-    else if (p.type === 'coins') game.earn(p.n || 0, 'Pontos do canal');
-    else if (p.type === 'drop') app.toys?.skyDrop?.(p.id || 'maca', { fromUser: true });
+    else if (p.type === 'coins' || p.type === 'moedas') game.earn(Number(p.n) || 0, 'Pontos do canal');
+    else if (p.type === 'drop' || p.type === 'skyDrop' || p.type === 'sky_drop') app.toys?.skyDrop?.(p.id || 'maca', { fromUser: true });
     else if (p.type === 'cleanStage') {
       config.streamerClean = p.value;
       document.body.classList.toggle('stream-clean', !!p.value);
     }
     else if (p.type === 'say') speech.say(p.text, 3.5);
-    else if (p.type === 'skipTts') app.tts?.skip?.();
-    else if (p.type === 'clearTts') app.tts?.clear?.();
+    else if (p.type === 'skipTts' || p.type === 'ttsSkip') app.tts?.skip?.();
+    else if (p.type === 'clearTts' || p.type === 'ttsClear') app.tts?.clear?.();
     else if (p.type === 'clearPins') app.streamAlerts?.clearPins?.();
     else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
     else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });
@@ -1909,7 +1916,7 @@ api.onTrayClick?.(() => {
     else if (p.type === 'ttsState') app.tts?.reportQueue?.();
     else if (p.type === 'twitchConnect') app.twitch?.connect?.(p.channel);
     else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
-    else if (p.type === 'simulate') app.streamAlerts?.push?.(p.event);
+    else if (p.type === 'simulate' || p.type === 'testAlert') app.streamAlerts?.push?.(p.event);
     else if (p.type === 'brb') app.setBrb?.(p.value, p.text);
     else if (p.type === 'setOption') app.setOption?.(p.key, p.value);
     else if (p.type === 'applyPatch') app.applyConfigPatch?.(p.patch);
@@ -1921,7 +1928,20 @@ api.onTrayClick?.(() => {
       else if (app.weather) { app.weather.start(p.kind); app.weather.until = Date.now() + 120000; }
     }
     pushStreamerState(true);
-  });
+  }
+  api.onStreamerRpc?.((p) => handleRpc(p));
+
+  // The browser panel also queues commands in Rust; poll them so a lost Tauri
+  // event can never swallow a click from the control page.
+  let rpcPollAt = 0;
+  async function drainRpcQueue() {
+    if (!window.__PET_STREAMER__ || Date.now() - rpcPollAt < 200) return;
+    rpcPollAt = Date.now();
+    try {
+      const list = await api.streamerTakeRpc?.();
+      for (const p of list || []) handleRpc(p);
+    } catch {}
+  }
 
   // ---------- drag & drop files onto the pet ----------
   const dropHint = () => translate('Solte imagem, MIDI (.mid) ou modelo (.vrm/.glb/.zip)');
@@ -2212,6 +2232,7 @@ api.onTrayClick?.(() => {
         }
       }
       pushStreamerState();
+      drainRpcQueue();
       updateDock();
       speech.update(dt, calm, quiet);
       fx.update(dt, head, quiet);
