@@ -313,6 +313,7 @@ const EN = {
   'Falar em interações diretas': 'Speak on direct interactions', 'Falar em conversas aleatórias': 'Speak random chatter',
   'Intervalo das conversas': 'Chatter interval', '🔄 Carregar vozes': '🔄 Load voices',
   'Quente': 'Warm', 'Wired': 'Wired',
+  'Preset de voz': 'Voice preset', 'Aghata — Lain/Rei': 'Aghata — Lain/Rei',
   'Personalidade de voz': 'Voice personality', 'Padrão': 'Default', 'Estóica': 'Stoic',
   'Mostrar equalizador de voz': 'Show voice equalizer',
   'Modo "Esperando você voltar" quando ausente': '"Waiting for you" mode when away',

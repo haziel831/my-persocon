@@ -88,6 +88,8 @@
     <label class="field"><span>Tom (semitons)</span><input type="range" data-key="ttsPitch" data-type="range" min="-6" max="6" step="1"><span class="val"></span></label>
     <label class="field wide"><span>Filtro de timbre</span><select data-key="ttsFilter" data-type="text">
       <option value="natural">Natural</option><option value="warm">Suave/Quente</option><option value="wired">Lo-Fi / The Wired</option></select></label>
+    <label class="field wide"><span>Preset de voz</span><select id="voice-preset" data-key="voicePreset" data-type="text">
+      <option value="">Padrão</option><option value="aghata">Aghata — Lain/Rei</option></select></label>
     <label class="field wide"><span>Personalidade</span><select data-key="streamPersona" data-type="text">
       <option value="padrao">Padrão (animada)</option><option value="estoica">Estóica (calma)</option></select></label>
     <label class="toggle"><input type="checkbox" data-key="ttsDucking" data-type="bool"> Ducking de áudio</label>
@@ -237,6 +239,9 @@ $$('[data-key]').forEach(input => {
     input.dataset.dirty = '1';
     const value = input.dataset.type === 'bool' ? input.checked : input.dataset.type === 'range' ? Number(input.value) : input.value;
     rpc({ cmd:'setOption', key:input.dataset.key, value });
+    if (input.dataset.key === 'voicePreset' && value === 'aghata') {
+      rpc({ cmd: 'applyPatch', patch: { voicePreset: 'aghata', ttsVoice: 'pf_dora', ttsSpeed: 0.88, ttsPitch: -1, ttsFilter: 'warm', streamPersona: 'estoica' } });
+    }
     if (input.dataset.key === 'ttsDir') loadVoices(value);
     if (input.dataset.key === 'ttsVoice') previewVoice(value);
     if (input.dataset.key === 'ttsSpeed' || input.dataset.key === 'streamPersona') toast('Voz atualizada');

@@ -145,14 +145,21 @@ fn segments_for(text: &str, speed: f32) -> Value {
     Value::Array(out)
 }
 
-pub fn speak(dir: &Path, text: &str, voice: &str, lang: &str, speed: f32) -> Result<String, String> {
+pub fn speak(dir: &Path, text: &str, voice: &str, lang: &str, speed: f32, blend: Option<Value>) -> Result<String, String> {
     let voice = clean_voice(voice);
     let out = std::env::temp_dir().join(format!("persocon-tts-{}-{}.wav", std::process::id(), NEXT_ID.fetch_add(1, Ordering::Relaxed)));
-    let payload = json!({
+    let mut payload = json!({
         "cmd": "speak", "out": out.to_string_lossy(), "voice": voice, "lang": lang_for(voice, lang),
         "sampleRate": 24000, "channels": 1,
         "segments": segments_for(text, speed)
     });
+    if let Some(parts) = blend.filter(|v| v.is_array()) {
+        let parts: Vec<Value> = parts.as_array().unwrap().iter().filter_map(|p| {
+            let id = clean_voice(p.get("voice")?.as_str()?).to_string();
+            Some(json!({ "voice": id, "weight": p.get("weight").and_then(Value::as_f64).unwrap_or(0.0) }))
+        }).collect();
+        if !parts.is_empty() { payload["blend"] = json!(parts); }
+    }
     {
         let mut g = get(dir)?;
         let s = g.as_mut().ok_or("TTS indisponível")?;

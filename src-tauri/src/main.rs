@@ -1014,9 +1014,9 @@ async fn tts_voices(dir: Option<String>) -> Result<Value, String> {
 }
 
 #[tauri::command]
-async fn tts_speak(dir: Option<String>, text: String, voice: String, lang: String, speed: Option<f32>) -> Result<String, String> {
+async fn tts_speak(dir: Option<String>, text: String, voice: String, lang: String, speed: Option<f32>, blend: Option<Value>) -> Result<String, String> {
     let path = PathBuf::from(dir.filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "D:\\Program Files\\Offline TTS".into()));
-    tauri::async_runtime::spawn_blocking(move || tts::speak(&path, &text, &voice, &lang, speed.unwrap_or(1.0))).await.unwrap_or_else(|e| Err(e.to_string()))
+    tauri::async_runtime::spawn_blocking(move || tts::speak(&path, &text, &voice, &lang, speed.unwrap_or(1.0), blend)).await.unwrap_or_else(|e| Err(e.to_string()))
 }
 
 #[tauri::command]

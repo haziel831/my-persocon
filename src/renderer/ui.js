@@ -1337,6 +1337,14 @@ export class Menu {
       slider({ label: 'Intensidade', min: 0, max: 2, step: 0.05, value: c.filterStrength ?? 1, format: (v) => `${Math.round(v * 100)}%`,
         oninput: (v) => app.setOption('filterStrength', v) }),
       h('div.group', {}, '🗣️ Voz Kokoro (Offline)'),
+      h('div.row', {}, h('span.label', {}, 'Preset de voz'), segmented([
+        ['', 'Padrão'], ['aghata', 'Aghata — Lain/Rei'],
+      ], c.voicePreset || '', (v) => {
+        if (v === 'aghata') {
+          app.applyConfigPatch({ voicePreset: 'aghata', ttsVoice: 'pf_dora', ttsSpeed: 0.88, ttsPitch: -1, ttsFilter: 'warm', streamPersona: 'estoica' });
+        } else app.setOption('voicePreset', '');
+        this.render();
+      })),
       toggle({ label: 'Ativar voz no jogo normal', value: c.offlineTts === true, onchange: (v) => app.setOption('offlineTts', v) }),
       toggle({ label: 'Falar em eventos importantes', value: c.offlineTtsEvents !== false, onchange: (v) => app.setOption('offlineTtsEvents', v) }),
       toggle({ label: 'Falar em interações diretas', value: c.offlineTtsInteract !== false, onchange: (v) => app.setOption('offlineTtsInteract', v) }),

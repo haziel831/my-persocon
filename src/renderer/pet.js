@@ -576,6 +576,7 @@ export async function startPet(files, config) {
     }, 800);
   };
   if (!config.streamPersona) config.streamPersona = defaultPersona(app);
+  if (!config.voicePreset && /aghata/i.test(config.modelDir || '')) config.voicePreset = 'aghata';
   api.onStreamEvent?.((ev) => app.streamAlerts.push(ev));
   const care = new Care(app);
   app.display = () => display;
@@ -1911,6 +1912,7 @@ api.onTrayClick?.(() => {
     else if (p.type === 'simulate') app.streamAlerts?.push?.(p.event);
     else if (p.type === 'brb') app.setBrb?.(p.value, p.text);
     else if (p.type === 'setOption') app.setOption?.(p.key, p.value);
+    else if (p.type === 'applyPatch') app.applyConfigPatch?.(p.patch);
     else if (p.type === 'exitStreamer') app.setOption?.('streamer', false);
     else if (p.type === 'startMode') app.startMode?.(p.mode);
     else if (p.type === 'callToy') app.toys?.callFurn?.(p.id);

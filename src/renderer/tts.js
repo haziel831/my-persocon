@@ -3,6 +3,20 @@ import { isStoic } from './persona.js';
 
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu;
+export const VOICE_PRESETS = {
+  aghata: {
+    voice: 'pf_dora',
+    blend: [
+      { voice: 'pf_dora', weight: 0.6 },
+      { voice: 'jf_nezumi', weight: 0.25 },
+      { voice: 'af_nicole', weight: 0.15 },
+    ],
+    speed: 0.88,
+    pitch: -1,
+    filter: 'warm',
+  },
+};
+
 const LANG_BY_PREFIX = { a: 'en-us', b: 'en-gb', p: 'pt-br', j: 'ja', e: 'es', f: 'fr-fr', h: 'hi', i: 'it', z: 'zh' };
 const langForVoice = (voice, fallback) => LANG_BY_PREFIX[String(voice || '').split('_')[0].charAt(0).toLowerCase()] || fallback;
 
@@ -137,12 +151,13 @@ export class VoiceTTS {
     try {
       const c = this.app.config;
       const calm = isStoic(this.app);
-      const chosen = String(job.voice || c.ttsVoice || '').trim();
+      const preset = VOICE_PRESETS[c.voicePreset] || null;
+      const chosen = String(job.voice || c.ttsVoice || preset?.voice || '').trim();
       const fallbackLang = c.lang === 'en' ? 'en-us' : 'pt-br';
       const lang = job.lang || langForVoice(chosen, fallbackLang);
       const voice = chosen || (lang.startsWith('en') ? 'af_nicole' : 'pf_dora');
-      const speed = job.speed ?? c.ttsSpeed ?? (calm ? 0.88 : 1);
-      const data = await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed);
+      const speed = job.speed ?? c.ttsSpeed ?? preset?.speed ?? (calm ? 0.88 : 1);
+      const data = await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed, job.blend || preset?.blend || null);
       if (gen !== this.gen) return; // superseded by a newer preview/selection
       if (!data) throw new Error('no audio');
       const base64 = String(data).slice(String(data).indexOf(',') + 1);
@@ -153,13 +168,17 @@ export class VoiceTTS {
       if (this.ctx.state === 'suspended') await this.ctx.resume();
       const src = this.ctx.createBufferSource();
       src.buffer = await this.ctx.decodeAudioData(bytes.buffer);
-      src.detune.value = (Number(c.ttsPitch) || 0) * 100;
+      src.detune.value = (Number(c.ttsPitch ?? preset?.pitch) || 0) * 100;
       const chain = [src];
-      const filter = c.ttsFilter || 'natural';
+      const filter = c.ttsFilter || preset?.filter || 'natural';
       if (filter === 'warm') {
         const lp = this.ctx.createBiquadFilter();
         lp.type = 'lowpass'; lp.frequency.value = 6000; lp.Q.value = 0.7;
         chain.push(lp);
+        // discrete presence so the calm timbre stays intelligible in PT-BR
+        const presence = this.ctx.createBiquadFilter();
+        presence.type = 'peaking'; presence.frequency.value = 3200; presence.Q.value = 0.8; presence.gain.value = 1.5;
+        chain.push(presence);
       } else if (filter === 'wired') {
         const bp = this.ctx.createBiquadFilter();
         bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.8;
