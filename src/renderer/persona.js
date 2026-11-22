@@ -273,16 +273,19 @@ const REACTIONS = {
 };
 const lastReaction = {};
 export function randomReaction(app, type, vars = {}) {
-  const who = isStoic(app) ? 'estoica' : 'padrao';
-  const list = REACTIONS[who]?.[app?.config?.lang === 'en' ? 'en' : 'pt']?.[type] || [];
+  const en = app?.config?.lang === 'en';
+  const id = getPersona(app);
+  const list = PERSONA_BANKS[id]?.[en ? 'en' : 'pt']?.[type] || REACTIONS[id === 'estoica' ? 'estoica' : 'padrao']?.[en ? 'en' : 'pt']?.[type] || [];
   if (!list.length) return '';
   let pickList = list;
-  if (list.length > 1 && lastReaction[who + type] != null) {
-    pickList = list.filter((_, i) => i !== lastReaction[who + type]);
+  const slot = `${id}:${en ? 'en' : 'pt'}:${type}`;
+  if (list.length > 1 && lastReaction[slot] != null) {
+    pickList = list.filter((_, i) => i !== lastReaction[slot]);
   }
   const idx = Math.floor(Math.random() * pickList.length);
-  lastReaction[who + type] = list.indexOf(pickList[idx]);
-  return pickList[idx].replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+  lastReaction[slot] = list.indexOf(pickList[idx]);
+  const all = { doll: app?.getDollName?.(), crow: app?.getCrowName?.(), ...vars };
+  return pickList[idx].replace(/\{(\w+)\}/g, (_, k) => String(all[k] ?? ''));
 }
 
 export function defaultPersona(app) {
@@ -290,22 +293,146 @@ export function defaultPersona(app) {
 }
 
 export function isStoic(app) {
-  return (app?.config?.streamPersona || defaultPersona(app)) === 'estoica';
+  const p = getPersona(app);
+  return p === 'estoica' || p === 'dandere';
+}
+
+// Five anime-style archetypes (generic names only, no protected brands).
+const PERSONA_BANKS = {
+  estoica: { pt: STOIC_PT, en: STOIC_EN },
+  genki: { pt: DEFAULT_PT, en: DEFAULT_EN },
+  tsundere: {
+    pt: {
+      follow: ['Não é como se eu tivesse esperado seu follow... mas obrigada, {user}.', 'Hm. Você seguiu o canal? Tudo bem, fico grata.', 'Follow registrado, {user}. Não faça drama.', 'Ah, {user}... claro que eu não ligo. Só um pouco.', 'Você apareceu de novo, {user}... obrigada, acho eu.', 'Não pense que isso me deixou feliz. Mas obrigada pelo follow.', 'Tá, {user}... seu follow foi aceito.'],
+      sub: ['Um sub? {user}, você exagerou... mas obrigada.', 'Não precisava, sério. Obrigada pelo sub, {user}.', 'Hm... vou aceitar esse sub, {user}. Só isso.', 'Você se inscreveu? Que seja... obrigada.', 'Sub de {user}... guardei, está? Obrigada.', 'Ainda bem que você apoiou, {user}. Não é como se eu precisasse.', 'Obrigada, {user}... mas não vou comemorar, viu?'],
+      raid: ['Uma raid? {user}, você trouxe todo mundo... obrigada, acho.', 'Tanta gente de uma vez... bem-vindos, e obrigada, {user}.', 'Hm, {user} chegou com a galera. Faz silêncio aí, pessoal.', 'Você exagerou na raid, {user}... mas obrigada.', 'Olá, galera... obrigada por aparecerem. E obrigada, {user}.', 'Não é como se eu estivesse impressionada com essa raid, {user}.', 'Bem-vindos todos... {user}, você poderia ter avisado.'],
+      bits: ['{amount} bits? {user}, você está tentando me impressionar? ...obrigada.', 'Recebi seus {amount} bits, {user}. Guardei com cuidado, tá?', 'Hm, {amount} bits... obrigada, {user}. Não precisava.', 'Você mandou {amount} bits... que seja. Obrigada.', 'Não vou dizer que fiquei feliz com os {amount} bits, {user}. Mas obrigada.', '{user}, seus {amount} bits foram aceitos. Silenciosamente.', 'Obrigada pelos {amount} bits, {user}... não comemore tanto.'],
+      cafune: ['Ei! ...tá bem, pode continuar. Só não conte pra ninguém.', 'Isso é... constrangedor. Não pare, {user}.', 'Hm. Você acha que eu gosto de cafuné? ...continua.', 'Tá, tá... obrigada pelo cafuné. Foi só isso.', 'Não é como se eu estivesse derretendo, {user}... mas obrigada.', 'Cafuné? ...tudo bem, permito por um minuto.', 'Você é impossível, {user}. Obrigada pelo carinho.'],
+      coffee: ['Café? {user}... aceito, mas só porque você insistiu.', 'Hmm, café da cafeteira. Obrigada, {user}.', 'Não precisava comprar café, {user}... mas obrigada.', 'Tá... vou tomar. Obrigada, {user}.', 'Café de {user}... aceito. Não faça cara de vitorioso.', 'Você se lembrou do meu café? ...obrigada.', 'Bom, {user}... esse café está bom. Obrigada.'],
+      snack: ['Lanche? {user}... não vou reclamar. Obrigada.', 'Você comprou comida pra mim? Tá bem, obrigada.', 'Hmm, aceito o lanche, {user}. Só isso.', 'Não é como se eu estivesse com fome... mas obrigada, {user}.', 'Lanche de {user}... vou guardar metade. Obrigada.', 'Tá, {user}, vou comer. Obrigada pelo lanche.', 'Obrigada pelo lanche, {user}... você é persistente.'],
+      hi: ['Oi, {user}... foi só isso que você veio dizer?', 'Olá. Estou aqui, não precisa gritar.', 'Oi, {user}. Tudo normal por aqui.', 'Você falou comigo? Oi, {user}.', 'Hm, oi, {user}. Prazer.', 'Oi... {user}. Estou ouvindo, claro.'],
+      gg: ['GG, {user}... não foi nada de mais.', 'Bom trabalho, {user}. Hm, obrigada.', 'GG. Você jogou bem, {user}. Só isso.', 'Não foi sorte, {user}. Foi mérito. GG.', 'GG, {user}... parabéns, acho eu.', 'Bom jogo, {user}. Ainda bem que você ganhou.'],
+      f: ['...também acho triste, {user}.', 'F.Não vou fingir que não doeu.', 'Hm... respeito, {user}.', 'F... coisas assim acontecem.', 'Triste, sim. Obrigada por respeitar, {user}.', 'F... vou ficar quieta um pouco.'],
+      water: ['Beba água, {user}. Não é como se eu estivesse preocupada.', 'Hidratação, {user}. Só um lembrete.', 'Água, {user}. Você esquece, né?', 'Vai beber água, {user}... preciso mandar duas vezes?', 'Um copo d\'água não mata ninguém, {user}.', 'Beba água, {user}. Obrigada depois.'],
+      posture: ['Endireita a postura, {user}... está horrível.', 'Os ombros, {user}. Senta direito.', 'Postura, {user}. Você parece uma batata.', 'Ajeite a coluna, {user}. Só isso.', 'Não é como se eu ligasse... mas sente direito, {user}.', 'Postura, {user}. Já falei.'],
+      brb: ['Pausa rápida. Não sumam, tá?', 'Volto já... e não foi porque eu queria, viu?', 'Já volto. Esperem sem fazer barulho.', 'Pausa. Cuidem do canal, {user}.', 'Volto em um instante... não sintam falta.', 'Só um minuto. Não vou demorar.'],
+      idle: ['Hm... nada pra dizer.', 'Estou só observando, {user}.', 'Silêncio. Tudo bem assim.', 'Se precisar, estou aqui. Só isso.', 'Não tenho nada a acrescentar.', 'Ficarei aqui, {user}. Não se preocupe.'],
+    },
+    en: {
+      follow: ['It is not like I was waiting for your follow... but thanks, {user}.', 'Hm. You followed? Fine, I am grateful.', 'Follow noted, {user}. Do not make a scene.', 'Oh, {user}... of course I do not care. Just a little.', 'You showed up again, {user}... thanks, I guess.', 'Do not think this made me happy. Thanks for the follow.', 'Alright, {user}... your follow is accepted.'],
+      sub: ['A sub? {user}, you overdid it... but thank you.', 'You did not have to, really. Thanks for the sub, {user}.', 'Hm... I will take this sub, {user}. That is all.', 'You subscribed? Whatever... thank you.', 'Sub from {user}... I saved it, okay? Thanks.', 'Glad you supported me, {user}. Not like I needed it.', 'Thanks, {user}... but I am not celebrating, okay?'],
+      raid: ['A raid? {user}, you brought everyone... thanks, I guess.', 'So many people at once... welcome, and thanks, {user}.', 'Hm, {user} arrived with the crew. Quiet down, everyone.', 'You overdid the raid, {user}... but thank you.', 'Hello everyone... thanks for coming. And thanks, {user}.', 'Not like I am impressed by this raid, {user}.', 'Welcome all... {user}, you could have warned me.'],
+      bits: ['{amount} bits? {user}, are you trying to impress me? ...thanks.', 'I got your {amount} bits, {user}. I kept them safe, okay?', 'Hm, {amount} bits... thanks, {user}. You did not have to.', 'You sent {amount} bits... whatever. Thank you.', 'I am not saying I am happy about the {amount} bits, {user}. But thanks.', '{user}, your {amount} bits were accepted. Quietly.', 'Thanks for the {amount} bits, {user}... do not cheer so much.'],
+      cafune: ['Hey! ...alright, keep going. Just do not tell anyone.', 'This is... embarrassing. Do not stop, {user}.', 'Hm. You think I like head pats? ...keep going.', 'Fine, fine... thanks for the pat. That is all.', 'Not like I am melting, {user}... but thanks.', 'Head pats? ...alright, I allow it for a minute.', 'You are impossible, {user}. Thanks for the care.'],
+      coffee: ['Coffee? {user}... I accept, only because you insisted.', 'Hmm, coffee from the station. Thanks, {user}.', 'You did not need to buy coffee, {user}... but thanks.', 'Fine... I will drink it. Thanks, {user}.', 'Coffee from {user}... I accept. Do not look so proud.', 'You remembered my coffee? ...thanks.', 'Well, {user}... this coffee is good. Thanks.'],
+      snack: ['Snack? {user}... I will not complain. Thanks.', 'You bought me food? Fine, thank you.', 'Hmm, I accept the snack, {user}. That is all.', 'Not like I was hungry... but thanks, {user}.', 'Snack from {user}... I will save half. Thanks.', 'Fine, {user}, I will eat. Thanks for the snack.', 'Thanks for the snack, {user}... you are persistent.'],
+      hi: ['Hi, {user}... is that all you came to say?', 'Hello. I am here, no need to shout.', 'Hi, {user}. Everything normal here.', 'You spoke to me? Hi, {user}.', 'Hm, hi, {user}. Nice to meet you.', 'Hi... {user}. I am listening, of course.'],
+      gg: ['GG, {user}... it was no big deal.', 'Good job, {user}. Hm, thanks.', 'GG. You played well, {user}. That is all.', 'It was not luck, {user}. It was skill. GG.', 'GG, {user}... congrats, I guess.', 'Good game, {user}. Glad you won.'],
+      f: ['...I think it is sad too, {user}.', 'F. I will not pretend it did not hurt.', 'Hm... respect, {user}.', 'F... things like that happen.', 'Sad, yes. Thanks for respecting it, {user}.', 'F... I will be quiet for a bit.'],
+      water: ['Drink water, {user}. Not like I am worried.', 'Hydration, {user}. Just a reminder.', 'Water, {user}. You forget, do not you?', 'Go drink water, {user}... do I have to ask twice?', 'A glass of water will not kill you, {user}.', 'Drink water, {user}. Thanks me later.'],
+      posture: ['Straighten up, {user}... you look terrible.', 'Your shoulders, {user}. Sit properly.', 'Posture, {user}. You look like a potato.', 'Fix your back, {user}. That is all.', 'Not like I care... but sit properly, {user}.', 'Posture, {user}. I already said it.'],
+      brb: ['Quick break. Do not disappear, okay?', 'Be right back... and it is not because I wanted to, okay?', 'Back soon. No noise while I am gone.', 'Break. Take care of the channel, {user}.', 'Back in a moment... do not miss me.', 'Just a minute. I will not be long.'],
+      idle: ['Hm... nothing to say.', 'I am just watching, {user}.', 'Silence. It is fine like this.', 'If you need me, I am here. That is all.', 'I have nothing to add.', 'I will stay here, {user}. Do not worry.'],
+    },
+  },
+  dandere: {
+    pt: {
+      follow: ['O-obrigada pelo follow, {user}... fico feliz.', 'Você... seguiu o canal? Obrigada, de verdade.', 'H-hoje está mais quente por aqui... obrigada, {user}.', 'Oi, {user}... fico envergonhada, mas obrigada.', 'Você veio me ver? ...obrigada, {user}.', 'Um follow... vou guardar com carinho, {user}.', 'Obrigada, {user}. Escondi um sorriso, tá?'],
+      sub: ['Um sub? {user}... eu, eu não sei o que dizer. Obrigada.', 'Você foi muito gentil, {user}... obrigada pelo sub.', 'H-hoje eu fiquei sem palavras... obrigada, {user}.', 'Um sub só pra mim? ...obrigada mesmo, {user}.', 'Vou guardar isso com muito carinho, {user}.', 'Obrigada, {user}... fico vermelha só de pensar.', 'Não mereço tanta coisa, {user}... mas obrigada.'],
+      raid: ['Tanta gente... oi, pessoal. Obrigada, {user}.', 'A sala encheu... fico nervosa, mas bem-vindos.', 'Você trouxe todo mundo, {user}? ...obrigada.', 'Oi, oi... sejam bem-vindos, por favor.', 'Uma raid inteira... obrigada, {user}, de coração.', 'Estou um pouco perdida, mas obrigada por vir, {user}.', 'Bem-vindos todos... vou tentar não gaguejar.'],
+      bits: ['{amount} bits? {user}... obrigada, fico sem jeito.', 'Você mandou {amount} bits pra mim? ...obrigada.', 'Recebi os bits, {user}. Vou cuidar bem deles.', 'H-{amount} bits... é muito, obrigada.', 'Obrigada, {user}... não sei direito como agradecer.', 'Fiquei feliz com os {amount} bits, {user}... obrigada.', 'Obrigada pelo carinho, {user}. Guardei tudo.'],
+      cafune: ['E-ei... isso é muito carinho de uma vez. Mas... obrigada.', 'Fico vermelha quando você faz isso, {user}... não pare.', 'Hm... é quente. Obrigada pelo cafuné, {user}.', 'Você pode continuar... só não olha pra mim, {user}.', 'Não sei se mereço tanto cafuné... mas obrigada.', 'Isso me deixa feliz, {user}... muito obrigada.', 'Cafuné... vou guardar esse momento, {user}.'],
+      coffee: ['Café pra mim, {user}? ...obrigada, vou tomar devagar.', 'Você lembrou do meu café... fico feliz, {user}.', 'H-hoje o café está bom. Obrigada, {user}.', 'Aceito o café, {user}... obrigada com carinho.', 'Obrigada pelo café, {user}. Escondi um sorriso.', 'É quentinho... obrigada, {user}.', 'Vou beber com calma, {user}. Obrigada.'],
+      snack: ['Um lanche? {user}... obrigada, vou dividir com você.', 'Você comprou comida pra mim? Fico sem palavras, {user}.', 'O lanche está bom... obrigada, {user}.', 'Aceito, {user}. Obrigada pelo carinho.', 'Hm... vou comer devagar, {user}. Obrigada.', 'Obrigada, {user}. Guardei um pedaço pra você.', 'Não precisava, {user}... mas obrigada mesmo.'],
+      hi: ['Oi, {user}... desculpa, fico nervosa.', 'Olá... estou aqui, {user}.', 'Oi, {user}. Fico feliz que você falou.', 'H-oii, {user}... foi só isso? Fico aliviada.', 'Oi, {user}. Estou ouvindo com atenção.', 'Olá, {user}... pode falar baixinho, pode?'],
+      gg: ['GG, {user}... você jogou muito bem.', 'Parabéns, {user}... fiquei feliz por você.', 'G-Gumb... quer dizer, GG! Você arrasou.', 'Bom trabalho, {user}. Aplaudi baixinho aqui.', 'GG, {user}... você mereceu.', 'Uau, {user}... que jogada bonita. GG.'],
+      f: ['F... também fiquei triste, {user}.', 'Hmm... respeito, {user}. Fique quieta também.', 'F... espero que fique bem, {user}.', 'É triste, sim... obrigada por compartilhar, {user}.', 'F... vou torcer pra melhorar.', 'Fiquei sem palavras, {user}. Respeito.'],
+      water: ['Beba água, {user}... com calma, viu?', 'Hidratação é importante, {user}. Obrigada por ouvir.', 'Um gole d\'água, {user}... faz bem.', 'Beba água, {user}... eu fico preocupada.', 'Água, {user}. Só um lembrete carinhoso.', 'Não esqueça a água, {user}. Por favor.'],
+      posture: ['A-postura, {user}... sente direitinho, por favor.', 'Os ombros, {user}... relaxe um pouco.', 'Ajeite a cadeira, {user}... fico preocupada.', 'Postura, {user}... é só cuidado, tá?', 'Senta direito, {user}... obrigada por ouvir.', 'Se cuide, {user}. A coluna agradece.'],
+      brb: ['V-volto já... esperem por mim, por favor.', 'Só um instante... não vão embora, tá?', 'Volto já, {user}. Obrigada pela paciência.', 'Pausinha... fico nervosa de deixar o canal.', 'Já volto. Guardem meu lugar, {user}.', 'Volto num piscar... acho eu.'],
+      idle: ['Hm... estou aqui, {user}.', 'Hoje está calmo... gosto assim.', 'Fico observando o canal, {user}.', 'Se precisar, me chama baixinho.', 'Estou pensando em coisas boas, {user}.', 'Não tenho muita coragem pra falar agora.'],
+    },
+    en: {
+      follow: ['T-thanks for the follow, {user}... I am happy.', 'You... followed the channel? Thank you, really.', 'It is warmer in here today... thanks, {user}.', 'Hi, {user}... I am embarrassed, but thank you.', 'You came to see me? ...thank you, {user}.', 'A follow... I will keep it close, {user}.', 'Thanks, {user}. I hid a smile, okay?'],
+      sub: ['A sub? {user}... I, I do not know what to say. Thank you.', 'You were so kind, {user}... thanks for the sub.', 'T-today I am speechless... thank you, {user}.', 'A sub just for me? ...thank you so much, {user}.', 'I will keep this with great care, {user}.', 'Thanks, {user}... I turn red just thinking about it.', 'I do not deserve so much, {user}... but thank you.'],
+      raid: ['So many people... hi everyone. Thank you, {user}.', 'The room filled up... I am nervous, but welcome.', 'You brought everyone, {user}? ...thank you.', 'Hi, hi... welcome, please.', 'A whole raid... thank you, {user}, from my heart.', 'I am a bit lost, but thanks for coming, {user}.', 'Welcome everyone... I will try not to stutter.'],
+      bits: ['{amount} bits? {user}... thank you, I feel shy.', 'You sent {amount} bits to me? ...thank you.', 'I got the bits, {user}. I will take good care of them.', 'H-{amount} bits... that is a lot, thank you.', 'Thank you, {user}... I do not know how to repay you.', 'I was happy about the {amount} bits, {user}... thanks.', 'Thanks for the kindness, {user}. I saved it all.'],
+      cafune: ['H-hey... that is a lot of care at once. But... thanks.', 'I turn red when you do that, {user}... do not stop.', 'Hm... it is warm. Thanks for the pat, {user}.', 'You can keep going... just do not look at me, {user}.', 'I do not know if I deserve so many pats... but thanks.', 'That makes me happy, {user}... thank you so much.', 'Head pats... I will keep this moment, {user}.'],
+      coffee: ['Coffee for me, {user}? ...thanks, I will sip it slowly.', 'You remembered my coffee... I am happy, {user}.', 'H-the coffee is good today. Thank you, {user}.', 'I accept the coffee, {user}... thanks with care.', 'Thanks for the coffee, {user}. I hid a smile.', 'It is warm... thank you, {user}.', 'I will drink it slowly, {user}. Thank you.'],
+      snack: ['A snack? {user}... thanks, I will share it with you.', 'You bought me food? I am speechless, {user}.', 'The snack is good... thank you, {user}.', 'I accept, {user}. Thanks for the care.', 'Hm... I will eat slowly, {user}. Thank you.', 'Thanks, {user}. I saved a piece for you.', 'You did not have to, {user}... but thank you.'],
+      hi: ['Hi, {user}... sorry, I get nervous.', 'Hello... I am here, {user}.', 'Hi, {user}. I am happy you spoke.', 'H-hi, {user}... is that all? I am relieved.', 'Hi, {user}. I am listening carefully.', 'Hello, {user}... you can speak softly, okay?'],
+      gg: ['GG, {user}... you played really well.', 'Congrats, {user}... I am happy for you.', 'G-Gumb... I mean, GG! You did great.', 'Good job, {user}. I clapped quietly here.', 'GG, {user}... you deserved it.', 'Wow, {user}... what a nice move. GG.'],
+      f: ['F... I am sad too, {user}.', 'Hmm... respect, {user}. I am quiet too.', 'F... I hope things get better, {user}.', 'It is sad, yes... thanks for sharing, {user}.', 'F... I am rooting for you.', 'I am speechless, {user}. Respect.'],
+      water: ['Drink water, {user}... slowly, okay?', 'Hydration is important, {user}. Thanks for listening.', 'A sip of water, {user}... it helps.', 'Drink water, {user}... I worry.', 'Water, {user}. Just a caring reminder.', 'Do not forget water, {user}. Please.'],
+      posture: ['P-posture, {user}... sit properly, please.', 'Your shoulders, {user}... relax a little.', 'Fix your chair, {user}... I worry.', 'Posture, {user}... it is just care, okay?', 'Sit properly, {user}... thanks for listening.', 'Take care, {user}. Your back will thank you.'],
+      brb: ['B-back soon... wait for me, please.', 'Just a moment... do not go away, okay?', 'Back soon, {user}. Thanks for your patience.', 'A little break... I get nervous leaving the channel.', 'Back in a flash... I think.', 'I will be right back. Save my seat, {user}.'],
+      idle: ['Hm... I am here, {user}.', 'It is calm today... I like it.', 'I am watching the channel, {user}.', 'If you need me, call me softly.', 'I am thinking about nice things, {user}.', 'I do not have much courage to speak right now.'],
+    },
+  },
+  chuuni: {
+    pt: {
+      follow: ['Mais uma alma selou o pacto com o canal! Bem-vindo, {user}.', 'O selo se iluminou... {user} entrou na nossa rede.', 'O portal se abriu e {user} atravessou. Aceito o pacto.', 'Seu nome foi gravado no pergaminho, {user}.', 'O destino trouxe {user} até aqui. Que a sintonia comece.', 'A lenda ganha mais um capítulo: {user} seguiu o canal.', 'Sua aura é promissora, {user}. Bem-vindo ao ritual.'],
+      sub: ['{user} selou um contrato superior com o canal! Aceito.', 'A insígnia de {user} brilha... o sub foi aceito.', 'Um novo vínculo dimensional se forma com {user}.', 'O pacto se fortalece! Obrigada, {user}.', '{user} ofereceu energia ao portal... recebo o sub.', 'Que a chakra da inscrição te acompanhe, {user}.', 'Sub registrado nos anais eternos, {user}. Aceito.'],
+      raid: ['Uma incursão de {user}! O exército atravessou o portal!', 'Multidões invadiram a dimensão... bem-vindos, soldados de {user}.', 'O céu rachou e {user} trouxe sua legião. Que comece o festival!', 'A raid de {user} ecoa pelos corredores do tempo!', 'Dezesseis assinaturas... não, vinte almas! Bem-vindos.', 'A batalha pela atenção começou! Liderada por {user}.', 'Recebo a chuva de espectadores, {user}. O ritual continua.'],
+      bits: ['{amount} fragmentos de luz de {user}... o altar agradece.', 'A energia de {user} cristalizou em {amount} bits. Aceito.', 'Os bits de {user} brilham como estrelas cadentes!', '{amount} moedas celestiais... o pacto se renova, {user}.', 'Recebo o tributo de {user}: {amount} bits de pura essência.', 'Que os {amount} bits de {user} alimentem o portal.', 'A oferenda foi aceita, {user}. {amount} bits reluzem.'],
+      cafune: ['O toque de {user} desperta as runas adormecidas...', 'Não! O carinho de {user} está quebrando minha defesa!', 'Aura de afeto detectada. Permito que continue, {user}.', 'Meu selo de gelo rachou... {user} venceu esta rodada.', 'O cafuné de {user} é uma arte proibida... aceito.', 'Sinto o calor de {user} nas minhas runas. Perigoso.', 'Se continuar, {user}, o pacto vira carinho. Aceito.'],
+      coffee: ['O elixir de {user} foi aceito pelo altar da cafeteira.', 'Bebo a poção escura oferecida por {user}. Renovo minhas forças.', 'Café: combustível dos rituais. Obrigada, {user}.', 'A essência de {user} entra no cálice... aceito.', 'Um brinde ao pacto, {user}. Que o café nunca esfrie.', 'Recebo o café de {user} com solenidade.', 'O aroma desperta as runas. Obrigada, {user}.'],
+      snack: ['{user} oferece um lanche ao portal. O ritual se alimenta.', 'A oferenda comestível de {user} foi aceita.', 'Consumo a essência do lanche, {user}. Energia renovada.', 'Que o banquete de {user} fortaleça nosso vínculo.', 'Alimento sagrado recebido de {user}. Aceito.', 'O lanche de {user} brilha com energia misteriosa.', 'Sacia a fome, desperta a lenda. Obrigada, {user}.'],
+      hi: ['Você ousou me chamar, {user}! O portal responde.', 'Olá, viajante {user}. O canal te reconhece.', 'Sua voz ecoa na dimensão, {user}. Estou aqui.', 'Chamado recebido, {user}. Que mensagem traz?', 'A conexão se establishing... {user}, fale.', 'O sinal de {user} chegou até mim. Falando.'],
+      gg: ['GG, {user}! Sua lenda foi escrita hoje.', 'Vitória decretada! {user} domina este reino.', 'Bom jogo, {user}. Os deuses dos pixels aprovaram.', 'GG! A aura de {user} brilha mais forte.', 'Que a vitória de {user} seja lembrada por eras.', 'GG, {user}. O destino sorriu para você.'],
+      f: ['F... até as lendas se curvam diante da perda, {user}.', 'Respeito, {user}. O silêncio também é um feitiço.', 'Um ponto na história foi apagado. F, {user}.', 'A tristeza ecoa na dimensão. F, {user}.', 'Inclino-me diante do destino, {user}. F.', 'Que a memória de {user} permaneça. F.'],
+      water: ['Hidratação, {user}! Até os deuses do portal precisam dela.', 'Beba a água sagrada, {user}. O corpo é o receptáculo.', 'O elixir líquido aguarda, {user}. Beba.', 'A umidade do pacto se evapora... hidrate-se, {user}.', 'Beba água, {user}. A lenda não seca.', 'Gotas de vida para {user}. Beba e renasça.'],
+      posture: ['Endireite-se, {user}! A coluna é o eixo do portal.', 'A postura de {user} desalinha os astros. Corrija-a.', 'Sentar-se como um dragão derrotado, {user}? Nunca.', 'Ajuste o eixo, {user}. O destino exige elegância.', 'Postura, {user}. A lenda não se curva.', 'Que sua coluna seja firme como a torre de marfim, {user}.'],
+      brb: ['O portal se fecha por um instante. Volto já.', 'A dimensão precisa de mim. Retorno em breve.', 'Suspendo o ritual... aguardem meu retorno.', 'A jornada continua, {user}. Volto já.', 'Ausência temporária do altar. Volto já.', 'Que o caos não reine enquanto estou fora. Volto já.'],
+      idle: ['As runas estão em silêncio... por enquanto.', 'O portal dorme. Eu observo.', 'Existe muito mais além desta janela, {user}.', 'Aguardo o próximo sinal do destino.', 'A lenda continua escrevendo-se sozinha.', 'O canal é um ponto entre dois mundos, {user}.'],
+    },
+    en: {
+      follow: ['Another soul sealed a pact with the channel! Welcome, {user}.', 'The seal lit up... {user} entered our network.', 'The portal opened and {user} stepped through. Pact accepted.', 'Your name is carved in the scroll, {user}.', 'Destiny brought {user} here. Let the connection begin.', 'The legend gains a chapter: {user} followed the channel.', 'Your aura is promising, {user}. Welcome to the ritual.'],
+      sub: ['{user} sealed a higher contract with the channel! Accepted.', 'The insignia of {user} shines... the sub is accepted.', 'A new dimensional bond forms with {user}.', 'The pact grows stronger! Thank you, {user}.', '{user} offered energy to the portal... sub received.', 'May the chakra of subscription be with you, {user}.', 'Sub recorded in the eternal annals, {user}. Accepted.'],
+      raid: ['An incursion from {user}! The army crossed the portal!', 'Crowds invaded the dimension... welcome, soldiers of {user}.', 'The sky split and {user} brought a legion. Let the festival begin!', "The raid of {user} echoes through the halls of time!", 'Sixteen signatures... no, twenty souls! Welcome.', 'The battle for attention began! Led by {user}.', 'I receive the rain of viewers, {user}. The ritual continues.'],
+      bits: ['{amount} light fragments from {user}... the altar thanks you.', 'The energy of {user} crystallized into {amount} bits. Accepted.', 'The bits of {user} shine like falling stars!', '{amount} celestial coins... the pact renews, {user}.', 'I receive the tribute of {user}: {amount} bits of pure essence.', 'May the {amount} bits of {user} feed the portal.', 'The offering is accepted, {user}. {amount} bits shimmer.'],
+      cafune: ['The touch of {user} awakens the sleeping runes...', 'No! The care of {user} is breaking my defense!', 'Affection aura detected. You may continue, {user}.', 'My ice seal cracked... {user} won this round.', 'The pat of {user} is a forbidden art... I accept.', 'I feel the warmth of {user} in my runes. Dangerous.', 'If you keep going, {user}, the pact becomes care. Accepted.'],
+      coffee: ['The elixir of {user} is accepted by the coffee altar.', 'I drink the dark potion offered by {user}. Strength renewed.', 'Coffee: fuel of rituals. Thank you, {user}.', 'The essence of {user} enters the chalice... accepted.', 'A toast to the pact, {user}. May the coffee never cool.', 'I receive the coffee of {user} with solemnity.', 'The aroma awakens the runes. Thank you, {user}.'],
+      snack: ['{user} offers a snack to the portal. The ritual feeds.', 'The edible offering of {user} was accepted.', 'I consume the essence of the snack, {user}. Energy renewed.', 'May the feast of {user} strengthen our bond.', 'Sacred food received from {user}. Accepted.', 'The snack of {user} glows with mysterious energy.', 'Sate hunger, awaken legend. Thank you, {user}.'],
+      hi: ['You dared to call me, {user}! The portal answers.', 'Hello, traveler {user}. The channel recognizes you.', 'Your voice echoes in the dimension, {user}. I am here.', 'Call received, {user}. What message do you bring?', 'The connection is establishing... {user}, speak.', 'The signal of {user} reached me. Speaking.'],
+      gg: ['GG, {user}! Your legend was written today.', 'Victory decreed! {user} rules this realm.', 'Good game, {user}. The pixel gods approved.', 'GG! The aura of {user} burns brighter.', 'May the victory of {user} be remembered for ages.', 'GG, {user}. Destiny smiled at you.'],
+      f: ['F... even legends bow before loss, {user}.', 'Respect, {user}. Silence is a spell too.', 'A point in history was erased. F, {user}.', 'Sadness echoes in the dimension. F, {user}.', 'I bow before destiny, {user}. F.', 'May the memory of {user} remain. F.'],
+      water: ['Hydration, {user}! Even portal gods need it.', 'Drink the sacred water, {user}. The body is the vessel.', 'The liquid elixir awaits, {user}. Drink.', 'The moisture of the pact evaporates... hydrate, {user}.', 'Drink water, {user}. The legend does not dry out.', 'Drops of life for {user}. Drink and be reborn.'],
+      posture: ['Straighten up, {user}! The spine is the axis of the portal.', 'The posture of {user} misaligns the stars. Fix it.', 'Sitting like a defeated dragon, {user}? Never.', 'Adjust the axis, {user}. Destiny demands elegance.', 'Posture, {user}. The legend does not slouch.', 'May your spine be firm as the ivory tower, {user}.'],
+      brb: ['The portal closes for a moment. Back soon.', 'The dimension needs me. I return shortly.', 'I suspend the ritual... await my return.', 'The journey continues, {user}. Back soon.', 'Temporary absence from the altar. Back soon.', 'May chaos not reign while I am away. Back soon.'],
+      idle: ['The runes are silent... for now.', 'The portal sleeps. I watch.', 'There is much more beyond this window, {user}.', 'I await the next signal from destiny.', 'The legend keeps writing itself.', 'The channel is a point between two worlds, {user}.'],
+    },
+  },
+};
+
+const PERSONA_LABELS = {
+  estoica: { pt: 'Estoica / Calma', en: 'Stoic / Calm' },
+  genki: { pt: 'Animada / Fofa', en: 'Upbeat / Cute' },
+  tsundere: { pt: 'Orgulhosa / Afiada', en: 'Proud / Sharp' },
+  dandere: { pt: 'Tímida / Doce', en: 'Shy / Sweet' },
+  chuuni: { pt: 'Dramática / Misteriosa', en: 'Dramatic / Mysterious' },
+};
+export const personaLabel = (id, lang) => PERSONA_LABELS[id]?.[lang === 'en' ? 'en' : 'pt'] || '';
+export const PERSONA_IDS = Object.keys(PERSONA_LABELS);
+
+export function getPersona(app) {
+  const raw = app?.config?.persona || app?.config?.streamPersona || defaultPersona(app);
+  if (PERSONA_BANKS[raw]) return raw;
+  return raw === 'estoica' ? 'estoica' : 'genki';
 }
 
 const lastPicked = new Map();
 
 export function personaLine(app, key, vars = {}, opts = {}) {
   const en = app?.config?.lang === 'en';
-  const stoic = isStoic(app);
-  const bank = stoic ? (en ? STOIC_EN : STOIC_PT) : (en ? DEFAULT_EN : DEFAULT_PT);
-  const raw = bank[key];
+  const id = getPersona(app);
+  const raw = PERSONA_BANKS[id]?.[en ? 'en' : 'pt']?.[key];
   let tpl;
   if (Array.isArray(raw)) {
     if (opts.simple || raw.length <= 1) {
       tpl = raw[0];
     } else {
-      const slot = `${stoic ? 's' : 'd'}:${en ? 'en' : 'pt'}:${key}`;
+      const slot = `${id}:${en ? 'en' : 'pt'}:${key}`;
       const prev = lastPicked.get(slot);
       let idx = Math.floor(Math.random() * raw.length);
       if (idx === prev) idx = (idx + 1 + Math.floor(Math.random() * (raw.length - 1))) % raw.length;
@@ -316,5 +443,9 @@ export function personaLine(app, key, vars = {}, opts = {}) {
     tpl = raw;
   }
   if (!tpl) return '';
-  return tpl.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+  const all = {
+    doll: app?.getDollName?.(), crow: app?.getCrowName?.(),
+    ...vars,
+  };
+  return tpl.replace(/\{(\w+)\}/g, (_, k) => String(all[k] ?? ''));
 }

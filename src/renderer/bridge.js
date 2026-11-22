@@ -29,6 +29,7 @@ window.petAPI = {
   streamerTakeRpc: () => invoke('streamer_take_rpc'),
   ttsVoices: (dir) => invoke('tts_voices', { dir }),
   ttsSpeak: (dir, text, voice, lang, speed, blend) => invoke('tts_speak', { dir, text, voice, lang, speed, blend }),
+  ttsSpeakRemote: (engine, text, voice, lang, speed, pitchHz, apiKey, fishVoice) => invoke('tts_speak_remote', { engine, text, voice, lang, speed, pitchHz, apiKey, fishVoice }),
   ttsStop: () => invoke('tts_stop'),
   streamBridgeStart: (port, token) => invoke('stream_bridge_start', { port, token }),
   streamBridgeStop: () => invoke('stream_bridge_stop'),

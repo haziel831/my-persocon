@@ -29,6 +29,8 @@ fn spawn(dir: &Path) -> Result<Session, String> {
     let script = dir.join("resources/voxforge-neural.py");
     if !python.is_file() || !script.is_file() { return Err("TTS não encontrado.".into()); }
     let mut child = Command::new(python).arg(script)
+        .env("PYTHONUTF8", "1")
+        .env("PYTHONIOENCODING", "utf-8")
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
         .creation_flags(NO_WINDOW).spawn().map_err(|e| e.to_string())?;
     let stdin = child.stdin.take().ok_or("stdin indisponível")?;
@@ -178,6 +180,57 @@ pub fn speak(dir: &Path, text: &str, voice: &str, lang: &str, speed: f32, blend:
     let bytes = fs::read(&out).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(&out);
     Ok(format!("data:audio/wav;base64,{}", STANDARD.encode(bytes)))
+}
+
+// Remote neural voices (Edge / Fish Audio) through a small PowerShell helper,
+// so no extra network crates are needed in the Tauri binary.
+const REMOTE_PS: &str = include_str!("tts_remote.ps1");
+
+pub fn speak_remote(
+    engine: &str,
+    text: &str,
+    voice: &str,
+    lang: &str,
+    speed: f32,
+    pitch_hz: f32,
+    api_key: &str,
+    fish_voice: &str,
+) -> Result<String, String> {
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let tmp = std::env::temp_dir();
+    let script = tmp.join(format!("persocon-tts-remote-{}.ps1", std::process::id()));
+    let input = tmp.join(format!("persocon-tts-remote-{}-{}.txt", std::process::id(), id));
+    let output = tmp.join(format!("persocon-tts-remote-{}-{}.mp3", std::process::id(), id));
+    fs::write(&script, REMOTE_PS).map_err(|e| e.to_string())?;
+    fs::write(&input, text.as_bytes()).map_err(|e| e.to_string())?;
+    let result = Command::new("powershell")
+        .arg("-NoProfile").arg("-ExecutionPolicy").arg("Bypass").arg("-File")
+        .arg(&script)
+        .arg("-Engine").arg(engine)
+        .arg("-TextFile").arg(&input)
+        .arg("-Out").arg(&output)
+        .arg("-Voice").arg(voice)
+        .arg("-Lang").arg(lang)
+        .arg("-Speed").arg(speed.to_string())
+        .arg("-PitchHz").arg(pitch_hz.to_string())
+        .arg("-ApiKey").arg(api_key)
+        .arg("-FishVoice").arg(fish_voice)
+        .creation_flags(NO_WINDOW)
+        .output();
+    let cleanup = || { let _ = fs::remove_file(&script); let _ = fs::remove_file(&input); let _ = fs::remove_file(&output); };
+    match result {
+        Ok(out) if out.status.success() && output.exists() => {
+            let bytes = fs::read(&output).map_err(|e| e.to_string())?;
+            cleanup();
+            Ok(format!("data:audio/mpeg;base64,{}", STANDARD.encode(bytes)))
+        }
+        Ok(out) => {
+            let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            cleanup();
+            Err(if err.is_empty() { "TTS remoto falhou".into() } else { err })
+        }
+        Err(e) => { cleanup(); Err(e.to_string()) }
+    }
 }
 
 pub fn shutdown() {

@@ -3,25 +3,94 @@ import { isStoic } from './persona.js';
 
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu;
-const DECOR_RE = /[♥❤★☆✨♪♫~*_^`|\\<>\[\]{}]/gu;
-const PUNCT_RUN_RE = /([!?.,;:])\1+/g;
-const PAUSE_RE = /(?:\.{3,}|—|–)+/g;
+const CTRL_RE = /[\u0000-\u001F\u007F-\u009F]/g;
+
+// Single strict whitelist used by every speech path (offline and Windows fallback).
+// Keeps letters (with their composed accents), digits, spaces and basic punctuation only.
+export function sanitizeForTts(text) {
+  let s = String(text || '').normalize('NFC')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/https?:\/\/\S+|www\.\S+/gi, ' ')
+    .replace(EMOJI_RE, ' ')
+    .replace(CTRL_RE, ' ')
+    .replace(/(?:\.{3,}|…|—|–|;|:)/g, ',')
+    .replace(/[^\p{L}\p{N}\s,.\?!-]/gu, ' ')
+    .replace(/([!?.,])\1+/g, '$1')
+    .replace(/\s*([,.!?])\s*/g, '$1 ')
+    .replace(/(^|\s)[,.\?!-]+(?=\s|$)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return s;
+}
+export const EDGE_VOICES = {
+  pt: ['pt-BR-LeticiaNeural', 'pt-BR-GiovannaNeural', 'pt-BR-ManuelaNeural', 'pt-BR-FranciscaNeural', 'pt-BR-ThalitaMultilingualNeural'],
+  en: ['en-US-AnaNeural', 'en-US-JennyNeural', 'en-US-AriaNeural', 'en-US-EmmaMultilingualNeural', 'en-US-AvaMultilingualNeural'],
+};
+
 export const VOICE_PRESETS = {
   aghata: {
-    voice: 'pf_dora',
-    blend: [
-      { voice: 'pf_dora', weight: 0.55 },
-      { voice: 'jf_nezumi', weight: 0.3 },
-      { voice: 'af_nicole', weight: 0.15 },
-    ],
-    speed: 0.88,
-    pitch: -1,
-    filter: 'warm',
+    pt: {
+      voice: 'pf_dora', edgeVoice: 'pt-BR-LeticiaNeural', lang: 'pt-br',
+      blend: [
+        { voice: 'pf_dora', weight: 0.55 },
+        { voice: 'jf_nezumi', weight: 0.3 },
+        { voice: 'af_nicole', weight: 0.15 },
+      ],
+      speed: 0.88, pitch: -1, filter: 'warm',
+    },
+    en: {
+      voice: 'af_nicole', edgeVoice: 'en-US-AnaNeural', lang: 'en-us',
+      blend: [
+        { voice: 'af_nicole', weight: 0.55 },
+        { voice: 'af_sky', weight: 0.3 },
+        { voice: 'af_nicole', weight: 0.15 },
+      ],
+      speed: 0.88, pitch: -1, filter: 'warm',
+    },
   },
 };
 
-const LANG_BY_PREFIX = { a: 'en-us', b: 'en-gb', p: 'pt-br', j: 'ja', e: 'es', f: 'fr-fr', h: 'hi', i: 'it', z: 'zh' };
-const langForVoice = (voice, fallback) => LANG_BY_PREFIX[String(voice || '').split('_')[0].charAt(0).toLowerCase()] || fallback;
+// Personality → suggested neural voice and prosody (no protected character names).
+export const PERSONA_VOICE = {
+  estoica: { pt: { edge: 'pt-BR-LeticiaNeural', rate: -0.06, pitchHz: 0 }, en: { edge: 'en-US-AnaNeural', rate: -0.06, pitchHz: 0 } },
+  genki: { pt: { edge: 'pt-BR-LeticiaNeural', rate: 0.06, pitchHz: 6 }, en: { edge: 'en-US-AnaNeural', rate: 0.06, pitchHz: 6 } },
+  tsundere: { pt: { edge: 'pt-BR-GiovannaNeural', rate: 0.04, pitchHz: 4 }, en: { edge: 'en-US-AriaNeural', rate: 0.04, pitchHz: 4 } },
+  dandere: { pt: { edge: 'pt-BR-LeticiaNeural', rate: -0.08, pitchHz: 0 }, en: { edge: 'en-US-EmmaMultilingualNeural', rate: -0.08, pitchHz: 0 } },
+  chuuni: { pt: { edge: 'pt-BR-ManuelaNeural', rate: 0.02, pitchHz: 2 }, en: { edge: 'en-US-JennyNeural', rate: 0.02, pitchHz: 2 } },
+};
+
+export function personaVoiceSuggestion(app) {
+  const c = app?.config || {};
+  const id = c.persona || (c.streamPersona === 'estoica' ? 'estoica' : 'genki');
+  const s = (PERSONA_VOICE[id] || PERSONA_VOICE.genki)[c.lang === 'en' ? 'en' : 'pt'];
+  const remote = ['edge', 'fish'].includes(c.ttsEngine);
+  return remote
+    ? { ttsVoice: s.edge, ttsSpeed: Math.max(0.7, Math.min(1.4, 1 + s.rate)), ttsPitch: 0 }
+    : { ttsSpeed: Math.max(0.7, Math.min(1.4, 1 + s.rate)), ttsPitch: s.pitchHz ? Math.round(s.pitchHz / 4) : 0 };
+}
+
+// Which language a voice can speak, from the engine ID or the Windows voice tag.
+export function voiceLanguage(v) {
+  const info = typeof v === 'string' ? { id: v, lang: '' } : (v || {});
+  const lang = String(info.lang || info.culture || '').toLowerCase();
+  if (/^pt\b|^pt[-_]/.test(lang)) return 'pt';
+  if (/^en\b|^en[-_]/.test(lang)) return 'en';
+  const id = String(info.id || info.name || '').replace(/^neural:/, '').toLowerCase();
+  const code = id.split('_')[0].charAt(0);
+  if (code === 'p') return 'pt';
+  if (['a', 'b'].includes(code)) return 'en';
+  return ''; // j/e/f/h/i/z: other languages, not offered for pt/en playback
+}
+
+export const filterVoicesForLang = (list, lang) =>
+  (Array.isArray(list) ? list : []).filter((v) => voiceLanguage(v) === (lang === 'en' ? 'en' : 'pt'));
+
+export function presetForLang(preset, lang) {
+  if (!preset) return null;
+  return preset[lang === 'en' ? 'en' : 'pt'] || preset.pt || preset;
+}
+
+
 
 export class VoiceTTS {
   constructor(app) {
@@ -45,6 +114,28 @@ export class VoiceTTS {
     const c = this.app.config;
     return (!!window.__PET_STREAMER__ && c.ttsEnabled !== false)
       || (!window.__PET_STREAMER__ && c.offlineTts === true);
+  }
+
+  // Called when the game language changes: keep the selected voice/preset in sync
+  // so the lang parameter sent to the engine always matches the active language.
+  applyLanguage(lang) {
+    const c = this.app.config;
+    const active = lang === 'en' ? 'en' : 'pt';
+    if (c.voicePreset && VOICE_PRESETS[c.voicePreset]) {
+      const p = presetForLang(VOICE_PRESETS[c.voicePreset], active);
+      const edge = c.ttsEngine === 'edge' || c.ttsEngine === 'fish';
+      this.app.applyConfigPatch?.({
+        ttsVoice: edge ? p.edgeVoice : p.voice,
+        ttsSpeed: p.speed,
+        ttsPitch: edge ? 0 : p.pitch,
+        ttsFilter: p.filter,
+      });
+      return;
+    }
+    const current = String(c.ttsVoice || '').replace(/^neural:/, '');
+    if (current && voiceLanguage({ id: current, lang: '' }) !== active) {
+      this.app.setOption?.('ttsVoice', active === 'en' ? 'af_nicole' : 'pf_dora');
+    }
   }
 
   // Classified triggers for the normal game (idle chatter has its own cooldown).
@@ -91,20 +182,12 @@ export class VoiceTTS {
         s = s.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(term)}(?![\\p{L}\\p{N}])`, 'giu'), say);
       } catch {}
     }
-    // Never let the engine read punctuation/symbol names aloud. Accented letters
-    // are kept exactly as typed (valid UTF-8, no NFD splitting).
-    s = s.replace(EMOJI_RE, ' ')
-      .replace(DECOR_RE, ' ')
-      .replace(PAUSE_RE, ',')
-      .replace(PUNCT_RUN_RE, '$1')
-      .replace(/["']/g, ' ')
-      .replace(/\s*([,.!?;:])\s*/g, '$1 ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    s = sanitizeForTts(s);
     if (!s) return '';
     if (opts.chat && c.ttsSpeakUser !== false && opts.user) {
-      s = `${opts.user} ${c.lang === 'en' ? 'said:' : 'disse:'} ${s}`;
+      s = sanitizeForTts(`${opts.user} ${c.lang === 'en' ? 'said' : 'disse'} ${s}`);
     }
+    if (!s) return '';
     const max = Math.max(60, Math.min(250, Number(c.ttsMaxChars) || 150));
     if (s.length > max) {
       const cut = s.lastIndexOf(' ', max);
@@ -173,17 +256,24 @@ export class VoiceTTS {
     try {
       const c = this.app.config;
       const calm = isStoic(this.app);
-      const preset = VOICE_PRESETS[c.voicePreset] || null;
-      const chosen = String(job.voice || c.ttsVoice || preset?.voice || '').trim();
-      const fallbackLang = c.lang === 'en' ? 'en-us' : 'pt-br';
-      const lang = job.lang || langForVoice(chosen, fallbackLang);
-      const voice = chosen || (lang.startsWith('en') ? 'af_nicole' : 'pf_dora');
+      const preset = presetForLang(VOICE_PRESETS[c.voicePreset], c.lang);
+      const activeLang = c.lang === 'en' ? 'en-us' : 'pt-br';
+      const engine = c.ttsEngine || 'offline';
+      const remote = engine === 'edge' || engine === 'fish';
+      const chosen = String(job.voice || c.ttsVoice || (remote && c.voicePreset ? preset?.edgeVoice : '') || preset?.voice || '').trim();
+      const lang = job.lang || activeLang;
+      const voice = chosen || (remote
+        ? (c.lang === 'en' ? 'en-US-AnaNeural' : 'pt-BR-LeticiaNeural')
+        : (c.lang === 'en' ? 'af_nicole' : 'pf_dora'));
       const speed = job.speed ?? c.ttsSpeed ?? preset?.speed ?? (calm ? 0.88 : 1);
+      const pitchHz = Number(c.ttsPitch) ? Number(c.ttsPitch) * 4 : 6;
       let data = null;
       try {
-        data = await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed, job.blend || preset?.blend || null);
+        data = remote
+          ? await window.petAPI?.ttsSpeakRemote?.(engine, job.text, voice, lang, speed, pitchHz, c.fishApiKey, c.fishVoiceId)
+          : await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed, job.blend || preset?.blend || null);
       } catch (err) {
-        this.lastError = String(err?.message || err || 'offline TTS failed');
+        this.lastError = String(err?.message || err || 'TTS failed');
       }
       if (gen !== this.gen) return; // superseded by a newer preview/selection
       if (!data) {
@@ -200,7 +290,8 @@ export class VoiceTTS {
       if (this.ctx.state === 'suspended') await this.ctx.resume();
       const src = this.ctx.createBufferSource();
       src.buffer = await this.ctx.decodeAudioData(bytes.buffer);
-      src.detune.value = (Number(c.ttsPitch ?? preset?.pitch) || 0) * 100;
+      // Native neural voices carry their own pitch via SSML: no formant-destroying detune.
+      src.detune.value = remote ? 0 : (Number(c.ttsPitch ?? preset?.pitch) || 0) * 100;
       const chain = [src];
       const filter = c.ttsFilter || preset?.filter || 'natural';
       if (filter === 'warm') {

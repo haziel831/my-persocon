@@ -257,6 +257,9 @@ export class StreamAlerts {
         break;
       default: return;
     }
-    if (line) app.speech?.say(line, 3.5, { priority: true });
+    if (line) {
+      app.chatBox?.push?.(ev.type, line);
+      app.speech?.say(line, 3.5, { priority: true });
+    }
   }
 }

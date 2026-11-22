@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>My Persocon · Controle Streamer</title>
+<title>My Persocon - Controle Streamer</title>
 <style>
   :root { --bg:#14121e; --panel:#1d1a2b; --fg:#f3eefa; --muted:#a9a0bd; --accent:#ff4fb8; --accent2:#49d8ff; --line:#37304c; }
   * { box-sizing:border-box; }
@@ -77,12 +77,18 @@
     <button class="act" data-bg="magenta">Magenta</button>
   </div>
   <label class="toggle"><input type="checkbox" data-key="streamerClean" data-type="bool" data-default="true" checked> Palco limpo (ocultar Dock/UI na janela do OBS)</label>
+  <label class="toggle"><input type="checkbox" data-key="streamChatBoxVisible" data-type="bool" data-default="true" checked> Mostrar caixa de chat no palco</label>
+  <div class="row"><button class="act" id="chatbox-reset">Resetar posição/tamanho</button><button class="act" id="chatbox-clear">Limpar caixa de chat</button></div>
 
   <h2>🗣️ Voz offline (Estúdio TTS)</h2>
   <div class="card">
     <label class="toggle"><input type="checkbox" data-key="ttsEnabled" data-type="bool" data-default="true" checked> 🗣️ Voz offline (Estúdio TTS)</label>
     <label class="field wide"><span>Pasta do TTS</span><input type="text" data-key="ttsDir" data-type="text"></label>
     <div class="row"><button class="act" id="reload-voices">🔄 Recarregar vozes</button><span class="note" id="voices-status"></span></div>
+    <label class="field wide"><span>Motor de voz</span><select id="tts-engine" data-key="ttsEngine" data-type="text">
+      <option value="edge">Edge Neural (jovem)</option><option value="fish">Fish Audio</option>
+      <option value="offline">Offline TTS</option><option value="system">Windows</option></select></label>
+    <div class="row" id="fish-fields"><input type="password" data-key="fishApiKey" data-type="text" placeholder="Fish Audio API Key"><input type="text" data-key="fishVoiceId" data-type="text" placeholder="Voice / Reference ID"><input type="text" data-key="fishModel" data-type="text" value="s2.1-pro"></div>
     <label class="field wide"><span>Voz</span><select id="voice" data-key="ttsVoice" data-type="text"></select></label>
     <div class="row"><button class="act" id="preview-voice">🔊 Prévia da voz</button></div>
     <div class="note" id="tts-engine-note"></div>
@@ -94,7 +100,12 @@
       <option value="natural">Natural</option><option value="warm">Suave/Quente</option><option value="wired">Lo-Fi / The Wired</option></select></label>
     <label class="field wide"><span>Preset de voz</span><select id="voice-preset" data-key="voicePreset" data-type="text">
       <option value="">Padrão</option><option value="aghata">Aghata — Lain/Rei</option></select></label>
-    <label class="field wide"><span>Personalidade</span><select data-key="streamPersona" data-type="text">
+    <label class="field wide"><span>Personalidade</span><select id="persona-select" data-key="persona" data-type="text">
+      <option value="estoica">Estoica / Calma</option><option value="genki">Animada / Fofa</option>
+      <option value="tsundere">Orgulhosa / Afiada</option><option value="dandere">Tímida / Doce</option>
+      <option value="chuuni">Dramática / Misteriosa</option></select></label>
+    <div class="row"><button class="act" id="apply-persona-voice">Aplicar voz sugerida da personalidade</button></div>
+    <label class="field wide"><span>Personalidade da live</span><select data-key="streamPersona" data-type="text">
       <option value="padrao">Padrão (animada)</option><option value="estoica">Estóica (calma)</option></select></label>
     <label class="toggle"><input type="checkbox" data-key="ttsDucking" data-type="bool" data-default="true" checked> Ducking de áudio</label>
     <label class="toggle"><input type="checkbox" data-key="ttsVisualizer" data-type="bool" data-default="true" checked> Mostrar equalizador de voz</label>
@@ -256,10 +267,17 @@ $$('[data-key]').forEach(input => {
     const value = input.dataset.type === 'bool' ? input.checked : input.dataset.type === 'range' ? Number(input.value) : input.value;
     rpc({ cmd:'setOption', key:input.dataset.key, value });
     if (input.dataset.key === 'voicePreset' && value === 'aghata') {
-      rpc({ cmd: 'applyPatch', patch: { voicePreset: 'aghata', ttsVoice: 'pf_dora', ttsSpeed: 0.88, ttsPitch: -1, ttsFilter: 'warm', streamPersona: 'estoica' } });
+      const en = state.config?.lang === 'en';
+      const remote = ['edge','fish'].includes(state.config?.ttsEngine);
+      rpc({ cmd: 'applyPatch', patch: { voicePreset: 'aghata', ttsVoice: remote ? (en ? 'en-US-AnaNeural' : 'pt-BR-LeticiaNeural') : (en ? 'af_nicole' : 'pf_dora'), ttsSpeed: 0.88, ttsPitch: remote ? 0 : -1, ttsFilter: 'warm', streamPersona: 'estoica' } });
+    }
+    if (input.dataset.key === 'lang') {
+      if (value === 'en' && String(c.ttsVoice || '').startsWith('p')) rpc({ cmd: 'setOption', key: 'ttsVoice', value: 'af_nicole' });
+      if (value === 'pt' && String(c.ttsVoice || '').startsWith('a')) rpc({ cmd: 'setOption', key: 'ttsVoice', value: 'pf_dora' });
     }
     if (input.dataset.key === 'ttsDir') loadVoices(value);
     if (input.dataset.key === 'ttsVoice') previewVoice(value);
+    if (input.dataset.key === 'streamChatBoxVisible') rpc({ cmd: 'chatBoxVisible', value });
     if (input.dataset.key === 'ttsSpeed' || input.dataset.key === 'streamPersona') toast('Voz atualizada');
   });
 });
@@ -273,6 +291,9 @@ $$('[data-key]').forEach(input => {
 const loadVoices = (dir) => rpc({ cmd:'ttsLoadVoices', dir:dir || state.config?.ttsDir || '' });
 const previewVoice = (voice) => rpc({ cmd:'ttsPreview', voice:voice || $('#voice').value });
 $('#reload-voices').onclick = () => loadVoices($('[data-key=ttsDir]').value);
+$('#apply-persona-voice').onclick = () => rpc({ cmd: 'applyPersonaVoice' });
+$('#chatbox-reset').onclick = () => rpc({ cmd: 'chatBoxReset' });
+$('#chatbox-clear').onclick = () => rpc({ cmd: 'chatBoxClear' });
 $('#preview-voice').onclick = () => previewVoice($('#voice').value);
 function connectTwitch() {
   const channel = ($('#channel').value || '').trim().replace(/^#+/, '');
@@ -375,11 +396,24 @@ $('#modes').onclick = (e) => { const b=e.target.closest('[data-mode]'); if (b) r
 $('#toys').onclick = (e) => { const b=e.target.closest('[data-toy]'); if (b) rpc({cmd:'callToy',id:b.dataset.toy}); };
 $('#weather').onclick = (e) => { const b=e.target.closest('[data-weather]'); if (b) rpc({cmd:'weather',kind:b.dataset.weather}); };
 
+const EDGE_VOICES = {
+  pt: ['pt-BR-LeticiaNeural','pt-BR-GiovannaNeural','pt-BR-ManuelaNeural','pt-BR-FranciscaNeural','pt-BR-ThalitaMultilingualNeural'],
+  en: ['en-US-AnaNeural','en-US-JennyNeural','en-US-AriaNeural','en-US-EmmaMultilingualNeural','en-US-AvaMultilingualNeural'],
+};
 const cleanVoiceId = (s) => String(s || '').replace(/^neural:/, '').trim();
 const voiceInfo = (v) => typeof v === 'string'
   ? { id:cleanVoiceId(v), name:cleanVoiceId(v), lang:'' }
   : { id:cleanVoiceId(v.id || v.name), name:String(v.name || cleanVoiceId(v.id) || ''), lang:String(v.lang || '') };
-const voiceLang = (v) => { const i = voiceInfo(v); return (i.lang || i.id.split('_')[0]).toLowerCase(); };
+const voiceLang = (v) => {
+  const i = voiceInfo(v);
+  const raw = `${i.lang} ${i.name} ${i.id}`.toLowerCase().replace(/^neural:/, '');
+  if (/pt|portugu/.test(raw)) return 'pt';
+  if (/^en|english|united states|united kingdom/.test(raw)) return 'en';
+  const code = i.id.split('_')[0].charAt(0);
+  if (code === 'p') return 'pt';
+  if (code === 'a' || code === 'b') return 'en';
+  return '';
+};
 const voiceRank = (v) => { const l = voiceLang(v); return l === 'pt-br' ? 0 : l === 'en-us' ? 1 : 2; };
 const voiceLabel = (v) => { const i = voiceInfo(v); return `${i.name} (${i.lang || i.id})`; };
 
@@ -416,8 +450,13 @@ function render() {
       return row;
     }));
   }
-  const voices = [...(state.voices || [])].sort((a, b) =>
-    voiceRank(a) - voiceRank(b) || voiceInfo(a).name.localeCompare(voiceInfo(b).name));
+  const activeLang = c.lang === 'en' ? 'en' : 'pt';
+  const remoteEngine = ['edge','fish'].includes(c.ttsEngine);
+  $('#fish-fields').style.display = c.ttsEngine === 'fish' ? 'flex' : 'none';
+  const voices = remoteEngine
+    ? EDGE_VOICES[activeLang].map(id => ({ id, name: id, lang: activeLang }))
+    : [...(state.voices || [])].filter(v => voiceLang(v) === activeLang).sort((a, b) =>
+        voiceRank(a) - voiceRank(b) || voiceInfo(a).name.localeCompare(voiceInfo(b).name));
   const vsel = $('#voice');
   const signature = voices.map(v => voiceInfo(v).id).join('\u0000');
   if (voices.length && vsel !== document.activeElement && vsel.dataset.signature !== signature) {

@@ -4,7 +4,7 @@ import { Pet, AFFECTION_LEAVE, AFFECTION_MAX, DEBUFFS } from './behavior.js';
 import { Emoticons } from './emoticons.js';
 import { Menu, ImportDialog, ObjectsDialog, ImageDropDialog, showGameOver, prefLabel } from './ui.js';
 import { DEFAULT_OPTS } from './catalog.js';
-import { crowName } from './game.js';
+import { crowName, dollName } from './game.js';
 import { Game, ITEMS, TASTE_MOOD, TASTE_RANK, BUFF_LABELS, BUFF_ICONS, itemById, HER_BAG } from './game.js';
 import { demoLocked, demoGameLocked, shortVersion } from './edition.js';
 import { Gains } from './gains.js';
@@ -18,9 +18,10 @@ import { createDock } from './dock.js';
 import { Pomodoro } from './focus.js';
 import { Weather } from './weather.js';
 import { Trio } from './trio.js';
-import { VoiceTTS } from './tts.js';
+import { VoiceTTS, personaVoiceSuggestion } from './tts.js';
 import { TwitchChat } from './twitchchat.js';
 import { StreamAlerts } from './streamalerts.js';
+import { StreamChatBox } from './streamchatbox.js';
 import { defaultPersona, personaLine } from './persona.js';
 import './statusicons.js';
 import { baseId } from './furniture.js';
@@ -264,7 +265,10 @@ export async function startPet(files, config) {
       if (key === 'clickThrough') refreshInteractive();
       if (key === 'streamer' || key === 'streamerBg') applyStreamer();
       if (key === 'soundSeed') sound.reseed();
-      if (key === 'lang') setLang(value);
+      if (key === 'lang') {
+        setLang(value);
+        app.tts?.applyLanguage?.(value);
+      }
       save({ [key]: value });
     },
     // Apply a whole personality preset at once (saved immediately, not debounced).
@@ -475,6 +479,7 @@ export async function startPet(files, config) {
   const speech = new Speech(app);
   const speechSay = speech.say.bind(speech);
   speech.say = (text, life, ttsOpts) => {
+    app.chatBox?.push?.('pet', text);
     const r = speechSay(text, life);
     if (window.__PET_STREAMER__) {
       if (config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(text, ttsOpts);
@@ -557,6 +562,7 @@ export async function startPet(files, config) {
   app.weather = new Weather(app);
   app.trio = new Trio(app);
   app.tts = new VoiceTTS(app);
+  app.chatBox = window.__PET_STREAMER__ ? new StreamChatBox(app) : null;
   const eq = document.createElement('div');
   eq.className = 'tts-eq';
   for (let i = 0; i < 5; i++) eq.append(document.createElement('i'));
@@ -733,6 +739,8 @@ export async function startPet(files, config) {
     setTimeout(() => el.remove(), 3700);
   }
   app.loveFx = loveFx;
+  app.getDollName = () => dollName(app);
+  app.getCrowName = () => crowName(app);
   // Single entry point for Affection gains from alerts, redeems and panel actions.
   // Pet.love already applies the normal scaling/caps; game.changed() persists it
   // immediately to save-streamer.json (or save.json outside the Streamer Mode).
@@ -1860,6 +1868,8 @@ api.onTrayClick?.(() => {
   api.onStreamer((on) => {
     if (!on) {
       app.streamAlerts?.clearPins?.();
+      app.chatBox?.destroy?.();
+      app.chatBox = null;
       sound.stopSubSynthwave?.();
     }
     if (on !== !!config.streamer) app.setOption('streamer', on);
@@ -1925,6 +1935,9 @@ api.onTrayClick?.(() => {
     else if (p.type === 'skipTts' || p.type === 'ttsSkip') app.tts?.skip?.();
     else if (p.type === 'clearTts' || p.type === 'ttsClear') app.tts?.clear?.();
     else if (p.type === 'clearPins') app.streamAlerts?.clearPins?.();
+    else if (p.type === 'chatBoxVisible') app.chatBox?.setVisible?.(!!p.value);
+    else if (p.type === 'chatBoxReset') app.chatBox?.reset?.();
+    else if (p.type === 'chatBoxClear') app.chatBox?.clear?.();
     else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
     else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });
     else if (p.type === 'ttsLoadVoices') loadVoices(p.dir);
@@ -1936,6 +1949,7 @@ api.onTrayClick?.(() => {
     else if (p.type === 'brb') app.setBrb?.(p.value, p.text);
     else if (p.type === 'setOption') app.setOption?.(p.key, p.value);
     else if (p.type === 'applyPatch') app.applyConfigPatch?.(p.patch);
+    else if (p.type === 'applyPersonaVoice') app.applyConfigPatch?.(personaVoiceSuggestion(app));
     else if (p.type === 'exitStreamer') app.setOption?.('streamer', false);
     else if (p.type === 'cafune' || p.type === 'pat') {
       app.setHand?.('pat');

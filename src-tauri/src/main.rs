@@ -883,6 +883,38 @@ fn wide(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
 }
 
+// Prefers a Chromium browser in --app= mode: clean window, closable via WM_CLOSE,
+// and never a child of my-persocon.exe (so OBS Window Capture cannot pick it by mistake).
+fn find_browser_exe() -> Option<PathBuf> {
+    let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".into());
+    let pf86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| r"C:\Program Files (x86)".into());
+    let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
+    let mut candidates = vec![
+        format!(r"{pf}\Microsoft\Edge\Application\msedge.exe"),
+        format!(r"{pf86}\Microsoft\Edge\Application\msedge.exe"),
+        format!(r"{pf}\Google\Chrome\Application\chrome.exe"),
+        format!(r"{pf86}\Google\Chrome\Application\chrome.exe"),
+        format!(r"{local}\Google\Chrome\Application\chrome.exe"),
+        format!(r"{local}\BraveSoftware\Brave-Browser\Application\brave.exe"),
+        format!(r"{pf}\BraveSoftware\Brave-Browser\Application\brave.exe"),
+    ];
+    candidates.dedup();
+    candidates.into_iter().map(PathBuf::from).find(|p| p.is_file())
+}
+
+fn open_panel(url: &str) {
+    if let Some(exe) = find_browser_exe() {
+        let ok = std::process::Command::new(exe)
+            .arg(format!("--app={url}"))
+            .arg("--window-size=980,760")
+            .creation_flags(0x0800_0000)
+            .spawn()
+            .is_ok();
+        if ok { return; }
+    }
+    open_url_in_browser(url);
+}
+
 // Opens the local control panel in the user's default browser (Brave, Edge...) with no console.
 fn open_url_in_browser(url: &str) {
     let operation = wide("open");
@@ -913,7 +945,7 @@ fn ensure_streamer_control(app: &AppHandle, config: &Value) {
     if let Err(e) = stream_bridge::start(app.clone(), port, token) {
         logfile::line("ERROR", "streamer", &format!("ponte local: {e}"));
     }
-    open_url_in_browser(&format!("http://127.0.0.1:{port}/"));
+    open_panel(&format!("http://127.0.0.1:{port}/"));
 }
 
 #[tauri::command]
@@ -956,6 +988,7 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                 }
                 if !value {
                     stream_bridge::mark_closing();
+                    win32::close_windows_containing("my persocon - controle streamer");
                     let mut cfg = config.clone();
                     cfg["streamer"] = json!(false);
                     stream_bridge::set_state(json!({ "config": cfg }));
@@ -1023,6 +1056,16 @@ async fn tts_voices(dir: Option<String>) -> Result<Value, String> {
 async fn tts_speak(dir: Option<String>, text: String, voice: String, lang: String, speed: Option<f32>, blend: Option<Value>) -> Result<String, String> {
     let path = PathBuf::from(dir.filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "D:\\Program Files\\Offline TTS".into()));
     tauri::async_runtime::spawn_blocking(move || tts::speak(&path, &text, &voice, &lang, speed.unwrap_or(1.0), blend)).await.unwrap_or_else(|e| Err(e.to_string()))
+}
+
+#[tauri::command]
+async fn tts_speak_remote(engine: String, text: String, voice: String, lang: String,
+                          speed: Option<f32>, pitch_hz: Option<f32>, api_key: Option<String>,
+                          fish_voice: Option<String>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        tts::speak_remote(&engine, &text, &voice, &lang, speed.unwrap_or(1.0),
+            pitch_hz.unwrap_or(0.0), api_key.as_deref().unwrap_or(""), fish_voice.as_deref().unwrap_or(""))
+    }).await.unwrap_or_else(|e| Err(e.to_string()))
 }
 
 #[tauri::command]
@@ -1426,6 +1469,7 @@ fn main() {
             streamer_push_state,
             tts_voices,
             tts_speak,
+            tts_speak_remote,
             tts_stop,
             stream_bridge_start,
             stream_bridge_stop,
@@ -1505,6 +1549,7 @@ fn main() {
             if let tauri::RunEvent::Exit = event {
                 if STREAMER.load(Ordering::Relaxed) {
                     stream_bridge::mark_closing();
+                    win32::close_windows_containing("my persocon - controle streamer");
                 }
                 let _ = app;
             }

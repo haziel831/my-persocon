@@ -1,4 +1,6 @@
 import { PetView } from './view.js';
+import { EDGE_VOICES, filterVoicesForLang, personaVoiceSuggestion, presetForLang, VOICE_PRESETS } from './tts.js';
+import { PERSONA_IDS, personaLabel } from './persona.js';
 import { SHOP_CATEGORIES, ITEMS, STAT_LABELS, BUFF_LABELS, BUFF_ICONS, ATTRS, INFINITE_MONEY, effectText, isEdible, isConsumable, isSellable, isEternal, sellPrice, isPowerUp, hasTaste, itemById, HER_BAG } from './game.js';
 import { SKILL_DEFS, COMBAT_ARTS, skillLevel, skillMoves, skillStarted, skillXpFor } from './skills.js';
 import { SWORD_MOVES } from './swordanims.js';
@@ -1088,7 +1090,9 @@ export class Menu {
             })() : null),
             demoLocked(item.id)
               ? h('button.buy', { disabled: true }, '🔒 Versão completa')
-              : h('button.buy', { onclick: () => { this.flashItem(item.id); game.buy(item.id, n); }, disabled: !game.canBuy(item, n) }, `${price(item)}${n > 1 ? ` (×${n})` : ''}`))))
+              : game.ownsUnique?.(item)
+                ? h('span.note', {}, translate('Já possui'))
+                : h('button.buy', { onclick: () => { this.flashItem(item.id); game.buy(item.id, n); }, disabled: !game.canBuy(item, n) }, `${price(item)}${n > 1 ? ` (×${n})` : ''}`))))
       : h('div.empty', {}, h('div.empty-icon', {}, this.shopCat === 'mobilia' ? '🛋' : '✓'),
           h('div', {}, this.shopCat === 'mangas' ? 'Compre uma Estante (Mobília) para liberar os mangás.' : 'Nada novo por aqui.'));
     const qty = multi && h('div.row', {}, h('span.label', {}, 'Quantidade'),
@@ -1344,10 +1348,25 @@ export class Menu {
         ['', 'Padrão'], ['aghata', 'Aghata — Lain/Rei'],
       ], c.voicePreset || '', (v) => {
         if (v === 'aghata') {
-          app.applyConfigPatch({ voicePreset: 'aghata', ttsVoice: 'pf_dora', ttsSpeed: 0.88, ttsPitch: -1, ttsFilter: 'warm', streamPersona: 'estoica' });
+          const p = presetForLang(VOICE_PRESETS.aghata, c.lang);
+          const remote = ['edge','fish'].includes(c.ttsEngine);
+          app.applyConfigPatch({ voicePreset: 'aghata', ttsVoice: remote ? p.edgeVoice : p.voice, ttsSpeed: p.speed, ttsPitch: remote ? 0 : p.pitch, ttsFilter: p.filter, streamPersona: 'estoica' });
         } else app.setOption('voicePreset', '');
         this.render();
       })),
+      h('div.row', {}, h('span.label', {}, 'Personalidade'), segmented(
+        PERSONA_IDS.map(id => [id, personaLabel(id, c.lang)]),
+        c.persona || (c.streamPersona === 'estoica' ? 'estoica' : 'genki'),
+        (v) => { app.setOption('persona', v); this.render(); },
+      )),
+      h('div.row', {}, h('button', { onclick: () => { app.applyConfigPatch(personaVoiceSuggestion(app)); this.render(); } }, 'Aplicar voz sugerida da personalidade')),
+      h('div.row', {}, h('span.label', {}, 'Motor de voz'), segmented([
+        ['edge', 'Edge Neural'], ['fish', 'Fish Audio'], ['offline', 'Offline TTS'], ['system', 'Windows'],
+      ], c.ttsEngine || 'edge', (v) => { app.setOption('ttsEngine', v); this.render(); })),
+      c.ttsEngine === 'fish' ? h('div.row', {},
+        h('input.text', { type: 'password', placeholder: 'Fish Audio API Key', value: c.fishApiKey || '', onchange: (e) => app.setOption('fishApiKey', e.target.value) }),
+        h('input.text', { placeholder: 'Voice / Reference ID', value: c.fishVoiceId || '', onchange: (e) => app.setOption('fishVoiceId', e.target.value) }),
+      ) : null,
       toggle({ label: 'Ativar voz no jogo normal', value: c.offlineTts === true, onchange: (v) => app.setOption('offlineTts', v) }),
       toggle({ label: 'Falar em eventos importantes', value: c.offlineTtsEvents !== false, onchange: (v) => app.setOption('offlineTtsEvents', v) }),
       toggle({ label: 'Falar em interações diretas', value: c.offlineTtsInteract !== false, onchange: (v) => app.setOption('offlineTtsInteract', v) }),
@@ -1360,7 +1379,10 @@ export class Menu {
       }), h('button', { onclick: () => { app.loadOfflineVoices?.(c.ttsDir); this.render(); } }, '🔄 Carregar vozes')),
       h('div.row', {}, h('span.label', {}, 'Voz'), h('select', {
         onchange: (e) => { app.setOption('ttsVoice', e.target.value); app.tts?.preview?.('Olá... testando esta voz.', e.target.value); },
-      }, (app.offlineVoices || []).map((v) => {
+      }, (['edge', 'fish'].includes(c.ttsEngine)
+        ? (EDGE_VOICES[c.lang === 'en' ? 'en' : 'pt'] || []).map(id => ({ id, name: id, lang: c.lang }))
+        : filterVoicesForLang(app.offlineVoices || [], c.lang)
+      ).map((v) => {
         const id = typeof v === 'string' ? v.replace(/^neural:/, '') : String(v.id || v.name || '').replace(/^neural:/, '');
         const lang = typeof v === 'string' ? '' : (v.lang || '');
         return h('option', { value: id, selected: id === c.ttsVoice }, `${typeof v === 'string' ? id : (v.name || id)} (${lang || id})`);
@@ -2518,7 +2540,7 @@ export function renameDialog(current, onSave, title) {
   input.focus();
   input.select();
   setTimeout(() => {
-    const off = (e) => { if (!box.contains(e.target)) return; box.remove(); window.removeEventListener('pointerdown', off, true); };
+    const off = (e) => { if (box.contains(e.target)) return; box.remove(); window.removeEventListener('pointerdown', off, true); };
     window.addEventListener('pointerdown', off, true);
   }, 0);
 }

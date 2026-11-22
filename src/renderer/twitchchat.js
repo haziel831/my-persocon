@@ -152,6 +152,7 @@ export class TwitchChat {
         else status = (this.app.tts?.enabled && !this.app.tts?.muted && spoke === false) ? 'ignorado: cooldown' : 'ok';
       }
       this.pushLog(displayName, text, status);
+      this.app.chatBox?.push?.('chat', `${displayName}: ${text}`);
     }
   }
 

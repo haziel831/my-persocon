@@ -60,6 +60,28 @@ pub fn foreground_hwnd() -> isize {
     unsafe { GetForegroundWindow() as isize }
 }
 
+/// Closes only top-level windows whose title contains `needle` (used for the
+/// browser --app= control panel). Never touches the process, only WM_CLOSE.
+pub fn close_windows_containing(needle: &str) -> usize {
+    struct State { needle: String, found: Vec<isize> }
+    unsafe extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let state = &mut *(lparam as *mut State);
+        if IsWindowVisible(hwnd) != 0 && GetWindow(hwnd, GW_OWNER).is_null() {
+            let mut buf = [0u16; 512];
+            let n = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
+            let title = String::from_utf16_lossy(&buf[..n.max(0) as usize]).to_lowercase();
+            if title.contains(&state.needle) { state.found.push(hwnd as isize); }
+        }
+        1
+    }
+    let mut state = State { needle: needle.to_lowercase(), found: Vec::new() };
+    unsafe {
+        EnumWindows(Some(callback), &mut state as *mut State as LPARAM);
+        for h in &state.found { PostMessageW(*h as HWND, WM_CLOSE, 0, 0); }
+    }
+    state.found.len()
+}
+
 /// Cheap identifier for the foreground window: lowercase title plus window class.
 /// No path, no process enumeration — call this only when the foreground HWND changes.
 pub fn foreground_title() -> Option<String> {
