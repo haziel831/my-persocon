@@ -1948,6 +1948,7 @@ api.onTrayClick?.(() => {
       voiceLog: app.voiceLog || [],
       aiActiveProvider: app.aiStatus?.active || '',
       aiFallbackNotice: app.aiStatus?.notice || '',
+      aiLastResult: app.aiStatus?.lastResult || null,
       activeViewers: app.twitch?.activeViewers || [],
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
@@ -1966,6 +1967,14 @@ api.onTrayClick?.(() => {
   if (window.__PET_STREAMER__) loadVoices(config.ttsDir);
 
   const handledRpc = new Set();
+  function aiReport(ok, detail) {
+    app.aiStatus = {
+      active: app.aiStatus?.active || '',
+      notice: app.aiStatus?.notice || '',
+      lastResult: { id: Date.now() + Math.random(), ok: !!ok, detail: String(detail || '').slice(0, 300) },
+    };
+    pushStreamerState(true);
+  }
   function handleRpc(p) {
     if (!p || !window.__PET_STREAMER__) return;
     if (p._rid != null) {
@@ -1990,16 +1999,24 @@ api.onTrayClick?.(() => {
     else if (p.type === 'testEmote') app.streamAlerts?.showReactionEmote?.('shy');
     else if (p.type === 'panelChat') app.chatBox?.submitText?.(p.text);
     else if (p.type === 'aiTestProvider') {
-      const providers = config.aiProviders || [];
-      const one = providers[p.index];
-      const cfg = {
-        lang: config.lang || 'pt',
-        aiAutoFallback: false,
-        aiProviders: one ? [one] : providers,
-      };
+      const one = p.provider || (Array.isArray(config.aiProviders) ? config.aiProviders[p.index] : null)
+        || { name: config.aiProvider || 'Ollama', provider: config.aiProvider || 'ollama',
+             model: config.aiModel || '', endpoint: config.aiEndpoint || '', apiKey: config.aiApiKey || '', enabled: true };
+      const label = one.name || one.provider || 'IA';
+      const cfg = { lang: config.lang || 'pt', aiAutoFallback: false, aiProviders: [one] };
       api.aiReply?.('Diga oi em uma frase curta.', config.aiSystemPrompt || '', cfg)
-        .then((reply) => speech.say(String(reply?.text || (config.lang === 'en' ? 'AI failed.' : 'IA falhou.')).slice(0, 160), 3))
-        .catch?.(() => speech.say(config.lang === 'en' ? 'AI failed.' : 'IA falhou.', 3));
+        .then((reply) => {
+          const text = String(reply?.text || '').trim().slice(0, 160);
+          if (!text) throw new Error('resposta vazia');
+          app.aiStatus = { active: label, notice: reply?.fallbackNotice || '' };
+          aiReport(true, `${label}: ${text}`);
+          speech.say(text, 3);
+        })
+        .catch((err) => {
+          const detail = String(err?.message || err || 'erro').slice(0, 300);
+          aiReport(false, `${label}: ${detail}`);
+          speech.say(detail.slice(0, 90), 3);
+        });
     }
     else if (p.type === 'keywordTest') {
       const r = p.rule || {};
@@ -2008,13 +2025,28 @@ api.onTrayClick?.(() => {
     else if (p.type === 'ignoreUser') addIgnored(p.user);
     else if (p.type === 'unignoreUser') removeIgnored(p.user);
     else if (p.type === 'aiTest') {
+      const list = Array.isArray(p.providers) && p.providers.length ? p.providers
+        : (Array.isArray(config.aiProviders) ? config.aiProviders : []);
       const cfg = {
+        lang: config.lang || 'pt',
+        aiAutoFallback: p.auto === undefined ? config.aiAutoFallback !== false : !!p.auto,
+        aiProviders: list,
         aiProvider: config.aiProvider || 'ollama', aiModel: config.aiModel || '',
-        aiApiKey: config.aiApiKey || '', lang: config.lang || 'pt',
+        aiApiKey: config.aiApiKey || '', aiEndpoint: config.aiEndpoint || '',
       };
       api.aiReply?.('Oi! Este é um teste de resposta curta.', config.aiSystemPrompt || '', cfg)
-        .then((reply) => speech.say(String(reply?.text || 'IA sem resposta').slice(0, 180), 4))
-        .catch((err) => speech.say(config.lang === 'en' ? 'AI failed: no reply.' : 'IA falhou: sem resposta.', 3));
+        .then((reply) => {
+          const text = String(reply?.text || '').trim().slice(0, 180);
+          if (!text) throw new Error('resposta vazia');
+          app.aiStatus = { active: reply?.usedProvider || '', notice: reply?.fallbackNotice || '' };
+          aiReport(true, `${reply?.usedProvider || 'IA'}: ${text}`);
+          speech.say(text, 4);
+        })
+        .catch((err) => {
+          const detail = String(err?.message || err || 'erro').slice(0, 300);
+          aiReport(false, detail);
+          speech.say(detail.slice(0, 90), 3);
+        });
     }
     else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
     else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });

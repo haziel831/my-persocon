@@ -76,8 +76,11 @@ export class VoiceInput {
     const c = this.app.config;
     if (c.aiEnabled === true) {
       const cfg = {
+        lang: c.lang || 'pt',
+        aiProviders: Array.isArray(c.aiProviders) ? c.aiProviders : [],
+        aiAutoFallback: c.aiAutoFallback !== false,
         aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
-        aiApiKey: c.aiApiKey || '', lang: c.lang || 'pt',
+        aiApiKey: c.aiApiKey || '', aiEndpoint: c.aiEndpoint || '',
       };
       const prompt = `${c.lang === 'en' ? 'The streamer said' : 'O dono do canal disse'}: ${said}`;
       window.petAPI?.aiReply?.(prompt, c.aiSystemPrompt || '', cfg)

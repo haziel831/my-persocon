@@ -109,8 +109,11 @@ export class StreamChatBox {
     };
     if (c.aiEnabled !== true) { fallback(); return; }
     const cfg = {
+      lang: c.lang || 'pt',
+      aiProviders: Array.isArray(c.aiProviders) ? c.aiProviders : [],
+      aiAutoFallback: c.aiAutoFallback !== false,
       aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
-      aiApiKey: c.aiApiKey || '', lang: c.lang || 'pt',
+      aiApiKey: c.aiApiKey || '', aiEndpoint: c.aiEndpoint || '',
     };
     const prompt = `${c.lang === 'en' ? 'The streamer said' : 'O dono do canal disse'}: ${text}`;
     window.petAPI?.aiReply?.(prompt, c.aiSystemPrompt || aiBackground(app), cfg)

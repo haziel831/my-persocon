@@ -995,20 +995,37 @@ fn list_open_windows() -> Result<Vec<Value>, String> {
 #[tauri::command]
 async fn ai_reply(prompt: String, system_prompt: String, config: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let lang = config.get("lang").and_then(Value::as_str).unwrap_or("pt").to_string();
+        let pick = |keys: &[&str]| -> String {
+            for key in keys {
+                if let Some(s) = config.get(*key).and_then(Value::as_str) {
+                    let t = s.trim();
+                    if !t.is_empty() { return t.to_string(); }
+                }
+            }
+            String::new()
+        };
+        let lang = pick(&["lang", "language"]);
+        let lang = if lang.is_empty() { "pt".to_string() } else { lang };
         let system = if system_prompt.trim().is_empty() {
             "You are the Persocon, a gentle anime-style desktop companion living on a streamer's desktop.".to_string()
         } else { system_prompt };
         let providers: Vec<Value> = match config.get("aiProviders").and_then(Value::as_array) {
             Some(list) if !list.is_empty() => list.clone(),
-            _ => vec![json!({
-                "name": config.get("aiProvider").and_then(Value::as_str).unwrap_or("Ollama"),
-                "provider": config.get("aiProvider").and_then(Value::as_str).unwrap_or("ollama"),
-                "model": config.get("aiModel").and_then(Value::as_str).unwrap_or(""),
-                "endpoint": config.get("aiEndpoint").and_then(Value::as_str).unwrap_or(""),
-                "apiKey": config.get("aiApiKey").and_then(Value::as_str).unwrap_or(""),
-                "enabled": true,
-            })],
+            _ => {
+                let legacy = pick(&["aiProvider", "provider", "type"]);
+                let key = pick(&["aiApiKey", "apiKey", "api_key"]);
+                let endpoint = pick(&["aiEndpoint", "aiUrl", "endpoint", "url"]);
+                vec![json!({
+                    "name": if legacy.is_empty() { "Ollama" } else { &legacy },
+                    "provider": if legacy.is_empty() { "ollama" } else { &legacy },
+                    "model": pick(&["aiModel", "model"]),
+                    "endpoint": &endpoint,
+                    "url": &endpoint,
+                    "apiKey": &key,
+                    "api_key": &key,
+                    "enabled": true,
+                })]
+            }
         };
         let auto = config.get("aiAutoFallback").and_then(Value::as_bool).unwrap_or(true);
         ai_chat::reply_chain(&providers, &system, &prompt, &lang, auto)

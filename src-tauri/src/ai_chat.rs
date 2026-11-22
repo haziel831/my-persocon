@@ -2,140 +2,414 @@
 // are needed; keys stay in the local config and are never written to the repo.
 use serde_json::{json, Value};
 use std::fs;
-use std::process::Command;
 use std::os::windows::process::CommandExt;
+use std::process::Command;
 
 const NO_WINDOW: u32 = 0x0800_0000;
 
-fn curl_json(url: &str, headers: &[String], body: &Value) -> Result<Value, String> {
+/// First non-empty trimmed value among the accepted aliases.
+fn field(entry: &Value, keys: &[&str]) -> String {
+    for key in keys {
+        if let Some(v) = entry.get(*key) {
+            if let Some(s) = v.as_str() {
+                let t = s.trim();
+                if !t.is_empty() {
+                    return t.to_string();
+                }
+            }
+        }
+    }
+    String::new()
+}
+
+/// Never echo an API key (or a `key=` query value) back to the UI/logs.
+fn sanitize(raw: &str, secrets: &[&str]) -> String {
+    let mut out = raw.to_string();
+    for secret in secrets {
+        let s = secret.trim();
+        if s.len() >= 6 {
+            out = out.replace(s, "***");
+        }
+    }
+    let lower = out.to_ascii_lowercase();
+    let mut result = String::new();
+    let mut pos = 0;
+    while let Some(rel) = lower[pos..].find("key=") {
+        let i = pos + rel;
+        result.push_str(&out[pos..i]);
+        let start = i + 4;
+        let end = out[start..]
+            .find(|c: char| c == '&' || c == '"' || c == '\'' || c.is_whitespace())
+            .map(|n| start + n)
+            .unwrap_or(out.len());
+        result.push_str("key=***");
+        pos = end;
+    }
+    result.push_str(&out[pos..]);
+    result.chars().take(400).collect()
+}
+
+fn curl_json(url: &str, headers: &[String], body: &Value, secrets: &[&str]) -> Result<(Value, String), String> {
     let dir = std::env::temp_dir();
-    let file = dir.join(format!("persocon-ai-{}-{}.json", std::process::id(), std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos() % 1_000_000));
+    let file = dir.join(format!(
+        "persocon-ai-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+            % 1_000_000
+    ));
     fs::write(&file, serde_json::to_vec(body).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let mut cmd = Command::new("curl.exe");
-    cmd.arg("-sS").arg("--max-time").arg("10").arg("-X").arg("POST")
-        .arg("-H").arg("Content-Type: application/json");
-    for h in headers { cmd.arg("-H").arg(h); }
-    cmd.arg("--data-binary").arg(format!("@{}", file.to_string_lossy()))
-        .arg("-w").arg("\n%{http_code}")
+    cmd.arg("-sS")
+        .arg("--max-time")
+        .arg("20")
+        .arg("-X")
+        .arg("POST")
+        .arg("-H")
+        .arg("Content-Type: application/json");
+    for h in headers {
+        cmd.arg("-H").arg(h);
+    }
+    cmd.arg("--data-binary")
+        .arg(format!("@{}", file.to_string_lossy()))
+        .arg("-w")
+        .arg("\n%{http_code}")
         .arg(url)
         .creation_flags(NO_WINDOW);
     let out = cmd.output();
     let _ = fs::remove_file(&file);
-    let out = out.map_err(|e| e.to_string())?;
+    let out = out.map_err(|e| format!("erro ao executar curl (rede/TLS): {e}"))?;
     let raw = String::from_utf8_lossy(&out.stdout);
-    let (body, status) = match raw.rfind('\n') {
+    let (body_text, status) = match raw.rfind('\n') {
         Some(i) => (raw[..i].trim(), raw[i + 1..].trim()),
         None => (raw.trim(), "?"),
     };
-    let detail = |s: &str| {
-        let mut d = if s.is_empty() { String::from("sem detalhe da API") } else { s.to_string() };
-        if let Some(i) = d.find("key=") {
-            let end = d[i + 4..].find('&').map(|n| i + 4 + n).unwrap_or(d.len());
-            d.replace_range(i + 4..end, "***");
-        }
-        format!("HTTP {status}: {d}")
-    };
-    if !out.status.success() || (status != "200" && status != "?") {
-        return Err(detail(&String::from_utf8_lossy(&out.stderr)));
+    if !out.status.success() {
+        let err = sanitize(&String::from_utf8_lossy(&out.stderr), secrets);
+        return Err(format!("erro de rede/TLS ({status}): {err}"));
     }
-    serde_json::from_str::<Value>(body).map_err(|_| detail(body))
+    let code = status.parse::<u16>().unwrap_or(0);
+    if code == 0 || !(200..300).contains(&code) {
+        let source = if body_text.is_empty() {
+            String::from_utf8_lossy(&out.stderr)
+        } else {
+            body_text.into()
+        };
+        return Err(format!("HTTP {status}: {}", sanitize(&source, secrets)));
+    }
+    match serde_json::from_str::<Value>(body_text) {
+        Ok(v) => Ok((v, status.to_string())),
+        Err(e) => Err(format!(
+            "HTTP {status}: resposta inválida ({e}): {}",
+            sanitize(body_text, secrets)
+        )),
+    }
 }
 
-fn text_of(v: &Value, provider: &str) -> Option<String> {
-    let text = match provider {
-        "ollama" => v.get("message")?.get("content")?.as_str()?.to_string(),
-        "gemini" => v.get("candidates")?.get(0)?.get("content")?.get("parts")?.get(0)?.get("text")?.as_str()?.to_string(),
-        _ => v.get("choices")?.get(0)?.get("message")?.get("content")?.as_str()?.to_string(),
+/// Accepts base URLs and full URLs without ever duplicating `/chat/completions`.
+fn endpoint_for(kind: &str, brand: &str, endpoint: &str, model: &str) -> Result<String, String> {
+    let ep = endpoint.trim().trim_end_matches('/').to_string();
+    match kind {
+        "ollama" => {
+            if ep.is_empty() {
+                Ok("http://127.0.0.1:11434/api/chat".into())
+            } else if ep.ends_with("/api/chat") {
+                Ok(ep)
+            } else {
+                Ok(format!("{ep}/api/chat"))
+            }
+        }
+        "gemini" => {
+            let base = if ep.is_empty() {
+                "https://generativelanguage.googleapis.com/v1beta".to_string()
+            } else {
+                ep
+            };
+            if base.contains(":generateContent") {
+                Ok(base)
+            } else if base.ends_with("/models") {
+                Ok(format!("{base}/{model}:generateContent"))
+            } else if base.ends_with("/v1beta") {
+                Ok(format!("{base}/models/{model}:generateContent"))
+            } else {
+                Ok(format!("{base}/v1beta/models/{model}:generateContent"))
+            }
+        }
+        _ => {
+            let known = if brand.contains("groq") {
+                Some("https://api.groq.com/openai/v1/chat/completions")
+            } else if brand.contains("openrouter") {
+                Some("https://openrouter.ai/api/v1/chat/completions")
+            } else if brand.contains("cerebras") {
+                Some("https://api.cerebras.ai/v1/chat/completions")
+            } else if brand.contains("mistral") {
+                Some("https://api.mistral.ai/v1/chat/completions")
+            } else {
+                None
+            };
+            if ep.is_empty() {
+                if let Some(url) = known {
+                    Ok(url.into())
+                } else if brand.contains("openai") || brand.is_empty() {
+                    Ok("https://api.openai.com/v1/chat/completions".into())
+                } else {
+                    Err("Endpoint obrigatório (ex.: https://api.groq.com/openai/v1)".into())
+                }
+            } else if ep.ends_with("/chat/completions") {
+                Ok(ep)
+            } else {
+                Ok(format!("{ep}/chat/completions"))
+            }
+        }
+    }
+}
+
+fn openai_text(v: &Value) -> Option<String> {
+    if let Some(choices) = v.get("choices").and_then(Value::as_array) {
+        for choice in choices {
+            let msg = match choice.get("message") {
+                Some(m) => m,
+                None => continue,
+            };
+            for key in ["content", "reasoning_content", "reasoning", "text"] {
+                if let Some(s) = msg.get(key).and_then(Value::as_str) {
+                    if !s.trim().is_empty() {
+                        return Some(s.to_string());
+                    }
+                }
+            }
+            if let Some(parts) = msg.get("content").and_then(Value::as_array) {
+                let mut joined = String::new();
+                for part in parts {
+                    if let Some(t) = part.get("text").and_then(Value::as_str) {
+                        joined.push_str(t);
+                        joined.push(' ');
+                    }
+                }
+                if !joined.trim().is_empty() {
+                    return Some(joined);
+                }
+            }
+        }
+    }
+    for key in ["output_text", "response"] {
+        if let Some(s) = v.get(key).and_then(Value::as_str) {
+            if !s.trim().is_empty() {
+                return Some(s.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn text_of(v: &Value, kind: &str) -> Option<String> {
+    let raw = match kind {
+        "gemini" => {
+            let mut joined = String::new();
+            if let Some(list) = v.get("candidates").and_then(Value::as_array) {
+                for candidate in list {
+                    if let Some(parts) = candidate
+                        .get("content")
+                        .and_then(|c| c.get("parts"))
+                        .and_then(Value::as_array)
+                    {
+                        for part in parts {
+                            if let Some(t) = part.get("text").and_then(Value::as_str) {
+                                joined.push_str(t);
+                                joined.push(' ');
+                            }
+                        }
+                    }
+                }
+            }
+            joined
+        }
+        "ollama" => v
+            .get("message")
+            .and_then(|m| m.get("content"))
+            .and_then(Value::as_str)
+            .or_else(|| v.get("response").and_then(Value::as_str))
+            .unwrap_or("")
+            .to_string(),
+        _ => openai_text(v).unwrap_or_default(),
     };
-    let clean = text.trim().replace(['\n', '\r'], " ");
+    let clean = raw.trim().replace(['\n', '\r'], " ");
+    let clean = clean.split_whitespace().collect::<Vec<_>>().join(" ");
     let clean = clean.chars().take(180).collect::<String>();
     if clean.is_empty() { None } else { Some(clean) }
 }
 
-fn need_text(v: &Value, provider: &str) -> Result<String, String> {
-    text_of(v, provider).ok_or_else(|| {
-        let snippet = serde_json::to_string(v).unwrap_or_default();
-        format!("resposta vazia ou inesperada: {}", &snippet[..snippet.len().min(180)])
-    })
+fn need_text(v: &Value, kind: &str, status: &str, secrets: &[&str]) -> Result<String, String> {
+    if let Some(text) = text_of(v, kind) {
+        return Ok(text);
+    }
+    let mut hint = String::new();
+    if let Some(msg) = v.get("error").and_then(|e| e.get("message")).and_then(Value::as_str) {
+        hint = msg.to_string();
+    }
+    if hint.is_empty() {
+        if let Some(first) = v.get("candidates").and_then(Value::as_array).and_then(|a| a.first()) {
+            if let Some(reason) = first.get("finishReason").and_then(Value::as_str) {
+                hint = format!("finishReason={reason}");
+            }
+        }
+    }
+    if hint.is_empty() {
+        if let Some(reason) = v.get("promptFeedback").and_then(|f| f.get("blockReason")).and_then(Value::as_str) {
+            hint = format!("blockReason={reason}");
+        }
+    }
+    if hint.is_empty() {
+        if openai_text(v).is_none() && v.get("choices").is_some() {
+            hint = "content vazio (modelo reasoning?)".into();
+        }
+    }
+    let snippet = serde_json::to_string(v).unwrap_or_default();
+    let extra = if hint.is_empty() { String::new() } else { format!(" ({hint})") };
+    Err(format!(
+        "HTTP {status}: resposta vazia/inesperada{extra}: {}",
+        sanitize(&snippet, secrets)
+    ))
 }
 
 fn reply_one(entry: &Value, system: &str, prompt: &str, lang: &str) -> Result<String, String> {
+    let name = field(entry, &["name", "id", "label"]);
+    let raw_provider = field(entry, &["provider", "type", "engine"]);
+    let brand = format!("{name} {raw_provider}").to_ascii_lowercase();
+    let kind = if brand.contains("gemini") || brand.contains("google") || brand.contains("ai studio") {
+        "gemini"
+    } else if brand.contains("ollama") || brand.contains("local") {
+        "ollama"
+    } else if raw_provider == "gemini" {
+        "gemini"
+    } else if raw_provider == "ollama" {
+        "ollama"
+    } else {
+        "openai"
+    };
+    let model = field(entry, &["model", "modelName"]);
+    let endpoint = field(entry, &["endpoint", "url", "baseUrl", "apiUrl"]);
+    let api_key = field(entry, &["apiKey", "api_key", "key", "token"]);
+    let secrets = [api_key.as_str()];
+    let model = if model.is_empty() {
+        match kind {
+            "gemini" => "gemini-2.0-flash".to_string(),
+            "ollama" => "llama3.2".to_string(),
+            _ => "gpt-4o-mini".to_string(),
+        }
+    } else {
+        model
+    };
+    let url = endpoint_for(kind, &brand, &endpoint, &model)?;
+
     let language = if lang == "en" { "English" } else { "Portuguese (Brazil)" };
     let system = format!("{system}\nReply in {language} with 1 or 2 short sentences (max 180 characters). Be kind, safe for a Twitch stream, stay in character. Never mention being an AI.");
-    let provider = entry.get("provider").and_then(Value::as_str).unwrap_or("ollama");
-    let model = entry.get("model").and_then(Value::as_str).unwrap_or("").trim().to_string();
-    let endpoint = entry.get("endpoint").and_then(Value::as_str).unwrap_or("").trim().to_string();
-    let api_key = entry.get("apiKey").and_then(Value::as_str).unwrap_or("");
-    match provider {
+
+    let (value, status) = match kind {
         "ollama" => {
-            let url: String = if endpoint.is_empty() { "http://127.0.0.1:11434/api/chat".to_string() } else { endpoint.clone() };
             let body = json!({
-                "model": if model.is_empty() { "llama3.2".to_string() } else { model.clone() },
+                "model": model,
                 "stream": false,
                 "messages": [{ "role": "system", "content": system }, { "role": "user", "content": prompt }],
                 "options": { "num_predict": 80 }
             });
-            need_text(&curl_json(&url, &[], &body)?, "ollama")
+            curl_json(&url, &[], &body, &secrets)?
         }
         "gemini" => {
-            if api_key.is_empty() { return Err("sem API key".into()); }
-            let model: String = if model.is_empty() { "gemini-2.0-flash".to_string() } else { model.clone() };
-            let url: String = if endpoint.is_empty() {
-                format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}")
-            } else { format!("{endpoint}?key={api_key}") };
+            if api_key.is_empty() {
+                return Err("sem API key (Gemini)".into());
+            }
+            let headers = vec![format!("x-goog-api-key: {api_key}")];
             let body = json!({
                 "contents": [{ "parts": [{ "text": format!("{system}\n\n{prompt}") }] }],
-                "generationConfig": { "maxOutputTokens": 80 }
+                "generationConfig": { "maxOutputTokens": 120 }
             });
-            need_text(&curl_json(&url, &[], &body)?, "gemini")
+            curl_json(&url, &headers, &body, &secrets)?
         }
         _ => {
-            if api_key.is_empty() { return Err("sem API key".into()); }
-            let url: String = if endpoint.is_empty() { "https://api.openai.com/v1/chat/completions".to_string() } else { endpoint };
-            let headers = vec![format!("Authorization: Bearer {api_key}")];
-            let body = json!({
-                "model": if model.is_empty() { "gpt-4o-mini".to_string() } else { model.clone() },
-                "max_tokens": 80,
+            if api_key.is_empty() {
+                return Err("sem API key".into());
+            }
+            let mut headers = vec![format!("Authorization: Bearer {api_key}")];
+            if brand.contains("openrouter") {
+                let referer = field(entry, &["httpReferer", "referer"]);
+                let title = field(entry, &["xTitle", "title"]);
+                headers.push(format!(
+                    "HTTP-Referer: {}",
+                    if referer.is_empty() { "https://github.com/haziel831/my-persocon" } else { &referer }
+                ));
+                headers.push(format!("X-Title: {}", if title.is_empty() { "My Persocon" } else { &title }));
+            }
+            let reasoning = brand.contains("gpt-oss") || brand.contains("reasoning")
+                || model.contains("gpt-oss") || model.starts_with("o1") || model.starts_with("o3");
+            let mut body = json!({
+                "model": model,
                 "messages": [{ "role": "system", "content": system }, { "role": "user", "content": prompt }]
             });
-            need_text(&curl_json(&url, &headers, &body)?, "openai")
+            if reasoning {
+                body["max_completion_tokens"] = json!(160);
+            } else {
+                body["max_tokens"] = json!(120);
+            }
+            curl_json(&url, &headers, &body, &secrets)?
         }
-    }
+    };
+    need_text(&value, kind, &status, &secrets)
 }
 
 fn is_quota_error(err: &str) -> bool {
     let e = err.to_ascii_lowercase();
-    e.contains("402") || e.contains("429") || e.contains("quota") || e.contains("rate_limit")
-        || e.contains("insufficient") || e.contains("resource_exhausted") || e.contains("credit")
-        || e.contains("limit")
+    e.contains("http 402")
+        || e.contains("http 429")
+        || e.contains("http 5")
+        || e.contains("quota")
+        || e.contains("rate_limit")
+        || e.contains("rate limit")
+        || e.contains("insufficient")
+        || e.contains("resource_exhausted")
+        || e.contains("exhausted")
+        || e.contains("credit")
+        || e.contains("overloaded")
+        || e.contains("temporarily")
+        || e.contains("free tier")
 }
 
 /// Tries every enabled provider in order; reports which one answered and why others failed.
 pub fn reply_chain(providers: &[Value], system: &str, prompt: &str, lang: &str, auto: bool) -> Result<Value, String> {
     let mut errors: Vec<String> = Vec::new();
-    let mut notice = String::new();
+    let mut notices: Vec<String> = Vec::new();
     for entry in providers.iter().filter(|p| p.get("enabled").and_then(Value::as_bool).unwrap_or(true)) {
-        let name = entry.get("name").and_then(Value::as_str).unwrap_or("IA").to_string();
+        let name = field(entry, &["name", "id", "label"]);
+        let display = if name.is_empty() {
+            field(entry, &["provider", "type"]).to_ascii_uppercase()
+        } else {
+            name
+        };
         match reply_one(entry, system, prompt, lang) {
             Ok(text) => {
                 return Ok(json!({
                     "text": text,
-                    "usedProvider": name,
-                    "fallbackNotice": notice,
+                    "usedProvider": display,
+                    "fallbackNotice": notices.join(" · "),
                     "errors": errors,
                 }));
             }
             Err(err) => {
-                errors.push(format!("{name}: {err}"));
                 if is_quota_error(&err) {
-                    notice = format!("{name} sem tokens/cota — tentando o próximo");
+                    notices.push(format!("{display} sem tokens/cota — alternado"));
                 }
-                if !auto { break; }
+                errors.push(format!("{display}: {err}"));
+                if !auto {
+                    break;
+                }
             }
         }
     }
-    Err(if errors.is_empty() { "nenhum provedor ativo".into() } else { errors.join(" | ") })
+    Err(if errors.is_empty() {
+        "nenhum provedor ativo".into()
+    } else {
+        errors.join(" | ")
+    })
 }
-
-

@@ -205,8 +205,11 @@ export class TwitchChat {
     this.aiBusy = true;
     this.app.chatBox?.push?.('chat', `${user}: ${text}`);
     const cfg = {
+      lang: c.lang || 'pt',
+      aiProviders: Array.isArray(c.aiProviders) ? c.aiProviders : [],
+      aiAutoFallback: c.aiAutoFallback !== false,
       aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
-      aiApiKey: c.aiApiKey || '', lang: c.lang || 'pt',
+      aiApiKey: c.aiApiKey || '', aiEndpoint: c.aiEndpoint || '',
     };
     window.petAPI?.aiReply?.(text, c.aiSystemPrompt || '', cfg).then((reply) => {
       const out = String(reply?.text || '').trim();
@@ -217,9 +220,8 @@ export class TwitchChat {
       this.app.speech?.say(out, 4, { source: 'viewer' });
       this.pushLog(user, out, 'IA: ok');
     }).catch((err) => {
-      const msg = String(err?.message || err || 'erro').slice(0, 80);
-      const hint = !c.aiApiKey && c.aiProvider !== 'ollama' ? ' (sem API key)' : (!c.aiModel ? ' (sem modelo)' : '');
-      this.pushLog(user, msg + hint, 'IA: erro');
+      const msg = String(err?.message || err || 'erro').slice(0, 180);
+      this.pushLog(user, msg, 'IA: erro');
     }).finally(() => { this.aiBusy = false; });
     return true;
   }

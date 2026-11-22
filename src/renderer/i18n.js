@@ -337,6 +337,8 @@ const EN = {
   'Presets carregados e salvos': 'Presets loaded and saved',
   'IA: respondendo...': 'AI: replying...', 'IA: ok': 'AI: ok', 'IA: erro': 'AI: error',
   'IA falhou: sem resposta.': 'AI failed: no reply.',
+  'IA OK:': 'AI OK:', 'Erro IA:': 'AI error:', 'IA OK · ': 'AI OK · ', 'Falha IA · ': 'AI failure · ',
+  'Testando ': 'Testing ', 'Ativa:': 'Active:', 'Ativada': 'Enabled', 'Descer': 'Move down', 'Subir': 'Move up',
   'Não ler nomes dos viewers': 'Do not read viewer names', 'Recolher tudo': 'Collapse all', 'Expandir tudo': 'Expand all',
   'IAs & Chaves API': 'AIs & API keys', 'Trocar automaticamente para a próxima IA quando os tokens acabarem': 'Automatically switch to the next AI when tokens run out',
   '+ Adicionar IA': '+ Add AI', 'Salvar IAs': 'Save AIs', 'Restaurar padrão': 'Restore default', 'IAs salvas': 'AIs saved',

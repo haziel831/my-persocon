@@ -29,8 +29,11 @@ window.petAPI = {
   streamerTakeRpc: () => invoke('streamer_take_rpc'),
   openStreamerPanel: (mode) => invoke('open_streamer_panel', { mode }),
   listOpenWindows: () => invoke('list_open_windows'),
-  aiReply: (prompt, systemPrompt, config) => invoke('ai_reply', { prompt, systemPrompt, config }).then((r) =>
-    typeof r === 'string' ? { text: r, usedProvider: '', fallbackNotice: '', errors: [] } : (r || {})),
+  aiReply: (prompt, systemPrompt, config) => invoke('ai_reply', { prompt, systemPrompt, config })
+    .then((r) => typeof r === 'string'
+      ? { text: r, usedProvider: '', fallbackNotice: '', errors: [] }
+      : (r || {}))
+    .catch((e) => { throw new Error(String(e?.message || e || 'erro de IA')); }),
   onPttStart: (cb) => listen('ptt-start', () => cb()),
   onPttStop: (cb) => listen('ptt-stop', () => cb()),
   ttsVoices: (dir) => invoke('tts_voices', { dir }),
