@@ -1,6 +1,10 @@
 // Exposes the host API (Tauri commands/events) to the rest of the renderer.
+import { STREAM } from './edition.js';
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
+// The plain 2.0 edition has no Streamer/Twitch/AI/PTT features: these calls stay inert.
+const streamInvoke = (cmd, args) => STREAM ? invoke(cmd, args) : Promise.resolve(undefined);
+const streamListen = (evt, cb) => STREAM ? listen(evt, cb) : Promise.resolve(() => {});
 
 window.petAPI = {
   getConfig: () => invoke('get_config'),
@@ -21,30 +25,32 @@ window.petAPI = {
   importModel: ({ path, name, texture, petHeight }) => invoke('import_model', { path, name, texture, petHeight }),
   setInteractive: (value) => invoke('set_interactive', { value }),
   passClick: () => invoke('pass_click'),
-  setStreamer: (value) => invoke('set_streamer', { value }),
-  openStreamerControl: () => invoke('open_streamer_control'),
-  streamerRpc: (target, payload) => invoke('streamer_rpc', { target, payload }),
-  onStreamerRpc: (cb) => listen('streamer-rpc', (e) => cb(e.payload)),
-  streamerPushState: (state) => invoke('streamer_push_state', { state }),
-  streamerTakeRpc: () => invoke('streamer_take_rpc'),
-  openStreamerPanel: (mode) => invoke('open_streamer_panel', { mode }),
+  setStreamer: (value) => streamInvoke('set_streamer', { value }),
+  openStreamerControl: () => streamInvoke('open_streamer_control'),
+  streamerRpc: (target, payload) => streamInvoke('streamer_rpc', { target, payload }),
+  onStreamerRpc: (cb) => streamListen('streamer-rpc', (e) => cb(e.payload)),
+  streamerPushState: (state) => streamInvoke('streamer_push_state', { state }),
+  streamerTakeRpc: () => STREAM ? invoke('streamer_take_rpc') : Promise.resolve([]),
+  openStreamerPanel: (mode) => streamInvoke('open_streamer_panel', { mode }),
   listOpenWindows: () => invoke('list_open_windows'),
-  aiReply: (prompt, systemPrompt, config) => invoke('ai_reply', { prompt, systemPrompt, config })
-    .then((r) => typeof r === 'string'
-      ? { text: r, usedProvider: '', fallbackNotice: '', errors: [] }
-      : (r || {}))
-    .catch((e) => { throw new Error(String(e?.message || e || 'erro de IA')); }),
-  onPttStart: (cb) => listen('ptt-start', () => cb()),
-  onPttStop: (cb) => listen('ptt-stop', () => cb()),
+  aiReply: (prompt, systemPrompt, config) => !STREAM
+    ? Promise.resolve({ text: '', usedProvider: '', fallbackNotice: '', errors: [] })
+    : invoke('ai_reply', { prompt, systemPrompt, config })
+        .then((r) => typeof r === 'string'
+          ? { text: r, usedProvider: '', fallbackNotice: '', errors: [] }
+          : (r || {}))
+        .catch((e) => { throw new Error(String(e?.message || e || 'erro de IA')); }),
+  onPttStart: (cb) => streamListen('ptt-start', () => cb()),
+  onPttStop: (cb) => streamListen('ptt-stop', () => cb()),
   ttsVoices: (dir) => invoke('tts_voices', { dir }),
   ttsSpeak: (dir, text, voice, lang, speed, blend) => invoke('tts_speak', { dir, text, voice, lang, speed, blend }),
   ttsQuota: () => invoke('tts_quota'),
   ttsSpeakRemote: (engine, text, voice, lang, speed, pitchHz, apiKey, fishVoice) => invoke('tts_speak_remote', { engine, text, voice, lang, speed, pitchHz, apiKey, fishVoice }),
   ttsStop: () => invoke('tts_stop'),
-  streamBridgeStart: (port, token) => invoke('stream_bridge_start', { port, token }),
-  streamBridgeStop: () => invoke('stream_bridge_stop'),
-  onStreamEvent: (cb) => listen('stream-event', (e) => cb(e.payload)),
-  onStreamer: (cb) => listen('streamer', (e) => cb(!!e.payload)),
+  streamBridgeStart: (port, token) => streamInvoke('stream_bridge_start', { port, token }),
+  streamBridgeStop: () => streamInvoke('stream_bridge_stop'),
+  onStreamEvent: (cb) => streamListen('stream-event', (e) => cb(e.payload)),
+  onStreamer: (cb) => streamListen('streamer', (e) => cb(!!e.payload)),
   onClickThrough: (cb) => listen('click-through', () => cb()),
   onTrayClick: (cb) => listen('tray_click', () => cb()),
   desktopIcons: () => invoke('desktop_icons'),

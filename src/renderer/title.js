@@ -2,7 +2,7 @@
 // then the game name and the menu (Continue / New game / Options / Tutorial / Credits / Quit).
 import { textFor } from './introtext.js';
 import { Music } from './music.js';
-import { editionLabel } from './edition.js';
+import { editionLabel, STREAM } from './edition.js';
 import { translate } from './i18n.js';
 import { confirmStreamer } from './streamerconfirm.js';
 
@@ -303,7 +303,7 @@ export class TitleScreen {
     const items = [
       ['continue', T.menu.continue, () => this.close(this.onContinue), !this.canContinue],
       ['new', T.menu.newGame, () => this.newGame()],
-      ['streamer', T.menu.streamer, () => this.startStreamer()],
+      ...(STREAM ? [['streamer', T.menu.streamer, () => this.startStreamer()]] : []),
       ['options', T.menu.options, () => this.app.openOptions?.()],
       ['tutorial', T.menu.tutorial, () => this.pages(T.tutorialTitle, T.tutorial)],
       ['credits', T.menu.credits, () => this.credits()],
@@ -326,6 +326,10 @@ export class TitleScreen {
   }
 
   refreshModeBadge() {
+    if (!STREAM) {
+      if (this.modeBadge) this.modeBadge.hidden = true;
+      return;
+    }
     const on = !!(window.__PET_STREAMER__ || this.app.config.streamer);
     if (this._mode === on) return;
     const first = this._mode === undefined;

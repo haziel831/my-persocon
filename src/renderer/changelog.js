@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['2.0', [
+    ['Duas edições: My Persocon 2.0 (jogo puro, sem Modo Streamer/Twitch/IA) e My Persocon 2.0 BETA (com todos os recursos de live)', 'Two editions: My Persocon 2.0 (pure game, no Streamer Mode/Twitch/AI) and My Persocon 2.0 BETA (with all streaming features)'],
+    ['Skins com menus guiados, Base vs Upgrade, Idle vs Em uso e GIFs com todos os frames', 'Guided skin menus, Base vs Upgrade, Idle vs In use, and GIFs with every frame'],
+    ['Música nova da intro (Mysterious Synthwave), afeição limitada a 100 até o Cartucho Negro e correções gerais', 'New intro music (Mysterious Synthwave), affection capped at 100 until the Black Cartridge, and general fixes'],
+  ]],
   ['1.9.40', [
     ['Modo Streamer completo: save isolado, janela de controle no 2º monitor, fundo chroma key, palco limpo e ajustes de moedas e itens que caem do céu', 'Full Streamer Mode: isolated save, control window on the second monitor, chroma key background, clean stage and channel coins/sky drops'],
     ['Voz Kokoro offline com fila, lip-sync, filtros de texto, dicionário de pronúncia, ducking e personalidade estóica da Aghata', 'Offline Kokoro voice with a queue, lip sync, text filters, pronunciation dictionary, ducking and Aghata’s stoic persona'],

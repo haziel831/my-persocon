@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v2.0 — 22/11/2026
+**Duas edições, um mesmo código.** `My Persocon 2.0` — jogo completo **sem** Modo Streamer, Twitch, IA ou Push-to-Talk. `My Persocon 2.0 BETA` — jogo completo **com** todos os recursos de live (Stream Control no navegador, failover de IAs, chat da Twitch, Pontos do Canal, PTT). Cada edição gera sua própria pasta em `dist\` e seu próprio `.exe`.
+
 ## v1.9.41 — 21/11/2026
 **Correções no Modo Streamer e Painel do Navegador.** RPC da ponte local (`POST /rpc`) alinhado entre `stream_control.html`, `stream_bridge.rs` e `pet.js` para moedas, queda do céu, alertas de teste, skip/clear de TTS e Pontos do Canal. **Pontos do Canal:** botão "Carregar presets sugeridos" salva imediatamente via RPC e atualiza o `<select>` com `Nome (acao)` sem ser sobrescrito pelo polling. **Alertas:** botões de teste (`Follow`, `Sub`, `Raid`, `Bits`) funcionando com opção "Frases aleatórias de agradecimento e efeitos" (banco variado PT/EN para Aghata e Ninna, partículas de coração, chuva de moedas/confete e show Synthwave). **Chat da Twitch:** parser IRCv3 e `PONG` corrigidos, `broadcaster` sempre permitido, respostas de palavras-chave/comandos enviadas ao TTS, padrões de cooldown `5s`/`15s` e mini log ao vivo das últimas 5 mensagens no painel.
 

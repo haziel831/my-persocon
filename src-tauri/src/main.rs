@@ -99,6 +99,8 @@ static DISPLAY: AtomicUsize = AtomicUsize::new(0);
 static ON_TOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 // Streamer Mode: a normal (decorated, resizable, taskbar) transparent window for OBS instead of
 // the full-monitor overlay; the world is the window's client area.
+// Build flag: the plain 2.0 edition sets this to false (no stream tray items / PTT polling).
+const STREAM_BUILD: bool = true;
 static STREAMER: AtomicBool = AtomicBool::new(false);
 static STREAMER_OPAQUE: AtomicBool = AtomicBool::new(true);
 // One Streamer Mode transition at a time: a second toggle while windows are being
@@ -1301,7 +1303,11 @@ fn tray_menu<R: tauri::Runtime, M: Manager<R>>(m: &M, en: bool) -> tauri::Result
     let through = MenuItem::with_id(m, "through", t("Clicar através (liga/desliga)", "Click through (on/off)"), true, None::<&str>)?;
     let show_app = MenuItem::with_id(m, "show_app", t("Mostrar app de novo", "Show app again"), true, None::<&str>)?;
     let quit = MenuItem::with_id(m, "quit", t("Sair", "Quit"), true, None::<&str>)?;
-    Menu::with_items(m, &[&streamer, &control, &through, &show_app, &quit])
+    if STREAM_BUILD {
+        Menu::with_items(m, &[&streamer, &control, &through, &show_app, &quit])
+    } else {
+        Menu::with_items(m, &[&through, &show_app, &quit])
+    }
 }
 
 // Keeps the overlay covering the chosen monitor's work area and streams window geometry
@@ -1616,7 +1622,7 @@ fn main() {
                 if let Some(key) = config.get("pttKey").and_then(Value::as_str) {
                     PTT_KEY.store(ptt_vk(key), Ordering::Release);
                 }
-                start_ptt_polling(app.handle().clone());
+                if STREAM_BUILD { start_ptt_polling(app.handle().clone()); }
                 start_world_polling(app.handle().clone());
             }
             Ok(())

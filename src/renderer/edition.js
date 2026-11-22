@@ -1,6 +1,11 @@
 // Demo build (scripts/demo.mjs turns DEMO on while building): smaller shop, toys and minigames, no time limit.
 export const DEMO = false;
 
+// BETA edition (scripts/build-edition.mjs keeps this on; the plain 2.0 build turns it off).
+// When false, Streamer Mode, Twitch, AI and Push-to-Talk are hidden and inert.
+export const STREAM = true;
+export const streamEnabled = () => STREAM;
+
 const DEMO_ITEMS = new Set([
   'sobras', 'mochi', 'onigiri', 'dango', 'takoyaki', 'ramen', 'pipoca_p', 'bento',
   'agua_torneira', 'soda_p', 'matcha', 'bubble_matcha',

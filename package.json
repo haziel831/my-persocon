@@ -1,12 +1,13 @@
 {
   "name": "persocon",
-  "version": "1.9.41",
+  "version": "2.0.0",
   "edition": "",
   "private": true,
   "description": "My Persocon: desktop companion that walks on window tops and climbs window sides",
   "scripts": {
     "start": "tauri dev",
-    "dist": "tauri build && node scripts/package.mjs",
+    "dist": "node scripts/build-edition.mjs beta",
+    "dist:base": "node scripts/build-edition.mjs base",
     "demo": "node scripts/demo.mjs",
     "preview": "node scripts/package.mjs --preview",
     "sim": "node test/sim.mjs",

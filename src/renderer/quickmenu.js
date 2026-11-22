@@ -1,6 +1,7 @@
 // Quick Menu: opened with X while hovering the pet (or by clicking a piece of furniture).
 import { itemById, HER_BAG } from './game.js';
 import { confirmStreamer } from './streamerconfirm.js';
+import { STREAM } from './edition.js';
 export class QuickMenu {
   constructor(app) {
     this.app = app;
@@ -37,7 +38,7 @@ export class QuickMenu {
       return btn;
     };
     const ttsToggle = () => {
-      const streamer = !!window.__PET_STREAMER__ || !!app.config.streamer;
+      const streamer = STREAM && (!!window.__PET_STREAMER__ || !!app.config.streamer);
       const key = streamer ? 'ttsEnabled' : 'offlineTts';
       const on = key === 'ttsEnabled' ? app.config.ttsEnabled !== false : app.config.offlineTts === true;
       const btn = document.createElement('button');
@@ -106,7 +107,7 @@ export class QuickMenu {
       ) : null,
       item('🎯 Modo foco', 'focus', 'Menos distrativa: fala e se mexe menos, não pede coisas, não escala janelas nem reage ao desktop'),
       ...focusItems,
-      item('🎥 Streamer Mode', 'streamer'),
+      ...(STREAM ? [item('🎥 Streamer Mode', 'streamer')] : []),
       item('🖱 Clicar através', 'clickThrough', 'Os cliques passam pela Persocon, objetos e mobília (para desligar: ícone da bandeja › Clicar através)'),
       vol,
       slider('🔊 Efeitos', 'volume', 0.3),

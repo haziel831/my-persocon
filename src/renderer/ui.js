@@ -17,7 +17,7 @@ import { UPGRADES } from './upgrades.js';
 import { luckOf, FIGURES, GACHA_PRICE } from './casinoitems.js';
 import { RARITIES } from './lootitems.js';
 import { MINIGAMES, MG_UNLOCK, MG_BONUS, BONUS_DAILY, mgUnlocked, mgLevel } from './minigames.js';
-import { DEMO, demoLocked, demoGameLocked, editionLabel } from './edition.js';
+import { DEMO, demoLocked, demoGameLocked, editionLabel, STREAM } from './edition.js';
 import { resetTips } from './tips.js';
 import { DUOS } from './dollai.js';
 import { ANTIC_NAMES } from './antics.js';
@@ -1390,34 +1390,36 @@ export class Menu {
           h('div.note', {}, 'Perfis ficam só neste computador e nunca incluem chaves de API.'),
         );
       })(),
-      h('div.group', {}, '🔑 IAs & Chaves API'),
-      toggle({ label: 'Trocar automaticamente para a próxima IA quando os tokens acabarem', value: c.aiAutoFallback !== false, onchange: (v) => app.setOption('aiAutoFallback', v) }),
-      ...(c.aiProviders || []).map((p, i) => h('div.row', {},
-        h('span.label', {}, p.name || `IA ${i + 1}`),
-        h('button.mini', { onclick: () => {
-          const list = c.aiProviders.slice();
-          if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; app.setOption('aiProviders', list); }
-        } }, '↑'),
-        h('button.mini', { onclick: () => {
-          const list = c.aiProviders.slice();
-          if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; app.setOption('aiProviders', list); }
-        } }, '↓'),
-        h('button.mini', { onclick: (e) => {
-          app.setOption('aiProviders', c.aiProviders.slice());
-          const note = e.target.parentElement.querySelector('.ai-saved-note');
-          if (note) {
-            note.textContent = 'Salvo';
-            clearTimeout(note._t);
-            note._t = setTimeout(() => { note.textContent = ''; }, 1200);
-          }
-        } }, 'Salvar'),
-        h('button.mini', { onclick: () => app.setOption('aiProviders', c.aiProviders.filter((_, n) => n !== i)) }, '×'),
-        h('span.note.ai-saved-note', {}),
-      )),
-      h('div.row', {}, h('button', { onclick: () => app.setOption('aiProviders', [
-        ...(c.aiProviders || []),
-        { id: `ai-${Date.now()}`, name: 'OpenAI compatível', provider: 'openai', endpoint: '', model: 'gpt-4o-mini', apiKey: '', enabled: true },
-      ]) }, '+ Adicionar IA')),
+      ...(STREAM ? [
+        h('div.group', {}, '🔑 IAs & Chaves API'),
+        toggle({ label: 'Trocar automaticamente para a próxima IA quando os tokens acabarem', value: c.aiAutoFallback !== false, onchange: (v) => app.setOption('aiAutoFallback', v) }),
+        ...(c.aiProviders || []).map((p, i) => h('div.row', {},
+          h('span.label', {}, p.name || `IA ${i + 1}`),
+          h('button.mini', { onclick: () => {
+            const list = c.aiProviders.slice();
+            if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; app.setOption('aiProviders', list); }
+          } }, '↑'),
+          h('button.mini', { onclick: () => {
+            const list = c.aiProviders.slice();
+            if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; app.setOption('aiProviders', list); }
+          } }, '↓'),
+          h('button.mini', { onclick: (e) => {
+            app.setOption('aiProviders', c.aiProviders.slice());
+            const note = e.target.parentElement.querySelector('.ai-saved-note');
+            if (note) {
+              note.textContent = 'Salvo';
+              clearTimeout(note._t);
+              note._t = setTimeout(() => { note.textContent = ''; }, 1200);
+            }
+          } }, 'Salvar'),
+          h('button.mini', { onclick: () => app.setOption('aiProviders', c.aiProviders.filter((_, n) => n !== i)) }, '×'),
+          h('span.note.ai-saved-note', {}),
+        )),
+        h('div.row', {}, h('button', { onclick: () => app.setOption('aiProviders', [
+          ...(c.aiProviders || []),
+          { id: `ai-${Date.now()}`, name: 'OpenAI compatível', provider: 'openai', endpoint: '', model: 'gpt-4o-mini', apiKey: '', enabled: true },
+        ]) }, '+ Adicionar IA')),
+      ] : []),
       h('div.row', {}, h('span.label', {}, 'Motor de voz'), segmented([
         ['edge', 'Edge Neural'], ['fish', 'Fish Audio'], ['offline', 'Offline TTS'], ['system', 'Windows'],
       ], c.ttsEngine || 'edge', (v) => { app.setOption('ttsEngine', v); this.render(); })),
@@ -1501,11 +1503,13 @@ export class Menu {
           },
         }, translate('Desfazer')) : null,
       ) : null,
-      h('div.group', {}, '🎙️ Push-to-Talk'),
-      toggle({ label: 'Ativar Push-to-Talk', value: c.pttEnabled === true, onchange: (v) => app.setOption('pttEnabled', v) }),
-      h('div.row', {}, h('span.label', {}, 'Tecla'), segmented([
-        ['F8', 'F8'], ['F9', 'F9'], ['F10', 'F10'], ['CapsLock', 'Caps'], ['RightAlt', 'Alt dir.'],
-      ], c.pttKey || 'F9', (v) => app.setOption('pttKey', v))),
+      ...(STREAM ? [
+        h('div.group', {}, '🎙️ Push-to-Talk'),
+        toggle({ label: 'Ativar Push-to-Talk', value: c.pttEnabled === true, onchange: (v) => app.setOption('pttEnabled', v) }),
+        h('div.row', {}, h('span.label', {}, 'Tecla'), segmented([
+          ['F8', 'F8'], ['F9', 'F9'], ['F10', 'F10'], ['CapsLock', 'Caps'], ['RightAlt', 'Alt dir.'],
+        ], c.pttKey || 'F9', (v) => app.setOption('pttKey', v))),
+      ] : []),
       h('div.group', {}, 'Não Perturbe'),
       toggle({ label: 'Ativar automaticamente', value: c.dndEnabled !== false, onchange: (v) => app.setOption('dndEnabled', v) }),
       h('div.row', {}, h('span.label', {}, 'Apps/janelas'), h('input.text', {
@@ -1628,13 +1632,15 @@ export class Menu {
       ] : []),
       h('div.group', {}, 'Setups da mesa'),
       this.setupRows(),
-      h('div.group', {}, 'Streamer Mode'),
-      toggle({ label: 'Streamer Mode (janela para o OBS)', value: !!c.streamer, onchange: (v) => {
-        if (v) { this.close?.(); confirmStreamer(app, () => app.setOption('streamer', true)); }
-        else app.setOption('streamer', false);
-      } }),
-      h('div.row', {}, h('span.label', {}, 'Fundo'), segmented([['verde', 'Verde'], ['azul', 'Azul'], ['magenta', 'Magenta'], ['transparente', 'Transparente']], c.streamerBg || 'verde', (v) => app.setOption('streamerBg', v))),
-      h('div.note', {}, 'No OBS: Captura de janela → "My Persocon - Streamer Mode", marque "Área do cliente". Prefira fundo Verde/Azul/Magenta + filtro Chroma Key (captura estável). Evite o método "Windows 10" com fundo transparente — no Windows 11 costuma dar tela preta ou travar a stream. Duplo clique na Persocon liga/desliga; fechar a janela só sai do modo.'),
+      ...(STREAM ? [
+        h('div.group', {}, 'Streamer Mode'),
+        toggle({ label: 'Streamer Mode (janela para o OBS)', value: !!c.streamer, onchange: (v) => {
+          if (v) { this.close?.(); confirmStreamer(app, () => app.setOption('streamer', true)); }
+          else app.setOption('streamer', false);
+        } }),
+        h('div.row', {}, h('span.label', {}, 'Fundo'), segmented([['verde', 'Verde'], ['azul', 'Azul'], ['magenta', 'Magenta'], ['transparente', 'Transparente']], c.streamerBg || 'verde', (v) => app.setOption('streamerBg', v))),
+        h('div.note', {}, 'No OBS: Captura de janela → "My Persocon - Streamer Mode", marque "Área do cliente". Prefira fundo Verde/Azul/Magenta + filtro Chroma Key (captura estável). Evite o método "Windows 10" com fundo transparente — no Windows 11 costuma dar tela preta ou travar a stream. Duplo clique na Persocon liga/desliga; fechar a janela só sai do modo.'),
+      ] : []),
       h('div.group', {}, 'Outros'),
       h('div.row', {}, h('span.label', {}, 'Emoticons, volumes e passos'),
         h('button', { onclick: () => { for (const [k, v] of Object.entries(DEFAULT_OPTS)) app.setOption(k, v); app.sound.play('ok'); this.render(); } }, '↺ Restaurar padrões')),

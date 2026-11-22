@@ -6,7 +6,7 @@ import { Menu, ImportDialog, ObjectsDialog, ImageDropDialog, showGameOver, prefL
 import { DEFAULT_OPTS } from './catalog.js';
 import { crowName, dollName } from './game.js';
 import { Game, ITEMS, TASTE_MOOD, TASTE_RANK, BUFF_LABELS, BUFF_ICONS, itemById, HER_BAG } from './game.js';
-import { demoLocked, demoGameLocked, shortVersion } from './edition.js';
+import { demoLocked, demoGameLocked, shortVersion, STREAM } from './edition.js';
 import { Gains } from './gains.js';
 import { Sound } from './sound.js';
 import { Toys } from './toys.js';
@@ -612,10 +612,16 @@ export async function startPet(files, config) {
   app.weather = new Weather(app);
   app.trio = new Trio(app);
   app.tts = new VoiceTTS(app);
-  app.chatBox = window.__PET_STREAMER__ ? new StreamChatBox(app) : null;
-  app.voiceInput = new VoiceInput(app);
-  app.twitch = new TwitchChat(app);
+  // The plain 2.0 edition keeps StreamAlerts (its emote/FX helpers are used by the normal game)
+  // but never starts Twitch, PTT or the stage chat box.
+  app.chatBox = STREAM && window.__PET_STREAMER__ ? new StreamChatBox(app) : null;
+  app.voiceInput = STREAM ? new VoiceInput(app) : null;
+  app.twitch = STREAM ? new TwitchChat(app) : null;
   app.streamAlerts = new StreamAlerts(app);
+  if (!STREAM) {
+    config.streamer = false;
+    config.emotesOutsideStreamer = true;
+  }
   app.knownFollowers = new Set((config.streamFollowers || []).map((s) => String(s).toLowerCase()));
   let followerSaveTimer = null;
   app.rememberFollower = (user) => {
@@ -1887,6 +1893,7 @@ api.onTrayClick?.(() => {
   // Switching swaps the window for a new one (a new window drops OBS's capture border), so this
   // page is about to close: everything is saved first.
   function applyStreamer(switching = true) {
+    if (!STREAM) return;
     const on = !!config.streamer;
     if (on && !config.streamerBg) config.streamerBg = 'verde';
     const bg = on ? (STREAMER_BG[config.streamerBg] || 'transparent') : '';
@@ -1912,6 +1919,7 @@ api.onTrayClick?.(() => {
   let streamerOn = false;
   let streamerSolidOn = streamerSolid();
   api.onStreamer((on) => {
+    if (!STREAM) return;
     if (on && !window.__PET_STREAMER__ && !config.streamer) {
       confirmStreamer(app, () => app.setOption('streamer', true));
       return;
@@ -1944,7 +1952,7 @@ api.onTrayClick?.(() => {
     }).finally(() => { app.offlineVoices = voiceCache; pushStreamerState(true); });
   }
   function pushStreamerState(force = false) {
-    if (!window.__PET_STREAMER__) return;
+    if (!STREAM || !window.__PET_STREAMER__) return;
     const now = Date.now();
     if (!force && now - statePushAt < 900) return;
     statePushAt = now;

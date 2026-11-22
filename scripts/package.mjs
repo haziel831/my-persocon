@@ -8,9 +8,11 @@ import { join } from 'node:path';
 const root = join(import.meta.dirname, '..');
 const { version, edition } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const demo = process.argv.includes('--demo');
+const beta = process.argv.includes('--beta');
 const name = demo ? 'My Persocon Demo' : 'My Persocon';
 const short = version.replace(/^(\d+\.\d+)\.0$/, '$1');
-const out = join(root, 'dist', [name, short, !demo && edition].filter(Boolean).join(' '));
+const suffix = demo ? '' : (beta ? 'BETA' : edition);
+const out = join(root, 'dist', [name, short, suffix].filter(Boolean).join(' '));
 const exe = join(out, `${name}.exe`);
 
 if (process.argv.includes('--preview')) {
