@@ -42,7 +42,6 @@ pub fn mark_closing() {
     thread::sleep(Duration::from_millis(400));
 }
 
-pub fn is_closing() -> bool { CLOSING.load(Ordering::Relaxed) }
 
 // Browser-originated commands are queued here as well as emitted as Tauri events,
 // so a missed listener can never swallow a button click from the control panel.
