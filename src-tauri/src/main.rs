@@ -3,6 +3,7 @@
 mod audio;
 mod tts;
 mod stream_bridge;
+mod ai_chat;
 mod desktop;
 mod logfile;
 mod model_io;
@@ -18,7 +19,7 @@ use std::{
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering},
         Mutex, MutexGuard,
     },
     thread,
@@ -41,6 +42,14 @@ const MAX_ZIP_ENTRY_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_ZIP_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
 
 static APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
+static PTT_KEY: AtomicI32 = AtomicI32::new(0x78); // F9
+
+fn ptt_vk(name: &str) -> i32 {
+    match name.to_ascii_uppercase().as_str() {
+        "F8" => 0x77, "F10" => 0x79, "CAPSLOCK" => 0x14, "RIGHTALT" => 0xA5,
+        _ => 0x78, // F9
+    }
+}
 
 struct PetState {
     // App files (bundled model, emoticons) next to the .exe.
@@ -254,6 +263,9 @@ fn save_config(state: State<PetState>, patch: Value) -> Result<Value, String> {
         if let (Some(tray), Ok(menu)) = (app.tray_by_id("main"), tray_menu(app, lang == "en")) {
             let _ = tray.set_menu(Some(menu));
         }
+    }
+    if let Some(key) = patch.get("pttKey").and_then(Value::as_str) {
+        PTT_KEY.store(ptt_vk(key), Ordering::Release);
     }
     let mut config = lock_config(&state);
     if let Value::Object(p) = patch {
@@ -948,6 +960,52 @@ fn ensure_streamer_control(app: &AppHandle, config: &Value) {
     open_panel(&format!("http://127.0.0.1:{port}/"));
 }
 
+// Switches where the Streamer control panel lives and persists the preference.
+#[tauri::command]
+fn open_streamer_panel(app: AppHandle, state: State<'_, PetState>, mode: String) -> Result<String, String> {
+    let mode = if mode == "tab" { "tab" } else { "window" };
+    {
+        let mut config = lock_config(&state);
+        config["streamPanelMode"] = json!(mode);
+        let text = serde_json::to_string_pretty(&*config).map_err(|e| e.to_string())?;
+        fs::write(state.data.join("config.json"), text).map_err(|e| e.to_string())?;
+    }
+    let (port, token) = bridge_address(&lock_config(&state));
+    if let Err(e) = stream_bridge::start(app.clone(), port, token) {
+        logfile::line("ERROR", "streamer", &format!("ponte local: {e}"));
+    }
+    let url = format!("http://127.0.0.1:{port}/");
+    if mode == "tab" {
+        win32::close_windows_containing("my persocon - controle streamer");
+        open_url_in_browser(&url);
+        Ok("Aba aberta no navegador".into())
+    } else {
+        open_panel(&url);
+        Ok("Janela separada aberta".into())
+    }
+}
+
+#[tauri::command]
+fn list_open_windows() -> Result<Vec<Value>, String> {
+    Ok(win32::list_open_windows().into_iter()
+        .map(|(title, process)| json!({ "title": title, "process": process }))
+        .collect())
+}
+
+#[tauri::command]
+async fn ai_reply(prompt: String, system_prompt: String, config: Value) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let provider = config.get("aiProvider").and_then(Value::as_str).unwrap_or("ollama").to_string();
+        let model = config.get("aiModel").and_then(Value::as_str).unwrap_or("").to_string();
+        let key = config.get("aiApiKey").and_then(Value::as_str).unwrap_or("").to_string();
+        let lang = config.get("lang").and_then(Value::as_str).unwrap_or("pt").to_string();
+        let system = if system_prompt.trim().is_empty() {
+            "You are the Persocon, a gentle anime-style desktop companion living on a streamer's desktop.".to_string()
+        } else { system_prompt };
+        ai_chat::reply(&provider, &model, &key, &system, &prompt, &lang)
+    }).await.unwrap_or_else(|e| Err(e.to_string()))
+}
+
 #[tauri::command]
 fn streamer_take_rpc() -> Result<Vec<Value>, String> {
     Ok(stream_bridge::take_rpcs())
@@ -1245,15 +1303,30 @@ fn log_lines(lines: Vec<String>) {
 fn tray_menu<R: tauri::Runtime, M: Manager<R>>(m: &M, en: bool) -> tauri::Result<Menu<R>> {
     let t = |pt: &'static str, en_text: &'static str| if en { en_text } else { pt };
     let streamer = MenuItem::with_id(m, "streamer", t("Streamer Mode (liga/desliga)", "Streamer Mode (on/off)"), true, None::<&str>)?;
-    let control = MenuItem::with_id(m, "open_control", t("Abrir Controle Streamer (navegador)", "Open Streamer Control (browser)"), true, None::<&str>)?;
+    let control = MenuItem::with_id(m, "open_control", t("Abrir Controle Streamer", "Open Streamer Control"), true, None::<&str>)?;
+    let switch_panel = MenuItem::with_id(m, "switch_panel", t("Alternar painel (janela/aba)", "Toggle panel (window/tab)"), true, None::<&str>)?;
     let through = MenuItem::with_id(m, "through", t("Clicar através (liga/desliga)", "Click through (on/off)"), true, None::<&str>)?;
     let show_app = MenuItem::with_id(m, "show_app", t("Mostrar app de novo", "Show app again"), true, None::<&str>)?;
     let quit = MenuItem::with_id(m, "quit", t("Sair", "Quit"), true, None::<&str>)?;
-    Menu::with_items(m, &[&streamer, &control, &through, &show_app, &quit])
+    Menu::with_items(m, &[&streamer, &control, &switch_panel, &through, &show_app, &quit])
 }
 
 // Keeps the overlay covering the chosen monitor's work area and streams window geometry
 // and the cursor position to the renderer.
+// Global push-to-talk: polls the configured key and emits start/stop edges.
+fn start_ptt_polling(app: AppHandle) {
+    thread::spawn(move || {
+        let mut down = false;
+        loop {
+            thread::sleep(Duration::from_millis(30));
+            let now = win32::key_down(PTT_KEY.load(Ordering::Relaxed));
+            if now && !down { let _ = app.emit("ptt-start", ()); }
+            else if !now && down { let _ = app.emit("ptt-stop", ()); }
+            down = now;
+        }
+    });
+}
+
 fn start_world_polling(app: AppHandle) {
     thread::spawn(move || {
         win32::make_thread_dpi_aware();
@@ -1466,6 +1539,9 @@ fn main() {
             open_streamer_control,
             streamer_rpc,
             streamer_take_rpc,
+            ai_reply,
+            list_open_windows,
+            open_streamer_panel,
             streamer_push_state,
             tts_voices,
             tts_speak,
@@ -1520,7 +1596,12 @@ fn main() {
                             let _ = app.emit("streamer", !STREAMER.load(Ordering::Relaxed));
                         } else if event.id() == "open_control" {
                             let conf = lock_config(&app.state::<PetState>()).clone();
-                            ensure_streamer_control(app, &conf);
+                            let mode = conf.get("streamPanelMode").and_then(Value::as_str).unwrap_or("window").to_string();
+                            let _ = open_streamer_panel(app.clone(), app.state::<PetState>(), mode);
+                        } else if event.id() == "switch_panel" {
+                            let conf = lock_config(&app.state::<PetState>()).clone();
+                            let next = if conf.get("streamPanelMode").and_then(Value::as_str) == Some("window") { "tab" } else { "window" };
+                            let _ = open_streamer_panel(app.clone(), app.state::<PetState>(), next.into());
                         } else if event.id() == "through" {
                             let _ = app.emit("click-through", ());
                         }
@@ -1539,6 +1620,10 @@ fn main() {
                 tray.build(app)?;
             }
             if !preview {
+                if let Some(key) = config.get("pttKey").and_then(Value::as_str) {
+                    PTT_KEY.store(ptt_vk(key), Ordering::Release);
+                }
+                start_ptt_polling(app.handle().clone());
                 start_world_polling(app.handle().clone());
             }
             Ok(())

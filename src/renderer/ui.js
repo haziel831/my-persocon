@@ -1345,7 +1345,7 @@ export class Menu {
         oninput: (v) => app.setOption('filterStrength', v) }),
       h('div.group', {}, '🗣️ Voz offline (Estúdio TTS)'),
       h('div.row', {}, h('span.label', {}, 'Preset de voz'), segmented([
-        ['', 'Padrão'], ['aghata', 'Aghata — Lain/Rei'],
+        ['', 'Padrão do TTS (motor)'], ['aghata', 'Aghata — Lain/Rei'],
       ], c.voicePreset || '', (v) => {
         if (v === 'aghata') {
           const p = presetForLang(VOICE_PRESETS.aghata, c.lang);
@@ -1360,6 +1360,9 @@ export class Menu {
         (v) => { app.setOption('persona', v); this.render(); },
       )),
       h('div.row', {}, h('button', { onclick: () => { app.applyConfigPatch(personaVoiceSuggestion(app)); this.render(); } }, 'Aplicar voz sugerida da personalidade')),
+      h('div.row', {}, h('span.label', {}, 'Painel do Streamer'), segmented([
+        ['window', 'Janela separada'], ['tab', 'Aba no navegador'],
+      ], c.streamPanelMode || 'window', (v) => { app.setOption('streamPanelMode', v); window.petAPI?.openStreamerPanel?.(v); })),
       h('div.row', {}, h('span.label', {}, 'Motor de voz'), segmented([
         ['edge', 'Edge Neural'], ['fish', 'Fish Audio'], ['offline', 'Offline TTS'], ['system', 'Windows'],
       ], c.ttsEngine || 'edge', (v) => { app.setOption('ttsEngine', v); this.render(); })),
@@ -1440,6 +1443,11 @@ export class Menu {
           },
         }, translate('Desfazer')) : null,
       ) : null,
+      h('div.group', {}, '🎙️ Push-to-Talk'),
+      toggle({ label: 'Ativar Push-to-Talk', value: c.pttEnabled === true, onchange: (v) => app.setOption('pttEnabled', v) }),
+      h('div.row', {}, h('span.label', {}, 'Tecla'), segmented([
+        ['F8', 'F8'], ['F9', 'F9'], ['F10', 'F10'], ['CapsLock', 'Caps'], ['RightAlt', 'Alt dir.'],
+      ], c.pttKey || 'F9', (v) => app.setOption('pttKey', v))),
       h('div.group', {}, 'Não Perturbe'),
       toggle({ label: 'Ativar automaticamente', value: c.dndEnabled !== false, onchange: (v) => app.setOption('dndEnabled', v) }),
       h('div.row', {}, h('span.label', {}, 'Apps/janelas'), h('input.text', {
@@ -1447,6 +1455,26 @@ export class Menu {
         placeholder: 'zoom, teams, meet, obs, code, discord',
         onchange: (e) => app.setOption('dndApps', e.target.value),
       })),
+      h('div.row', {},
+        h('button', { onclick: async () => {
+          const list = await window.petAPI?.listOpenWindows?.().catch(() => []);
+          this._dndWindows = Array.isArray(list) ? list : [];
+          this.render();
+        } }, translate('Selecionar janela aberta')),
+        this._dndWindows ? h('button.link', { onclick: () => { this._dndWindows = null; this.render(); } }, translate('Atualizar/fechar')) : null,
+      ),
+      this._dndWindows ? h('div.dnd-windows', {}, this._dndWindows.length
+        ? this._dndWindows.map((w) => h('button.dnd-window', {
+            title: w.title,
+            onclick: () => {
+              const term = (w.process || w.title).replace(/[ ,]/g, '').toLowerCase();
+              const list = String(c.dndApps || '').split(',').map((s) => s.trim()).filter(Boolean);
+              if (!list.some((s) => s.toLowerCase() === term)) list.push(term);
+              app.setOption('dndApps', list.join(', '));
+              this.render();
+            },
+          }, `${w.process || '?'} · ${w.title}`))
+        : h('span.note', {}, translate('Nenhuma janela encontrada.'))) : null,
       h('div.note', {}, 'Silencia os sons e pausa travessuras enquanto uma dessas janelas estiver em foco. Volta ao normal ao sair dela.'),
       h('div.group', {}, 'Clima ambiente'),
       h('div.row', {}, h('span.label', {}, 'Efeito'), segmented([

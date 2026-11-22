@@ -3,6 +3,7 @@ import { FULL_STATS, DIFFICULTIES, DEBUFFS } from './behavior.js';
 import { icon, cartridge } from './pixel.js';
 import { GAMES } from './games.js';
 import { FURN_ITEMS, COFFEE_ITEMS, baseId } from './furniture.js';
+import { affinityLine, getItemAffinity } from './persona.js';
 import { FUN_ITEMS } from './funtoys.js';
 import { LOOT_ITEMS, RARITIES } from './lootitems.js';
 import { FOOD_ITEMS } from './consumables.js';
@@ -740,6 +741,19 @@ export class Game {
     return fx;
   }
 
+  // Personality-driven item affinity: a small affection bonus and a shy reaction.
+  celebrateItem(item) {
+    const app = this.pet?.app;
+    if (!item || !app) return;
+    if (getItemAffinity(item, app.config?.modelDir) !== 'love') return;
+    const base = Number(item.effects?.affection || 0);
+    this.pet.love?.(base ? base * 0.5 : 4);
+    app.speech?.say(affinityLine('love', app.config.lang), 3);
+    app.emoticons?.show?.('love', true);
+    app.chatBox?.push?.('pet', affinityLine('love', app.config.lang));
+    this.changed?.();
+  }
+
   ownsUnique(item) {
     return !!item?.unique && (this.count(item.id) > 0 || !!this.gear?.[item.id] || !!this.inventory?.[item.id]);
   }
@@ -795,6 +809,7 @@ export class Game {
       else this.deliveries.push({ id, n, x: null, display: null });
     }
     this.changed();
+    this.celebrateItem(item);
     this.pet.bought(item);
     return item;
   }
@@ -925,6 +940,7 @@ export class Game {
       if (!this.pet.medicate(item)) return false;
       this.profile.consumed[id] = (this.profile.consumed[id] || 0) + 1;
     } else if (!this.pet.feed(item)) return false;
+    this.celebrateItem(item);
     this.take(id);
     return true;
   }

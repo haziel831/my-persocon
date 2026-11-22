@@ -22,7 +22,8 @@ import { VoiceTTS, personaVoiceSuggestion } from './tts.js';
 import { TwitchChat } from './twitchchat.js';
 import { StreamAlerts } from './streamalerts.js';
 import { StreamChatBox } from './streamchatbox.js';
-import { defaultPersona, personaLine } from './persona.js';
+import { VoiceInput } from './voiceinput.js';
+import { affinityLine, defaultPersona, getItemAffinity, personaLine, personifyAutoLine, replacePetNames } from './persona.js';
 import './statusicons.js';
 import { baseId } from './furniture.js';
 import { Ball } from './ball.js';
@@ -195,6 +196,42 @@ export async function startPet(files, config) {
     return api.saveConfig(p).catch(() => {});
   };
 
+  const ignoredList = () => String(config.ttsIgnoredUsers || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const setIgnored = (list) => {
+    const next = [...new Set(list.map((s) => String(s).replace(/[@,]/g, '').trim()).filter(Boolean))].slice(0, 100);
+    app.setOption?.('ttsIgnoredUsers', next.join(', '));
+  };
+  const addIgnored = (user) => {
+    const name = String(user || '').replace(/[@,]/g, '').trim().slice(0, 40);
+    if (!name) return;
+    setIgnored([...ignoredList(), name]);
+  };
+  const removeIgnored = (user) => setIgnored(ignoredList().filter((u) => u.toLowerCase() !== String(user || '').toLowerCase()));
+
+  const brbPre = { action: null, doll: null, crow: null };
+  function applyBrbActions() {
+    const action = config.brbPersoconAction || 'sit';
+    brbPre.action = pet.action;
+    if (action === 'dance') app.startMode?.('jam');
+    else if (action === 'study') app.startMode?.('study');
+    else if (action === 'coffee') app.toys?.callFurn?.('cafeteira');
+    else if (action === 'chill') app.startMode?.('watch');
+    else if (pet.mode === 'ground') pet.startGround(action === 'sleep' ? 'sleep' : 'sit');
+    const companion = config.brbCompanionsAction || 'wait';
+    if (companion !== 'free') {
+      brbPre.doll = app.doll?.brain?.pose?.('idle');
+      brbPre.crow = app.crow?.idle?.(99, companion === 'sleep' ? 'sleep' : 'idle');
+      if (companion === 'play') app.crow?.say?.('✨', 2);
+    }
+  }
+  function restoreBrbActions() {
+    app.modes?.stop?.();
+    if (pet.mode === 'ground' && ['sit', 'sleep', 'jam', 'watch', 'study'].includes(pet.action)) pet.chooseNext?.();
+    if (brbPre.doll) app.doll?.brain?.pose?.('idle');
+    if (brbPre.crow) app.crow?.idle?.();
+    brbPre.action = brbPre.doll = brbPre.crow = null;
+  }
+
   const app = {
     config,
     dndActive: false,
@@ -278,6 +315,7 @@ export async function startPet(files, config) {
       Object.assign(config, patch);
       if (patch.anticsOff && app.antics?.cur) app.antics.stop(false);
       if ('volume' in patch || 'sound' in patch) sound.applyVolume();
+      if ('ttsVolume' in patch || 'ttsPitch' in patch) app.tts?.applyLive?.();
       if ('emoticonScale' in patch) emoticons.setSize(pet.P);
       if ('filter' in patch || 'filterStrength' in patch) applyFilter(canvas, view, config.filter || 'nenhum', pet.P, config.filterStrength ?? 1);
       if ('alwaysOnTop' in patch) api.setAlwaysOnTop?.(!!patch.alwaysOnTop).catch?.(() => {});
@@ -302,8 +340,8 @@ export async function startPet(files, config) {
         }
         sign.textContent = message || (config.lang === 'en' ? 'Be right back!' : 'Volto já!');
       } else if (sign) sign.remove();
-      if (on && pet.mode === 'ground') pet.startGround('sit');
-      else if (!on && pet.action === 'sit') pet.chooseNext?.();
+      if (on) applyBrbActions();
+      else if (!on) restoreBrbActions();
       if (on && config.streamer) {
         speech.say(personaLine(app, 'brb'), 3.5);
       }
@@ -479,12 +517,16 @@ export async function startPet(files, config) {
   const speech = new Speech(app);
   const speechSay = speech.say.bind(speech);
   speech.say = (text, life, ttsOpts) => {
-    app.chatBox?.push?.('pet', text);
-    const r = speechSay(text, life);
+    const spoken = replacePetNames(app, personifyAutoLine(app, text));
+    if (window.__PET_STREAMER__ && !ttsOpts?.noEmote) {
+      app.streamAlerts?.showReactionEmote?.(app.streamAlerts?.reactionForText?.(spoken) || 'normal');
+    }
+    app.chatBox?.push?.('pet', spoken);
+    const r = speechSay(spoken, life);
     if (window.__PET_STREAMER__) {
-      if (config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(text, ttsOpts);
+      if (config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(spoken, ttsOpts);
     } else {
-      app.tts?.enqueueFor?.('events', text, ttsOpts);
+      app.tts?.enqueueFor?.('events', spoken, ttsOpts);
     }
     return r;
   };
@@ -563,6 +605,7 @@ export async function startPet(files, config) {
   app.trio = new Trio(app);
   app.tts = new VoiceTTS(app);
   app.chatBox = window.__PET_STREAMER__ ? new StreamChatBox(app) : null;
+  app.voiceInput = new VoiceInput(app);
   const eq = document.createElement('div');
   eq.className = 'tts-eq';
   for (let i = 0; i < 5; i++) eq.append(document.createElement('i'));
@@ -1903,6 +1946,7 @@ api.onTrayClick?.(() => {
       affection: Math.round(pet.affection),
       twitch: !!app.twitch?.connected,
       recentChat: app.twitch?.recentLog || [],
+      activeViewers: app.twitch?.activeViewers || [],
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
       ttsError: app.tts?.lastError || '',
@@ -1938,6 +1982,18 @@ api.onTrayClick?.(() => {
     else if (p.type === 'chatBoxVisible') app.chatBox?.setVisible?.(!!p.value);
     else if (p.type === 'chatBoxReset') app.chatBox?.reset?.();
     else if (p.type === 'chatBoxClear') app.chatBox?.clear?.();
+    else if (p.type === 'testEmote') app.streamAlerts?.showReactionEmote?.('shy');
+    else if (p.type === 'ignoreUser') addIgnored(p.user);
+    else if (p.type === 'unignoreUser') removeIgnored(p.user);
+    else if (p.type === 'aiTest') {
+      const cfg = {
+        aiProvider: config.aiProvider || 'ollama', aiModel: config.aiModel || '',
+        aiApiKey: config.aiApiKey || '', lang: config.lang || 'pt',
+      };
+      api.aiReply?.('Oi! Este é um teste de resposta curta.', config.aiSystemPrompt || '', cfg)
+        .then((reply) => speech.say(String(reply || 'IA sem resposta').slice(0, 180), 4))
+        .catch((err) => speech.say(config.lang === 'en' ? 'AI failed: no reply.' : 'IA falhou: sem resposta.', 3));
+    }
     else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
     else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });
     else if (p.type === 'ttsLoadVoices') loadVoices(p.dir);
@@ -1947,9 +2003,18 @@ api.onTrayClick?.(() => {
     else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
     else if (p.type === 'simulate' || p.type === 'testAlert') app.streamAlerts?.push?.(p.event);
     else if (p.type === 'brb') app.setBrb?.(p.value, p.text);
-    else if (p.type === 'setOption') app.setOption?.(p.key, p.value);
+    else if (p.type === 'setOption') {
+      app.setOption?.(p.key, p.value);
+      if (p.key.startsWith('brb') && document.body.classList.contains('brb-on')) {
+        if (p.key === 'brbCompanionsAction') restoreBrbActions();
+        applyBrbActions();
+      }
+    }
     else if (p.type === 'applyPatch') app.applyConfigPatch?.(p.patch);
     else if (p.type === 'applyPersonaVoice') app.applyConfigPatch?.(personaVoiceSuggestion(app));
+    else if (p.type === 'switchPanelMode') {
+      api.openStreamerPanel?.(p.mode).then((msg) => speech.say(msg, 2.5)).catch?.(() => {});
+    }
     else if (p.type === 'exitStreamer') app.setOption?.('streamer', false);
     else if (p.type === 'cafune' || p.type === 'pat') {
       app.setHand?.('pat');
@@ -2156,7 +2221,8 @@ api.onTrayClick?.(() => {
     if (now < last) now = last;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    pet.update(dt);
+    const freezeStats = document.body.classList.contains('brb-on') && config.brbPauseDrain !== false;
+    pet.update(freezeStats ? 0 : dt);
     // Negative statuses: occasionally complain; subtle visual class on the body.
     // Only touch the DOM when the state actually changed (the body style is expensive to restyle).
     const hasDebuff = Object.keys(pet.debuffs || {}).length > 0;

@@ -12,6 +12,9 @@ export class TwitchChat {
     this.lastReact = 0;
     this.cmdAt = {};
     this.recentLog = [];
+    this.activeViewers = [];
+    this.lastAi = 0;
+    this.aiBusy = false;
   }
 
   pushLog(user, text, status) {
@@ -23,6 +26,14 @@ export class TwitchChat {
     });
     if (this.recentLog.length > 5) this.recentLog.length = 5;
     this.app.pushStreamerState?.(true);
+  }
+
+  trackViewer(user) {
+    const name = String(user || '').replace(/[@,]/g, '').trim().slice(0, 40);
+    if (!name) return;
+    const channel = String(this.app.config.twitchChannel || '').replace(/^#/, '').toLowerCase();
+    if (name.toLowerCase() === channel) return; // broadcaster
+    this.activeViewers = [name, ...this.activeViewers.filter((u) => u.toLowerCase() !== name.toLowerCase())].slice(0, 30);
   }
 
   clean(text) {
@@ -116,6 +127,7 @@ export class TwitchChat {
       const t = this.tags(m[1]);
       const login = m[2];
       const displayName = this.clean(t['display-name']).slice(0, 40) || login;
+      this.trackViewer(displayName);
       if (BOTS.includes(login.toLowerCase())) continue;
       const text = this.clean(m[4]);
       if (!text) continue;
@@ -134,6 +146,10 @@ export class TwitchChat {
           || this.app.knownFollowers?.has(login.toLowerCase()),
       };
       const deny = this.app.tts?.denyReason?.(chatOpts) || '';
+      if (this.maybeAi(text, displayName, deny)) {
+        this.pushLog(displayName, text, 'IA: respondendo...');
+        continue;
+      }
       const canSpeak = !deny && this.app.config.streamTtsSpeak !== false;
       const spoke = canSpeak ? this.speakChat(m[4], displayName, t, login) : false;
       let status = '';
@@ -154,6 +170,34 @@ export class TwitchChat {
       this.pushLog(displayName, text, status);
       this.app.chatBox?.push?.('chat', `${displayName}: ${text}`);
     }
+  }
+
+  maybeAi(text, user, deny) {
+    const c = this.app.config;
+    if (c.aiEnabled !== true || this.aiBusy || deny) return false;
+    const active = String(c.name || '').toLowerCase();
+    const match = /\b(aghata|agatha|ninna)\b/i.exec(text);
+    if (!match) return false;
+    const called = match[1].toLowerCase();
+    if (c.aiAllNames !== true && !active.includes(called)) return false;
+    const now = Date.now();
+    if (now - this.lastAi < (Number(c.aiCooldown ?? 20) * 1000)) return false;
+    this.lastAi = now;
+    this.aiBusy = true;
+    const cfg = {
+      aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
+      aiApiKey: c.aiApiKey || '', lang: c.lang || 'pt',
+    };
+    window.petAPI?.aiReply?.(text, c.aiSystemPrompt || '', cfg).then((reply) => {
+      const out = String(reply || '').trim();
+      if (!out) throw new Error('empty');
+      this.app.chatBox?.push?.('pet', out);
+      this.app.speech?.say(out, 4);
+      this.pushLog(user, out, 'IA: ok');
+    }).catch((err) => {
+      this.pushLog(user, String(err?.message || err || 'erro').slice(0, 60), 'IA: erro');
+    }).finally(() => { this.aiBusy = false; });
+    return true;
   }
 
   replyLine(key, vars, duration = 3.5) {

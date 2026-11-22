@@ -1,5 +1,5 @@
 // Queue-based offline TTS with text filters, audio FX and real-time lip sync.
-import { isStoic } from './persona.js';
+import { isStoic, replacePetNames } from './persona.js';
 
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu;
@@ -7,8 +7,8 @@ const CTRL_RE = /[\u0000-\u001F\u007F-\u009F]/g;
 
 // Single strict whitelist used by every speech path (offline and Windows fallback).
 // Keeps letters (with their composed accents), digits, spaces and basic punctuation only.
-export function sanitizeForTts(text) {
-  let s = String(text || '').normalize('NFC')
+export function sanitizeForTts(text, app) {
+  let s = String(replacePetNames(app, text) || '').normalize('NFC')
     .replace(/<[^>]*>/g, ' ')
     .replace(/https?:\/\/\S+|www\.\S+/gi, ' ')
     .replace(EMOJI_RE, ' ')
@@ -182,10 +182,10 @@ export class VoiceTTS {
         s = s.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(term)}(?![\\p{L}\\p{N}])`, 'giu'), say);
       } catch {}
     }
-    s = sanitizeForTts(s);
+    s = sanitizeForTts(s, this.app);
     if (!s) return '';
-    if (opts.chat && c.ttsSpeakUser !== false && opts.user) {
-      s = sanitizeForTts(`${opts.user} ${c.lang === 'en' ? 'said' : 'disse'} ${s}`);
+    if (opts.chat && c.ttsSpeakUser !== false && c.ttsHideViewerNames !== true && opts.user) {
+      s = sanitizeForTts(`${opts.user} ${c.lang === 'en' ? 'said' : 'disse'} ${s}`, this.app);
     }
     if (!s) return '';
     const max = Math.max(60, Math.min(250, Number(c.ttsMaxChars) || 150));
@@ -317,7 +317,7 @@ export class VoiceTTS {
       chain.push(gain, analyser);
       for (let i = 1; i < chain.length; i++) chain[i - 1].connect(chain[i]);
       analyser.connect(this.ctx.destination);
-      this.current = { src, analyser, data: new Uint8Array(analyser.frequencyBinCount) };
+      this.current = { src, analyser, gain, data: new Uint8Array(analyser.frequencyBinCount) };
       src.onended = () => {
         this.current = null;
         this.mouthLevel = 0;
@@ -343,6 +343,21 @@ export class VoiceTTS {
     }
   }
 
+  // Live updates while a line is already playing (volume/pitch sliders).
+  applyLive() {
+    const c = this.app.config;
+    const cur = this.current;
+    if (cur?.gain) cur.gain.gain.setTargetAtTime(c.ttsVolume ?? 0.85, this.ctx.currentTime, 0.05);
+    if (cur?.src) {
+      const remote = ['edge', 'fish'].includes(c.ttsEngine);
+      cur.src.detune.value = remote ? 0 : (Number(c.ttsPitch) || 0) * 100;
+    }
+    if (this._winUtterance && typeof speechSynthesis !== 'undefined') {
+      this._winUtterance.volume = c.ttsVolume ?? 0.85;
+      this._winUtterance.pitch = Math.max(0, Math.min(2, 1 + (Number(c.ttsPitch) || 0) * 0.05));
+    }
+  }
+
   // Last-resort voice: Windows Speech Synthesis (SAPI/OneCore). Single queue,
   // smooth synthetic mouth level, same volume/rate/pitch and ducking behaviour.
   speakWindows(job, lang, speed, gen) {
@@ -360,6 +375,7 @@ export class VoiceTTS {
     u.rate = Math.max(0.5, Math.min(2, speed));
     u.pitch = Math.max(0, Math.min(2, 1 + (Number(c.ttsPitch) || 0) * 0.05));
     u.volume = Math.max(0, Math.min(1, c.ttsVolume ?? 0.85));
+    this._winUtterance = u;
     this.engine = 'windows';
     this.engineNote = c.lang === 'en'
       ? 'Using Windows voice (Offline TTS not found)'

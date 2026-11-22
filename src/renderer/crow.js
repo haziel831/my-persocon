@@ -403,7 +403,8 @@ export class Crow {
           this.fetching = false;
           pet.react?.('cheer');
           pet.adjust?.({ mood: 6, affection: 1 }, 'corvo');
-          this.app.speech?.say(this.app.config.lang === 'en' ? 'The Crow brought your plane back!' : 'O Corvo trouxe seu avião de volta!', 3);
+          const who = this.app.getCrowName?.() || (this.app.config.lang === 'en' ? 'Crow' : 'Corvo');
+      this.app.speech?.say(this.app.config.lang === 'en' ? `${who} brought your plane back!` : `${who} trouxe seu avião de volta!`, 3);
         });
       }, 4.2);
     }, 5.2);

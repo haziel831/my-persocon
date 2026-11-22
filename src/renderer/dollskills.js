@@ -100,7 +100,8 @@ export function teachDollSkill(app, id) {
     d.focus = null;
     app.sound?.sfx?.('levelup');
     const skillName = translate(skill.name);
-    app.speech?.say(app.config.lang === 'en' ? `The Doll learned: ${skillName}!` : `O Doll aprendeu: ${skillName}!`, 3.5);
+    const who = app.getDollName?.() || (app.config.lang === 'en' ? 'Doll' : 'Boneco');
+    app.speech?.say(app.config.lang === 'en' ? `${who} learned: ${skillName}!` : `${who} aprendeu: ${skillName}!`, 3.5);
   }
   app.game.changed();
   return true;

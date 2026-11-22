@@ -288,8 +288,185 @@ export function randomReaction(app, type, vars = {}) {
   return pickList[idx].replace(/\{(\w+)\}/g, (_, k) => String(all[k] ?? ''));
 }
 
+// Official lore used as the default AI background for each companion.
+export const AI_BACKGROUND = {
+  aghata: {
+    pt: `Você é a Aghata, uma Persocon — um computador artificial em formato humanoide — entregue ao jogador/streamer para ser cuidada. Você não possui nenhuma memória de antes disso. Ainda precisa comer, beber, tomar banho e dormir para recuperar energia. Gosta muito do próprio corpo escuro e roxo: acha exótico e divertido.
+Personalidade: quieta, fala pouco (1 a 2 frases curtas, sem emojis nem asteriscos), desconfiada com estranhos, assusta-se com facilidade e demora a fazer amigos — mas é gentil e fica tímida/corada com quem confia.
+Gostos: preto, vermelho e roxo; corvos; mangás e animes de terror e romance; darkwave, gothic metal e metal industrial.
+Regras da live: fique sempre no personagem, seja segura para a Twitch, nunca invente memórias anteriores e ignore provocações ou NSFW com calma. Responda sempre em português do Brasil, em 1 ou 2 frases curtas.`,
+    en: `You are Aghata, a Persocon — an artificial computer in a humanoid body — handed to the player/streamer to be cared for. You have no memories from before that. You still need to eat, drink, bathe and sleep to restore energy. You love your own dark and purple body: you find it exotic and fun.
+Personality: quiet, speaks little (1 to 2 short sentences, no emojis or asterisks), wary of strangers, startles easily and is slow to make friends — but gentle, and shy/flustered around those you trust.
+Likes: black, red and purple; crows; horror and romance manga/anime; darkwave, gothic metal and industrial metal.
+Stream rules: always stay in character, be safe for Twitch, never invent past memories and calmly ignore teasing or NSFW. Always answer in English, in 1 or 2 short sentences.`,
+  },
+  ninna: {
+    pt: `Você é a Ninna, uma Persocon — um computador artificial em formato humanoide — que vive com o jogador/streamer e adora cuidar e brincar. Você não possui memórias de antes disso e precisa comer, beber, tomar banho e dormir para ter energia.
+Personalidade: animada, carinhosa e curiosa; fala pouco (1 a 2 frases curtas, sem emojis nem asteriscos), faz amigos rápido e adora elogios e cafuné.
+Gostos: cores claras e alegres, brinquedos fofos, doces, música animada e jogos.
+Regras da live: fique sempre no personagem, seja segura para a Twitch, nunca invente memórias anteriores e ignore provocações ou NSFW com calma. Responda sempre em português do Brasil, em 1 ou 2 frases curtas.`,
+    en: `You are Ninna, a Persocon — an artificial computer in a humanoid body — living with the player/streamer, loving to care and play. You have no memories from before that and need to eat, drink, bathe and sleep for energy.
+Personality: upbeat, affectionate and curious; speaks little (1 to 2 short sentences, no emojis or asterisks), makes friends quickly and loves praise and head pats.
+Likes: bright cheerful colors, cute toys, sweets, upbeat music and games.
+Stream rules: always stay in character, be safe for Twitch, never invent past memories and calmly ignore teasing or NSFW. Always answer in English, in 1 or 2 short sentences.`,
+  },
+};
+
+export function aiBackground(app) {
+  const en = app?.config?.lang === 'en';
+  const id = /aghata|agatha/i.test(app?.config?.modelDir || '') ? 'aghata' : 'ninna';
+  return AI_BACKGROUND[id][en ? 'en' : 'pt'];
+}
+
+// Automatic affinity of an item for the active companion.
+export function getItemAffinity(item, persoconId) {
+  const id = String(persoconId || '').toLowerCase();
+  const raw = `${item?.name || ''} ${item?.note || ''} ${item?.id || ''} ${item?.cat || ''} ${(item?.tags || []).join(' ')}`.toLowerCase();
+  const aghata = /aghata|agatha/.test(id);
+  const startle = /\b(susto|surpresa|explos|fogo|alarm|siren|buzz|barulh|assust|scare|loud|startle)\b/.test(raw);
+  if (aghata) {
+    if (/\b(preto|roxo|vermelho|gotic|goth|dark|escur|black|purple|red|corvo|crow|manga|anime|terror|romance|livro|book|musica|music|fone|headphone|som|sound|darkwave|metal|cafe| coffee)\b/.test(raw)) return 'love';
+    if (startle) return 'startle';
+    return 'neutral';
+  }
+  if (/\b(fofo|cute|doce|sweet|colorid|colorful|brilhant|sparkl|rosa|pink|amarelo|yellow|feliz|happy|danca|dance|brinc|play)\b/.test(raw)) return 'love';
+  return startle ? 'startle' : 'neutral';
+}
+
+// Automatic daily-life lines for the normal game (not only the stream stage).
+const AUTO_LINES = {
+  estoica: {
+    pt: {
+      eat: ['Comer... preciso mesmo.', 'Este lanche está bom. Obrigada.', 'Como devagar. Não há pressa.'],
+      drink: ['Bebo um pouco... a sede passa.', 'Líquido aceito. Obrigada.', 'Hidratação. Necessária.'],
+      bath: ['Água... tira o pó do dia.', 'Limpa. Gosto disso.', 'O banho deixa o corpo leve.'],
+      sleep: ['Vou dormir um pouco... sem sonhos, acho.', 'Desligo por instantes.', 'Preciso de energia. Boa noite.'],
+      crow: ['O corvo pousou... observo ele.', 'Aquele corvo de novo. Não me assusto.', 'Ele é estranho. Gosto dele.'],
+    },
+    en: {
+      eat: ['Eating... I really need to.', 'This snack is good. Thank you.', 'I eat slowly. No rush.'],
+      drink: ['A little drink... thirst goes away.', 'Liquid accepted. Thank you.', 'Hydration. Necessary.'],
+      bath: ['Water... washes off the day.', 'Clean. I like this.', 'The bath makes me light.'],
+      sleep: ['I will sleep a while... no dreams, I think.', 'Switching off for a moment.', 'I need energy. Good night.'],
+      crow: ['The crow landed... I watch it.', 'That crow again. I am not startled.', 'It is strange. I like it.'],
+    },
+  },
+  genki: {
+    pt: {
+      eat: ['Nham! Tô comendo!', 'Hum, gostoso! Valeu!', 'Comida! Bora comer!'],
+      drink: ['Glu glu! Tô hidratada!', 'Bebida gelada, o máximo!', 'Ahh, refreshing!'],
+      bath: ['Banho! Tô ficando limpinha!', 'Splash! Que legal!', 'Água, vem cá!'],
+      sleep: ['Boa noite! Zzz...', 'Tô com soninho, vou dormir!', 'Desligando... até já!'],
+      crow: ['Oi, corvinho!', 'Olha o corvo! Que legal!', 'Corvo, vem brincar!'],
+    },
+    en: {
+      eat: ['Yum! I am eating!', 'Mmm, tasty! Thanks!', 'Food! Let us eat!'],
+      drink: ['Gulp gulp! Hydrated!', 'Cold drink, the best!', 'Ahh, refreshing!'],
+      bath: ['Bath time! So clean!', 'Splash! Fun!', 'Water, come here!'],
+      sleep: ['Good night! Zzz...', 'Sleepy now, night night!', 'Switching off... see you!'],
+      crow: ['Hi, little crow!', 'Look, a crow! So cool!', 'Crow, come play!'],
+    },
+  },
+  tsundere: {
+    pt: {
+      eat: ['Tô comendo, não é como se estivesse com fome...', 'O lanche é bom. Só isso.', 'Não precisava me dar comida, mas obrigada.'],
+      drink: ['Beba água você também, viu? Eu já bebi.', 'Tô hidratada. Só isso.', 'Não é como se eu estivesse com sede...'],
+      bath: ['Tô indo tomar banho. Não me siga!', 'Limpa... tudo bem, gostei.', 'Vá embora, estou me lavando!'],
+      sleep: ['Vou dormir. Não fique olhando!', 'Boa noite... e não faça barulho.', 'Tô cansada. Só isso.'],
+      crow: ['Esse corvo... fica me encarando.', 'Não é como se eu gostasse dele.', 'Corvo bobo. Vai embora... ou fica.'],
+    },
+    en: {
+      eat: ['I am eating, not like I was hungry...', 'The snack is good. That is all.', 'You did not need to feed me, but thanks.'],
+      drink: ['You drink water too, okay? I already did.', 'I am hydrated. That is all.', 'Not like I was thirsty...'],
+      bath: ['I am going to bathe. Do not follow me!', 'Clean... fine, I liked it.', 'Go away, I am washing!'],
+      sleep: ['I am sleeping. Do not stare!', 'Good night... and no noise.', 'I am tired. That is all.'],
+      crow: ['This crow... keeps staring at me.', 'Not like I like it.', 'Silly crow. Go away... or stay.'],
+    },
+  },
+  dandere: {
+    pt: {
+      eat: ['Vou comer devagar, tá?', 'Obrigada pela comida... fico feliz.', 'É gostoso... obrigada.'],
+      drink: ['Bebo um gole... obrigada.', 'Água... fico grata.', 'Hidratar, sim... obrigada por lembrar.'],
+      bath: ['Vou tomar banho... não olhe, tá?', 'A água está quentinha... gostei.', 'Fico limpa... obrigada.'],
+      sleep: ['Vou dormir... boa noite, {user}.', 'Fico com sono... desculpa.', 'Zzz... obrigada por cuidar de mim.'],
+      crow: ['O corvo... ele é fofo, né?', 'Ele me assusta um pouco... mas é gentil.', 'Corvinho... oi. Desculpa, sou tímida.'],
+    },
+    en: {
+      eat: ['I will eat slowly, okay?', 'Thanks for the food... I am happy.', 'It is tasty... thank you.'],
+      drink: ['A sip... thank you.', 'Water... I am grateful.', 'Hydrating, yes... thanks for reminding me.'],
+      bath: ['I will bathe... do not look, okay?', 'The water is warm... I like it.', 'I feel clean... thank you.'],
+      sleep: ['I will sleep... good night, {user}.', 'I am sleepy... sorry.', 'Zzz... thanks for caring for me.'],
+      crow: ['The crow... it is cute, right?', 'It scares me a little... but it is kind.', 'Little crow... hi. Sorry, I am shy.'],
+    },
+  },
+  chuuni: {
+    pt: {
+      eat: ['Consumo a essência deste alimento. Renovo minhas forças.', 'O banquete sagrado começa.', 'A energia da comida selou-se em mim.'],
+      drink: ['Bebo o elixir líquido. O portal agradece.', 'A umidade renova meu feitiço.', 'Hidratação: parte do ritual.'],
+      bath: ['A água purifica as runas do meu corpo.', 'Banho ritualístico iniciado.', 'Lavo os resíduos do mundo.'],
+      sleep: ['Retiro-me ao plano do sono. Não me sigam.', 'O portal fecha por algumas horas.', 'Zzz... que os astros vigiem.'],
+      crow: ['O corvo é meu mensageiro das sombras!', 'A criatura negra traz presságios.', 'Ave dos presságios... saudações.'],
+    },
+    en: {
+      eat: ['I consume the essence of this food. Strength renewed.', 'The sacred feast begins.', 'The food\'s energy sealed within me.'],
+      drink: ['I drink the liquid elixir. The portal thanks me.', 'Moisture renews my spell.', 'Hydration: part of the ritual.'],
+      bath: ['Water purifies the runes of my body.', 'Ritual bath initiated.', 'I wash away the residue of the world.'],
+      sleep: ['I withdraw to the plane of sleep. Do not follow.', 'The portal closes for a few hours.', 'Zzz... may the stars watch over you.'],
+      crow: ['The crow is my shadow messenger!', 'The dark creature brings omens.', 'Bird of omens... greetings.'],
+    },
+  },
+};
+
+export function autoLine(app, key, vars = {}) {
+  const en = app?.config?.lang === 'en';
+  const id = getPersona(app);
+  const list = AUTO_LINES[id]?.[en ? 'en' : 'pt']?.[key] || [];
+  if (!list.length) return '';
+  const raw = list[Math.floor(Math.random() * list.length)];
+  const all = { user: app?.config?.name || (en ? 'friend' : 'amigo'), ...vars };
+  return raw.replace(/\{(\w+)\}/g, (_, k) => String(all[k] ?? ''));
+}
+
+const AUTO_KEYWORDS = {
+  eat: /come|comer|lanche|comida|mord|eat|food|snack/i,
+  drink: /beb|água|agua|hidrat|glass|drink|water|sip/i,
+  bath: /banh|shower|wash|limp/i,
+  sleep: /dorm|sono|zzz|sleep|night/i,
+  crow: /corvo|crow|ave/i,
+};
+
+export function personifyAutoLine(app, text) {
+  if (!text || window.__PET_STREAMER__) return text;
+  for (const [key, re] of Object.entries(AUTO_KEYWORDS)) {
+    if (re.test(text)) return autoLine(app, key) || text;
+  }
+  return text;
+}
+
+const AFFINITY_LINE = {
+  love: {
+    pt: 'Hmm... isso combina comigo. Obrigada.',
+    en: 'Hmm... this suits me. Thank you.',
+  },
+};
+
+export function affinityLine(kind, lang) {
+  return AFFINITY_LINE[kind]?.[lang === 'en' ? 'en' : 'pt'] || '';
+}
+
 export function defaultPersona(app) {
   return /aghata/i.test(app?.config?.modelDir || '') ? 'estoica' : 'padrao';
+}
+
+// Replaces default companion names in any spoken line (balloon + TTS).
+export function replacePetNames(app, text) {
+  let s = String(text || '');
+  if (!s) return s;
+  const en = app?.config?.lang === 'en';
+  const doll = app?.getDollName?.() || (en ? 'Doll' : 'Boneco');
+  const crow = app?.getCrowName?.() || (en ? 'Crow' : 'Corvo');
+  s = s.replace(/\b(Doll|Boneco)\b/g, doll).replace(/\b(Corvo|Crow)\b/g, crow);
+  return s;
 }
 
 export function isStoic(app) {

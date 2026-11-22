@@ -44,6 +44,16 @@ const EMOTES = {
 // Alternative themes: one PNG per emote, or one 16px sheet (13x5 cells).
 const PIXY_URL = new URL('./assets/emotes/pixymoji/', import.meta.url).href;
 const PIXEL16_URL = new URL('./assets/emotes/pixel16.png', import.meta.url).href;
+// 13x5 grid of 16px tiles (one tile per emotion).
+const PIXEL16_TILES = {
+  interrobang: [8, 2], question: [8, 2], dizzy: [3, 0], sparkle: [9, 4],
+  hearts: [1, 3], blush: [8, 0], sleep: [3, 2], dots: [7, 2], scribble: [3, 0],
+  anger: [9, 1], storm: [12, 0], brokenheart: [12, 0], note: [10, 2], medal: [6, 2],
+  star: [9, 4], sweat: [1, 0], arrow: [5, 3], hand: [6, 3], bowl: [7, 4], drink: [0, 2],
+  laugh: [2, 1], shock: [1, 1], rainbow: [1, 2], peace: [10, 3],
+  idea: [9, 4], scare: [1, 1], music: [10, 2], happy: [2, 1], sad: [5, 1], angry: [9, 1],
+};
+
 const PIXY = {
   interrobang: 'exclamation-question-mark.png', question: 'red-question-mark.png', dizzy: 'dizzy.png',
   sparkle: 'sparkles.png', hearts: 'pink-heart.png', blush: 'flushed-face.png', sleep: 'sleeping-face.png',
@@ -183,11 +193,11 @@ export class Emoticons {
         el.style.backgroundSize = 'contain';
         el.style.backgroundPosition = 'center';
       } else {
-        const idx = Math.max(0, Object.keys(EMOTES).indexOf(name));
+        const tile = PIXEL16_TILES[name] || [Math.max(0, Object.keys(EMOTES).indexOf(name)) % 13, 0];
         const scale = this.size / 16;
         el.style.backgroundImage = `url("${PIXEL16_URL}")`;
-        el.style.backgroundSize = `${13 * scale}px ${5 * scale}px`;
-        el.style.backgroundPosition = `${-(idx % 13) * scale}px ${-Math.floor(idx / 13) * scale}px`;
+        el.style.backgroundSize = `${13 * 16 * scale}px ${5 * 16 * scale}px`;
+        el.style.backgroundPosition = `${-tile[0] * 16 * scale}px ${-tile[1] * 16 * scale}px`;
       }
       return;
     }

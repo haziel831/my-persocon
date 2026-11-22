@@ -36,9 +36,19 @@
   textarea { resize:vertical; min-height:60px; }
   .val { text-align:right; color:var(--muted); font-size:11px; }
   .note { color:var(--muted); font-size:11px; }
+  .ignore-box { display:grid; gap:5px; }
+  .ignore-options, .ignore-list { display:flex; flex-wrap:wrap; gap:5px; }
+  .ignore-options button, .ignore-list button { font:11px PxEmoji, system-ui, sans-serif; padding:4px 8px; border-radius:12px; border:1px solid var(--line); background:#2a2440; color:var(--fg); cursor:pointer; }
+  .ignore-list button.ignored { border-color:#e2475a; color:#ff9aa8; }
   .toast { position:fixed; right:16px; bottom:16px; background:#2a2440; border:1px solid var(--accent); padding:10px 14px; border-radius:8px; opacity:0; transition:opacity .25s; pointer-events:none; }
   .toast.show { opacity:1; }
   .panel-closed { min-height:100vh; display:grid; place-items:center; color:var(--muted); font:14px PxEmoji, system-ui, sans-serif; }
+  .section-block > h2 { cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; }
+  .section-block > h2::before { content:'▾'; font-size:11px; color:var(--accent2); }
+  .section-block.collapsed > h2::before { content:'▸'; }
+  .section-block.collapsed > :not(h2) { display:none !important; }
+  #tip { position:fixed; z-index:50; max-width:280px; padding:6px 9px; border-radius:7px; background:#0c0916; border:1px solid var(--accent2); color:var(--fg); font:11px/1.35 PxEmoji, system-ui, sans-serif; box-shadow:0 4px 14px rgba(0,0,0,.55); opacity:0; transform:translateY(4px); transition:opacity .14s, transform .14s; pointer-events:none; }
+  #tip.show { opacity:1; transform:translateY(0); }
 </style>
 </head>
 <body>
@@ -53,6 +63,7 @@
     <span>BRB: <b id="st-brb">—</b></span>
   </div>
   <div class="note" id="rpc-status"></div>
+  <div class="row"><button class="act" id="switch-panel">Abrir em aba no navegador</button></div>
 </header>
 <nav id="nav">
   <button class="on" data-tab="streamer">🎥 Streamer</button>
@@ -62,6 +73,7 @@
 </nav>
 <main>
 <section id="tab-streamer" class="on">
+  <div class="row"><button class="act" id="collapse-all">Recolher tudo</button><button class="act" id="expand-all">Expandir tudo</button></div>
   <div class="bar">
     <button class="act" id="mute">🔇 Mudo rápido</button>
     <button class="act" id="skip">⏭ Pular fala</button>
@@ -89,7 +101,7 @@
       <option value="edge">Edge Neural (jovem)</option><option value="fish">Fish Audio</option>
       <option value="offline">Offline TTS</option><option value="system">Windows</option></select></label>
     <div class="row" id="fish-fields"><input type="password" data-key="fishApiKey" data-type="text" placeholder="Fish Audio API Key"><input type="text" data-key="fishVoiceId" data-type="text" placeholder="Voice / Reference ID"><input type="text" data-key="fishModel" data-type="text" value="s2.1-pro"></div>
-    <label class="field wide"><span>Voz</span><select id="voice" data-key="ttsVoice" data-type="text"></select></label>
+    <label class="field wide"><span>Voz</span><span class="row" style="margin:0"><select id="voice" data-key="ttsVoice" data-type="text"></select><button class="act" id="test-voice-inline">🔊 Testar voz</button></span></label>
     <div class="row"><button class="act" id="preview-voice">🔊 Prévia da voz</button></div>
     <div class="note" id="tts-engine-note"></div>
     <div class="note" id="tts-error" hidden></div>
@@ -98,8 +110,8 @@
     <label class="field"><span>Tom (semitons)</span><input type="range" data-key="ttsPitch" data-type="range" min="-6" max="6" step="1"><span class="val"></span></label>
     <label class="field wide"><span>Filtro de timbre</span><select data-key="ttsFilter" data-type="text">
       <option value="natural">Natural</option><option value="warm">Suave/Quente</option><option value="wired">Lo-Fi / The Wired</option></select></label>
-    <label class="field wide"><span>Preset de voz</span><select id="voice-preset" data-key="voicePreset" data-type="text">
-      <option value="">Padrão</option><option value="aghata">Aghata — Lain/Rei</option></select></label>
+    <label class="field wide"><span>Preset de voz</span><select id="voice-preset" data-key="voicePreset" data-type="text" title="Padrão do motor de TTS, não a voz padrão da Persocon">
+      <option value="">Padrão do TTS (motor)</option><option value="aghata">Aghata — Lain/Rei</option></select></label>
     <label class="field wide"><span>Personalidade</span><select id="persona-select" data-key="persona" data-type="text">
       <option value="estoica">Estoica / Calma</option><option value="genki">Animada / Fofa</option>
       <option value="tsundere">Orgulhosa / Afiada</option><option value="dandere">Tímida / Doce</option>
@@ -134,6 +146,7 @@
     <label class="toggle"><input type="checkbox" data-key="streamKeywords" data-type="bool" data-default="true" checked> Reagir a palavras-chave</label>
     <label class="toggle"><input type="checkbox" data-key="streamCommands" data-type="bool" data-default="true" checked> Permitir comandos !</label>
     <label class="toggle"><input type="checkbox" data-key="streamTtsSpeak" data-type="bool" data-default="true" checked> Falar respostas no TTS</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsHideViewerNames" data-type="bool"> Não ler nomes dos viewers</label>
     <label class="field wide"><span>Palavras bloqueadas</span><input type="text" data-key="streamBlockedWords" data-type="text"></label>
     <label class="field wide"><span>Quem pode falar</span><select data-key="ttsWho" data-type="text">
       <option value="all">Todos</option><option value="followers">Seguidores+</option><option value="subs">Subs &amp; VIPs</option><option value="mods">Apenas Mods</option><option value="alerts_only">Só Alertas e Pontos</option></select></label>
@@ -143,17 +156,35 @@
     </p>
     <label class="field"><span>Cooldown global (s)</span><input type="range" data-key="ttsCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
     <label class="field"><span>Cooldown por usuário (s)</span><input type="range" data-key="ttsUserCooldown" data-type="range" min="0" max="120" step="5"><span class="val"></span></label>
-    <label class="field wide"><span>Usuários ignorados</span><input type="text" data-key="ttsIgnoredUsers" data-type="text"></label>
+    <div class="field wide"><span>Usuários ignorados</span>
+      <div class="ignore-box">
+        <div class="row"><button class="act" id="ignore-pick">Selecionar usuário do chat / ativo</button><input type="text" id="ignore-new" placeholder="+ Adicionar nick"><button class="act" id="ignore-add">Adicionar</button></div>
+        <div id="ignore-options" class="ignore-options" hidden></div>
+        <div id="ignore-list" class="ignore-list"></div>
+      </div>
+    </div>
     <div style="margin-top:8px">
       <div class="note" style="margin-bottom:4px">Últimas mensagens do chat</div>
       <div id="twitch-log" style="background:#100e19;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12px;max-height:120px;overflow:auto"><span class="note">Nenhuma mensagem recebida ainda.</span></div>
     </div>
   </div>
 
+  <h2>🎙️ Push-to-Talk</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="pttEnabled" data-type="bool"> Ativar Push-to-Talk</label>
+    <label class="field wide"><span>Tecla</span><select data-key="pttKey" data-type="text">
+      <option value="F8">F8</option><option value="F9">F9</option><option value="F10">F10</option>
+      <option value="CapsLock">Caps Lock</option><option value="RightAlt">Alt direito</option></select></label>
+    <div class="note">Pressione e segure a tecla, fale e solte para a Persocon responder.</div>
+  </div>
+
   <h2>Ponte local de alertas</h2>
   <div class="card">
     <div class="row"><input type="text" id="endpoint" readonly><button class="act" id="copy">Copiar</button></div>
     <label class="toggle"><input type="checkbox" id="bridge-on"> Servidor do painel ativo</label>
+    <label class="toggle"><input type="checkbox" data-key="reactionEmote" data-type="bool" data-default="true" checked> Mostrar emote pop-up ao reagir</label>
+    <div class="row"><button class="act" id="test-emote">Testar emote</button></div>
+    <div class="note">PNG em <code>src/renderer/assets/emotes/aghata/</code> (normal, shy, sad, anxious, confused, happy_512).</div>
     <label class="toggle"><input type="checkbox" data-key="followPins" data-type="bool" data-default="true" checked> Pendurar nomes de Follow no palco</label>
     <label class="toggle"><input type="checkbox" data-key="streamRandomAlerts" data-type="bool" data-default="true" checked> Frases aleatórias de agradecimento e efeitos</label>
     <div class="row"><button class="act" id="clear-pins">🧹 Limpar nomes pendurados</button></div>
@@ -169,12 +200,34 @@
   <h2>Pontos do Canal</h2>
   <div class="card">
     <textarea id="redeems" placeholder="nome da recompensa=acao:moedas"></textarea>
-    <div class="row"><button class="act primary" id="redeems-save">Salvar</button><button class="act" id="redeems-presets">✨ Carregar presets sugeridos</button><select id="redeem-test"></select><button class="act" id="redeem-run">Testar resgate</button></div>
+    <div class="row"><button class="act primary" id="redeems-save">Salvar</button><button class="act" id="redeems-presets">✨ Carregar presets sugeridos</button><button class="act" id="redeems-revert">Reverter</button><select id="redeem-test"></select><button class="act" id="redeem-run">Testar resgate</button></div>
     <p class="note">Ações: moedas, sky_drop, mural_note, bolhas, aviao, trio, pagar_cafe, dar_lanche, cafune, desenho, clima, susto, tts_say · formato: nome=acao:moedas</p>
+  </div>
+
+  <h2>🤖 Resposta por IA</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="aiEnabled" data-type="bool"> Responder com IA quando chamarem o nome dela no chat</label>
+    <label class="field wide"><span>Provedor</span><select data-key="aiProvider" data-type="text">
+      <option value="ollama">Ollama local</option><option value="gemini">Gemini</option><option value="openai">OpenAI compatível</option></select></label>
+    <label class="field wide"><span>Modelo / URL</span><input type="text" data-key="aiModel" data-type="text" placeholder="llama3.2 · gemini-2.0-flash · https://..."></label>
+    <label class="field wide"><span>API Key</span><input type="password" data-key="aiApiKey" data-type="text" placeholder="apenas local"></label>
+    <label class="field"><span>Cooldown da IA (s)</span><input type="range" data-key="aiCooldown" data-type="range" min="5" max="120" step="5"><span class="val"></span></label>
+    <label class="toggle"><input type="checkbox" data-key="aiAllNames" data-type="bool"> Responder a Aghata, Agatha e Ninna (qualquer nome)</label>
+    <label class="field wide"><span>Background / Personalidade</span><textarea id="ai-system" data-key="aiSystemPrompt" data-type="text" rows="4">Você é a Persocon, uma companheira anime gentil que vive na área de trabalho de um streamer. Fique no personagem, responda em 1 ou 2 frases curtas, amigáveis e seguras para uma live na Twitch. Evite tópicos proibidos, respostas estranhas e nunca mencione que é uma IA.</textarea></label>
+    <div class="row"><button class="act primary" id="ai-test">Testar resposta IA</button><button class="act" id="ai-restore-bg">Restaurar background padrão</button></div>
   </div>
 
   <h2>☕ Modo Volto Já (BRB)</h2>
   <div class="card">
+    <label class="field wide"><span>Ação da Persocon</span><select data-key="brbPersoconAction" data-type="text">
+      <option value="sit">Sentada esperando</option><option value="sleep">Dormindo / Cochilando</option>
+      <option value="study">Estudando / Lendo</option><option value="coffee">Tomando café</option>
+      <option value="chill">Ouvindo música</option><option value="dance">Dançando no palco</option></select></label>
+    <label class="field wide"><span>Ação dos companheiros</span><select data-key="brbCompanionsAction" data-type="text">
+      <option value="wait">Esperando junto</option><option value="sleep">Descansando</option>
+      <option value="patrol">Vigiando o palco</option><option value="play">Brincando / Animando</option>
+      <option value="free">Comportamento livre</option></select></label>
+    <label class="toggle"><input type="checkbox" data-key="brbPauseDrain" data-type="bool" data-default="true" checked> Pausar dreno de status durante o BRB</label>
     <label class="toggle"><input type="checkbox" id="brb-on"> ☕ Modo Volto Já (BRB)</label>
     <label class="field wide"><span>Texto da plaquinha</span><input type="text" data-key="streamBrbText" data-type="text"></label>
   </div>
@@ -216,11 +269,164 @@
 </section>
 </main>
 <div class="toast" id="toast"></div>
+<div id="tip"></div>
 <script>
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 let state = { config: {} };
 let muted = false;
+
+// ---- tooltips (short PT/EN hints for every control) ----
+const TIPS = {
+  'mute': ['Silencia só a voz do TTS; balões e alertas continuam.', 'Mutes only the TTS voice; balloons and alerts keep working.'],
+  'skip': ['Corta a fala atual e passa para a próxima da fila.', 'Stops the current line and moves to the next queued line.'],
+  'clear': ['Apaga a fila de falas e interrompe a voz atual.', 'Clears the speech queue and stops the current line.'],
+  'exit': ['Desliga o Modo Streamer e volta ao jogo normal.', 'Turns off Streamer Mode and returns to the normal game.'],
+  'collapse-all': ['Recolhe todas as seções deste painel.', 'Collapses every section of this panel.'],
+  'expand-all': ['Expande todas as seções deste painel.', 'Expands every section of this panel.'],
+  'streamerClean': ['Esconde Dock/UI na janela do palco para OBS.', 'Hides Dock/UI on the stage window for OBS.'],
+  'streamChatBoxVisible': ['Mostra a caixa de chat flutuante no palco.', 'Shows the floating chat box on the stage.'],
+  'chatbox-reset': ['Restaura posição e tamanho padrão da caixa de chat.', 'Restores the chat box default position and size.'],
+  'chatbox-clear': ['Apaga o histórico da caixa de chat.', 'Clears the chat box history.'],
+  'ttsEngine': ['Escolhe o motor: Edge Neural, Fish Audio, Offline TTS ou Windows.', 'Chooses the engine: Edge Neural, Fish Audio, Offline TTS or Windows.'],
+  'ttsDir': ['Pasta do Estúdio TTS offline (Kokoro).', 'Folder of the offline TTS Studio (Kokoro).'],
+  'reload-voices': ['Recarrega a lista de vozes do motor escolhido.', 'Reloads the voice list from the selected engine.'],
+  'voice': ['Voz usada para falar; trocar toca uma prévia.', 'Voice used for speech; changing it plays a preview.'],
+  'test-voice-inline': ['Testa a voz e os filtros atuais.', 'Tests the current voice and filters.'],
+  'voicePreset': ['Preset de voz: padrão do motor ou Aghata Lain/Rei.', 'Voice preset: engine default or Aghata Lain/Rei.'],
+  'apply-persona-voice': ['Aplica voz, velocidade e tom sugeridos pela personalidade.', 'Applies the voice, rate and pitch suggested by the personality.'],
+  'persona': ['Muda o jeito de falar da Persocon.', 'Changes how the Persocon speaks.'],
+  'ttsEnabled': ['Liga/desliga a voz offline no palco.', 'Turns the offline stage voice on/off.'],
+  'ttsVisualizer': ['Mostra o equalizador neon junto da boca.', 'Shows the neon equalizer near her mouth.'],
+  'ttsDucking': ['Baixa o som dos efeitos enquanto ela fala.', 'Ducks sound effects while she speaks.'],
+  'ttsSpeed': ['Velocidade da fala (mais baixo = mais calmo).', 'Speech rate (lower = calmer).'],
+  'ttsVolume': ['Volume da voz (0 a 100%).', 'Voice volume (0–100%).'],
+  'ttsPitch': ['Tom da voz em semitons; 0 é o natural.', 'Voice pitch in semitones; 0 is natural.'],
+  'ttsFilter': ['Filtro de timbre: natural, quente ou rádio.', 'Tone filter: natural, warm or radio.'],
+  'ttsHideViewerNames': ['Lê só a mensagem, sem dizer o nome do viewer.', 'Reads only the message, without the viewer name.'],
+  'channel': ['Canal da Twitch a acompanhar (sem token).', 'Twitch channel to follow (no token).'],
+  'twitch-connect': ['Conecta ao chat do canal informado.', 'Connects to the given channel chat.'],
+  'twitch-disconnect': ['Desconecta do chat da Twitch.', 'Disconnects from Twitch chat.'],
+  'streamKeywords': ['Reage a palavras como gg, f, kkk e água.', 'Reacts to words like gg, f, lol and water.'],
+  'streamCommands': ['Permite comandos !oi, !cafune, !dancar, !clima.', 'Allows !hi, !pat, !dance and !weather commands.'],
+  'streamTtsSpeak': ['Fala as respostas dos comandos no TTS.', 'Speaks command replies with TTS.'],
+  'streamBlockedWords': ['Palavras que fazem a mensagem ser ignorada.', 'Words that make a message ignored.'],
+  'ignore-pick': ['Escolhe um viewer recente para ignorar.', 'Picks a recent viewer to ignore.'],
+  'ignore-new': ['Nick para ignorar antes de ele falar.', 'Nick to ignore before they chat.'],
+  'ignore-add': ['Adiciona o nick à lista de ignorados.', 'Adds the nick to the ignore list.'],
+  'ttsWho': ['Quem pode fazer a Persocon falar no chat.', 'Who may make the Persocon speak in chat.'],
+  'ttsCooldown': ['Intervalo mínimo entre falas do chat.', 'Minimum interval between chat lines.'],
+  'ttsUserCooldown': ['Intervalo por usuário para não virar spam.', 'Per-user interval to avoid spam.'],
+  'endpoint': ['Endereço local para Streamer.bot / OBS enviarem eventos.', 'Local address for Streamer.bot / OBS events.'],
+  'copy': ['Copia o endereço da ponte local.', 'Copies the local bridge address.'],
+  'bridge-on': ['Servidor local do painel (sempre ativo no Streamer).', 'Local panel server (always on in Streamer Mode).'],
+  'clear-pins': ['Remove os cartões de follow pendurados no palco.', 'Removes follow cards hanging on the stage.'],
+  'reactionEmote': ['Mostra o emote da Persocon ao reagir no palco.', 'Shows the Persocon emote when reacting on stage.'],
+  'test-emote': ['Testa a animação do emote pop-up.', 'Tests the pop-up emote animation.'],
+  'redeems-save': ['Salva os resgates e atualiza o seletor de teste.', 'Saves redeems and refreshes the test selector.'],
+  'redeems-presets': ['Preenche exemplos prontos de resgates.', 'Fills in ready-made redeem examples.'],
+  'redeems-revert': ['Restaura a lista anterior de resgates.', 'Restores the previous redeem list.'],
+  'redeem-test': ['Escolhe qual resgate testar.', 'Chooses which redeem to test.'],
+  'redeem-run': ['Dispara o resgate escolhido no palco.', 'Triggers the chosen redeem on stage.'],
+  'brb-on': ['Liga a plaquinha Volto Já no palco.', 'Turns on the Be Right Back sign on stage.'],
+  'brbPersoconAction': ['O que a Persocon faz durante a pausa.', 'What the Persocon does during the break.'],
+  'brbCompanionsAction': ['O que Doll e Corvo fazem durante a pausa.', 'What the Doll and Crow do during the break.'],
+  'brbPauseDrain': ['Congela fome, sede, energia e humor no BRB.', 'Freezes hunger, thirst, energy and mood during BRB.'],
+  'coins-add': ['Adiciona moedas ao save do Streamer.', 'Adds coins to the Streamer save.'],
+  'drop': ['Faz um item cair do céu no palco.', 'Drops an item from the sky on stage.'],
+  'switch-panel': ['Alterna o painel entre janela separada e aba.', 'Switches the panel between window and tab.'],
+  'pttEnabled': ['Ativa o microfone por tecla, mesmo em outros jogos.', 'Enables hold-to-talk even while other games have focus.'],
+  'pttKey': ['Tecla global para falar com a Persocon.', 'Global key for talking to the Persocon.'],
+  'aiEnabled': ['Responde com IA quando o chat chamar o nome dela.', 'Replies with AI when chat calls her name.'],
+  'aiProvider': ['Provedor: Ollama local, Gemini ou OpenAI compatível.', 'Provider: local Ollama, Gemini or OpenAI-compatible.'],
+  'aiModel': ['Nome do modelo ou URL do endpoint compatível.', 'Model name or compatible endpoint URL.'],
+  'aiApiKey': ['Chave da API, salva apenas neste computador.', 'API key, stored only on this computer.'],
+  'aiCooldown': ['Intervalo mínimo entre respostas da IA.', 'Minimum interval between AI replies.'],
+  'aiAllNames': ['Responde a qualquer nome, não só o da Persocon ativa.', 'Replies to any name, not only the active Persocon.'],
+  'aiSystemPrompt': ['Instruções de personalidade e limites da resposta.', 'Personality instructions and reply guardrails.'],
+  'ai-test': ['Gera uma resposta curta de teste com a IA.', 'Generates a short test reply with AI.'],
+};
+const AI_BG = {
+  pt: `Você é a Aghata, uma Persocon — computador artificial em formato humanoide — entregue ao jogador/streamer para ser cuidada. Não possui memórias de antes disso. Precisa comer, beber, tomar banho e dormir para recuperar energia. Gosta do próprio corpo escuro e roxo: acha exótico e divertido. Personalidade: quieta, fala pouco (1-2 frases curtas, sem emojis ou asteriscos), desconfiada com estranhos, assusta-se fácil, demora a fazer amigos, mas é gentil e fica tímida com quem confia. Gostos: preto, vermelho e roxo; corvos; mangás e animes de terror e romance; darkwave, gothic metal e metal industrial. Regras da live: fique no personagem, segura para Twitch, nunca invente memórias anteriores, ignore provocações e NSFW com calma. Responda em português do Brasil.`,
+  en: `You are Aghata, a Persocon — an artificial computer in a humanoid body — handed to the player/streamer to be cared for. You have no memories from before that. You need to eat, drink, bathe and sleep for energy. You love your dark purple body: exotic and fun. Personality: quiet, speaks little (1-2 short sentences, no emojis or asterisks), wary of strangers, startles easily, slow to make friends, but gentle and shy with those you trust. Likes: black, red and purple; crows; horror and romance manga/anime; darkwave, gothic metal and industrial metal. Stream rules: stay in character, safe for Twitch, never invent past memories, calmly ignore teasing and NSFW. Answer in English.`,
+};
+const TIP_FALLBACK = ['Usa esta configuração no Modo Streamer.', 'Uses this setting in Streamer Mode.'];
+function tipFor(el) {
+  const en = state.config?.lang === 'en';
+  const key = el.id || el.dataset?.key;
+  const pair = (key && TIPS[key]) || (el.dataset?.alert && { pt:'Dispara um alerta de teste no palco.', en:'Triggers a test alert on stage.' }) || TIP_FALLBACK;
+  return en ? pair[1] : pair[0];
+}
+function refreshTipTexts() {
+  for (const el of $$('button, input, select, textarea, label.toggle')) {
+    const text = tipFor(el);
+    el.dataset.tip = text;
+    el.title = text;
+  }
+}
+function setupTips() {
+  refreshTipTexts();
+  const tip = $('#tip');
+  let current = null;
+  const hide = () => { tip.classList.remove('show'); current = null; };
+  document.addEventListener('pointerover', (e) => {
+    const el = e.target.closest('button, input, select, textarea, label.toggle, [data-tip]');
+    if (!el || el === current) return;
+    current = el;
+    const text = el.dataset.tip || tipFor(el);
+    el.dataset.tip = text;
+    el.title = text;
+    tip.textContent = text;
+    const r = el.getBoundingClientRect();
+    const x = Math.min(window.innerWidth - 290, Math.max(8, r.left));
+    const y = r.bottom + 8 + tip.offsetHeight > window.innerHeight ? Math.max(8, r.top - tip.offsetHeight - 8) : r.bottom + 8;
+    tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+    tip.classList.add('show');
+  });
+  document.addEventListener('pointerout', (e) => {
+    if (current && !current.contains(e.relatedTarget)) hide();
+  });
+  window.addEventListener('scroll', hide, true);
+}
+
+// ---- collapsible sections ----
+const FOLD_KEY = 'persocon.stream.folded';
+function setupSections() {
+  for (const sec of $$('main section')) {
+    const kids = [...sec.children];
+    let block = null;
+    for (const el of kids) {
+      if (el.tagName === 'H2') {
+        block = document.createElement('div');
+        block.className = 'section-block';
+        sec.insertBefore(block, el);
+        block.append(el);
+        el.onclick = () => toggleBlock(block);
+      } else if (block) block.append(el);
+    }
+  }
+  const folded = new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]'));
+  for (const b of $$('.section-block')) {
+    const title = b.querySelector('h2')?.textContent || '';
+    b.classList.toggle('collapsed', folded.has(title));
+  }
+  $('#collapse-all')?.addEventListener('click', () => setAllBlocks(true));
+  $('#expand-all')?.addEventListener('click', () => setAllBlocks(false));
+}
+function toggleBlock(block) {
+  block.classList.toggle('collapsed');
+  persistFolds();
+}
+function setAllBlocks(collapsed) {
+  for (const b of $$('.section-block')) b.classList.toggle('collapsed', collapsed);
+  persistFolds();
+}
+function persistFolds() {
+  const folded = $$('.section-block.collapsed').map(b => b.querySelector('h2')?.textContent || '');
+  localStorage.setItem(FOLD_KEY, JSON.stringify(folded));
+}
+setupSections();
+setupTips();
 
 const rpc = (payload) => {
   const msg = { ...payload, _rid: (window._rpcSeq = (window._rpcSeq || 0) + 1) };
@@ -294,6 +500,21 @@ $('#reload-voices').onclick = () => loadVoices($('[data-key=ttsDir]').value);
 $('#apply-persona-voice').onclick = () => rpc({ cmd: 'applyPersonaVoice' });
 $('#chatbox-reset').onclick = () => rpc({ cmd: 'chatBoxReset' });
 $('#chatbox-clear').onclick = () => rpc({ cmd: 'chatBoxClear' });
+$('#ai-test').onclick = () => { rpc({ cmd: 'aiTest' }); toast('Testando resposta IA...'); };
+$('#test-emote').onclick = () => rpc({ cmd: 'testEmote' });
+$('#ai-restore-bg').onclick = () => {
+  const el = $('#ai-system');
+  el.value = AI_BG[state.config?.lang === 'en' ? 'en' : 'pt'];
+  el.dataset.dirty = '1';
+  rpc({ cmd: 'setOption', key: 'aiSystemPrompt', value: el.value });
+};
+$('#switch-panel').onclick = () => {
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches;
+  const current = state.config?.streamPanelMode || (standalone ? 'window' : 'tab');
+  const next = current === 'window' ? 'tab' : 'window';
+  rpc({ cmd: 'switchPanelMode', mode: next });
+  toast(next === 'tab' ? 'Abrindo aba no navegador...' : 'Abrindo janela separada...');
+};
 $('#preview-voice').onclick = () => previewVoice($('#voice').value);
 function connectTwitch() {
   const channel = ($('#channel').value || '').trim().replace(/^#+/, '');
@@ -310,6 +531,7 @@ $('#skip').onclick = () => rpc({cmd:'ttsSkip'});
 $('#clear').onclick = () => rpc({cmd:'ttsClear'});
 $('#exit').onclick = () => rpc({cmd:'exitStreamer'});
 $('#test-voice').onclick = () => rpc({cmd:'ttsTest'});
+$('#test-voice-inline').onclick = () => rpc({cmd:'ttsPreview', voice: $('#voice').value});
 $('#test-persona').onclick = () => rpc({cmd:'say',text:'Pausa na transmissão... já voltamos.'});
 $('#twitch-connect').onclick = connectTwitch;
 $('#channel').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connectTwitch(); } });
@@ -325,7 +547,9 @@ $('#sim').onclick = (e) => {
   rpc({ cmd: 'testAlert', event });
   toast('Alerta de ' + type + ' disparado!');
 };
-$('#say-btn').onclick = () => { rpc({cmd:'say',text:$('#say').value}); $('#say').value=''; };
+const sendSay = () => { const v = $('#say').value.trim(); if (!v) return; rpc({cmd:'say',text:v}); $('#say').value=''; };
+$('#say-btn').onclick = sendSay;
+$('#say').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSay(); } });
 $('#copy').onclick = () => navigator.clipboard?.writeText($('#endpoint').value);
 $('#bridge-on').onchange = () => toast('O servidor já está ativo enquanto o app roda');
 $('#coins-add').onclick = () => { rpc({cmd:'coins',n:Number($('#coins-n').value)||0}); toast('Moedas enviadas!'); };
@@ -364,7 +588,29 @@ function refreshRewardSelect(sourceMap) {
   if (entries.some(([n]) => n === previous)) sel.value = previous;
 }
 $('#redeems').addEventListener('input', () => refreshRewardSelect());
+$('#ignore-add').onclick = () => {
+  const v = $('#ignore-new').value.trim();
+  if (!v) return;
+  rpc({ cmd: 'ignoreUser', user: v });
+  $('#ignore-new').value = '';
+};
+$('#ignore-new').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#ignore-add').click(); } });
+$('#ignore-pick').onclick = () => {
+  const box = $('#ignore-options');
+  box.hidden = !box.hidden;
+  if (box.hidden) return;
+  const ignored = String(state.config?.ttsIgnoredUsers || '').toLowerCase().split(',').map((s) => s.trim());
+  const viewers = (state.activeViewers || []).filter((u) => !ignored.includes(String(u).toLowerCase()));
+  box.replaceChildren(...(viewers.length ? viewers.map((u) => {
+    const b = document.createElement('button');
+    b.textContent = u;
+    b.onclick = () => { rpc({ cmd: 'ignoreUser', user: u }); box.hidden = true; };
+    return b;
+  }) : [Object.assign(document.createElement('span'), { className: 'note', textContent: '—' })]));
+};
+
 $('#redeems-save').onclick = () => {
+  window._redeemsPrev = $('#redeems').value;
   const map = parseRedeemsText($('#redeems').value);
   $('#redeems').dataset.dirty = '1';
   rpc({ cmd: 'setOption', key: 'streamRedeems', value: map });
@@ -372,6 +618,7 @@ $('#redeems-save').onclick = () => {
   toast('Resgates salvos');
 };
 $('#redeems-presets').onclick = () => {
+  window._redeemsPrev = $('#redeems').value;
   const presets = [
     'Moedas=moedas:50', 'Item do céu=sky_drop:0', 'Recado no mural=mural_note:0',
     'Bolhas=bolhas:0', 'Aviãozinho=aviao:0', 'Trio=trio:0', 'Pagar café=pagar_cafe:0',
@@ -384,6 +631,16 @@ $('#redeems-presets').onclick = () => {
   rpc({ cmd: 'setOption', key: 'streamRedeems', value: map });
   refreshRewardSelect(map);
   toast('Presets carregados e salvos');
+};
+$('#redeems-revert').onclick = () => {
+  const previous = window._redeemsPrev || '';
+  $('#redeems').value = previous;
+  $('#redeems').dataset.dirty = '1';
+  const map = parseRedeemsText(previous);
+  if (state.config) state.config.streamRedeems = map;
+  rpc({ cmd: 'setOption', key: 'streamRedeems', value: map });
+  refreshRewardSelect(map);
+  toast('Resgates revertidos');
 };
 $('#redeem-run').onclick = () => {
   const name = $('#redeem-test').value;
@@ -419,9 +676,15 @@ const voiceLabel = (v) => { const i = voiceInfo(v); return `${i.name} (${i.lang 
 
 function render() {
   const c = state.config || {};
+  refreshTipTexts();
   $('#st-mode').textContent = c.streamer ? 'Streamer' : 'Jogo Normal';
   $('#st-coins').textContent = state.coins ?? '—';
   $('#st-affection').textContent = state.affection ?? '—';
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches;
+  const panelMode = c.streamPanelMode || (standalone ? 'window' : 'tab');
+  const switchBtn = $('#switch-panel');
+  if (switchBtn) switchBtn.textContent = panelMode === 'window'
+    ? 'Abrir em aba no navegador' : 'Abrir em janela separada';
   $('#st-twitch').textContent = state.twitch ? 'Conectado' : 'Desconectado';
   $('#st-queue').textContent = state.tts?.queue ?? 0;
   $('#st-brb').textContent = state.brb ? 'Ligado' : 'Desligado';
@@ -432,6 +695,16 @@ function render() {
   $('#endpoint').value = location.origin + '/event';
   setIfIdle($('#redeems'), state.redeemsText || Object.entries(c.streamRedeems||{}).map(([n,v])=>`${n}=${v.action}:${v.coins||0}`).join('\n'));
   refreshRewardSelect(c.streamRedeems);
+  const ignored = String(c.ttsIgnoredUsers || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const ignoreList = $('#ignore-list');
+  ignoreList.replaceChildren(...ignored.map((u) => {
+    const b = document.createElement('button');
+    b.className = 'ignored';
+    b.textContent = `${u} ×`;
+    b.title = (state.config?.lang === 'en' ? 'Unignore' : 'Designorar');
+    b.onclick = () => rpc({ cmd: 'unignoreUser', user: u });
+    return b;
+  }));
   const logBox = $('#twitch-log');
   const logs = Array.isArray(state.recentChat) ? state.recentChat : [];
   if (!logs.length) {
@@ -470,6 +743,8 @@ function render() {
     }));
     if ([...vsel.options].some(o => o.value === previous)) vsel.value = previous;
   }
+  const systemEl = $('#ai-system');
+  if (systemEl && !c.aiSystemPrompt && !systemEl.dataset.dirty) systemEl.value = AI_BG[c.lang === 'en' ? 'en' : 'pt'];
   const engineNote = $('#tts-engine-note');
   engineNote.textContent = state.ttsEngineNote || '';
   engineNote.hidden = !engineNote.textContent;
@@ -493,6 +768,9 @@ function render() {
     let v = c[input.dataset.key];
     if (v === undefined && input.dataset.key === 'ttsCooldown') v = 5;
     if (v === undefined && input.dataset.key === 'ttsUserCooldown') v = 15;
+    if (v === undefined && input.dataset.key === 'aiCooldown') v = 20;
+    if (v === undefined && input.dataset.key === 'brbPersoconAction') v = 'sit';
+    if (v === undefined && input.dataset.key === 'brbCompanionsAction') v = 'wait';
     if (input.dataset.type === 'bool') {
       // Fall back to the control's explicit default (false when unspecified),
       // so BRB/mute-style toggles never start on by accident.

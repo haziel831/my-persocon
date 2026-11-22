@@ -4,6 +4,7 @@ use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM, POINT, RECT, TRUE};
 use windows_sys::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows_sys::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
 use windows_sys::Win32::UI::HiDpi::{
     SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
@@ -55,9 +56,52 @@ unsafe fn class_name(hwnd: HWND) -> String {
     String::from_utf16_lossy(&buf[..n.max(0) as usize])
 }
 
+/// True while a virtual key is held (global, works even when another app has focus).
+pub fn key_down(vk: i32) -> bool {
+    unsafe { (GetAsyncKeyState(vk) as i16) < 0 }
+}
+
 /// Handle of the real foreground window (not our own overlay), used to detect focus changes.
 pub fn foreground_hwnd() -> isize {
     unsafe { GetForegroundWindow() as isize }
+}
+
+/// Visible top-level windows with a non-empty title, as {title, process}.
+/// Used by the DND "pick a running window" selector.
+pub fn list_open_windows() -> Vec<(String, String)> {
+    struct State { rows: Vec<(String, String)>, seen: std::collections::HashSet<String> }
+    unsafe extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let state = &mut *(lparam as *mut State);
+        if IsWindowVisible(hwnd) == 0 || GetWindow(hwnd, GW_OWNER).is_null() == false { return 1; }
+        let mut buf = [0u16; 512];
+        let n = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
+        let title = String::from_utf16_lossy(&buf[..n.max(0) as usize]).trim().to_string();
+        if title.is_empty() || title.eq_ignore_ascii_case("Program Manager") { return 1; }
+        let lower = title.to_lowercase();
+        if lower.contains("my persocon") || lower.contains("controle streamer") { return 1; }
+        let mut pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut pid);
+        let process = process_name(pid).unwrap_or_default();
+        let key = format!("{}|{}", title.to_lowercase(), process.to_lowercase());
+        if state.seen.insert(key) { state.rows.push((title, process)); }
+        1
+    }
+    unsafe fn process_name(pid: u32) -> Option<String> {
+        use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW};
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if handle.is_null() { return None; }
+        let mut buf = [0u16; 1024];
+        let mut len = buf.len() as u32;
+        let ok = QueryFullProcessImageNameW(handle, 0, buf.as_mut_ptr(), &mut len) != 0;
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(handle); }
+        if !ok { return None; }
+        let full = String::from_utf16_lossy(&buf[..len as usize]);
+        std::path::Path::new(&full).file_name().map(|s| s.to_string_lossy().into_owned())
+    }
+    let mut state = State { rows: Vec::new(), seen: std::collections::HashSet::new() };
+    unsafe { EnumWindows(Some(callback), &mut state as *mut State as LPARAM); }
+    state.rows.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+    state.rows
 }
 
 /// Closes only top-level windows whose title contains `needle` (used for the

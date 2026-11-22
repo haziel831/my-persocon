@@ -1,5 +1,6 @@
 // Local bridge alert queue: batches follows and reacts with speech, VFX and helpers.
 import { personaLine, randomReaction } from './persona.js';
+import { upgradeJingle } from './upgradefx.js';
 
 export class StreamAlerts {
   constructor(app) {
@@ -120,11 +121,139 @@ export class StreamAlerts {
         break;
       }
       case 'tts_say':
-        app.tts?.enqueue?.(`${user} disse: ${text}`, { priority: true });
+        const hide = app.config.ttsHideViewerNames === true;
+        app.tts?.enqueue?.(hide ? text : `${user} ${app.config.lang === 'en' ? 'said:' : 'disse:'} ${text}`, { priority: true, chat: !hide });
         break;
       default: return false;
     }
     return true;
+  }
+
+  // Floating reaction emote (bottom-left of the stage), 3s hold, no stacking.
+  showReactionEmote(emotion = 'normal') {
+    const app = this.app;
+    if (!window.__PET_STREAMER__ || app.config.reactionEmote === false) return;
+    const folder = /aghata|agatha/i.test(app.config?.modelDir || '') ? 'aghata' : 'ninna';
+    const files = {
+      normal: 'normal.png', shy: 'shy.png', sad: 'sad.png', anxious: 'anxious.png',
+      confused: 'confused.png', gentle: 'shy.png', happy: 'happy_512.png',
+      angry: 'anxious.png', hype: 'happy_512.png', love: 'shy.png', laugh: 'happy_512.png',
+    };
+    const file = files[emotion] || 'normal.png';
+    let el = this.reactionEl;
+    if (!el || !el.isConnected) {
+      el = document.createElement('div');
+      el.className = 'reaction-emote';
+      el.innerHTML = '<img alt="" draggable="false">';
+      document.body.append(el);
+      this.reactionEl = el;
+    }
+    const img = el.querySelector('img');
+    img.src = new URL(`../assets/emotes/${folder}/${file}`, import.meta.url).href;
+    img.onerror = () => {
+      img.onerror = null;
+      img.src = new URL(`../assets/emotes/aghata/normal.png`, import.meta.url).href;
+    };
+    el.classList.add('up');
+    clearTimeout(this.reactionTimer);
+    clearTimeout(this.reactionTimer2);
+    this.reactionTimer = setTimeout(() => {
+      el.classList.remove('up');
+      this.reactionTimer2 = setTimeout(() => { el.remove(); this.reactionEl = null; }, 500);
+    }, 3000);
+  }
+
+  reactionForText(text) {
+    const t = String(text || '').toLowerCase();
+    if (/obrigad|valeu|thanks|cafun|carinh|amor|love/.test(t)) return 'shy';
+    if (/triste|sad|pêsames|f\.\.\.|loss/.test(t)) return 'sad';
+    if (/susto|assust|scare|socorro/.test(t)) return 'anxious';
+    if (/gg|uau|wow|hype|vamos|bora|danc/.test(t)) return 'hype';
+    if (/\?|confus|hmm/.test(t)) return 'confused';
+    return 'normal';
+  }
+
+  // 5-second Follow celebration: same approach state as "ask for attention",
+  // rhythmic hops, a held thank-you sign and the furniture-upgrade jingle.
+  followCelebration(user, subtitle = '', extras = false) {
+    const app = this.app;
+    const pet = app.pet;
+    if (!pet) return;
+    upgradeJingle(app.sound);
+    const name = String(user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40);
+    const sign = document.createElement('div');
+    sign.className = 'follow-thanks';
+    const who = document.createElement('b');
+    who.textContent = name;
+    if (subtitle) {
+      const sub = document.createElement('span');
+      sub.className = 'ft-sub';
+      sub.textContent = subtitle;
+      sign.append(sub);
+    }
+    const thanks = document.createElement('span');
+    thanks.textContent = 'Thanks!';
+    sign.append(who, thanks);
+    document.body.append(sign);
+    let spotlights = null;
+    let spotRaf = 0;
+    if (extras) {
+      spotlights = document.createElement('canvas');
+      spotlights.className = 'follow-spotlights';
+      spotlights.width = innerWidth; spotlights.height = innerHeight;
+      document.body.append(spotlights);
+      const g = spotlights.getContext('2d');
+      const colors = ['#ff3ea5', '#5ef0ff', '#a855f7', '#ffd23f'];
+      const t0 = performance.now();
+      const draw = (now) => {
+        const t = (now - t0) / 1000;
+        if (t >= 5 || !spotlights.isConnected) return;
+        g.clearRect(0, 0, spotlights.width, spotlights.height);
+        for (let i = 0; i < 4; i++) {
+          const x = spotlights.width * (0.2 + 0.2 * i) + Math.sin(t * 1.6 + i) * spotlights.width * 0.18;
+          g.globalAlpha = 0.12 + 0.06 * Math.sin(t * 6 + i);
+          g.fillStyle = colors[i];
+          g.beginPath();
+          g.moveTo(x, -20);
+          g.lineTo(x + 130, spotlights.height);
+          g.lineTo(x - 130, spotlights.height);
+          g.closePath(); g.fill();
+        }
+        g.globalAlpha = 1;
+        spotRaf = requestAnimationFrame(draw);
+      };
+      spotRaf = requestAnimationFrame(draw);
+      app.fx?.confettiRain?.(60);
+    }
+    let jumpAt = -1;
+    app.interact?.toy?.('attention', {
+      id: 'ix_follow', dur: 5, anim: 'idle', facing: 'front',
+      tick: (dt, tp) => {
+        const P = pet.P || 64;
+        const z = pet.zoom || 1;
+        pet.zoom = 1 + 0.35 * Math.min(1, tp.t / 1.2);
+        sign.style.left = `${Math.round(pet.x - 70)}px`;
+        sign.style.top = `${Math.round(pet.y - P * z * 1.15 + pet.bodyY)}px`;
+        const phase = Math.floor(tp.t / 0.55);
+        if (phase !== jumpAt) {
+          jumpAt = phase;
+          pet.anim('jump', { facing: 'front', restart: true });
+        }
+        const u = (tp.t % 0.55) / 0.55;
+        pet.bodyY = -Math.sin(Math.PI * u) * P * 0.45;
+      },
+      onEnd: () => {
+        cancelAnimationFrame(spotRaf);
+        if (spotlights) {
+          spotlights.classList.add('leaving');
+          setTimeout(() => spotlights.remove(), 350);
+        }
+        sign.classList.add('leaving');
+        setTimeout(() => sign.remove(), 350);
+        pet.bodyY = 0;
+        pet.zoom = null;
+      },
+    });
   }
 
   pinFollow(user) {
@@ -207,6 +336,7 @@ export class StreamAlerts {
     const app = this.app;
     if (!app) return;
     const user = String(ev.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40);
+    app.twitch?.trackViewer?.(user);
     const rich = app.config.streamRandomAlerts !== false;
     const thanks = (key, vars) => rich ? randomReaction(app, key, vars) : personaLine(app, key, vars);
     let line = '';
@@ -217,33 +347,25 @@ export class StreamAlerts {
           app.doll?.brain?.say?.('♥', 2);
           app.fx?.followHearts?.(6);
         }
+        this.followCelebration(user);
         app.gainAffection?.(2, 'follow');
         line = thanks('follow', { user });
         break;
       case 'sub':
-        if (rich) {
-          app.pet?.react?.('cheer');
-          app.fx?.confettiRain?.(18);
-          app.crow?.say?.('🎉', 2);
-          if (window.__PET_STREAMER__ && app.config.subShow !== false) this.subShow(user);
-        }
+        if (window.__PET_STREAMER__) this.followCelebration(user, 'SUB!', true);
+        else if (rich) { app.pet?.react?.('cheer'); app.fx?.confettiRain?.(18); app.crow?.say?.('🎉', 2); }
         app.gainAffection?.(8, 'sub');
         line = thanks('sub', { user });
         break;
       case 'raid':
-        if (rich) {
-          app.pet?.react?.('cheer');
-          app.fx?.confettiRain?.(28);
-        }
+        if (window.__PET_STREAMER__) this.followCelebration(user, 'RAID!', true);
+        else if (rich) { app.pet?.react?.('cheer'); app.fx?.confettiRain?.(28); }
         app.gainAffection?.(6, 'raid');
         line = thanks('raid', { user, viewers: ev.viewers || 15 });
         break;
       case 'bits':
-        if (rich) {
-          app.pet?.react?.('cheer');
-          app.fx?.coinRain?.(20);
-          app.sound?.play?.('coin', { volume: 0.75 });
-        }
+        if (window.__PET_STREAMER__) this.followCelebration(user, `${ev.amount || 0} BITS`, true);
+        else if (rich) { app.pet?.react?.('cheer'); app.fx?.coinRain?.(20); app.sound?.play?.('coin', { volume: 0.75 }); }
         app.gainAffection?.(4, 'bits');
         line = thanks('bits', { user, amount: ev.amount || 0 });
         break;
@@ -257,6 +379,11 @@ export class StreamAlerts {
         break;
       default: return;
     }
+    const emotionByType = {
+      follow: 'shy', sub: 'hype', raid: 'hype', bits: 'hype', redeem: 'gentle',
+      pagar_cafe: 'gentle', dar_lanche: 'gentle', cafune: 'shy', susto: 'anxious', tts_say: 'normal',
+    };
+    this.showReactionEmote(emotionByType[ev.type] || this.reactionForText(line));
     if (line) {
       app.chatBox?.push?.(ev.type, line);
       app.speech?.say(line, 3.5, { priority: true });
