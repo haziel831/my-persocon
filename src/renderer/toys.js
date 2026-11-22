@@ -2855,14 +2855,20 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       // Gacha/Slot animations use the base id; an upgraded machine still has `up` on the spin.
       const activeGacha = !!cur && (b === 'gacha' || b === 'slot')
         && (baseId(String(cur.id || '')) === b || cur.base === b);
-      const skinUp = up || (activeGacha && !!cur.up);
+      // casino.out belongs to the Slot spin only — never light up the Gacha with it.
+      const outId = baseId(String(casino?.out?.s?.id || casino?.out?.id || ''));
+      const vendCur = casino?.vend?.cur || casino?.vend?.out?.v;
+      const vendId = baseId(String(vendCur?.id || ''));
+      const isVend = b === 'venda_comida' || b === 'venda_bebida' || b === 'cafeteira';
+      const activeVend = isVend && vendId === b;
+      const skinUp = up || (activeGacha && !!cur.up) || (activeVend && !!vendCur?.up);
       // Base and Upgrade use separate skin stores; old single-file skins keep working on Base.
       const custom = this.live(b, skinUp)?.frames?.length || skins?.[skinUp ? 'objectsUpgrade' : 'objects']?.[b]?.frames?.length;
       const bagUp = nb && (id === 'bag' || id === 'food') && !custom;
       // Machines show their "working" art while in use.
       let artActive = false;
-      if (b === 'gacha' || b === 'slot') artActive = activeGacha || !!casino?.out;
-      else if (b === 'venda_comida' || b === 'venda_bebida' || b === 'cafeteira') artActive = casino?.vend?.cur?.id === b;
+      if (b === 'gacha' || b === 'slot') artActive = activeGacha || outId === b;
+      else if (isVend) artActive = activeVend;
       else if (b === 'impressora') artActive = !!(this.unpacking || game.deliveries?.length);
       else if (b === 'videogame') artActive = pet.activity === 'jam';
       else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');

@@ -592,6 +592,27 @@ export class Furniture {
   }
 
   art(id, key = id) {
+    const b = baseId(id);
+    const up = !!this.app.game.toys[key]?.up;
+    const skins = this.app.skins;
+    // Custom skins win over every built-in sprite, including shelves, brewer and casino art.
+    if (skins?.has?.(b, up)) {
+      const casino = this.app.casino;
+      const cur = casino?.cur;
+      const vend = casino?.vend?.cur || casino?.vend?.out?.v;
+      let active = false;
+      if (b === 'gacha' || b === 'slot') {
+        active = (!!cur && baseId(String(cur.id || '')) === b)
+          || baseId(String(casino?.out?.s?.id || '')) === b;
+      } else if (b === 'cafeteira' || b === 'venda_comida' || b === 'venda_bebida') {
+        active = baseId(String(vend?.id || '')) === b;
+      } else if (b === 'impressora') active = !!(this.toys.unpacking || this.app.game.deliveries?.length);
+      else if (b === 'videogame') active = this.app.pet.activity === 'jam';
+      else if (b === 'banheira') active = /bath|banho/.test(this.app.pet.action || '');
+      else if (b === 'escrivaninha') active = !!this.app.pomodoro?.active;
+      const custom = skins.art(b, null, active, up);
+      if (custom) return custom;
+    }
     if (id === 'cafeteira') return this.app.casino?.vend?.art?.(id) || icon('cafeteira');
     if (id === 'estante' || id === 'estante_cartuchos') return this.shelfImage(key);
     if (this.toys.casino?.owns(id)) return this.toys.casino.art(id);

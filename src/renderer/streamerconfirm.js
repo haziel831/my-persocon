@@ -17,7 +17,7 @@ export function confirmStreamer(app, onConfirm) {
     </div>`;
   back.querySelector('h2').textContent = translate('Modo Streamer');
   back.querySelector('.sc-question').textContent = translate('Deseja realmente iniciar o Modo Streamer?');
-  back.querySelector('.sc-note').textContent = translate('Um save separado será usado e o Controle Streamer abrirá no navegador.');
+  back.querySelector('.sc-note').textContent = translate('Um save separado será usado e o Stream Control abrirá no navegador.');
   const yes = back.querySelector('.sc-yes');
   const no = back.querySelector('.sc-no');
   yes.textContent = translate('Iniciar Modo Streamer');

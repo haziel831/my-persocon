@@ -356,7 +356,7 @@ const EN = {
   'Aguarde o carregamento da imagem antes de salvar.': 'Wait for the image to finish loading before saving.',
   'Carregando…': 'Loading…',
   'Deseja realmente iniciar o Modo Streamer?': 'Do you really want to start Streamer Mode?',
-  'Um save separado será usado e o Controle Streamer abrirá no navegador.': 'A separate save will be used and Stream Control will open in your browser.',
+  'Um save separado será usado e o Stream Control abrirá no navegador.': 'A separate save will be used and Stream Control will open in your browser.',
   'Iniciar Modo Streamer': 'Start Streamer Mode', 'Cancelar': 'Cancel', 'Modo Streamer': 'Streamer Mode',
   'Fixar caixa de chat no Stream Control (topo direito)': 'Pin chat box to Stream Control (top right)',
   'Não ler nomes dos viewers': 'Do not read viewer names', 'Recolher tudo': 'Collapse all', 'Expandir tudo': 'Expand all',

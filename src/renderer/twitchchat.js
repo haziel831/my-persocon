@@ -57,11 +57,12 @@ export class TwitchChat {
   // Matches a Twitch channel-point redemption to the configured reward.
   // Case-insensitive, trimmed; accepts reward id, configured !command or the reward name.
   matchRedeem(rewardId, text, map) {
-    const norm = (s) => String(s ?? '').trim().toLowerCase();
+    const norm = (s) => String(s ?? '').trim().toLowerCase().replace(/^!+/, '');
     const id = norm(rewardId);
     const raw = String(text || '').trim();
-    const cmd = raw.startsWith('!') ? norm(raw.slice(1)) : '';
+    const cmd = raw.startsWith('!') ? norm(raw.slice(1).trim().split(/\s+/)[0]) : '';
     for (const [name, cfg] of Object.entries(map || {})) {
+      if (cfg?.enabled === false) continue;
       if (id && norm(cfg?.rewardId) === id) return { name, cfg };
       if (cmd && (norm(cfg?.command) === cmd || norm(name) === cmd)) return { name, cfg };
       if (id && raw && norm(name) === norm(raw)) return { name, cfg };
@@ -252,10 +253,9 @@ export class TwitchChat {
       const thanks = read
         ? (en ? 'Got it, I will read the chat for you.' : 'Combinado, vou ler o chat para você.')
         : (en ? 'Got it, I will wait until you call me.' : 'Combinado, fico só quando chamarem meu nome.');
-      if (app.tts?.enabled && app.config.streamTtsSpeak === false) {
-        app.tts.enqueue(thanks, { priority: true, source: 'alert' });
-      }
-      app.speech?.say?.(thanks, 3);
+      // The confirmation is always spoken when TTS is on; the chat-reading flag must not mute it.
+      if (app.tts?.enabled) app.tts.enqueue(thanks, { priority: true, source: 'alert' });
+      app.speech?.say?.(thanks, 3, { noAutoTts: true, source: 'alert' });
     }
     app.firstViewerPrompt = { active: false };
     if (app.closeup?.cur?.firstViewer) app.closeup.leave();
@@ -264,13 +264,17 @@ export class TwitchChat {
 
   maybeAi(text, user, deny) {
     const c = this.app.config;
-    if (c.aiEnabled !== true || this.aiBusy || deny) return false;
+    // `deny` only mutes the audio; the balloon/chat reply must still happen.
+    if (c.aiEnabled !== true || this.aiBusy) return false;
     if (typeof window.petAPI?.aiReply !== 'function') {
       this.pushLog(user, 'aiReply indisponível', 'IA: erro');
       return false;
     }
-    const active = String(c.name || '').toLowerCase();
-    const match = /\b(aghata|agatha|ninna)\b/i.exec(text);
+    const active = String(c.name || '').toLowerCase().trim();
+    const names = ['aghata', 'agatha', 'ninna'];
+    if (active) names.push(active);
+    const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const match = new RegExp(`\\b(${escaped.join('|')})\\b`, 'i').exec(text);
     if (!match) return false;
     const called = match[1].toLowerCase();
     if (c.aiAllNames !== true && !active.includes(called)) return false;
@@ -292,7 +296,7 @@ export class TwitchChat {
       if (!out) throw new Error('empty');
       this.app.chatBox?.push?.('pet', out);
       this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(out) || 'normal', out);
-      this.app.speech?.say(out, 4, { source: 'viewer' });
+      this.app.speech?.say(out, 4, { source: 'viewer', noAutoTts: !!deny });
       this.pushLog(user, out, 'IA: ok');
     }).catch((err) => {
       const msg = String(err?.message || err || 'erro').slice(0, 180);

@@ -233,6 +233,7 @@ export class StreamAlerts {
     document.body.append(sign);
     let spotlights = null;
     let spotRaf = 0;
+    let spotDraw = null;
     if (extras) {
       spotlights = document.createElement('canvas');
       spotlights.className = 'follow-spotlights';
@@ -244,8 +245,7 @@ export class StreamAlerts {
       const t0 = performance.now();
       const draw = (now) => {
         const t = (now - t0) / 1000;
-        if (!spotlights.isConnected || spotlights.style.display === 'none') { spotRaf = requestAnimationFrame(draw); return; }
-        if (t >= 5) return;
+        if (!spotlights.isConnected || spotlights.style.display === 'none' || t >= 5) return;
         g.clearRect(0, 0, spotlights.width, spotlights.height);
         for (let i = 0; i < 4; i++) {
           const x = spotlights.width * (0.2 + 0.2 * i) + Math.sin(t * 1.6 + i) * spotlights.width * 0.18;
@@ -257,7 +257,7 @@ export class StreamAlerts {
         g.globalAlpha = 1;
         spotRaf = requestAnimationFrame(draw);
       };
-      spotRaf = requestAnimationFrame(draw);
+      spotDraw = draw; // started only once the canvas is actually visible
     }
     let appeared = false;
     const cleanup = () => {
@@ -294,7 +294,10 @@ export class StreamAlerts {
           else { pet.zoom = Z; pet.shiftX = sx - pet.x; pet.bodyY = feet - pet.y - (Z - 1) * P * 0.55; }
           sign.style.display = 'flex';
           sign.style.top = `${Math.round(Math.max(56, innerHeight * 0.1))}px`;
-          if (spotlights) spotlights.style.display = 'block';
+          if (spotlights) {
+            spotlights.style.display = 'block';
+            if (spotDraw) spotRaf = requestAnimationFrame(spotDraw);
+          }
           if (extras) app.fx?.confettiRain?.(60);
         }
         sign.classList.add('up');
@@ -331,54 +334,6 @@ export class StreamAlerts {
     this.pins.length = 0;
   }
 
-  subShow(user) {
-    const app = this.app;
-    const canvas = document.createElement('canvas');
-    canvas.className = 'sub-show-canvas';
-    canvas.width = innerWidth; canvas.height = innerHeight;
-    document.body.append(canvas);
-    const g = canvas.getContext('2d');
-    const colors = ['#ff3ea5', '#5ef0ff', '#a855f7'];
-    const t0 = performance.now();
-    const beams = Array.from({ length: 6 }, (_, i) => ({ x: (i + 0.5) * canvas.width / 6, dir: i % 2 ? 1 : -1, c: colors[i % 3] }));
-    app.sound?.playSubSynthwave?.(10);
-    app.startMode?.('jam');
-    const draw = (now) => {
-      const t = (now - t0) / 1000;
-      if (t >= 10 || !canvas.isConnected) {
-        canvas.remove();
-        app.modes?.stop?.();
-        return;
-      }
-      g.clearRect(0, 0, canvas.width, canvas.height);
-      for (const b of beams) {
-        const a = 0.12 + 0.08 * Math.sin(t * Math.PI * 2 * (136 / 60) + b.x);
-        g.fillStyle = b.c; g.globalAlpha = a;
-        g.beginPath(); g.moveTo(b.x, -20);
-        g.lineTo(b.x + b.dir * (90 + 140 * Math.sin(t * 2)), canvas.height);
-        g.lineTo(b.x + b.dir * (30 + 60 * Math.sin(t * 2)), canvas.height);
-        g.closePath(); g.fill();
-      }
-      g.globalAlpha = 1;
-      if (Math.random() < 0.35) {
-        g.fillStyle = colors[Math.floor(Math.random() * 3)];
-        const x = Math.random() * canvas.width, y = Math.random() * canvas.height * 0.6;
-        for (let i = 0; i < 18; i++) {
-          const ang = (i / 18) * Math.PI * 2;
-          g.fillRect(x + Math.cos(ang) * Math.random() * 30, y + Math.sin(ang) * Math.random() * 30, 3, 3);
-        }
-      }
-      g.font = '700 42px PxEmoji, system-ui, sans-serif';
-      g.textAlign = 'center';
-      g.shadowColor = '#ff3ea5'; g.shadowBlur = 24;
-      g.fillStyle = '#fff';
-      g.fillText(String(user || '').replace(/[<>&"']/g, '').slice(0, 40), canvas.width / 2, 100 + Math.sin(t * 4) * 6);
-      g.shadowBlur = 0;
-      requestAnimationFrame(draw);
-    };
-    requestAnimationFrame(draw);
-  }
-
   react(ev) {
     const app = this.app;
     if (!app) return;
@@ -394,7 +349,7 @@ export class StreamAlerts {
           app.doll?.brain?.say?.('♥', 2);
           app.fx?.followHearts?.(6);
         }
-        this.followCelebration(user, '', false, 'follow');
+        this.followCelebration(user, 'FOLLOW!', true, 'follow');
         app.gainAffection?.(2, 'follow');
         line = thanks('follow', { user });
         break;

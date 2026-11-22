@@ -99,6 +99,9 @@ const canvas = (w, h) => {
 };
 const hex = (d) => `#${[d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 
+// A skin can be a legacy single-file object, an explicit idle set, or dual-state.
+const hasSkinFrames = (o) => !!(o?.frames?.length || o?.idle?.frames?.length || o?.active?.frames?.length);
+
 // Chest front from entity/chest/normal.png (lid, latch, base).
 async function chestFront(src) {
   const img = await loadImg(src);
@@ -201,6 +204,8 @@ function decodeGif(dataUrl, max = 160) {
   const delays = [];
   let gce = { disposal: 0, delay: 100, transparent: -1 };
   let before = null;
+  let prevRect = null;
+  let prevDisposal = 0;
   while (p < b.length) {
     const block = b[p++];
     if (block === 0x3B) break;
@@ -235,9 +240,12 @@ function decodeGif(dataUrl, max = 160) {
     for (const c of chunks) { packedData.set(c, o); o += c.length; }
     const pixels = lzwDecode(minCode, packedData, iw * ih);
 
-    if (gce.disposal === 2) ctx.clearRect(left, top, iw, ih);
-    else if (gce.disposal === 3 && before) ctx.putImageData(before, 0, 0);
+    // A disposal applies to the PREVIOUS frame's rectangle, never to this one.
+    if (prevDisposal === 2 && prevRect) ctx.clearRect(prevRect.left, prevRect.top, prevRect.w, prevRect.h);
+    else if (prevDisposal === 3 && before) ctx.putImageData(before, 0, 0);
     before = ctx.getImageData(0, 0, w, h);
+    prevRect = { left, top, w: iw, h: ih };
+    prevDisposal = gce.disposal;
 
     const rows = [];
     if (ip & 0x40) {
@@ -248,7 +256,11 @@ function decodeGif(dataUrl, max = 160) {
     } else {
       for (let y = 0; y < ih; y++) rows.push(y);
     }
-    const img = ctx.createImageData(iw, ih);
+    const tmp = document.createElement('canvas');
+    tmp.width = iw; tmp.height = ih;
+    const tctx = tmp.getContext('2d');
+    tctx.imageSmoothingEnabled = false;
+    const img = tctx.createImageData(iw, ih);
     for (let i = 0; i < pixels.length && i < iw * ih; i++) {
       const idx = pixels[i];
       if (idx === gce.transparent) continue;
@@ -261,7 +273,9 @@ function decodeGif(dataUrl, max = 160) {
       img.data[q + 2] = palette[c + 2] || 0;
       img.data[q + 3] = 255;
     }
-    ctx.putImageData(img, left, top);
+    // drawImage composites with alpha: transparent pixels keep the previous frame intact.
+    tctx.putImageData(img, 0, 0);
+    ctx.drawImage(tmp, left, top);
 
     const s = Math.min(1, max / Math.max(w, h));
     if (s < 1) {
@@ -488,7 +502,7 @@ export class Skins {
   art(id, fallback, active = false, upgraded = false) {
     const live = this.app.toys?.live?.(id, upgraded);
     const store = upgraded ? this.objectsUpgrade : this.objects;
-    const o = live?.frames?.length ? live : store[id];
+    const o = hasSkinFrames(live) ? live : store[id];
     const key = `${id}:${upgraded ? 'up' : 'base'}`;
     const now = performance.now();
     // New format keeps both states explicitly; old single-file skins use `frames`.
@@ -498,7 +512,7 @@ export class Skins {
     const totalOf = (set) => {
       if (!set?.frames?.length) return 0;
       const delays = set.delays?.length ? set.delays : new Array(set.frames.length).fill(100);
-      return delays.reduce((a, b) => a + b, 0) / speedOf(set);
+      return delays.reduce((a, b) => a + (b || 100), 0) / speedOf(set);
     };
     // Keep the "used" art alive for at least one complete loop, even if the interaction
     // flag already cleared (short machine timers used to cut the spin at frame 3).
@@ -543,7 +557,7 @@ export class Skins {
 
   has(id, upgraded = false) {
     const store = upgraded ? this.objectsUpgrade : this.objects;
-    return !!store[id]?.frames?.length || !!this.rp?.tex?.[id];
+    return hasSkinFrames(store[id]) || !!this.rp?.tex?.[id];
   }
 
   // Height / width of a custom image (null = use the default proportions).

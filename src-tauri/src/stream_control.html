@@ -444,7 +444,8 @@ function tipFor(el) {
   const en = state.config?.lang === 'en';
   const key = el.id || el.dataset?.tipKey || el.dataset?.key;
   const pair = (key && TIPS[key]) || (el.dataset?.alert && { pt:'Dispara um alerta de teste no palco.', en:'Triggers a test alert on stage.' });
-  return pair ? (en ? pair[1] : pair[0]) : '';
+  if (!pair) return '';
+  return (Array.isArray(pair) ? (en ? pair[1] : pair[0]) : (en ? pair.en : pair.pt)) || '';
 }
 function kwRules() {
   return Array.isArray(state.config?.streamKeywordRules) ? state.config.streamKeywordRules : KW_DEFAULT;
@@ -571,6 +572,7 @@ function renderAiProviders() {
     const key = document.createElement('input'); key.type = 'password'; key.value = p.apiKey || ''; key.placeholder = 'API Key';
     key.dataset.tipKey = 'aiRowKey';
     for (const el of [name, model, endpoint, key, provider]) el.addEventListener('input', () => { root.dataset.dirty = '1'; });
+    enabled.addEventListener('change', () => { root.dataset.dirty = '1'; });
     const up = document.createElement('button'); up.className = 'act'; up.textContent = '↑'; up.dataset.tipKey = 'aiRowUp'; up.onclick = () => moveAi(i, -1);
     const down = document.createElement('button'); down.className = 'act'; down.textContent = '↓'; down.dataset.tipKey = 'aiRowDown'; down.onclick = () => moveAi(i, 1);
     const test = document.createElement('button'); test.className = 'act'; test.textContent = 'Testar';

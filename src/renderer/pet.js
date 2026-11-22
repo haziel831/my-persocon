@@ -529,10 +529,12 @@ export async function startPet(files, config) {
     }
     app.chatBox?.push?.('pet', spoken);
     const r = speechSay(spoken, life);
-    if (window.__PET_STREAMER__) {
-      if (config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(spoken, ttsOpts);
-    } else {
-      app.tts?.enqueueFor?.('events', spoken, ttsOpts);
+    if (!ttsOpts?.noAutoTts) {
+      if (window.__PET_STREAMER__) {
+        if (config.streamTtsSpeak !== false && app.tts?.enabled) app.tts.enqueue(spoken, ttsOpts);
+      } else {
+        app.tts?.enqueueFor?.('events', spoken, ttsOpts);
+      }
     }
     return r;
   };
@@ -543,7 +545,7 @@ export async function startPet(files, config) {
   {
     let own = false;
     const sayRaw = speech.say.bind(speech);
-    speech.say = (text, life) => sayRaw(config.lang === 'en' && !own ? translate(text) : text, life);
+    speech.say = (text, life, ...rest) => sayRaw(config.lang === 'en' && !own ? translate(text) : text, life, ...rest);
     for (const k of ['react', 'idle']) {
       const raw = speech[k].bind(speech);
       speech[k] = (...args) => {
