@@ -47,14 +47,24 @@ export class StreamAlerts {
   redeem(ev) {
     const app = this.app;
     const map = app.config.streamRedeems || {};
-    const name = String(ev.reward || '').trim();
-    const cfg = map[name] || { action: 'moedas', coins: 25 };
+    const norm = (s) => String(s ?? '').trim().toLowerCase();
+    const keys = Object.keys(map);
+    let name = String(ev.reward || '').trim();
+    let key = keys.find((k) => norm(k) === norm(name));
+    if (!key && ev.rewardId) key = keys.find((k) => norm(map[k]?.rewardId) === norm(ev.rewardId));
+    if (!key && ev.command) key = keys.find((k) => norm(map[k]?.command) === norm(ev.command));
+    if (!key) return false;
+    name = key;
+    ev.reward = key;
+    const cfg = map[key] || {};
+    const action = String(cfg.action || '').trim().toLowerCase();
+    ev.action = action;
     const text = String(ev.text || '').replace(/[<>&"']/g, '').trim().slice(0, 80);
     const blocked = String(app.config.streamBlockedWords || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
-    if (blocked.some((w) => text.toLowerCase().includes(w))) return;
+    if (blocked.some((w) => text.toLowerCase().includes(w))) return false;
     const user = String(ev.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40);
     const coins = Number(cfg.coins || 0);
-    switch (cfg.action) {
+    switch (action) {
       case 'moedas':
         app.game.earn(coins, 'Pontos do canal');
         app.speech?.say(personaLine(app, 'coins', { user, coins }), 3, { priority: true, source: 'alert' });
@@ -74,7 +84,7 @@ export class StreamAlerts {
         break;
       }
       case 'bolhas': case 'aviao': case 'trio': {
-        const id = cfg.action === 'bolhas' ? 'bolhas' : cfg.action === 'aviao' ? 'aviao' : 'trio';
+        const id = action === 'bolhas' ? 'bolhas' : action === 'aviao' ? 'aviao' : 'trio';
         if (id === 'trio') app.trio?.startTheft?.(); else app.toys?.callFurn?.(id);
         app.speech?.say(personaLine(app, 'toy', { user, id }), 3, { priority: true, source: 'alert' });
         break;
@@ -262,7 +272,7 @@ export class StreamAlerts {
       }
     };
     pet.playToy({
-      id: 'ix_alert', dur: 5.8, anim: 'idle', facing: 'front',
+      id: 'ix_alert', dur: 5.8, anim: pet.pickClip(['jam', 'dance'], ['idle']), facing: 'front',
       tick: (dt, tp) => {
         const P = pet.P || 64;
         if (tp.t < 0.35) {
@@ -277,14 +287,13 @@ export class StreamAlerts {
           pet.bodyY = 0;
           pet.hideRect = null;
           upgradeJingle(app.sound);
-          const Z = 2.6;
+          const Z = 3.2; // even closer to the camera than the usual close-up
           const sx = innerWidth / 2 - Z * P * 0.35;
           const feet = innerHeight + Z * P * 0.2;
           if (app.closeup?.place) app.closeup.place(Z, feet, sx);
           else { pet.zoom = Z; pet.shiftX = sx - pet.x; pet.bodyY = feet - pet.y - (Z - 1) * P * 0.55; }
           sign.style.display = 'flex';
-          sign.style.left = `${Math.round(sx - 70)}px`;
-          sign.style.top = `${Math.round(innerHeight * 0.26)}px`;
+          sign.style.top = `${Math.round(Math.max(56, innerHeight * 0.1))}px`;
           if (spotlights) spotlights.style.display = 'block';
           if (extras) app.fx?.confettiRain?.(60);
         }
@@ -421,7 +430,7 @@ export class StreamAlerts {
       follow: 'shy', sub: 'hype', raid: 'hype', bits: 'hype', redeem: 'gentle',
       pagar_cafe: 'gentle', dar_lanche: 'gentle', cafune: 'shy', susto: 'anxious', tts_say: 'normal',
     };
-    this.showReactionEmote(emotionByType[ev.type] || this.reactionForText(line), line);
+    this.showReactionEmote(emotionByType[ev.action] || emotionByType[ev.type] || this.reactionForText(line), line);
     if (line) {
       app.chatBox?.push?.(ev.type, line);
       app.speech?.say(line, 3.5, { priority: true, source: 'alert' });

@@ -4,6 +4,7 @@
 import { textFor } from './introtext.js';
 import { cleanName, NAME_MAX } from './names.js';
 import { upgradeJingle } from './upgradefx.js';
+import { personaLabel } from './persona.js';
 
 const LOGO_URL = new URL('./assets/logo.png', import.meta.url).href;
 const BW = 36;
@@ -11,6 +12,8 @@ const BH = 30;
 const VOICE = { M: 'grave', F: 'agudo', X: 'normal' };
 // Bundled units the player picks from; switching reloads the page and resumes at the box opening.
 const UNITS = { ninna: { dir: 'models/MyPersocon', name: 'Ninna' }, aghata: { dir: 'models/Aghata', name: 'Aghata' } };
+// Four of the five existing persona IDs; IDs match the Options selector exactly.
+const INTRO_PERSONAS = ['estoica', 'genki', 'tsundere', 'dandere'];
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -269,7 +272,7 @@ export class Intro {
 
   showForm() {
     const T = this.T;
-    const card = this.modal('intro-form');
+    const card = this.modal('intro-form intro-persona');
     card.append(el('h2', '', T.formTitle));
     const name = el('input', 'intro-input');
     name.maxLength = NAME_MAX;
@@ -280,8 +283,9 @@ export class Intro {
     name.value = UNITS[unit].name;
     const sexRow = el('div', 'intro-sex');
     let sex = null;
+    let persona = null;
     const go = el('button', 'intro-btn', T.open);
-    const valid = () => { go.disabled = !cleanName(name.value) || !sex; };
+    const valid = () => { go.disabled = !cleanName(name.value) || !sex || !persona; };
     const unitRow = el('div', 'intro-sex');
     for (const [id, label] of T.units) {
       const b = el('button', `intro-sex-btn${id === unit ? ' on' : ''}`, label);
@@ -305,16 +309,31 @@ export class Intro {
       };
       sexRow.append(b);
     }
+    const personaRow = el('div', 'intro-persona-grid');
+    for (const id of INTRO_PERSONAS) {
+      const b = el('button', 'intro-persona-card');
+      b.append(el('b', '', personaLabel(id, this.app.config.lang)));
+      b.append(el('span', '', T.personaDesc?.[id] || ''));
+      b.onclick = () => {
+        persona = id;
+        for (const o of personaRow.children) o.classList.toggle('on', o === b);
+        this.app.sound?.play('blip', { volume: 0.35 });
+        valid();
+      };
+      personaRow.append(b);
+    }
     name.oninput = valid;
     valid();
     go.onclick = async () => {
       const n = cleanName(name.value);
-      if (!n || !sex || go.dataset.busy) return;
+      if (!n || !sex || !persona || go.dataset.busy) return;
       const { app } = this;
       app.setName(n);
       if (app.setSex) app.setSex(sex);
       else app.game.profile.sex = sex;
       app.setOption('voicePitch', VOICE[sex]);
+      app.setOption('persona', persona);
+      app.pushStreamerState?.(true);
       if (n === 'HaZ') {
         app.setOption('debug', true);
         app.setOption('debugUnlocked', true);
@@ -330,16 +349,20 @@ export class Intro {
       if (unit !== current) {
         go.dataset.busy = '1';
         sessionStorage.setItem('mp-intro-open', JSON.stringify({ owner: app.game.profile.owner, sex }));
-        await window.petAPI.saveConfig({ modelDir: UNITS[unit].dir, name: n, voicePitch: VOICE[sex] });
+        await window.petAPI.saveConfig({ modelDir: UNITS[unit].dir, name: n, voicePitch: VOICE[sex], persona });
         await app.game.persist?.();
         location.reload();
         return;
       }
+      // Save the persona immediately: the debounced setOption() save may not run if the app closes.
+      await window.petAPI.saveConfig({ persona });
       this.closeModal();
       this.openBox();
     };
     name.onkeydown = (e) => { if (e.key === 'Enter') go.click(); };
-    card.append(el('label', 'intro-label', T.unit), unitRow, el('label', 'intro-label', T.petName), name, el('label', 'intro-label', T.sex), sexRow, go);
+    card.append(el('label', 'intro-label', T.unit), unitRow, el('label', 'intro-label', T.petName), name,
+      el('label', 'intro-label', T.sex), sexRow, el('label', 'intro-label', T.persona), personaRow,
+      el('p', 'intro-persona-note', T.personaNote), go);
     this.grabKeys(name);
   }
 

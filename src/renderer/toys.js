@@ -1136,12 +1136,12 @@ export class Toys {
   }
 
   ratio(key) {
-    const live = this.live(key);
-    if (live?.ratio) return live.ratio;
     const id = baseId(key);
+    const upgraded = !!this.app.game.toys[key]?.up || ((id === 'bag' || id === 'food') && this.bagsUp());
+    const live = this.live(key, upgraded);
+    if (live?.ratio) return live.ratio;
     if (id === 'mural' && this.app.game.toys[key]?.orient === 'portrait') return 30 / 22;
-    const upgraded = this.app.game.toys[key]?.up || ((id === 'bag' || id === 'food') && this.bagsUp());
-    const own = !(upgraded && !this.app.skins?.objects?.[id]) && this.app.skins?.ratio(id);
+    const own = this.app.skins?.ratio(id, upgraded);
     if (own) return own;
     const up = upRatio(id, this.app.game.toys[key]);
     if (up) return up;
@@ -1171,7 +1171,7 @@ export class Toys {
     const h = w * this.ratio('videogame');
     const left = t.x - w / 2;
     const top = this.floorY() - h;
-    const s = this.app.skins?.region('videogame') || FURN.videogame.screen;
+    const s = this.app.skins?.region('videogame', !!t.up) || FURN.videogame.screen;
     const sx = t.flip ? 1 - s.x - s.w : s.x;
     return { x: left + w * sx, y: top + h * s.y, w: w * s.w, h: h * s.h, rot: t.rot || 0, ox: t.x, oy: this.floorY() };
   }
@@ -2739,9 +2739,9 @@ export class Toys {
   }
 
   // A edição ao vivo (diálogo Visual dos objetos) tem prioridade sobre o salvo.
-  live(id) {
+  live(id, upgraded = false) {
     const l = this.livePreview;
-    return l && l.id === id ? l : null;
+    return l && l.id === id && !!(l.upgraded) === !!upgraded ? l : null;
   }
 
   // O tamanho em edição (o diálogo de visual manda) tem prioridade sobre o salvo.
@@ -2836,6 +2836,7 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
     for (const [id, t] of list) {
       seen.add(id);
       const b = baseId(id);
+      const up = !!t.up;
       const item = itemById(b);
       const nb = this.bagsUp() ? '_up' : '';
       // Desk lamp: lit at night/dawn or while she studies in a focus session.
@@ -2844,8 +2845,8 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const deskArt = deskLit ? icon(t.up ? 'escrivaninha_up_lamp' : 'escrivaninha_lamp') : null;
       const muralArt = b === 'mural' ? icon(`mural_${t.frame || 'cortica'}${t.orient === 'portrait' ? '_v' : ''}`) : null;
       const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : (muralArt || deskArt || this.furn.art(b, id)) || item?.img;
-      // Arte importada (ao vivo ou salva) vence upgrade/casino/resourcepack, como já valia no salvo.
-      const custom = this.live(b)?.frames?.length || skins?.objects?.[b]?.frames?.length;
+      // Base and Upgrade use separate skin stores; old single-file skins keep working on Base.
+      const custom = this.live(b, up)?.frames?.length || skins?.[up ? 'objectsUpgrade' : 'objects']?.[b]?.frames?.length;
       const bagUp = nb && (id === 'bag' || id === 'food') && !custom;
       // Machines show their "working" art while in use (dual/firstFrame object skins).
       const casino = this.app.casino;
@@ -2856,7 +2857,7 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       else if (b === 'videogame') artActive = pet.activity === 'jam';
       else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');
       else if (b === 'escrivaninha') artActive = !!this.app.pomodoro?.active;
-      const src = (custom ? skins?.art(b, base, artActive) : null) || deskArt || (t.up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive) || base;
+      const src = (custom ? skins?.art(b, base, artActive, up) : null) || deskArt || (up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive, up) || base;
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');
       if (img && img.getAttribute('src') !== src) img.src = src;

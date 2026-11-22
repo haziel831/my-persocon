@@ -19,6 +19,8 @@ import { Pomodoro } from './focus.js';
 import { Weather } from './weather.js';
 import { Trio } from './trio.js';
 import { VoiceTTS, personaVoiceSuggestion } from './tts.js';
+import { captureTtsProfile, deleteTtsProfile, ttsProfiles } from './ttsprofiles.js';
+import { confirmStreamer } from './streamerconfirm.js';
 import { TwitchChat } from './twitchchat.js';
 import { StreamAlerts } from './streamalerts.js';
 import { StreamChatBox } from './streamchatbox.js';
@@ -307,6 +309,8 @@ export async function startPet(files, config) {
         app.tts?.applyLanguage?.(value);
       }
       save({ [key]: value });
+      // Mirror game-side edits to the Stream Control right away.
+      pushStreamerState(true);
     },
     // Apply a whole personality preset at once (saved immediately, not debounced).
     applyConfigPatch(patch) {
@@ -323,6 +327,7 @@ export async function startPet(files, config) {
       if ('streamer' in patch || 'streamerBg' in patch) applyStreamer();
       if ('lang' in patch) setLang(patch.lang);
       api.saveConfig(patch).catch((e) => api.log('save failed', e));
+      pushStreamerState(true);
       app.uiChanged?.();
     },
     files,
@@ -338,7 +343,7 @@ export async function startPet(files, config) {
           sign.className = 'brb-sign hitzone';
           document.body.append(sign);
         }
-        sign.textContent = message || (config.lang === 'en' ? 'Be right back!' : 'Volto já!');
+        sign.textContent = message || (config.lang === 'en' ? 'Be right back' : 'Já volto');
       } else if (sign) sign.remove();
       if (on) applyBrbActions();
       else if (!on) restoreBrbActions();
@@ -1905,6 +1910,10 @@ api.onTrayClick?.(() => {
   let streamerOn = false;
   let streamerSolidOn = streamerSolid();
   api.onStreamer((on) => {
+    if (on && !window.__PET_STREAMER__ && !config.streamer) {
+      confirmStreamer(app, () => app.setOption('streamer', true));
+      return;
+    }
     if (!on) {
       app.streamAlerts?.clearPins?.();
       app.chatBox?.destroy?.();
@@ -1949,6 +1958,9 @@ api.onTrayClick?.(() => {
       aiActiveProvider: app.aiStatus?.active || '',
       aiFallbackNotice: app.aiStatus?.notice || '',
       aiLastResult: app.aiStatus?.lastResult || null,
+      firstViewerPrompt: app.firstViewerPrompt || null,
+      redeemsText: Object.entries(config.streamRedeems || {}).map(([name, v]) =>
+        `${name}=${v.action || ''}:${v.coins || 0}${v.rewardId ? `:${v.rewardId}` : ''}${v.command ? `:${v.command}` : ''}`).join('\n'),
       activeViewers: app.twitch?.activeViewers || [],
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
@@ -1971,7 +1983,7 @@ api.onTrayClick?.(() => {
     app.aiStatus = {
       active: app.aiStatus?.active || '',
       notice: app.aiStatus?.notice || '',
-      lastResult: { id: Date.now() + Math.random(), ok: !!ok, detail: String(detail || '').slice(0, 300) },
+      lastResult: { id: Date.now() + Math.random(), ok: !!ok, detail: String(detail || '').slice(0, 1000) },
     };
     pushStreamerState(true);
   }
@@ -2003,6 +2015,8 @@ api.onTrayClick?.(() => {
         || { name: config.aiProvider || 'Ollama', provider: config.aiProvider || 'ollama',
              model: config.aiModel || '', endpoint: config.aiEndpoint || '', apiKey: config.aiApiKey || '', enabled: true };
       const label = one.name || one.provider || 'IA';
+      app.aiStatus = { active: '', notice: '', lastResult: app.aiStatus?.lastResult };
+      pushStreamerState(true);
       const cfg = { lang: config.lang || 'pt', aiAutoFallback: false, aiProviders: [one] };
       api.aiReply?.('Diga oi em uma frase curta.', config.aiSystemPrompt || '', cfg)
         .then((reply) => {
@@ -2013,7 +2027,7 @@ api.onTrayClick?.(() => {
           speech.say(text, 3);
         })
         .catch((err) => {
-          const detail = String(err?.message || err || 'erro').slice(0, 300);
+          const detail = String(err?.message || err || 'erro').slice(0, 1000);
           aiReport(false, `${label}: ${detail}`);
           speech.say(detail.slice(0, 90), 3);
         });
@@ -2034,6 +2048,8 @@ api.onTrayClick?.(() => {
         aiProvider: config.aiProvider || 'ollama', aiModel: config.aiModel || '',
         aiApiKey: config.aiApiKey || '', aiEndpoint: config.aiEndpoint || '',
       };
+      app.aiStatus = { active: '', notice: '', lastResult: app.aiStatus?.lastResult };
+      pushStreamerState(true);
       api.aiReply?.('Oi! Este é um teste de resposta curta.', config.aiSystemPrompt || '', cfg)
         .then((reply) => {
           const text = String(reply?.text || '').trim().slice(0, 180);
@@ -2043,7 +2059,7 @@ api.onTrayClick?.(() => {
           speech.say(text, 4);
         })
         .catch((err) => {
-          const detail = String(err?.message || err || 'erro').slice(0, 300);
+          const detail = String(err?.message || err || 'erro').slice(0, 1000);
           aiReport(false, detail);
           speech.say(detail.slice(0, 90), 3);
         });
@@ -2052,10 +2068,37 @@ api.onTrayClick?.(() => {
     else if (p.type === 'ttsTest') app.tts?.enqueue?.(p.text || (config.lang === 'en' ? 'Test: HaZ said kkkkk...' : 'Teste: HaZ disse kkkkk...'), { test: true });
     else if (p.type === 'ttsLoadVoices') loadVoices(p.dir);
     else if (p.type === 'ttsPreview') app.tts?.preview?.(config.lang === 'en' ? 'Hello... testing this voice.' : 'Olá... testando esta voz.', p.voice);
+    else if (p.type === 'ttsProfileSave') {
+      const { list, entry } = captureTtsProfile(config, p.name, p.id || null);
+      app.setOption('ttsProfiles', list);
+      speech.say(config.lang === 'en' ? `Voice profile saved: ${entry.name}` : `Perfil de voz salvo: ${entry.name}`, 2.5);
+    }
+    else if (p.type === 'ttsProfileLoad') {
+      const profile = ttsProfiles(config).find((x) => x.id === p.id);
+      if (profile) {
+        app.applyConfigPatch(profile.settings);
+        speech.say(config.lang === 'en' ? `Voice profile loaded: ${profile.name}` : `Perfil de voz carregado: ${profile.name}`, 2.5);
+      }
+    }
+    else if (p.type === 'ttsProfileDelete') {
+      app.setOption('ttsProfiles', deleteTtsProfile(config, p.id));
+    }
     else if (p.type === 'ttsState') app.tts?.reportQueue?.();
     else if (p.type === 'twitchConnect') app.twitch?.connect?.(p.channel);
     else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
+    else if (p.type === 'firstViewerChoice') app.twitch?.firstViewerChoose?.(p.read);
     else if (p.type === 'simulate' || p.type === 'testAlert') app.streamAlerts?.push?.(p.event);
+    else if (p.type === 'redeem' || p.type === 'reward') {
+      app.streamAlerts?.push?.({ type: 'redeem', user: p.user, reward: p.reward || p.name || p.rewardId,
+        rewardId: p.rewardId, command: p.command, text: p.text || '' });
+    }
+    else if (p.type === 'testRedeem') {
+      // Testar uses the values currently typed in the panel, even if not saved yet.
+      if (p.map && Object.keys(p.map).length) app.applyConfigPatch?.({ streamRedeems: p.map });
+      app.streamAlerts?.push?.({ type: 'redeem', user: p.user || 'ViewerTeste',
+        reward: p.name, text: p.text || '' });
+      app.twitch?.pushLog?.('ViewerTeste', String(p.name || ''), 'resgate: teste');
+    }
     else if (p.type === 'brb') app.setBrb?.(p.value, p.text);
     else if (p.type === 'setOption') {
       app.setOption?.(p.key, p.value);
@@ -2066,9 +2109,6 @@ api.onTrayClick?.(() => {
     }
     else if (p.type === 'applyPatch') app.applyConfigPatch?.(p.patch);
     else if (p.type === 'applyPersonaVoice') app.applyConfigPatch?.(personaVoiceSuggestion(app));
-    else if (p.type === 'switchPanelMode') {
-      api.openStreamerPanel?.(p.mode).then((msg) => speech.say(msg, 2.5)).catch?.(() => {});
-    }
     else if (p.type === 'exitStreamer') app.setOption?.('streamer', false);
     else if (p.type === 'cafune' || p.type === 'pat') {
       app.setHand?.('pat');

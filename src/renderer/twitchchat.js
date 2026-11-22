@@ -28,6 +28,7 @@ export class TwitchChat {
     this.activeViewers = [];
     this.lastAi = 0;
     this.aiBusy = false;
+    this.firstViewerDone = false;
   }
 
   pushLog(user, text, status) {
@@ -53,11 +54,27 @@ export class TwitchChat {
     return String(text || '').replace(/[<>&"']/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
   }
 
+  // Matches a Twitch channel-point redemption to the configured reward.
+  // Case-insensitive, trimmed; accepts reward id, configured !command or the reward name.
+  matchRedeem(rewardId, text, map) {
+    const norm = (s) => String(s ?? '').trim().toLowerCase();
+    const id = norm(rewardId);
+    const raw = String(text || '').trim();
+    const cmd = raw.startsWith('!') ? norm(raw.slice(1)) : '';
+    for (const [name, cfg] of Object.entries(map || {})) {
+      if (id && norm(cfg?.rewardId) === id) return { name, cfg };
+      if (cmd && (norm(cfg?.command) === cmd || norm(name) === cmd)) return { name, cfg };
+      if (id && raw && norm(name) === norm(raw)) return { name, cfg };
+    }
+    return null;
+  }
+
   connect(channel) {
     const name = this.clean(channel).replace(/^#/, '').toLowerCase();
     if (!name) return;
     if (this.connected && this.channel === name) return;
     if (this.ws) this.disconnect();
+    this.firstViewerDone = false; // one special scene per connection session
     this.channel = name;
     try { this.ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); } catch { return; }
     const ws = this.ws;
@@ -85,6 +102,7 @@ export class TwitchChat {
   disconnect() {
     this.channel = null;
     this.connected = false;
+    this.firstViewerDone = false;
     try { this.ws?.close(); } catch {}
     this.ws = null;
     this.app.pushStreamerState?.(true);
@@ -161,6 +179,20 @@ export class TwitchChat {
           || this.app.knownFollowers?.has(login.toLowerCase()),
       };
       const deny = this.app.tts?.denyReason?.(chatOpts) || '';
+      const own = String(this.app.config.twitchChannel || '').replace(/^#/, '').toLowerCase();
+      if (!this.firstViewerDone && !deny && own
+        && login.toLowerCase() !== own && displayName.toLowerCase() !== own) {
+        this.firstViewerDone = true;
+        this.firstViewerScene(displayName);
+      }
+      const rewardId = String(t['custom-reward-id'] || '').trim();
+      const redeem = this.matchRedeem(rewardId, text, this.app.config.streamRedeems);
+      if (redeem) {
+        this.app.streamAlerts?.push?.({ type: 'redeem', user: displayName, reward: redeem.name,
+          rewardId, text });
+        this.pushLog(displayName, text, `resgate: ${redeem.name}`);
+        continue;
+      }
       if (this.maybeAi(text, displayName, deny)) {
         this.pushLog(displayName, text, 'IA: respondendo...');
         continue;
@@ -185,6 +217,49 @@ export class TwitchChat {
       this.pushLog(displayName, text, status);
       this.app.chatBox?.push?.('chat', `${displayName}: ${text}`);
     }
+  }
+
+  // One-off welcome scene for the first real viewer of a connection session.
+  firstViewerScene(user) {
+    const app = this.app;
+    const en = app.config?.lang === 'en';
+    const text = en
+      ? 'Someone just showed up in chat... Do you want me to read the chat out loud, or only answer when they call my name?'
+      : 'Chegou gente no chat... você quer que eu leia o chat para você ou só responda quando chamarem o meu nome?';
+    const read = en ? 'Read the chat' : 'Ler o chat';
+    const named = en ? 'Only when called' : 'Só quando chamarem meu nome';
+    app.firstViewerPrompt = { active: true, user, text, read, named };
+    app.pushStreamerState?.(true);
+    if (app.tts?.enabled && app.config.streamTtsSpeak !== false) {
+      app.tts.enqueue(text, { priority: true, source: 'alert' });
+    }
+    app.closeup?.test({
+      firstViewer: true,
+      tag: en ? 'First viewer' : 'Primeiro viewer',
+      text,
+      actions: [[read, () => this.firstViewerChoose(true)], [named, () => this.firstViewerChoose(false)]],
+      talkFor: 25,
+      onTimeout: () => this.firstViewerChoose(null),
+    });
+  }
+
+  firstViewerChoose(read) {
+    const app = this.app;
+    if (!app.firstViewerPrompt?.active) return;
+    const en = app.config?.lang === 'en';
+    if (read === true || read === false) {
+      app.applyConfigPatch?.(read ? { streamTtsSpeak: true } : { streamTtsSpeak: false, aiEnabled: true });
+      const thanks = read
+        ? (en ? 'Got it, I will read the chat for you.' : 'Combinado, vou ler o chat para você.')
+        : (en ? 'Got it, I will wait until you call me.' : 'Combinado, fico só quando chamarem meu nome.');
+      if (app.tts?.enabled && app.config.streamTtsSpeak === false) {
+        app.tts.enqueue(thanks, { priority: true, source: 'alert' });
+      }
+      app.speech?.say?.(thanks, 3);
+    }
+    app.firstViewerPrompt = { active: false };
+    if (app.closeup?.cur?.firstViewer) app.closeup.leave();
+    app.pushStreamerState?.(true);
   }
 
   maybeAi(text, user, deny) {

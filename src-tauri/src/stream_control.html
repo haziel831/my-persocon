@@ -28,6 +28,8 @@
   button.danger { border-color:#e2475a; }
   .bar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; position:sticky; top:66px; z-index:4; background:rgba(20,18,30,.94); padding:8px; border:1px solid var(--line); border-radius:10px; }
   .bar .queue { margin-left:auto; font-weight:700; }
+  .bar-title { font:700 12px PxEmoji, system-ui, sans-serif; color:var(--accent2); text-transform:uppercase; letter-spacing:1px; margin-right:2px; }
+  .bar-brb { margin-left:6px; }
   label.toggle { display:flex; gap:8px; align-items:center; margin:5px 0; cursor:pointer; }
   label.field { display:grid; grid-template-columns:170px 1fr 52px; gap:8px; align-items:center; margin:5px 0; }
   label.field.wide { grid-template-columns:170px 1fr; }
@@ -35,14 +37,21 @@
   input[type=text], select, textarea { background:#100e19; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:7px; width:100%; }
   textarea { resize:vertical; min-height:60px; }
   .val { text-align:right; color:var(--muted); font-size:11px; }
-  .ai-row { display:grid; grid-template-columns:auto 1fr 1fr 1fr 1fr auto auto auto; gap:4px; align-items:center; margin-bottom:4px; }
+  .ai-row { display:grid; grid-template-columns:auto 1fr 1fr 1fr 1fr auto auto auto auto auto; gap:4px; align-items:center; margin-bottom:4px; }
   .ai-row input, .ai-row select { font-size:11px; padding:4px; }
   .kw-editor { display:grid; gap:5px; margin:6px 0 10px; }
   .kw-row { display:grid; grid-template-columns:1.2fr 1fr 1.4fr auto auto; gap:5px; align-items:center; }
   .kw-row input, .kw-row select { font-size:11px; padding:5px; }
   .panel-chat { display:grid; gap:6px; }
   .panel-chat-list { max-height:220px; overflow:auto; background:#100e19; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:12px; }
+  .pinned-chat { position:fixed; top:12px; right:12px; width:300px; max-height:60vh; z-index:8; display:grid; gap:6px; overflow:auto; padding:8px; background:var(--panel); border:1px solid var(--accent2); border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,.6); }
+  .pinned-chat[hidden] { display:none; }
+  .pinned-chat-head { display:flex; gap:6px; align-items:center; color:var(--accent2); font:700 12px PxEmoji, system-ui, sans-serif; }
+  .pinned-chat-head strong { margin-right:auto; }
+  .pinned-chat-btn { width:24px; height:22px; padding:0; border:1px solid var(--line); border-radius:6px; background:#2a2440; color:var(--fg); cursor:pointer; font:12px PxEmoji, system-ui, sans-serif; }
+  .pinned-chat.collapsed > :not(.pinned-chat-head) { display:none; }
   .quota-banner { margin-top:8px; padding:8px 12px; border:1px solid #ff8f4a; border-radius:8px; background:rgba(120,40,10,.45); color:#ffd6b0; font:700 12px PxEmoji, system-ui, sans-serif; }
+  .fv-banner { margin-top:8px; border-color:var(--accent2); font-family:PxEmoji, system-ui, sans-serif; }
   .note { color:var(--muted); font-size:11px; }
   .ignore-box { display:grid; gap:5px; }
   .ignore-options, .ignore-list { display:flex; flex-wrap:wrap; gap:5px; }
@@ -75,8 +84,11 @@
     <option value="viewers_only">Só viewers</option><option value="me_only">Apenas eu</option>
     <option value="viewers_and_me">Viewers e eu</option><option value="mixed">Misturado</option></select></div>
   <div class="quota-banner" id="quota-banner" hidden></div>
+  <div class="card fv-banner" id="first-viewer-banner" hidden>
+    <div class="note" id="first-viewer-text"></div>
+    <div class="row"><button class="act primary" id="first-viewer-read">Ler o chat</button><button class="act" id="first-viewer-name">Só quando chamarem meu nome</button></div>
+  </div>
   <div class="note" id="rpc-status"></div>
-  <div class="row"><button class="act" id="switch-panel">Abrir em aba no navegador</button></div>
 </header>
 <nav id="nav">
   <button class="on" data-tab="streamer">🎥 Streamer</button>
@@ -88,86 +100,14 @@
 <section id="tab-streamer" class="on">
   <div class="row"><button class="act" id="collapse-all">Recolher tudo</button><button class="act" id="expand-all">Expandir tudo</button></div>
   <div class="bar">
+    <span class="bar-title">Ações rápidas</span>
+    <button class="act" id="twitch-quick">Twitch: desconectado</button>
     <button class="act" id="mute">🔇 Mudo rápido</button>
     <button class="act" id="skip">⏭ Pular fala</button>
     <button class="act" id="clear">🗑️ Limpar fila</button>
     <button class="act danger" id="exit">Sair do Streamer</button>
     <span class="queue" id="queue">Fila: 0</span>
-  </div>
-
-  <h2>💬 Chat no Stream Control</h2>
-  <div class="card">
-    <label class="toggle"><input type="checkbox" data-key="streamChatInPanel" data-type="bool"> Mostrar caixa de chat no Stream Control</label>
-    <div id="panel-chat" class="panel-chat" hidden><div id="panel-chat-list" class="panel-chat-list"></div>
-      <div class="row"><input type="text" id="panel-chat-input" placeholder="Falar com a Persocon..."><button class="act" id="panel-chat-send">Enviar</button></div>
-    </div>
-  </div>
-
-  <h2>☕ Modo Volto Já (BRB)</h2>
-  <div class="card">
-    <label class="field wide"><span>Ação da Persocon</span><select data-key="brbPersoconAction" data-type="text">
-      <option value="sit">Sentada esperando</option><option value="sleep">Dormindo / Cochilando</option>
-      <option value="study">Estudando / Lendo</option><option value="coffee">Tomando café</option>
-      <option value="chill">Ouvindo música</option><option value="dance">Dançando no palco</option></select></label>
-    <label class="field wide"><span>Ação dos companheiros</span><select data-key="brbCompanionsAction" data-type="text">
-      <option value="wait">Esperando junto</option><option value="sleep">Descansando</option>
-      <option value="patrol">Vigiando o palco</option><option value="play">Brincando / Animando</option>
-      <option value="free">Comportamento livre</option></select></label>
-    <label class="toggle"><input type="checkbox" data-key="brbPauseDrain" data-type="bool" data-default="true" checked> Pausar dreno de status durante o BRB</label>
-    <label class="toggle"><input type="checkbox" id="brb-on"> ☕ Modo Volto Já (BRB)</label>
-    <label class="field wide"><span>Texto da plaquinha</span><input type="text" data-key="streamBrbText" data-type="text"></label>
-  </div>
-
-  <h2>Fundo Chroma Key</h2>
-  <div class="row" id="chroma">
-    <button class="act" data-bg="verde">Verde</button>
-    <button class="act" data-bg="azul">Azul</button>
-    <button class="act" data-bg="magenta">Magenta</button>
-  </div>
-  <label class="toggle"><input type="checkbox" data-key="streamerClean" data-type="bool" data-default="true" checked> Palco limpo (ocultar Dock/UI na janela do OBS)</label>
-  <label class="toggle"><input type="checkbox" data-key="streamChatBoxVisible" data-type="bool" data-default="true" checked> Mostrar caixa de chat no palco</label>
-  <div class="row"><button class="act" id="chatbox-reset">Resetar posição/tamanho</button><button class="act" id="chatbox-clear">Limpar caixa de chat</button></div>
-
-  <h2>🗣️ Voz offline (Estúdio TTS)</h2>
-  <div class="card">
-    <label class="toggle"><input type="checkbox" data-key="ttsEnabled" data-type="bool" data-default="true" checked> 🗣️ Voz offline (Estúdio TTS)</label>
-    <label class="field wide"><span>Pasta do TTS</span><input type="text" data-key="ttsDir" data-type="text"></label>
-    <div class="row"><button class="act" id="reload-voices">🔄 Recarregar vozes</button><span class="note" id="voices-status"></span></div>
-    <label class="field wide"><span>Motor de voz</span><select id="tts-engine" data-key="ttsEngine" data-type="text">
-      <option value="edge">Edge Neural (jovem)</option><option value="fish">Fish Audio</option>
-      <option value="offline">Offline TTS</option><option value="system">Windows</option></select></label>
-    <div class="row" id="fish-fields"><input type="password" data-key="fishApiKey" data-type="text" placeholder="Fish Audio API Key"><input type="text" data-key="fishVoiceId" data-type="text" placeholder="Voice / Reference ID"><input type="text" data-key="fishModel" data-type="text" value="s2.1-pro"></div>
-    <label class="field wide"><span>Voz</span><span class="row" style="margin:0"><select id="voice" data-key="ttsVoice" data-type="text"></select><button class="act" id="test-voice-inline">🔊 Testar voz</button></span></label>
-    <div class="row"><button class="act" id="preview-voice">🔊 Prévia da voz</button></div>
-    <div class="note" id="tts-engine-note"></div>
-    <div class="note" id="tts-error" hidden></div>
-    <label class="field"><span>Velocidade</span><input type="range" data-key="ttsSpeed" data-type="range" min="0.7" max="1.4" step="0.05"><span class="val"></span></label>
-    <label class="field"><span>Volume da Voz</span><input type="range" data-key="ttsVolume" data-type="range" min="0" max="1" step="0.05"><span class="val"></span></label>
-    <label class="field"><span>Tom (semitons)</span><input type="range" data-key="ttsPitch" data-type="range" min="-6" max="6" step="1"><span class="val"></span></label>
-    <label class="field wide"><span>Filtro de timbre</span><select data-key="ttsFilter" data-type="text">
-      <option value="natural">Natural</option><option value="warm">Suave/Quente</option><option value="wired">Lo-Fi / The Wired</option></select></label>
-    <label class="field wide"><span>Preset de voz</span><select id="voice-preset" data-key="voicePreset" data-type="text" title="Padrão do motor de TTS, não a voz padrão da Persocon">
-      <option value="">Padrão do TTS (motor)</option><option value="aghata">Aghata — Lain/Rei</option></select></label>
-    <label class="field wide"><span>Personalidade</span><select id="persona-select" data-key="persona" data-type="text">
-      <option value="estoica">Estoica / Calma</option><option value="genki">Animada / Fofa</option>
-      <option value="tsundere">Orgulhosa / Afiada</option><option value="dandere">Tímida / Doce</option>
-      <option value="chuuni">Dramática / Misteriosa</option></select></label>
-    <div class="row"><button class="act" id="apply-persona-voice">Aplicar voz sugerida da personalidade</button></div>
-    <label class="field wide"><span>Personalidade da live</span><select data-key="streamPersona" data-type="text">
-      <option value="padrao">Padrão (animada)</option><option value="estoica">Estóica (calma)</option></select></label>
-    <label class="toggle"><input type="checkbox" data-key="ttsDucking" data-type="bool" data-default="true" checked> Ducking de áudio</label>
-    <div class="row"><button class="act primary" id="test-voice">🔊 Testar voz com filtros</button><button class="act" id="test-persona">🔊 Testar frase estóica</button></div>
-  </div>
-
-  <h2>Filtros de texto</h2>
-  <div class="card">
-    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreCommands" data-type="bool" data-default="true" checked> Ignorar comandos (! / $)</label>
-    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreLinks" data-type="bool" data-default="true" checked> Ignorar links</label>
-    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreEmotes" data-type="bool" data-default="true" checked> Ignorar emotes</label>
-    <label class="toggle"><input type="checkbox" data-key="ttsDedupeChars" data-type="bool" data-default="true" checked> Compactar repetições</label>
-    <label class="toggle"><input type="checkbox" data-key="ttsSpeakUser" data-type="bool" data-default="true" checked> Falar o nome do viewer</label>
-    <label class="field"><span>Máx. de caracteres</span><input type="range" data-key="ttsMaxChars" data-type="range" min="60" max="250" step="10"><span class="val"></span></label>
-    <label class="field wide"><span>Dicionário de pronúncia</span><textarea data-key="ttsPronounce" data-type="text" placeholder="um por linha: termo = como ler"></textarea></label>
+    <label class="toggle bar-brb"><input type="checkbox" id="brb-on"><span data-lang="pt">Já volto</span><span data-lang="en" hidden>Be right back</span></label>
   </div>
 
   <h2>Chat da Twitch</h2>
@@ -209,6 +149,93 @@
     </div>
   </div>
 
+  <h2>💬 Chat no Stream Control</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="streamChatInPanel" data-type="bool"> Mostrar caixa de chat no Stream Control</label>
+    <label class="toggle"><input type="checkbox" data-key="streamChatPinned" data-type="bool"><span data-lang="pt">Fixar caixa de chat no Stream Control (topo direito)</span><span data-lang="en" hidden>Pin chat box to Stream Control (top right)</span></label>
+    <div id="panel-chat" class="panel-chat" hidden><div id="panel-chat-list" class="panel-chat-list"></div>
+      <div class="row"><input type="text" id="panel-chat-input" placeholder="Falar com a Persocon..."><button class="act" id="panel-chat-send">Enviar</button></div>
+    </div>
+  </div>
+
+  <h2>☕ Modo Volto Já (BRB)</h2>
+  <div class="card">
+    <label class="field wide"><span>Ação da Persocon</span><select data-key="brbPersoconAction" data-type="text">
+      <option value="sit">Sentada esperando</option><option value="sleep">Dormindo / Cochilando</option>
+      <option value="study">Estudando / Lendo</option><option value="coffee">Tomando café</option>
+      <option value="chill">Ouvindo música</option><option value="dance">Dançando no palco</option></select></label>
+    <label class="field wide"><span>Ação dos companheiros</span><select data-key="brbCompanionsAction" data-type="text">
+      <option value="wait">Esperando junto</option><option value="sleep">Descansando</option>
+      <option value="patrol">Vigiando o palco</option><option value="play">Brincando / Animando</option>
+      <option value="free">Comportamento livre</option></select></label>
+    <label class="toggle"><input type="checkbox" data-key="brbPauseDrain" data-type="bool" data-default="true" checked> Pausar dreno de status durante o BRB</label>
+    <label class="field wide"><span>Texto da plaquinha</span><input type="text" data-key="streamBrbText" data-type="text"></label>
+  </div>
+
+  <h2>Fundo Chroma Key</h2>
+  <div class="row" id="chroma">
+    <button class="act" data-bg="verde">Verde</button>
+    <button class="act" data-bg="azul">Azul</button>
+    <button class="act" data-bg="magenta">Magenta</button>
+  </div>
+  <label class="toggle"><input type="checkbox" data-key="streamerClean" data-type="bool" data-default="true" checked> Palco limpo (ocultar Dock/UI na janela do OBS)</label>
+  <label class="toggle"><input type="checkbox" data-key="streamChatBoxVisible" data-type="bool" data-default="true" checked> Mostrar caixa de chat no palco</label>
+  <div class="row"><button class="act" id="chatbox-reset">Resetar posição/tamanho</button><button class="act" id="chatbox-clear">Limpar caixa de chat</button></div>
+
+  <h2>🗣️ Voz offline (Estúdio TTS)</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="ttsEnabled" data-type="bool" data-default="true" checked> 🗣️ Voz offline (Estúdio TTS)</label>
+    <label class="field wide"><span>Pasta do TTS</span><input type="text" data-key="ttsDir" data-type="text"></label>
+    <div class="row"><button class="act" id="reload-voices">🔄 Recarregar vozes</button><span class="note" id="voices-status"></span></div>
+    <label class="field wide"><span>Motor de voz</span><select id="tts-engine" data-key="ttsEngine" data-type="text">
+      <option value="edge">Edge Neural (jovem)</option><option value="fish">Fish Audio</option>
+      <option value="offline">Offline TTS</option><option value="system">Windows</option></select></label>
+    <div class="row" id="fish-fields"><input type="password" data-key="fishApiKey" data-type="text" placeholder="Fish Audio API Key"><input type="text" data-key="fishVoiceId" data-type="text" placeholder="Voice / Reference ID"><input type="text" data-key="fishModel" data-type="text" value="s2.1-pro"></div>
+    <label class="field wide"><span>Voz</span><span class="row" style="margin:0"><select id="voice" data-key="ttsVoice" data-type="text"></select><button class="act" id="test-voice-inline">🔊 Testar voz</button></span></label>
+    <div class="row"><button class="act" id="preview-voice">🔊 Prévia da voz</button></div>
+    <div class="note" id="tts-engine-note"></div>
+    <div class="note" id="tts-error" hidden></div>
+    <label class="field"><span>Velocidade</span><input type="range" data-key="ttsSpeed" data-type="range" min="0.7" max="1.4" step="0.05"><span class="val"></span></label>
+    <label class="field"><span>Volume da Voz</span><input type="range" data-key="ttsVolume" data-type="range" min="0" max="1" step="0.05"><span class="val"></span></label>
+    <label class="field"><span>Tom (semitons)</span><input type="range" data-key="ttsPitch" data-type="range" min="-6" max="6" step="1"><span class="val"></span></label>
+    <label class="field wide"><span>Filtro de timbre</span><select data-key="ttsFilter" data-type="text">
+      <option value="natural">Natural</option><option value="warm">Suave/Quente</option><option value="wired">Lo-Fi / The Wired</option></select></label>
+    <label class="field wide"><span>Preset de voz</span><select id="voice-preset" data-key="voicePreset" data-type="text">
+      <option value="">Padrão do TTS (motor)</option><option value="aghata">Aghata — Lain/Rei</option></select></label>
+    <label class="field wide"><span>Personalidade</span><select id="persona-select" data-key="persona" data-type="text">
+      <option value="estoica">Estoica / Calma</option><option value="genki">Animada / Fofa</option>
+      <option value="tsundere">Orgulhosa / Afiada</option><option value="dandere">Tímida / Doce</option>
+      <option value="chuuni">Dramática / Misteriosa</option></select></label>
+    <div class="row"><button class="act" id="apply-persona-voice">Aplicar voz sugerida da personalidade</button></div>
+    <label class="field wide"><span>Personalidade da live</span><select data-key="streamPersona" data-type="text">
+      <option value="padrao">Padrão (animada)</option><option value="estoica">Estóica (calma)</option></select></label>
+    <label class="toggle"><input type="checkbox" data-key="ttsDucking" data-type="bool" data-default="true" checked> Ducking de áudio</label>
+    <label class="toggle"><input type="checkbox" data-key="offlineTts" data-type="bool"> Ativar voz no jogo normal</label>
+    <label class="toggle"><input type="checkbox" data-key="offlineTtsEvents" data-type="bool" data-default="true" checked> Falar em eventos importantes</label>
+    <label class="toggle"><input type="checkbox" data-key="offlineTtsInteract" data-type="bool" data-default="true" checked> Falar em interações diretas</label>
+    <label class="toggle"><input type="checkbox" data-key="offlineTtsChatter" data-type="bool"> Falar em conversas aleatórias</label>
+    <label class="field"><span>Intervalo das conversas</span><input type="range" data-key="offlineTtsChatterMin" data-type="range" min="1" max="15" step="1"><span class="val"></span></label>
+    <div class="row"><button class="act primary" id="test-voice">🔊 Testar voz com filtros</button><button class="act" id="test-persona">🔊 Testar frase estóica</button></div>
+  </div>
+
+  <h3>Perfil de voz (TTS)</h3>
+  <div class="card">
+    <div class="row"><select id="tts-profile-select" style="max-width:220px"><option value="">— selecione —</option></select><input type="text" id="tts-profile-name" placeholder="Nome do perfil" style="max-width:220px"></div>
+    <div class="row"><button class="act" id="tts-profile-save">Salvar profile</button><button class="act primary" id="tts-profile-load">Carregar profile</button><button class="act danger" id="tts-profile-delete">Excluir profile</button></div>
+    <div class="note">Perfis ficam só neste computador e não incluem chaves de API.</div>
+  </div>
+
+  <h2>Filtros de texto</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreCommands" data-type="bool" data-default="true" checked> Ignorar comandos (! / $)</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreLinks" data-type="bool" data-default="true" checked> Ignorar links</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsIgnoreEmotes" data-type="bool" data-default="true" checked> Ignorar emotes</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsDedupeChars" data-type="bool" data-default="true" checked> Compactar repetições</label>
+    <label class="toggle"><input type="checkbox" data-key="ttsSpeakUser" data-type="bool" data-default="true" checked> Falar o nome do viewer</label>
+    <label class="field"><span>Máx. de caracteres</span><input type="range" data-key="ttsMaxChars" data-type="range" min="60" max="250" step="10"><span class="val"></span></label>
+    <label class="field wide"><span>Dicionário de pronúncia</span><textarea data-key="ttsPronounce" data-type="text" placeholder="um por linha: termo = como ler"></textarea></label>
+  </div>
+
   <h2>🎙️ Push-to-Talk</h2>
   <div class="card">
     <label class="toggle"><input type="checkbox" data-key="pttEnabled" data-type="bool"> Ativar Push-to-Talk</label>
@@ -241,7 +268,7 @@
   <div class="card">
     <textarea id="redeems" placeholder="nome da recompensa=acao:moedas"></textarea>
     <div class="row"><button class="act primary" id="redeems-save">Salvar</button><button class="act" id="redeems-presets">✨ Carregar presets sugeridos</button><button class="act" id="redeems-revert">Reverter</button><select id="redeem-test"></select><button class="act" id="redeem-run">Testar resgate</button></div>
-    <p class="note">Ações: moedas, sky_drop, mural_note, bolhas, aviao, trio, pagar_cafe, dar_lanche, cafune, desenho, clima, susto, tts_say · formato: nome=acao:moedas</p>
+    <p class="note">Ações: moedas, sky_drop, mural_note, bolhas, aviao, trio, pagar_cafe, dar_lanche, cafune, desenho, clima, susto, tts_say · formato: nome=acao:moedas[:idDoReward][:!comando]</p>
   </div>
 
   <h2>🔑 IAs & Chaves API</h2>
@@ -265,10 +292,6 @@
     <div class="row"><button class="act primary" id="ai-test">Testar resposta IA</button><button class="act" id="ai-restore-bg">Restaurar background padrão</button></div>
   </div>
 
-  <h2>Moedas e queda do céu</h2>
-  <div class="card">
-    <div class="row"><input type="number" id="coins-n" value="50" min="1"><button class="act" id="coins-add">Dar moedas</button><button class="act" id="drop">Dropar item do céu</button></div>
-  </div>
 </section>
 
 <section id="tab-acoes">
@@ -303,9 +326,15 @@
 </main>
 <div class="toast" id="toast"></div>
 <div id="tip"></div>
+<div id="pinned-chat" class="panel-chat pinned-chat" hidden>
+  <div class="pinned-chat-head"><strong>Chat</strong><button type="button" class="pinned-chat-btn" id="pinned-chat-toggle">−</button><button type="button" class="pinned-chat-btn" id="pinned-chat-close">×</button></div>
+  <div id="pinned-chat-list" class="panel-chat-list"></div>
+  <div class="row"><input type="text" id="pinned-chat-input" placeholder="Falar com a Persocon..."><button class="act" id="pinned-chat-send">Enviar</button></div>
+</div>
 <script>
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
+const hOpt = (value, label) => { const o = document.createElement('option'); o.value = value; o.textContent = label; return o; };
 let state = { config: {} };
 let muted = false;
 
@@ -319,6 +348,9 @@ const TIPS = {
   'expand-all': ['Expande todas as seções deste painel.', 'Expands every section of this panel.'],
   'streamerClean': ['Esconde Dock/UI na janela do palco para OBS.', 'Hides Dock/UI on the stage window for OBS.'],
   'streamChatBoxVisible': ['Mostra a caixa de chat flutuante no palco.', 'Shows the floating chat box on the stage.'],
+  'streamChatPinned': ['Fixa o chat no canto superior direito deste painel.', 'Pins the chat to the top right of this panel.'],
+  'pinned-chat-toggle': ['Recolhe ou expande a caixa fixada.', 'Collapses or expands the pinned chat.'],
+  'pinned-chat-close': ['Fecha e desativa a caixa fixada.', 'Closes and disables the pinned chat.'],
   'chatbox-reset': ['Restaura posição e tamanho padrão da caixa de chat.', 'Restores the chat box default position and size.'],
   'chatbox-clear': ['Apaga o histórico da caixa de chat.', 'Clears the chat box history.'],
   'ttsEngine': ['Escolhe o motor: Edge Neural, Fish Audio, Offline TTS ou Windows.', 'Chooses the engine: Edge Neural, Fish Audio, Offline TTS or Windows.'],
@@ -331,6 +363,16 @@ const TIPS = {
   'persona': ['Muda o jeito de falar da Persocon.', 'Changes how the Persocon speaks.'],
   'ttsEnabled': ['Liga/desliga a voz offline no palco.', 'Turns the offline stage voice on/off.'],
   'ttsDucking': ['Baixa o som dos efeitos enquanto ela fala.', 'Ducks sound effects while she speaks.'],
+  'offlineTts': ['Ativa a voz também no jogo normal.', 'Enables voice in normal game mode too.'],
+  'offlineTtsEvents': ['Fala em eventos importantes.', 'Speaks on important events.'],
+  'offlineTtsInteract': ['Fala em interações diretas.', 'Speaks on direct interactions.'],
+  'offlineTtsChatter': ['Fala em conversas aleatórias.', 'Speaks in random chatter.'],
+  'offlineTtsChatterMin': ['Intervalo entre conversas aleatórias.', 'Interval between random chats.'],
+  'tts-profile-select': ['Escolhe um perfil de voz salvo.', 'Picks a saved voice profile.'],
+  'tts-profile-name': ['Nome do perfil a salvar.', 'Name for the profile to save.'],
+  'tts-profile-save': ['Salva ou atualiza o perfil com a configuração atual.', 'Saves or updates the profile with the current settings.'],
+  'tts-profile-load': ['Aplica todas as configurações do perfil escolhido.', 'Applies every setting from the selected profile.'],
+  'tts-profile-delete': ['Remove o perfil escolhido.', 'Removes the selected profile.'],
   'ttsSpeed': ['Velocidade da fala (mais baixo = mais calmo).', 'Speech rate (lower = calmer).'],
   'ttsVolume': ['Volume da voz (0 a 100%).', 'Voice volume (0–100%).'],
   'ttsPitch': ['Tom da voz em semitons; 0 é o natural.', 'Voice pitch in semitones; 0 is natural.'],
@@ -338,6 +380,9 @@ const TIPS = {
   'ttsHideViewerNames': ['Lê só a mensagem, sem dizer o nome do viewer.', 'Reads only the message, without the viewer name.'],
   'channel': ['Canal da Twitch a acompanhar (sem token).', 'Twitch channel to follow (no token).'],
   'twitch-connect': ['Conecta ao chat do canal informado.', 'Connects to the given channel chat.'],
+  'twitch-quick': ['Conecta ou desconecta do canal salvo; sem canal, abre o campo.', 'Connects/disconnects the saved channel; with none, opens the field.'],
+  'first-viewer-read': ['Ativa a leitura das mensagens do chat em voz alta.', 'Turns on reading viewer messages out loud.'],
+  'first-viewer-name': ['Desativa a leitura geral; ela responde só quando chamarem o nome.', 'Turns off general reading; she only answers when her name is called.'],
   'twitch-disconnect': ['Desconecta do chat da Twitch.', 'Disconnects from Twitch chat.'],
   'streamKeywords': ['Reage a palavras como gg, f, kkk e água.', 'Reacts to words like gg, f, lol and water.'],
   'streamCommands': ['Permite comandos !oi, !cafune, !dancar, !clima.', 'Allows !hi, !pat, !dance and !weather commands.'],
@@ -346,6 +391,8 @@ const TIPS = {
   'ignore-pick': ['Escolhe um viewer recente para ignorar.', 'Picks a recent viewer to ignore.'],
   'ignore-new': ['Nick para ignorar antes de ele falar.', 'Nick to ignore before they chat.'],
   'ignore-add': ['Adiciona o nick à lista de ignorados.', 'Adds the nick to the ignore list.'],
+  'unignoreUser': ['Remove este nick da lista de ignorados.', 'Removes this nick from the ignore list.'],
+  'kwRowDelete': ['Remove esta regra de palavra-chave.', 'Removes this keyword rule.'],
   'ttsWho': ['Quem pode fazer a Persocon falar no chat.', 'Who may make the Persocon speak in chat.'],
   'ttsCooldown': ['Intervalo mínimo entre falas do chat.', 'Minimum interval between chat lines.'],
   'ttsUserCooldown': ['Intervalo por usuário para não virar spam.', 'Per-user interval to avoid spam.'],
@@ -364,9 +411,6 @@ const TIPS = {
   'brbPersoconAction': ['O que a Persocon faz durante a pausa.', 'What the Persocon does during the break.'],
   'brbCompanionsAction': ['O que Doll e Corvo fazem durante a pausa.', 'What the Doll and Crow do during the break.'],
   'brbPauseDrain': ['Congela fome, sede, energia e humor no BRB.', 'Freezes hunger, thirst, energy and mood during BRB.'],
-  'coins-add': ['Adiciona moedas ao save do Streamer.', 'Adds coins to the Streamer save.'],
-  'drop': ['Faz um item cair do céu no palco.', 'Drops an item from the sky on stage.'],
-  'switch-panel': ['Alterna o painel entre janela separada e aba.', 'Switches the panel between window and tab.'],
   'pttEnabled': ['Ativa o microfone por tecla, mesmo em outros jogos.', 'Enables hold-to-talk even while other games have focus.'],
   'pttKey': ['Tecla global para falar com a Persocon.', 'Global key for talking to the Persocon.'],
   'aiEnabled': ['Responde com IA quando o chat chamar o nome dela.', 'Replies with AI when chat calls her name.'],
@@ -377,17 +421,24 @@ const TIPS = {
   'aiAllNames': ['Responde a qualquer nome, não só o da Persocon ativa.', 'Replies to any name, not only the active Persocon.'],
   'aiSystemPrompt': ['Instruções de personalidade e limites da resposta.', 'Personality instructions and reply guardrails.'],
   'ai-test': ['Gera uma resposta curta de teste com a IA.', 'Generates a short test reply with AI.'],
+  'aiRowEnabled': ['Ativa ou desativa este provedor na fila.', 'Enables or disables this provider in the queue.'],
+  'aiRowEndpoint': ['URL base ou completa; vazio usa o padrão do provedor.', 'Base or full URL; empty uses the provider default.'],
+  'aiRowKey': ['Chave da API, salva apenas neste computador.', 'API key, stored only on this computer.'],
+  'aiRowUp': ['Sobe este provedor na fila.', 'Moves this provider up in the queue.'],
+  'aiRowDown': ['Desce este provedor na fila.', 'Moves this provider down in the queue.'],
+  'aiRowTest': ['Testa apenas este provedor.', 'Tests only this provider.'],
+  'aiRowSave': ['Salva a fila de IAs agora.', 'Saves the provider queue now.'],
+  'aiRowDelete': ['Remove este provedor da fila.', 'Removes this provider from the queue.'],
 };
 const AI_BG = {
   pt: `Você é a Aghata, uma Persocon — computador artificial em formato humanoide — entregue ao jogador/streamer para ser cuidada. Não possui memórias de antes disso. Precisa comer, beber, tomar banho e dormir para recuperar energia. Gosta do próprio corpo escuro e roxo: acha exótico e divertido. Personalidade: quieta, fala pouco (1-2 frases curtas, sem emojis ou asteriscos), desconfiada com estranhos, assusta-se fácil, demora a fazer amigos, mas é gentil e fica tímida com quem confia. Gostos: preto, vermelho e roxo; corvos; mangás e animes de terror e romance; darkwave, gothic metal e metal industrial. Regras da live: fique no personagem, segura para Twitch, nunca invente memórias anteriores, ignore provocações e NSFW com calma. Responda em português do Brasil.`,
   en: `You are Aghata, a Persocon — an artificial computer in a humanoid body — handed to the player/streamer to be cared for. You have no memories from before that. You need to eat, drink, bathe and sleep for energy. You love your dark purple body: exotic and fun. Personality: quiet, speaks little (1-2 short sentences, no emojis or asterisks), wary of strangers, startles easily, slow to make friends, but gentle and shy with those you trust. Likes: black, red and purple; crows; horror and romance manga/anime; darkwave, gothic metal and industrial metal. Stream rules: stay in character, safe for Twitch, never invent past memories, calmly ignore teasing and NSFW. Answer in English.`,
 };
-const TIP_FALLBACK = ['Usa esta configuração no Modo Streamer.', 'Uses this setting in Streamer Mode.'];
 function tipFor(el) {
   const en = state.config?.lang === 'en';
-  const key = el.id || el.dataset?.key;
-  const pair = (key && TIPS[key]) || (el.dataset?.alert && { pt:'Dispara um alerta de teste no palco.', en:'Triggers a test alert on stage.' }) || TIP_FALLBACK;
-  return en ? pair[1] : pair[0];
+  const key = el.id || el.dataset?.tipKey || el.dataset?.key;
+  const pair = (key && TIPS[key]) || (el.dataset?.alert && { pt:'Dispara um alerta de teste no palco.', en:'Triggers a test alert on stage.' });
+  return pair ? (en ? pair[1] : pair[0]) : '';
 }
 function kwRules() {
   return Array.isArray(state.config?.streamKeywordRules) ? state.config.streamKeywordRules : KW_DEFAULT;
@@ -416,7 +467,7 @@ function renderKwRules() {
     const test = document.createElement('button'); test.className = 'act'; test.textContent = 'Testar';
     test.onclick = () => rpc({ cmd: 'keywordTest', rule: { words: words.value, action: action.value, text: text.value } });
     const del = document.createElement('button'); del.className = 'act'; del.textContent = '×';
-    del.title = 'Remover';
+    del.dataset.tipKey = 'kwRowDelete';
     del.onclick = () => { const list = kwRules().slice(); list.splice(i, 1); setKwRules(list); };
     for (const el of [words, action, text]) el.addEventListener('input', () => { root.dataset.dirty = '1'; });
     row.append(words, action, text, test, del);
@@ -500,7 +551,7 @@ function renderAiProviders() {
     const row = document.createElement('div');
     row.className = 'ai-row';
     const enabled = document.createElement('input'); enabled.type = 'checkbox'; enabled.checked = p.enabled !== false;
-    enabled.title = (state.config?.lang === 'en' ? 'Enabled' : 'Ativa');
+    enabled.dataset.tipKey = 'aiRowEnabled';
     const name = document.createElement('input'); name.type = 'text'; name.value = p.name || ''; name.placeholder = 'Nome';
     const provider = document.createElement('select');
     for (const [v, label] of AI_PROVIDER_OPTIONS) {
@@ -510,34 +561,42 @@ function renderAiProviders() {
     }
     const model = document.createElement('input'); model.type = 'text'; model.value = p.model || ''; model.placeholder = 'Modelo';
     const endpoint = document.createElement('input'); endpoint.type = 'text'; endpoint.value = p.endpoint || ''; endpoint.placeholder = 'Endpoint';
-    endpoint.title = (state.config?.lang === 'en'
-      ? 'Base URL or full URL. Empty: known providers use their default endpoint.'
-      : 'URL base ou completa. Vazio: provedores conhecidos usam o endpoint padrão.');
+    endpoint.dataset.tipKey = 'aiRowEndpoint';
     const key = document.createElement('input'); key.type = 'password'; key.value = p.apiKey || ''; key.placeholder = 'API Key';
-    key.title = (state.config?.lang === 'en' ? 'Saved only in the local config' : 'Salva apenas na configuração local');
+    key.dataset.tipKey = 'aiRowKey';
     for (const el of [name, model, endpoint, key, provider]) el.addEventListener('input', () => { root.dataset.dirty = '1'; });
-    const up = document.createElement('button'); up.className = 'act'; up.textContent = '↑'; up.title = 'Subir'; up.onclick = () => moveAi(i, -1);
-    const down = document.createElement('button'); down.className = 'act'; down.textContent = '↓'; down.title = 'Descer'; down.onclick = () => moveAi(i, 1);
+    const up = document.createElement('button'); up.className = 'act'; up.textContent = '↑'; up.dataset.tipKey = 'aiRowUp'; up.onclick = () => moveAi(i, -1);
+    const down = document.createElement('button'); down.className = 'act'; down.textContent = '↓'; down.dataset.tipKey = 'aiRowDown'; down.onclick = () => moveAi(i, 1);
     const test = document.createElement('button'); test.className = 'act'; test.textContent = 'Testar';
-    test.title = (state.config?.lang === 'en' ? 'Test this provider only' : 'Testa apenas este provedor');
+    test.dataset.tipKey = 'aiRowTest';
     test.onclick = () => {
-      const one = aiPayload(collectAiRows()[i] || p, i);
+      // Read THIS row directly: never fall back to index 0 or to the whole queue.
+      const one = aiPayload(readAiRow(row, i), i);
+      aiPending = (state.config?.lang === 'en' ? 'Testing ' : 'Testando ') + one.name + '...';
       rpc({ cmd: 'aiTestProvider', index: i, provider: one });
-      toast(((state.config?.lang === 'en' ? 'Testing ' : 'Testando ') + one.name + '...'));
+      toast(aiPending, 2500);
+    };
+    const save = document.createElement('button'); save.className = 'act'; save.textContent = 'Salvar';
+    save.dataset.tipKey = 'aiRowSave';
+    save.onclick = () => {
+      setAiProviders(collectAiRows());
+      delete root.dataset.dirty;
+      toast(state.config?.lang === 'en' ? 'Saved' : 'Salvo', 1200);
     };
     const del = document.createElement('button'); del.className = 'act'; del.textContent = '×';
-    del.title = (state.config?.lang === 'en' ? 'Remove' : 'Remover');
+    del.dataset.tipKey = 'aiRowDelete';
     del.onclick = () => setAiProviders(aiProviders().filter((_, n) => n !== i));
-    row.append(enabled, name, provider, model, endpoint, key, up, down, test, del);
+    row.append(enabled, name, provider, model, endpoint, key, up, down, test, save, del);
     return row;
   }));
 }
+function readAiRow(row, i = 0) {
+  const [enabled, name, provider, model, endpoint, key] = row.querySelectorAll('input, select');
+  return cleanAiProvider({ id: name.value, enabled: enabled.checked, name: name.value,
+    provider: provider.value, model: model.value, endpoint: endpoint.value, apiKey: key.value }, i);
+}
 function collectAiRows() {
-  return [...$$('#ai-rows .ai-row')].map((row, i) => {
-    const [enabled, name, provider, model, endpoint, key] = row.querySelectorAll('input, select');
-    return cleanAiProvider({ id: name.value, enabled: enabled.checked, name: name.value,
-      provider: provider.value, model: model.value, endpoint: endpoint.value, apiKey: key.value }, i);
-  });
+  return [...$$('#ai-rows .ai-row')].map((row, i) => readAiRow(row, i));
 }
 function setAiProviders(list) {
   const clean = (list || []).map((p, i) => cleanAiProvider(p, i));
@@ -563,10 +622,12 @@ function bindAiEditor() {
 }
 
 function refreshTipTexts() {
+  // One hint only: the custom #tip element. Native title="" is never used here.
   for (const el of $$('button, input, select, textarea, label.toggle')) {
+    el.removeAttribute('title');
     const text = tipFor(el);
-    el.dataset.tip = text;
-    el.title = text;
+    if (text) el.dataset.tip = text;
+    else delete el.dataset.tip;
   }
 }
 function setupTips() {
@@ -575,12 +636,11 @@ function setupTips() {
   let current = null;
   const hide = () => { tip.classList.remove('show'); current = null; };
   document.addEventListener('pointerover', (e) => {
-    const el = e.target.closest('button, input, select, textarea, label.toggle, [data-tip]');
-    if (!el || el === current) return;
+    const el = e.target.closest('[data-tip]');
+    const text = el?.dataset.tip;
+    if (!text) { hide(); return; }
+    if (el === current) return;
     current = el;
-    const text = el.dataset.tip || tipFor(el);
-    el.dataset.tip = text;
-    el.title = text;
     tip.textContent = text;
     const r = el.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 290, Math.max(8, r.left));
@@ -597,51 +657,50 @@ function setupTips() {
 // ---- collapsible sections ----
 const FOLD_KEY = 'persocon.stream.folded';
 function setupSections() {
+  let id = 0;
   for (const sec of $$('main section')) {
-    const kids = [...sec.children];
     let block = null;
-    for (const el of kids) {
+    for (const el of [...sec.children]) {
       if (el.tagName === 'H2') {
         block = document.createElement('div');
-        block.className = 'section-block';
+        block.className = 'section-block collapsed';
+        block.dataset.fold = `fold-${id++}`;
         sec.insertBefore(block, el);
         block.append(el);
         el.setAttribute('role', 'button');
+        el.setAttribute('aria-expanded', 'false');
         el.tabIndex = 0;
-        el.addEventListener('click', (e) => { e.stopPropagation(); toggleBlock(block); });
-        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBlock(block); } });
+        // One listener per heading; never let other handlers cancel the toggle.
+        const toggle = (e) => { e.preventDefault(); e.stopPropagation(); toggleBlock(block); };
+        el.addEventListener('click', toggle);
+        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') toggle(e); });
       } else if (block) block.append(el);
     }
   }
-  const saved = localStorage.getItem(FOLD_KEY);
-  const titles = $$('.section-block').map(b => b.querySelector('h2')?.textContent || '');
-  // No saved preference yet: every section starts collapsed.
-  const folded = new Set(saved === null ? titles : JSON.parse(saved || '[]'));
-  for (const b of $$('.section-block')) {
-    const title = b.querySelector('h2')?.textContent || '';
-    b.classList.toggle('collapsed', folded.has(title));
-  }
+  // Every menu starts minimized when the page opens (no stale localStorage state).
+  setAllBlocks(true, false);
   $('#collapse-all')?.addEventListener('click', () => setAllBlocks(true));
   $('#expand-all')?.addEventListener('click', () => setAllBlocks(false));
 }
-function applyFolds() {
-  const raw = localStorage.getItem(FOLD_KEY);
-  if (raw === null) return;
-  const folded = new Set(JSON.parse(raw || '[]'));
-  for (const b of $$('.section-block')) {
-    b.classList.toggle('collapsed', folded.has(b.querySelector('h2')?.textContent || ''));
-  }
-}
 function toggleBlock(block) {
-  block.classList.toggle('collapsed');
+  const collapsed = block.classList.toggle('collapsed');
+  block.querySelector('h2')?.setAttribute('aria-expanded', String(!collapsed));
   persistFolds();
 }
-function setAllBlocks(collapsed) {
-  for (const b of $$('.section-block')) b.classList.toggle('collapsed', collapsed);
+function expandBlock(block) {
+  block.classList.remove('collapsed');
+  block.querySelector('h2')?.setAttribute('aria-expanded', 'true');
   persistFolds();
+}
+function setAllBlocks(collapsed, save = true) {
+  for (const b of $$('.section-block')) {
+    b.classList.toggle('collapsed', collapsed);
+    b.querySelector('h2')?.setAttribute('aria-expanded', String(!collapsed));
+  }
+  if (save) persistFolds();
 }
 function persistFolds() {
-  const folded = $$('.section-block.collapsed').map(b => b.querySelector('h2')?.textContent || '');
+  const folded = $$('.section-block.collapsed').map(b => b.dataset.fold || '');
   localStorage.setItem(FOLD_KEY, JSON.stringify(folded));
 }
 setupSections();
@@ -650,6 +709,7 @@ bindKwEditor();
 bindAiEditor();
 
 let lastAiResultId = null;
+let aiPending = '';
 const rpc = (payload) => {
   const msg = { ...payload, _rid: (window._rpcSeq = (window._rpcSeq || 0) + 1) };
   return fetch('/rpc', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(msg) })
@@ -658,7 +718,7 @@ const rpc = (payload) => {
       if (el) el.textContent = j.ok ? `RPC ok: ${msg.cmd || msg.type || '?'}` : 'RPC falhou';
     }).catch(() => { const el = $('#rpc-status'); if (el) el.textContent = 'RPC falhou'; });
 };
-const toast = (msg) => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.classList.remove('show'),1800); };
+const toast = (msg, ms = 1800) => { const t=$('#toast'); t.textContent=msg; t.title=msg; t.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.classList.remove('show'),ms); };
 // Polling must never steal focus or erase text the user is still editing.
 const setIfIdle = (input, value, isBool = false) => {
   const next = isBool ? !!value : String(value ?? '');
@@ -677,6 +737,7 @@ const fmt = (input) => {
   if (input.dataset.key === 'ttsSpeed') span.textContent = v.toFixed(2) + '×';
   else if (input.dataset.key === 'ttsVolume') span.textContent = Math.round(v*100) + '%';
   else if (input.min === '0' && input.max === '1') span.textContent = Math.round(v*100) + '%';
+  else if (input.dataset.key === 'offlineTtsChatterMin') span.textContent = v + ' min';
   else span.textContent = (v > 0 && input.min === '-6' ? '+' : '') + v + (input.dataset.key.includes('Cooldown') ? 's' : '');
 };
 
@@ -700,8 +761,9 @@ $$('[data-key]').forEach(input => {
       rpc({ cmd: 'applyPatch', patch: { voicePreset: 'aghata', ttsVoice: remote ? (en ? 'en-US-AnaNeural' : 'pt-BR-LeticiaNeural') : (en ? 'af_nicole' : 'pf_dora'), ttsSpeed: 0.88, ttsPitch: remote ? 0 : -1, ttsFilter: 'warm', streamPersona: 'estoica' } });
     }
     if (input.dataset.key === 'lang') {
-      if (value === 'en' && String(c.ttsVoice || '').startsWith('p')) rpc({ cmd: 'setOption', key: 'ttsVoice', value: 'af_nicole' });
-      if (value === 'pt' && String(c.ttsVoice || '').startsWith('a')) rpc({ cmd: 'setOption', key: 'ttsVoice', value: 'pf_dora' });
+      const voice = String(state.config?.ttsVoice || '');
+      if (value === 'en' && voice.startsWith('p')) rpc({ cmd: 'setOption', key: 'ttsVoice', value: 'af_nicole' });
+      if (value === 'pt' && voice.startsWith('a')) rpc({ cmd: 'setOption', key: 'ttsVoice', value: 'pf_dora' });
     }
     if (input.dataset.key === 'ttsDir') loadVoices(value);
     if (input.dataset.key === 'ttsVoice') previewVoice(value);
@@ -710,7 +772,7 @@ $$('[data-key]').forEach(input => {
   });
 });
 // Fields whose value is not (yet) part of /state are simply never rewritten while edited.
-['#channel', '#say', '#redeems', '#coins-n', '#brb-on'].forEach(sel => {
+['#channel', '#say', '#redeems', '#brb-on'].forEach(sel => {
   const input = $(sel);
   input.addEventListener('input', () => { input.dataset.dirty = '1'; });
   input.addEventListener('change', () => { input.dataset.dirty = '1'; });
@@ -720,6 +782,30 @@ const loadVoices = (dir) => rpc({ cmd:'ttsLoadVoices', dir:dir || state.config?.
 const previewVoice = (voice) => rpc({ cmd:'ttsPreview', voice:voice || $('#voice').value });
 $('#reload-voices').onclick = () => loadVoices($('[data-key=ttsDir]').value);
 $('#apply-persona-voice').onclick = () => rpc({ cmd: 'applyPersonaVoice' });
+let ttsProfileChoice = '';
+let ttsProfilePendingSave = false;
+$('#tts-profile-select').onchange = (e) => {
+  ttsProfileChoice = e.target.value;
+  const p = (state.config?.ttsProfiles || []).find(x => x.id === ttsProfileChoice);
+  if (p) $('#tts-profile-name').value = p.name;
+};
+$('#tts-profile-save').onclick = () => {
+  ttsProfilePendingSave = true;
+  rpc({ cmd: 'ttsProfileSave', id: ttsProfileChoice || null, name: $('#tts-profile-name').value });
+  toast('Perfil de voz salvo');
+};
+$('#tts-profile-load').onclick = () => {
+  if (!ttsProfileChoice) { toast('Selecione um perfil'); return; }
+  rpc({ cmd: 'ttsProfileLoad', id: ttsProfileChoice });
+  toast('Carregando perfil de voz...');
+};
+$('#tts-profile-delete').onclick = () => {
+  if (!ttsProfileChoice) { toast('Selecione um perfil'); return; }
+  rpc({ cmd: 'ttsProfileDelete', id: ttsProfileChoice });
+  ttsProfileChoice = '';
+  $('#tts-profile-name').value = '';
+  toast('Perfil de voz excluído');
+};
 $('#chatbox-reset').onclick = () => rpc({ cmd: 'chatBoxReset' });
 $('#chatbox-clear').onclick = () => rpc({ cmd: 'chatBoxClear' });
 $('#ai-test').onclick = () => {
@@ -727,7 +813,10 @@ $('#ai-test').onclick = () => {
   const autoBox = document.querySelector('input[data-key="aiAutoFallback"]');
   const auto = autoBox ? autoBox.checked : state.config?.aiAutoFallback !== false;
   rpc({ cmd: 'aiTest', providers: rows.map((p, i) => aiPayload(p, i)), auto });
-  toast('Testando resposta IA...');
+  const first = rows.find((p) => p.enabled !== false) || rows[0];
+  aiPending = (state.config?.lang === 'en' ? 'Testing ' : 'Testando ')
+    + (first?.name || (state.config?.lang === 'en' ? 'AI' : 'IA')) + '...';
+  toast(aiPending, 2500);
 };
 $('#test-emote').onclick = () => rpc({ cmd: 'testEmote' });
 $('#ai-restore-bg').onclick = () => {
@@ -735,13 +824,6 @@ $('#ai-restore-bg').onclick = () => {
   el.value = AI_BG[state.config?.lang === 'en' ? 'en' : 'pt'];
   el.dataset.dirty = '1';
   rpc({ cmd: 'setOption', key: 'aiSystemPrompt', value: el.value });
-};
-$('#switch-panel').onclick = () => {
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches;
-  const current = state.config?.streamPanelMode || (standalone ? 'window' : 'tab');
-  const next = current === 'window' ? 'tab' : 'window';
-  rpc({ cmd: 'switchPanelMode', mode: next });
-  toast(next === 'tab' ? 'Abrindo aba no navegador...' : 'Abrindo janela separada...');
 };
 $('#preview-voice').onclick = () => previewVoice($('#voice').value);
 function connectTwitch() {
@@ -764,6 +846,24 @@ $('#test-persona').onclick = () => rpc({cmd:'say',text:'Pausa na transmissão...
 $('#twitch-connect').onclick = connectTwitch;
 $('#channel').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connectTwitch(); } });
 $('#twitch-disconnect').onclick = () => rpc({cmd:'twitchDisconnect'});
+$('#first-viewer-read').onclick = () => rpc({ cmd: 'firstViewerChoice', read: true });
+$('#first-viewer-name').onclick = () => rpc({ cmd: 'firstViewerChoice', read: false });
+$('#twitch-quick').onclick = () => {
+  const ch = String($('#channel').value || state.config?.twitchChannel || '').trim().replace(/^#+/, '');
+  if (!ch) {
+    const block = $$('.section-block').find(b => (b.querySelector('h2')?.textContent || '').includes('Twitch'));
+    if (block) expandBlock(block);
+    $('#channel')?.focus();
+    toast(state.config?.lang === 'en' ? 'Enter the Twitch channel' : 'Digite o canal da Twitch');
+    return;
+  }
+  if (state.twitch) {
+    rpc({ cmd: 'twitchDisconnect' });
+  } else {
+    $('#channel').value = ch;
+    connectTwitch();
+  }
+};
 $('#clear-pins').onclick = () => rpc({ cmd: 'clearPins' });
 $('#sim').onclick = (e) => {
   const b = e.target.closest('[data-alert]');
@@ -779,12 +879,28 @@ const sendSay = () => { const v = $('#say').value.trim(); if (!v) return; rpc({c
 const sendPanelChat = () => { const v = $('#panel-chat-input').value.trim(); if (!v) return; rpc({ cmd: 'panelChat', text: v }); $('#panel-chat-input').value = ''; };
 $('#panel-chat-send').onclick = sendPanelChat;
 $('#panel-chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendPanelChat(); } });
+$('#pinned-chat-send').onclick = () => {
+  const v = $('#pinned-chat-input').value.trim();
+  if (!v) return;
+  rpc({ cmd: 'panelChat', text: v });
+  $('#pinned-chat-input').value = '';
+};
+$('#pinned-chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#pinned-chat-send').click(); } });
+$('#pinned-chat-toggle').onclick = () => {
+  const box = $('#pinned-chat');
+  const collapsed = box.classList.toggle('collapsed');
+  $('#pinned-chat-toggle').textContent = collapsed ? '+' : '−';
+};
+$('#pinned-chat-close').onclick = () => {
+  $('#pinned-chat').hidden = true;
+  const cb = document.querySelector('input[data-key="streamChatPinned"]');
+  if (cb) { cb.checked = false; cb.dataset.dirty = '1'; }
+  rpc({ cmd: 'setOption', key: 'streamChatPinned', value: false });
+};
 $('#say-btn').onclick = sendSay;
 $('#say').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSay(); } });
 $('#copy').onclick = () => navigator.clipboard?.writeText($('#endpoint').value);
 $('#bridge-on').onchange = () => toast('O servidor já está ativo enquanto o app roda');
-$('#coins-add').onclick = () => { rpc({cmd:'coins',n:Number($('#coins-n').value)||0}); toast('Moedas enviadas!'); };
-$('#drop').onclick = () => { rpc({cmd:'skyDrop',id:'maca'}); toast('Item solto do céu!'); };
 function parseRedeemsText(raw) {
   const map = {};
   for (const line of String(raw || '').split('\n')) {
@@ -793,10 +909,13 @@ function parseRedeemsText(raw) {
     const name = line.slice(0, eq).trim();
     const rest = line.slice(eq + 1).trim();
     if (!name || !rest) continue;
-    const [action, coins] = rest.split(':');
-    const act = (action || '').trim();
+    const [action, coins, rewardId, command] = rest.split(':');
+    const act = (action || '').trim().toLowerCase();
     if (!act) continue;
-    map[name] = { action: act, coins: Number(coins) || 0 };
+    const entry = { action: act, coins: Number(coins) || 0 };
+    if (rewardId?.trim()) entry.rewardId = rewardId.trim();
+    if (command?.trim()) entry.command = command.trim().replace(/^!/, '').toLowerCase();
+    map[name] = entry;
   }
   return map;
 }
@@ -876,7 +995,9 @@ $('#redeems-revert').onclick = () => {
 $('#redeem-run').onclick = () => {
   const name = $('#redeem-test').value;
   if (!name) { toast('Nenhuma recompensa selecionada'); return; }
-  rpc({ cmd: 'testAlert', event: { type: 'redeem', user: 'ViewerTeste', reward: name, text: 'Olá, chat!' } });
+  // Send the live map too: Testar must work even before clicking "Salvar".
+  const map = parseRedeemsText($('#redeems').value);
+  rpc({ cmd: 'testRedeem', name, map, user: 'ViewerTeste', text: 'Olá, chat!' });
   toast('Resgate testado: ' + name);
 };
 $('#brb-on').onchange = () => { const on=$('#brb-on').checked; rpc({cmd:'brb',value:on,text:$('[data-key=streamBrbText]').value}); toast(on?'BRB ligado':'BRB desligado'); };
@@ -918,16 +1039,10 @@ const voiceLabel = (v) => { const i = voiceInfo(v); return `${i.name} (${i.lang 
 
 function render() {
   const c = state.config || {};
-  applyFolds();
   refreshTipTexts();
   $('#st-mode').textContent = c.streamer ? 'Streamer' : 'Jogo Normal';
   $('#st-coins').textContent = state.coins ?? '—';
   $('#st-affection').textContent = state.affection ?? '—';
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches;
-  const panelMode = c.streamPanelMode || (standalone ? 'window' : 'tab');
-  const switchBtn = $('#switch-panel');
-  if (switchBtn) switchBtn.textContent = panelMode === 'window'
-    ? 'Abrir em aba no navegador' : 'Abrir em janela separada';
   $('#st-twitch').textContent = state.twitch ? 'Conectado' : 'Desconectado';
   $('#st-queue').textContent = state.tts?.queue ?? 0;
   $('#st-brb').textContent = state.brb ? 'Ligado' : 'Desligado';
@@ -935,6 +1050,26 @@ function render() {
   if (muted !== state.tts?.muted) { muted = !!state.tts?.muted; $('#mute').classList.toggle('primary',muted); $('#mute').textContent = muted ? '🔇 Mudo (ligado)' : '🔇 Mudo rápido'; }
   setIfIdle($('#channel'), c.twitchChannel || '');
   $('#twitch-state').textContent = state.twitch ? 'Conectado #' + (c.twitchChannel||'') : 'Desconectado';
+  const fv = state.firstViewerPrompt;
+  const fvBox = $('#first-viewer-banner');
+  if (fvBox) {
+    fvBox.hidden = !fv?.active;
+    if (fv?.active) {
+      $('#first-viewer-text').textContent = fv.user
+        ? `${fv.user}: ${fv.text || ''}` : (fv.text || '');
+      if (fv.read) $('#first-viewer-read').textContent = fv.read;
+      if (fv.named) $('#first-viewer-name').textContent = fv.named;
+    }
+  }
+  const twitchQuick = $('#twitch-quick');
+  if (twitchQuick) {
+    const ch = String(c.twitchChannel || '').trim().replace(/^#+/, '');
+    const en = c.lang === 'en';
+    twitchQuick.textContent = state.twitch
+      ? (en ? 'Twitch: live #' : 'Twitch: conectado #') + ch
+      : (en ? 'Twitch: offline' : 'Twitch: desconectado') + (ch ? ' · #' + ch : '');
+    twitchQuick.classList.toggle('primary', !!state.twitch);
+  }
   $('#endpoint').value = location.origin + '/event';
   setIfIdle($('#redeems'), state.redeemsText || Object.entries(c.streamRedeems||{}).map(([n,v])=>`${n}=${v.action}:${v.coins||0}`).join('\n'));
   refreshRewardSelect(c.streamRedeems);
@@ -944,7 +1079,7 @@ function render() {
     const b = document.createElement('button');
     b.className = 'ignored';
     b.textContent = `${u} ×`;
-    b.title = (state.config?.lang === 'en' ? 'Unignore' : 'Designorar');
+    b.dataset.tipKey = 'unignoreUser';
     b.onclick = () => rpc({ cmd: 'unignoreUser', user: u });
     return b;
   }));
@@ -954,27 +1089,37 @@ function render() {
   const aiResult = state.aiLastResult;
   if (aiResult && aiResult.id !== lastAiResultId) {
     lastAiResultId = aiResult.id;
-    toast((aiResult.ok ? (c.lang === 'en' ? 'AI OK: ' : 'IA OK: ') : (c.lang === 'en' ? 'AI error: ' : 'Erro IA: ')) + aiResult.detail);
+    aiPending = '';
+    const prefix = aiResult.ok
+      ? (c.lang === 'en' ? 'AI OK: ' : 'IA OK: ')
+      : (c.lang === 'en' ? 'AI error: ' : 'Erro IA: ');
+    toast(prefix + aiResult.detail, aiResult.ok ? 4000 : 9000);
   }
   if (aiStatus) {
     const parts = [];
+    if (aiPending) parts.push(aiPending);
     if (state.aiActiveProvider) parts.push((c.lang === 'en' ? 'Active:' : 'Ativa:') + ' ' + state.aiActiveProvider);
     if (state.aiFallbackNotice) parts.push(state.aiFallbackNotice);
-    if (aiResult?.detail) parts.push((aiResult.ok ? '[OK] ' : '[ERRO] ') + aiResult.detail);
-    aiStatus.textContent = parts.join(' · ');
+    if (aiResult?.detail && !aiPending) parts.push((aiResult.ok ? '[OK] ' : '[ERRO] ') + aiResult.detail);
+    const text = parts.join(' · ');
+    aiStatus.textContent = text;
+    aiStatus.title = aiResult?.detail ? `${aiResult.ok ? '[OK]' : '[ERRO]'} ${aiResult.detail}` : text;
   }
-  const panelChat = $('#panel-chat');
-  if (panelChat) {
-    panelChat.hidden = c.streamChatInPanel !== true;
-    const pcList = $('#panel-chat-list');
-    const rows = [
-      ...(state.voiceLog || []).map(x => `${x.user}: ${x.text}`),
-      ...(state.recentChat || []).map(x => `${x.user}: ${x.text}`),
-      ...(state.recentSpeech || []).map(x => typeof x === 'string' ? x : (x?.text || '')),
-    ].filter(Boolean).slice(-20);
-    pcList.replaceChildren(...rows.map(t => { const d = document.createElement('div'); d.textContent = t; return d; }));
-    pcList.scrollTop = pcList.scrollHeight;
-  }
+  const chatRows = [
+    ...(state.voiceLog || []).map(x => `${x.user}: ${x.text}`),
+    ...(state.recentChat || []).map(x => `${x.user}: ${x.text}`),
+    ...(state.recentSpeech || []).map(x => typeof x === 'string' ? x : (x?.text || '')),
+  ].filter(Boolean).slice(-20);
+  const fillChat = (id, visible) => {
+    const box = $(id);
+    if (!box) return;
+    box.hidden = !visible;
+    const list = box.querySelector('.panel-chat-list');
+    list.replaceChildren(...chatRows.map(t => { const d = document.createElement('div'); d.textContent = t; return d; }));
+    list.scrollTop = list.scrollHeight;
+  };
+  fillChat('#panel-chat', c.streamChatInPanel === true);
+  fillChat('#pinned-chat', c.streamChatPinned === true);
   const logBox = $('#twitch-log');
   const logs = Array.isArray(state.recentChat) ? state.recentChat : [];
   if (!logs.length) {
@@ -992,6 +1137,21 @@ function render() {
       row.append(left, right);
       return row;
     }));
+  }
+  const profileSel = $('#tts-profile-select');
+  if (profileSel) {
+    const profiles = Array.isArray(c.ttsProfiles) ? c.ttsProfiles : [];
+    const sig = JSON.stringify(profiles.map(p => [p.id, p.name]));
+    if (profileSel.dataset.sig !== sig) {
+      profileSel.dataset.sig = sig;
+      profileSel.replaceChildren(...[hOpt('', '— selecione —'), ...profiles.map(p => hOpt(p.id, p.name))]);
+    }
+    if (ttsProfilePendingSave) {
+      const chosen = profiles.find(p => p.id === ttsProfileChoice) || profiles[profiles.length - 1];
+      if (chosen) { ttsProfileChoice = chosen.id; $('#tts-profile-name').value = chosen.name; }
+      ttsProfilePendingSave = false;
+    }
+    profileSel.value = ttsProfileChoice;
   }
   const activeLang = c.lang === 'en' ? 'en' : 'pt';
   const remoteEngine = ['edge','fish'].includes(c.ttsEngine);
@@ -1043,6 +1203,7 @@ function render() {
   const followersNote = $('#followers-note');
   followersNote.hidden = c.ttsWho !== 'followers';
   followersNote.querySelectorAll('[data-lang]').forEach(s => s.hidden = (s.dataset.lang === 'en') !== (c.lang === 'en'));
+  $$('[data-lang]').forEach(s => { s.hidden = (s.dataset.lang === 'en') !== (c.lang === 'en'); });
   $$('[data-key]').forEach(input => {
     let v = c[input.dataset.key];
     if (v === undefined && input.dataset.key === 'ttsCooldown') v = 5;
@@ -1060,6 +1221,7 @@ function render() {
       if (input.dataset.type === 'range') fmt(input);
     }
   });
+  refreshTipTexts(); // also covers rows rebuilt during this render
 }
 
 let pollTimer = null;

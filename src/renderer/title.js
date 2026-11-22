@@ -4,6 +4,7 @@ import { textFor } from './introtext.js';
 import { Music } from './music.js';
 import { editionLabel } from './edition.js';
 import { translate } from './i18n.js';
+import { confirmStreamer } from './streamerconfirm.js';
 
 const LOGO_URL = new URL('./assets/logo.png', import.meta.url).href;
 
@@ -337,7 +338,8 @@ export class TitleScreen {
     this.modeBtn.textContent = on ? translate('Voltar ao Jogo Normal') : `🎥 ${translate('Ativar Modo Streamer')}`;
     this.modeBtn.onclick = () => {
       this.app.sound?.play('ok', { volume: 0.5 });
-      this.app.setOption?.('streamer', !on);
+      if (on) this.app.setOption?.('streamer', false);
+      else confirmStreamer(this.app, () => this.app.setOption?.('streamer', true));
     };
     if (!first) this.modeFlash(translate(on ? 'Modo Streamer ativado' : 'Jogo Normal ativado'));
   }
@@ -458,19 +460,8 @@ export class TitleScreen {
   }
 
   startStreamer() {
-    const T = this.T;
-    const body = el('div', 'title-sheet-body', '');
-    body.append(el('p', '', T.streamerTip || T.menu.streamer));
-    const actions = el('div', 'title-sheet-actions');
-    const no = el('button', '', T.no);
-    const yes = el('button', 'primary', T.yes);
-    no.onclick = () => this.closeSub();
-    yes.onclick = () => {
-      this.closeSub();
-      this.app.setOption?.('streamer', true);
-    };
-    actions.append(no, yes);
-    this.sheet(T.menu.streamer, body, actions);
+    this.closeSub();
+    confirmStreamer(this.app, () => this.app.setOption?.('streamer', true));
   }
 
   close(then) {

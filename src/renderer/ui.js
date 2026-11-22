@@ -1,5 +1,6 @@
 import { PetView } from './view.js';
 import { EDGE_VOICES, filterVoicesForLang, personaVoiceSuggestion, presetForLang, VOICE_PRESETS } from './tts.js';
+import { captureTtsProfile, deleteTtsProfile, ttsProfiles } from './ttsprofiles.js';
 import { PERSONA_IDS, personaLabel } from './persona.js';
 import { SHOP_CATEGORIES, ITEMS, STAT_LABELS, BUFF_LABELS, BUFF_ICONS, ATTRS, INFINITE_MONEY, effectText, isEdible, isConsumable, isSellable, isEternal, sellPrice, isPowerUp, hasTaste, itemById, HER_BAG } from './game.js';
 import { SKILL_DEFS, COMBAT_ARTS, skillLevel, skillMoves, skillStarted, skillXpFor } from './skills.js';
@@ -12,6 +13,7 @@ import { SOUND_THEMES } from './sound.js';
 import { RP_PARTS, readModel, applyChromaKey } from './skins.js';
 import { icon, cartSheetStyle } from './pixel.js';
 import { baseId, FURN } from './furniture.js';
+import { UPGRADES } from './upgrades.js';
 import { luckOf, FIGURES, GACHA_PRICE } from './casinoitems.js';
 import { RARITIES } from './lootitems.js';
 import { MINIGAMES, MG_UNLOCK, MG_BONUS, BONUS_DAILY, mgUnlocked, mgLevel } from './minigames.js';
@@ -28,6 +30,7 @@ import { logInfo, recentLog } from './logger.js';
 import { attrProgress as attrProg } from './attrxp.js';
 import { DEFAULT_OPTS, PERSONALITY_PRESETS, THEMES, normText, itemFlags, makeCatalogTools, applyCatalogFilter } from './catalog.js';
 import { translate } from './i18n.js';
+import { confirmStreamer } from './streamerconfirm.js';
 
 // Compatibilidade: outros módulos ainda importam estes de ui.js.
 export { DEFAULT_OPTS, PERSONALITY_PRESETS, THEMES };
@@ -1360,9 +1363,41 @@ export class Menu {
         (v) => { app.setOption('persona', v); this.render(); },
       )),
       h('div.row', {}, h('button', { onclick: () => { app.applyConfigPatch(personaVoiceSuggestion(app)); this.render(); } }, 'Aplicar voz sugerida da personalidade')),
-      h('div.row', {}, h('span.label', {}, 'Painel do Streamer'), segmented([
-        ['window', 'Janela separada'], ['tab', 'Aba no navegador'],
-      ], c.streamPanelMode || 'window', (v) => { app.setOption('streamPanelMode', v); window.petAPI?.openStreamerPanel?.(v); })),
+      h('div.group', {}, 'Perfil de voz (TTS)'),
+      (() => {
+        const draft = app.ttsProfileDraft || (app.ttsProfileDraft = { id: '', name: '' });
+        const nameInput = h('input.text', { type: 'text', placeholder: 'Nome do perfil', value: draft.name,
+          oninput: (e) => { draft.name = e.target.value; } });
+        const select = h('select', { onchange: (e) => {
+          draft.id = e.target.value;
+          const p = ttsProfiles(app.config).find(x => x.id === draft.id);
+          if (p) draft.name = p.name;
+          nameInput.value = draft.name;
+        } }, h('option', { value: '' }, '— selecione —'),
+          ...ttsProfiles(app.config).map(p => h('option', { value: p.id, selected: p.id === draft.id }, p.name)));
+        return h('div', {},
+          h('div.row', {}, h('span.label', {}, 'Perfil salvo'), select),
+          h('div.row', {}, h('span.label', {}, 'Nome'), nameInput),
+          h('div.row', {},
+            h('button', { onclick: () => {
+              const { list, entry } = captureTtsProfile(app.config, nameInput.value, draft.id || null);
+              app.setOption('ttsProfiles', list);
+              draft.id = entry.id; draft.name = entry.name;
+              this.render();
+            } }, 'Salvar perfil'),
+            h('button', { onclick: () => {
+              const p = ttsProfiles(app.config).find(x => x.id === draft.id);
+              if (p) { app.applyConfigPatch(p.settings); this.render(); }
+            } }, 'Carregar perfil'),
+            h('button', { onclick: () => {
+              if (!draft.id) return;
+              app.setOption('ttsProfiles', deleteTtsProfile(app.config, draft.id));
+              draft.id = ''; draft.name = '';
+              this.render();
+            } }, 'Excluir perfil')),
+          h('div.note', {}, 'Perfis ficam só neste computador e nunca incluem chaves de API.'),
+        );
+      })(),
       h('div.group', {}, '🔑 IAs & Chaves API'),
       toggle({ label: 'Trocar automaticamente para a próxima IA quando os tokens acabarem', value: c.aiAutoFallback !== false, onchange: (v) => app.setOption('aiAutoFallback', v) }),
       ...(c.aiProviders || []).map((p, i) => h('div.row', {},
@@ -1375,7 +1410,17 @@ export class Menu {
           const list = c.aiProviders.slice();
           if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; app.setOption('aiProviders', list); }
         } }, '↓'),
+        h('button.mini', { onclick: (e) => {
+          app.setOption('aiProviders', c.aiProviders.slice());
+          const note = e.target.parentElement.querySelector('.ai-saved-note');
+          if (note) {
+            note.textContent = 'Salvo';
+            clearTimeout(note._t);
+            note._t = setTimeout(() => { note.textContent = ''; }, 1200);
+          }
+        } }, 'Salvar'),
         h('button.mini', { onclick: () => app.setOption('aiProviders', c.aiProviders.filter((_, n) => n !== i)) }, '×'),
+        h('span.note.ai-saved-note', {}),
       )),
       h('div.row', {}, h('button', { onclick: () => app.setOption('aiProviders', [
         ...(c.aiProviders || []),
@@ -1592,7 +1637,10 @@ export class Menu {
       h('div.group', {}, 'Setups da mesa'),
       this.setupRows(),
       h('div.group', {}, 'Streamer Mode'),
-      toggle({ label: 'Streamer Mode (janela para o OBS)', value: !!c.streamer, onchange: (v) => app.setOption('streamer', v) }),
+      toggle({ label: 'Streamer Mode (janela para o OBS)', value: !!c.streamer, onchange: (v) => {
+        if (v) { this.close?.(); confirmStreamer(app, () => app.setOption('streamer', true)); }
+        else app.setOption('streamer', false);
+      } }),
       h('div.row', {}, h('span.label', {}, 'Fundo'), segmented([['verde', 'Verde'], ['azul', 'Azul'], ['magenta', 'Magenta'], ['transparente', 'Transparente']], c.streamerBg || 'verde', (v) => app.setOption('streamerBg', v))),
       h('div.note', {}, 'No OBS: Captura de janela → "My Persocon - Streamer Mode", marque "Área do cliente". Prefira fundo Verde/Azul/Magenta + filtro Chroma Key (captura estável). Evite o método "Windows 10" com fundo transparente — no Windows 11 costuma dar tela preta ou travar a stream. Duplo clique na Persocon liga/desliga; fechar a janela só sai do modo.'),
       h('div.group', {}, 'Outros'),
@@ -2673,8 +2721,9 @@ export class ObjectsDialog extends Dialog {
 
   // Guarda a aparência salva do objeto no momento em que o modal (ou a seleção) muda.
   captureSnapshot() {
-    const id = this.sel;
-    this.snapshot = { id, cfg: this.app.skins.objects[id] ? JSON.parse(JSON.stringify(this.app.skins.objects[id])) : null };
+    const id = baseId(this.sel);
+    const grab = (obj) => obj?.[id] ? JSON.parse(JSON.stringify(obj[id])) : null;
+    this.snapshot = { id, base: grab(this.app.skins.objects), upgrade: grab(this.app.skins.objectsUpgrade) };
   }
 
   // Descarta a edição ao vivo e devolve a aparência salva no desktop.
@@ -2683,16 +2732,38 @@ export class ObjectsDialog extends Dialog {
     this.snapshot = null;
     this.app.toys.livePreview = null;
     if (s) {
-      if (s.cfg) this.app.skins.objects[s.id] = JSON.parse(JSON.stringify(s.cfg));
-      else delete this.app.skins.objects[s.id];
+      for (const [key, obj] of [['base', this.app.skins.objects], ['upgrade', this.app.skins.objectsUpgrade]]) {
+        if (s[key]) obj[s.id] = JSON.parse(JSON.stringify(s[key]));
+        else delete obj[s.id];
+      }
     }
     this.draft = null;
+    this.variants = null;
+    this.variant = 'base';
     this.baked = null;
     this.bakeKey = '';
     this.hitboxDraft = null;
     this.liveRatio = null;
     this.liveSeq = 0;
     this.ratioKey = '';
+  }
+
+  get upgraded() { return this.variant === 'upgrade'; }
+
+  switchVariant(variant) {
+    if (!this.variants) this.variants = {};
+    this.variants[this.variant] = this.draft;
+    this.variant = variant;
+    this.draft = this.variants[variant] || null;
+    this.previewActive = false;
+    this.baked = null;
+    this.bakeKey = '';
+    this.hitboxDraft = null;
+    this.liveRatio = null;
+    this.liveSeq = 0;
+    this.ratioKey = '';
+    this.render();
+    this.syncLive();
   }
 
   async show(focus, preset) {
@@ -2702,6 +2773,8 @@ export class ObjectsDialog extends Dialog {
       ...OBJ_EXTRA.map(([id, name, pix]) => [id, name, icon(pix), null]),
     ];
     this.sel = focus || this.list[0][0];
+    this.variant = 'base';
+    this.variants = {};
     this.draft = null;
     this.snapshot = null;
     this.liveRatio = null;
@@ -2711,9 +2784,13 @@ export class ObjectsDialog extends Dialog {
     this.captureSnapshot();
     if (preset?.kind === '3d') await this.load3d(preset.data, preset.rot);
     else if (preset?.kind === 'img') {
+      const saved = (this.upgraded ? this.app.skins.objectsUpgrade : this.app.skins.objects)[baseId(this.sel)] || {};
       this.draft = {
         kind: 'img', src: preset.frames || [preset.src], delays: preset.delays || [100], rot: 0, flip: false,
-        speed: 1, scale: 1, transparent: { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
+        speed: 1, scale: saved.scale || 1,
+        active: saved.active ? { ...saved.active, src: saved.active.frames || [] } : null,
+        mode: saved.active?.frames?.length ? 'dual' : 'single',
+        transparent: { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
       };
       this.render();
       this.refreshBake();
@@ -2722,8 +2799,29 @@ export class ObjectsDialog extends Dialog {
 
   current(id) {
     const row = this.list.find((r) => r[0] === id);
+    const b = baseId(id);
+    const up = this.upgraded && !!UPGRADES[b];
     const base = row?.[2] || (id === 'pelucia' ? this.app.doll?.snapshot() : null) || this.app.toys?.furn?.art(id);
-    return this.app.skins?.art(id, base) || base;
+    const fallback = up ? (UPGRADES[b].pix ? icon(UPGRADES[b].pix) : base) : base;
+    return this.app.skins?.art(b, fallback, false, up) || fallback;
+  }
+
+  clearSkinSlot(key, d, id) {
+    if (!d) return;
+    if (key === 'active') {
+      d.active = null;
+      d.mode = d.src?.length > 1 ? (d.mode === 'firstFrame' ? 'firstFrame' : 'single') : 'single';
+      this.previewActive = false;
+    } else {
+      const row = this.list.find((r) => r[0] === id);
+      const base = row?.[2] || this.app.toys?.furn?.art(id);
+      if (base) { d.src = [base]; d.delays = [100]; d.kind = 'img'; }
+      else this.draft = null;
+    }
+    this.baked = null;
+    this.bakeKey = '';
+    this.render();
+    this.refreshBake();
   }
 
   async pickImage(working = false) {
@@ -2733,17 +2831,21 @@ export class ObjectsDialog extends Dialog {
     const { decodeAnimated } = await import('./skins.js');
     const anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data).catch(() => null) : null;
     const decoded = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100] };
-    const old = this.app.skins.objects[this.sel] || {};
-    if (working && this.draft && this.draft.kind !== '3d') {
-      this.draft.active = decoded;
-      this.draft.mode = 'dual';
-      this.draft.activeSrc = decoded.src;
+    const old = (this.upgraded ? this.app.skins.objectsUpgrade : this.app.skins.objects)[baseId(this.sel)] || {};
+    const prev = this.draft && this.draft.kind !== '3d' ? this.draft : null;
+    if (working && prev) {
+      prev.active = decoded;
+      prev.mode = 'dual';
+      prev.activeSrc = decoded.src;
+      this.previewActive = false;
     } else {
+      const active = prev?.active ? { ...prev.active } : old.active ? { ...old.active, src: old.active.frames || [] } : null;
+      const speed = prev?.speed || 1;
       this.draft = {
-        ...decoded, rot: 0, flip: false, speed: 1, scale: old.scale || 1,
-        mode: old.mode === 'dual' ? 'dual' : old.mode === 'firstFrame' && decoded.src.length > 1 ? 'firstFrame' : 'single',
-        active: old.active ? { ...old.active } : null,
-        transparent: { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
+        ...decoded, rot: prev?.rot || 0, flip: !!prev?.flip, speed, scale: prev?.scale || old.scale || 1,
+        mode: active?.src?.length ? 'dual' : old.mode === 'firstFrame' && decoded.src.length > 1 ? 'firstFrame' : 'single',
+        active,
+        transparent: prev?.transparent ? { ...prev.transparent } : { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
       };
       this.previewActive = false;
     }
@@ -2788,10 +2890,12 @@ export class ObjectsDialog extends Dialog {
   async save() {
     const d = this.draft;
     const id = this.sel;
-    const old = this.app.skins.objects[id] || {};
+    const up = this.upgraded;
+    const store = up ? this.app.skins.objectsUpgrade : this.app.skins.objects;
+    const old = store[id] || {};
     const region = this.region || old.region;
     if (!d) {
-      if (region) { await this.app.skins.setObject(id, { ...old, region }); this.snapshot = null; }
+      if (region) { await this.app.skins.setObject(id, { ...old, region }, up); this.snapshot = null; }
       return this.close();
     }
     // A prévia usa os quadros assados (rotação + transparência); o tamanho é o do objeto real.
@@ -2809,21 +2913,24 @@ export class ObjectsDialog extends Dialog {
         hitboxHeight: Math.round(hitbox.h * (first.naturalHeight || first.height || 1)),
       }
       : {};
+    const speed = d.speed || 1;
+    const activeSet = (d.mode === 'dual' || d.active?.src?.length) && d.active?.src?.length ? {
+      kind: d.active.kind,
+      frames: this.baked?.activeFrames?.length ? this.baked.activeFrames : d.active.src,
+      delays: this.baked?.activeDelays || d.active.delays || [100],
+      speed,
+    } : null;
     this.snapshot = null; // aplicado: o objeto na área de trabalho já é o salvo
     await this.app.skins.setObject(id, {
-      kind: d.kind, mode: d.mode || 'single', frames, delays: d.delays, speed: d.speed || 1,
+      kind: d.kind, mode: activeSet ? 'dual' : (d.mode || 'single'),
+      frames, delays: d.delays, speed,
+      idle: { frames, delays: d.delays, speed },
       ratio: first.height / first.width, region, hitbox, ...hbPx, scale: d.scale || 1,
-      ...(d.mode === 'dual' && d.active?.src?.length ? {
-        active: {
-          kind: d.active.kind,
-          frames: this.baked?.activeFrames?.length ? this.baked.activeFrames : d.active.src,
-          delays: this.baked?.activeDelays || d.active.delays || [100],
-          speed: d.speed || 1,
-        },
-      } : {}),
-    });
+      ...(activeSet ? { active: activeSet } : {}),
+    }, up);
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
     this.draft = null;
+    this.variants = null;
     this.baked = null;
     this.bakeKey = '';
     this.hitboxDraft = null;
@@ -2901,23 +3008,29 @@ export class ObjectsDialog extends Dialog {
     const d = this.draft;
     const toys = this.app.toys;
     if (!d) { toys.livePreview = null; return; }
-    const { frames, delays } = this.draftFrames();
+    const idleFrames = this.baked?.frames?.length ? this.baked.frames : d.src;
+    const activeFrames = d.active?.src?.length
+      ? (this.baked?.activeFrames?.length ? this.baked.activeFrames : d.active.src) : null;
+    const speed = d.speed || 1;
     toys.livePreview = {
-      id: this.sel,
+      id: baseId(this.sel),
+      upgraded: this.upgraded,
       scale: d.scale || 1,
       rot: 0, // a rotação e o espelho do rascunho já vão ASSADOS nos quadros (bake) — o transform não reaplica
       flip: false,
-      speed: d.speed || 1,
-      frames: frames || null,
-      delays,
-      mode: 'single', // o preview já mostra o estado escolhido pelo toggle
+      speed,
+      frames: idleFrames || null,
+      delays: d.delays || [100],
+      mode: activeFrames ? 'dual' : 'single',
+      idle: { frames: idleFrames || [], delays: d.delays || [100], speed },
+      active: activeFrames ? { frames: activeFrames, delays: this.baked?.activeDelays || d.active.delays || [100], speed } : null,
       ratio: this.liveRatio || null,
     };
   }
 
   // Clicar na prévia: a cor do pixel vira a cor de transparência.
-  pickColor(e, d) {
-    const img = this.previewImg;
+  pickColor(e, d, targetImg = null) {
+    const img = targetImg || this.previewImg;
     if (!img?.naturalWidth) return;
     const c = document.createElement('canvas');
     c.width = img.naturalWidth;
@@ -3023,36 +3136,54 @@ export class ObjectsDialog extends Dialog {
     const id = this.sel;
     const d = this.draft;
     const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
-      onclick: () => { this.sel = oid; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.captureSnapshot(); this.render(); this.syncLive(); },
+      onclick: () => { this.sel = oid; this.variant = 'base'; this.variants = null; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.captureSnapshot(); this.render(); this.syncLive(); },
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
-    // A prévia fica fixa (100%): é a referência estática para o conta-gotas de transparência e o hitbox.
-    // O tamanho em edição aparece no objeto de verdade, na área de trabalho.
-    const { frames: srcFrames, delays: srcDelays } = this.draftFrames();
+    // Two live previews: Idle and Em uso (both animated with their own delays).
+    const { frames: srcFrames } = this.draftFrames();
     const shown = srcFrames ? srcFrames[0] : this.current(id);
     const previewW = 200;
-    const img = h('img.obj-preview', { src: shown || '', draggable: false, style: { width: `${previewW}px` } });
+    const makeSlot = (key, label, frames, delays) => {
+      const im = h('img.obj-preview', { src: frames?.[0] || shown || '', draggable: false, style: { width: `${previewW}px` } });
+      if (d && d.kind !== '3d' && !this.hitMode) {
+        im.addEventListener('click', (e) => this.pickColor(e, d, im));
+        im.style.cursor = 'crosshair';
+      }
+      if (frames && frames.length > 1) {
+        let i = 0;
+        const tick = () => {
+          if (!im.isConnected) return;
+          i = (i + 1) % frames.length;
+          im.src = frames[i];
+          setTimeout(tick, (delays?.[i] || 100) / (d?.speed || 1));
+        };
+        setTimeout(tick, 100);
+      }
+      const filled = !!(key === 'active' ? d?.active?.src?.length : d?.src?.length);
+      const actions = h('div.row.obj-slot-actions', {},
+        h('button.mini', { onclick: () => this.pickImage(key === 'active') }, translate('Trocar')),
+        filled ? h('button.mini', { onclick: () => this.clearSkinSlot(key, d, id) }, translate('Limpar')) : null);
+      return { slot: h('div.obj-preview-slot', {}, h('span.obj-preview-label', {}, label), im, actions), im };
+    };
+    const idleFrames = d ? (this.baked?.frames?.length ? this.baked.frames : d.src) : null;
+    const activeFrames = d?.active?.src?.length
+      ? (this.baked?.activeFrames?.length ? this.baked.activeFrames : d.active.src) : null;
+    const idleSlot = makeSlot('idle', translate('Parada'), idleFrames, d?.delays);
+    const activeSlot = (d && (d.mode === 'dual' || activeFrames)) ? makeSlot('active', translate('Em uso'), activeFrames, d.active?.delays) : null;
+    const mainSlot = this.previewActive && activeSlot ? activeSlot.slot : idleSlot.slot;
+    const img = this.previewActive && activeSlot ? activeSlot.im : idleSlot.im;
     this.previewImg = img;
-    // Clicar na prévia: pega a cor do pixel (é a cor que vira transparente).
-    if (d && d.kind !== '3d' && !this.hitMode) {
-      img.addEventListener('click', (e) => this.pickColor(e, d));
-      img.style.cursor = 'crosshair';
-    }
-    if (srcFrames && srcFrames.length > 1) {
-      let i = 0;
-      const tick = () => {
-        if (!img.isConnected) return;
-        i = (i + 1) % srcFrames.length;
-        img.src = srcFrames[i];
-        setTimeout(tick, (srcDelays[i] || 100) / (d?.speed || 1));
-      };
-      setTimeout(tick, 100);
-    }
-    const previewToggle = d && d.mode === 'dual' ? h('div.row', {},
+    const previews = h('div.obj-previews', {}, idleSlot.slot, activeSlot?.slot);
+    const previewToggle = d && (d.mode === 'dual' || activeFrames) ? h('div.row', {},
       h('span.label', {}, translate('Pré-visualizar')),
-      segmented([['idle', translate('Parada')], ['active', translate('Funcionando')]],
+      segmented([['idle', translate('Parada')], ['active', translate('Em uso')]],
         this.previewActive ? 'active' : 'idle',
         (v) => { this.previewActive = v === 'active'; this.syncLive(); this.render(); })) : null;
-    const stage = h('div.obj-stage', {}, previewToggle, img);
+    const hasUpgrade = !!UPGRADES[baseId(id)];
+    const variantTabs = hasUpgrade ? h('div.row', {},
+      h('span.label', {}, translate('Visual')),
+      segmented([['base', translate('Normal (Base)')], ['upgrade', translate('Upgrade (Melhorado)')]],
+        this.variant, (v) => this.switchVariant(v))) : null;
+    const stage = h('div.obj-stage', {}, variantTabs, previewToggle, previews);
     // A caixa do hitbox: a parte da imagem que realmente responde ao clique. Com o
     // "Mostrar hitbox" ligado ela aparece na prévia; nos arquivos importados (imagem/GIF)
     // dá para arrastar a caixa e as 4 alças para ajustar.
@@ -3064,12 +3195,12 @@ export class ObjectsDialog extends Dialog {
       })
       : null;
     this.hbBox = hbBox;
-    if (hbBox) stage.append(hbBox);
+    if (hbBox) mainSlot.append(hbBox);
     if (hbBox && hbEdit) {
       for (const mode of ['nw', 'ne', 'sw', 'se']) {
         hbBox.append(h('span.hb-handle', { 'data-h': mode }));
       }
-      hbBox.addEventListener('pointerdown', (e) => this.dragHitbox(e, d, stage, img, e.target?.dataset?.h || 'move'));
+      hbBox.addEventListener('pointerdown', (e) => this.dragHitbox(e, d, mainSlot, img, e.target?.dataset?.h || 'move'));
     }
     if (d && this.hitMode) {
       img.style.cursor = 'crosshair';
@@ -3107,7 +3238,7 @@ export class ObjectsDialog extends Dialog {
     if (id === 'videogame') {
       const reg = this.region || app.skins.region(id) || { x: 0.1, y: 0.2, w: 0.8, h: 0.5 };
       const box = h('div.obj-region', { style: { left: `${reg.x * 100}%`, top: `${reg.y * 100}%`, width: `${reg.w * 100}%`, height: `${reg.h * 100}%` } });
-      stage.append(box);
+      mainSlot.append(box);
       stage.addEventListener('pointerdown', (e) => {
         const r = img.getBoundingClientRect();
         const fx = (v) => Math.min(1, Math.max(0, (v - r.left) / r.width));
@@ -3181,7 +3312,7 @@ export class ObjectsDialog extends Dialog {
         h('small.muted', {}, 'Arraste a caixa para mover e as alças dos cantos para redimensionar. Os valores são % da imagem. O hitbox é a parte que responde ao clique (o resto deixa passar).'));
     }
     if (d && d.src.length > 1) controls.push(slider({ label: 'Velocidade', min: 0.25, max: 3, step: 0.25, value: d.speed, format: (v) => `${v}×`, oninput: (v) => { d.speed = v; this.syncLive(); } }));
-    const has = !!app.skins?.objects[id];
+    const has = !!(this.upgraded ? app.skins?.objectsUpgrade : app.skins?.objects)?.[baseId(id)];
     const right = h('div.obj-edit', {},
       stage,
       id === 'videogame' && h('div.note', {}, 'Arraste sobre a imagem para marcar onde fica a tela da TV.'),
@@ -3190,9 +3321,9 @@ export class ObjectsDialog extends Dialog {
         d && d.mode === 'dual' ? h('button', { onclick: () => this.pickImage(true) }, translate('⚡ Imagem funcionando')) : null,
         h('button', { onclick: () => this.pick3d() }, '🧊 Modelo 3D'),
         has && h('button', { onclick: async () => {
-          await app.skins.setObject(id, null);
+          await app.skins.setObject(baseId(id), null, this.upgraded);
           if (id === 'pelucia') app.doll?.setScale(1);
-          this.draft = null; this.region = null; this.snapshot = null; this.render(); this.syncLive();
+          this.draft = null; this.region = null; this.captureSnapshot(); this.render(); this.syncLive();
         } }, '↺ Restaurar padrão')),
       controls,
       this.error && h('div.error', {}, this.error),

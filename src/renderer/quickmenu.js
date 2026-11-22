@@ -1,5 +1,6 @@
 // Quick Menu: opened with X while hovering the pet (or by clicking a piece of furniture).
 import { itemById, HER_BAG } from './game.js';
+import { confirmStreamer } from './streamerconfirm.js';
 export class QuickMenu {
   constructor(app) {
     this.app = app;
@@ -30,7 +31,8 @@ export class QuickMenu {
       btn.onclick = () => {
         app.sound.play('ok');
         this.close();
-        app.setOption(key, !on);
+        if (key === 'streamer' && !on) confirmStreamer(app, () => app.setOption('streamer', true));
+        else app.setOption(key, !on);
       };
       return btn;
     };

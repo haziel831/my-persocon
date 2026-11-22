@@ -131,7 +131,7 @@ export class Closeup {
 
   // Test from the menu: right now.
   test(r) {
-    this.queue.unshift(r ? { kind: r.alarm ? 'alarm' : 'reminder', text: r.text || (this.en ? 'Reminder, {name}!' : 'Lembrete, {name}!'), sound: r.sound || 'chime', volume: r.volume ?? 1, r }
+    this.queue.unshift(r ? { ...r, kind: r.alarm ? 'alarm' : 'reminder', text: r.text || (this.en ? 'Reminder, {name}!' : 'Lembrete, {name}!'), sound: r.sound || 'chime', volume: r.volume ?? 1, r }
       : { kind: 'auto', text: this.topic() });
   }
 
@@ -349,7 +349,10 @@ export class Closeup {
           if (alarm && c.rings > 1) this.startKnocks(8, 0.15, true);
         }
       }
-      if (c.t >= (alarm ? 150 : 40)) this.leave();
+      if (c.t >= (c.talkFor || (alarm ? 150 : 40))) {
+        c.onTimeout?.();
+        this.leave();
+      }
     } else if (c.phase === 'pat') {
       const { Z, sx, feet } = c.f;
       this.place(Z, feet, sx);
@@ -502,7 +505,7 @@ export class Closeup {
     const en = this.en;
     const bubble = document.createElement('div');
     bubble.className = `cu-bubble hitzone${c.kind === 'alarm' ? ' alarm' : ''}`;
-    const tag = c.kind === 'alarm' ? (en ? '⏰ Alarm' : '⏰ Alarme') : c.kind === 'reminder' ? (en ? '⏰ Reminder' : '⏰ Lembrete') : '';
+    const tag = c.tag || (c.kind === 'alarm' ? (en ? 'Alarm' : 'Alarme') : c.kind === 'reminder' ? (en ? 'Reminder' : 'Lembrete') : '');
     bubble.innerHTML = `${tag ? `<small>${tag}</small>` : ''}<p></p><div class="cu-actions"></div>`;
     const actions = bubble.querySelector('.cu-actions');
     const btn = (label, fn) => {
@@ -514,26 +517,30 @@ export class Closeup {
       };
       actions.append(b);
     };
-    btn(en ? 'Ok! (cafuné)' : 'Ok! (cafuné)', () => this.pat());
-    if (c.kind === 'alarm' || c.kind === 'reminder') {
-      btn(en ? 'Snooze 5 min' : 'Soneca 5 min', () => {
-        this.snoozes.push({ at: Date.now() + 5 * 60000, r: c.r || { text: c.text, alarm: c.kind === 'alarm', sound: c.sound } });
-        this.leave();
-      });
-    }
-    if (c.kind === 'desktopGame' && c.game) {
-      btn(en ? '▶ Play' : '▶ Jogar', () => {
-        window.petAPI.openDesktopItem(c.game.path).catch(() => {});
-        this.app.sound?.play('ok');
-        this.app.pet.emit('desktopGamePlay', { name: c.game.name });
-        this.app.desktopGames?.closeBubble?.();
-        this.leave();
-      });
-      btn(en ? 'Later' : 'Depois', () => {
-        this.app.pet.emit('desktopGameNo', { name: c.game.name });
-        this.app.desktopGames?.closeBubble?.();
-        this.leave();
-      });
+    if (Array.isArray(c.actions) && c.actions.length) {
+      for (const [label, fn] of c.actions) btn(label, fn);
+    } else {
+      btn(en ? 'Ok! (cafuné)' : 'Ok! (cafuné)', () => this.pat());
+      if (c.kind === 'alarm' || c.kind === 'reminder') {
+        btn(en ? 'Snooze 5 min' : 'Soneca 5 min', () => {
+          this.snoozes.push({ at: Date.now() + 5 * 60000, r: c.r || { text: c.text, alarm: c.kind === 'alarm', sound: c.sound } });
+          this.leave();
+        });
+      }
+      if (c.kind === 'desktopGame' && c.game) {
+        btn(en ? '▶ Play' : '▶ Jogar', () => {
+          window.petAPI.openDesktopItem(c.game.path).catch(() => {});
+          this.app.sound?.play('ok');
+          this.app.pet.emit('desktopGamePlay', { name: c.game.name });
+          this.app.desktopGames?.closeBubble?.();
+          this.leave();
+        });
+        btn(en ? 'Later' : 'Depois', () => {
+          this.app.pet.emit('desktopGameNo', { name: c.game.name });
+          this.app.desktopGames?.closeBubble?.();
+          this.leave();
+        });
+      }
     }
     bubble.addEventListener('pointerdown', (e) => e.stopPropagation());
     document.body.append(bubble);

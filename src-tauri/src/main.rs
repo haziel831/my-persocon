@@ -895,39 +895,8 @@ fn wide(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
 }
 
-// Prefers a Chromium browser in --app= mode: clean window, closable via WM_CLOSE,
-// and never a child of my-persocon.exe (so OBS Window Capture cannot pick it by mistake).
-fn find_browser_exe() -> Option<PathBuf> {
-    let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".into());
-    let pf86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| r"C:\Program Files (x86)".into());
-    let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
-    let mut candidates = vec![
-        format!(r"{pf}\Microsoft\Edge\Application\msedge.exe"),
-        format!(r"{pf86}\Microsoft\Edge\Application\msedge.exe"),
-        format!(r"{pf}\Google\Chrome\Application\chrome.exe"),
-        format!(r"{pf86}\Google\Chrome\Application\chrome.exe"),
-        format!(r"{local}\Google\Chrome\Application\chrome.exe"),
-        format!(r"{local}\BraveSoftware\Brave-Browser\Application\brave.exe"),
-        format!(r"{pf}\BraveSoftware\Brave-Browser\Application\brave.exe"),
-    ];
-    candidates.dedup();
-    candidates.into_iter().map(PathBuf::from).find(|p| p.is_file())
-}
-
-fn open_panel(url: &str) {
-    if let Some(exe) = find_browser_exe() {
-        let ok = std::process::Command::new(exe)
-            .arg(format!("--app={url}"))
-            .arg("--window-size=980,760")
-            .creation_flags(0x0800_0000)
-            .spawn()
-            .is_ok();
-        if ok { return; }
-    }
-    open_url_in_browser(url);
-}
-
-// Opens the local control panel in the user's default browser (Brave, Edge...) with no console.
+// Opens the local control panel as a normal tab in the user's default browser.
+// No --app= window: that mode duplicated panels and confused OBS window capture.
 fn open_url_in_browser(url: &str) {
     let operation = wide("open");
     let file = wide(url);
@@ -957,16 +926,17 @@ fn ensure_streamer_control(app: &AppHandle, config: &Value) {
     if let Err(e) = stream_bridge::start(app.clone(), port, token) {
         logfile::line("ERROR", "streamer", &format!("ponte local: {e}"));
     }
-    open_panel(&format!("http://127.0.0.1:{port}/"));
+    open_url_in_browser(&format!("http://127.0.0.1:{port}/"));
 }
 
-// Switches where the Streamer control panel lives and persists the preference.
+// Always opens the Streamer control panel in a normal browser tab.
+// `mode` is kept only so older callers do not break.
 #[tauri::command]
 fn open_streamer_panel(app: AppHandle, state: State<'_, PetState>, mode: String) -> Result<String, String> {
-    let mode = if mode == "tab" { "tab" } else { "window" };
+    let _ = mode;
     {
         let mut config = lock_config(&state);
-        config["streamPanelMode"] = json!(mode);
+        config["streamPanelMode"] = json!("tab");
         let text = serde_json::to_string_pretty(&*config).map_err(|e| e.to_string())?;
         fs::write(state.data.join("config.json"), text).map_err(|e| e.to_string())?;
     }
@@ -974,15 +944,8 @@ fn open_streamer_panel(app: AppHandle, state: State<'_, PetState>, mode: String)
     if let Err(e) = stream_bridge::start(app.clone(), port, token) {
         logfile::line("ERROR", "streamer", &format!("ponte local: {e}"));
     }
-    let url = format!("http://127.0.0.1:{port}/");
-    if mode == "tab" {
-        win32::close_windows_containing("my persocon - controle streamer");
-        open_url_in_browser(&url);
-        Ok("Aba aberta no navegador".into())
-    } else {
-        open_panel(&url);
-        Ok("Janela separada aberta".into())
-    }
+    open_url_in_browser(&format!("http://127.0.0.1:{port}/"));
+    Ok("Aba aberta no navegador".into())
 }
 
 #[tauri::command]
@@ -1333,11 +1296,10 @@ fn tray_menu<R: tauri::Runtime, M: Manager<R>>(m: &M, en: bool) -> tauri::Result
     let t = |pt: &'static str, en_text: &'static str| if en { en_text } else { pt };
     let streamer = MenuItem::with_id(m, "streamer", t("Streamer Mode (liga/desliga)", "Streamer Mode (on/off)"), true, None::<&str>)?;
     let control = MenuItem::with_id(m, "open_control", t("Abrir Controle Streamer", "Open Streamer Control"), true, None::<&str>)?;
-    let switch_panel = MenuItem::with_id(m, "switch_panel", t("Alternar painel (janela/aba)", "Toggle panel (window/tab)"), true, None::<&str>)?;
     let through = MenuItem::with_id(m, "through", t("Clicar através (liga/desliga)", "Click through (on/off)"), true, None::<&str>)?;
     let show_app = MenuItem::with_id(m, "show_app", t("Mostrar app de novo", "Show app again"), true, None::<&str>)?;
     let quit = MenuItem::with_id(m, "quit", t("Sair", "Quit"), true, None::<&str>)?;
-    Menu::with_items(m, &[&streamer, &control, &switch_panel, &through, &show_app, &quit])
+    Menu::with_items(m, &[&streamer, &control, &through, &show_app, &quit])
 }
 
 // Keeps the overlay covering the chosen monitor's work area and streams window geometry
@@ -1516,9 +1478,17 @@ fn main() {
     COMBATE.store(combate, Ordering::Relaxed);
     let root = find_root();
     let data = find_data(&root, combate);
-    let config = load_config(&data);
+    let mut config = load_config(&data);
     DISPLAY.store(config["display"].as_u64().unwrap_or(0) as usize, Ordering::Relaxed);
-    let streamer = !preview && !combate && config["streamer"].as_bool() == Some(true);
+    // Always boot in Normal Mode. A previous session may have ended in Streamer Mode;
+    // clear the persisted flag before anything else reads it.
+    if config["streamer"].as_bool() == Some(true) {
+        config["streamer"] = json!(false);
+        if let Ok(text) = serde_json::to_string_pretty(&config) {
+            let _ = fs::write(data.join("config.json"), text);
+        }
+    }
+    let streamer = false;
     STREAMER.store(streamer, Ordering::Relaxed);
     STREAMER_OPAQUE.store(streamer && streamer_opaque(&config), Ordering::Relaxed);
     let lang_en = config["lang"].as_str() == Some("en");
@@ -1609,11 +1579,8 @@ fn main() {
         ])
         .setup(move |app| {
             let _ = APP.set(app.handle().clone());
-            let streamer_at_start = STREAMER.load(Ordering::Relaxed);
-            build_window(app, streamer_at_start, preview, combate, &config)?;
-            if streamer_at_start && !preview && !combate {
-                ensure_streamer_control(app.handle(), &config);
-            }
+            // Normal window only: never open the browser control panel on boot.
+            build_window(app, false, preview, combate, &config)?;
             if !preview && !combate {
                 let menu = tray_menu(app, lang_en)?;
                 let mut tray = TrayIconBuilder::with_id("main").tooltip(APP_NAME).menu(&menu).on_menu_event(
@@ -1625,13 +1592,7 @@ fn main() {
                         } else if event.id() == "streamer" {
                             let _ = app.emit("streamer", !STREAMER.load(Ordering::Relaxed));
                         } else if event.id() == "open_control" {
-                            let conf = lock_config(&app.state::<PetState>()).clone();
-                            let mode = conf.get("streamPanelMode").and_then(Value::as_str).unwrap_or("window").to_string();
-                            let _ = open_streamer_panel(app.clone(), app.state::<PetState>(), mode);
-                        } else if event.id() == "switch_panel" {
-                            let conf = lock_config(&app.state::<PetState>()).clone();
-                            let next = if conf.get("streamPanelMode").and_then(Value::as_str) == Some("window") { "tab" } else { "window" };
-                            let _ = open_streamer_panel(app.clone(), app.state::<PetState>(), next.into());
+                            let _ = open_streamer_panel(app.clone(), app.state::<PetState>(), "tab".into());
                         } else if event.id() == "through" {
                             let _ = app.emit("click-through", ());
                         }

@@ -24,10 +24,44 @@ export class VoiceInput {
     window.petAPI?.onPttStop?.(() => this.stop());
   }
 
+  // Short, soft sine beep generated locally (no external file, low volume for live streams).
+  beep(freq = 820, ms = 55, volume = 0.03) {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      this.audio ||= new Ctx();
+      if (this.audio.state === 'suspended') this.audio.resume?.();
+      const t = this.audio.currentTime;
+      const osc = this.audio.createOscillator();
+      const gain = this.audio.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(volume, t + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+      osc.connect(gain).connect(this.audio.destination);
+      osc.start(t);
+      osc.stop(t + ms / 1000 + 0.02);
+    } catch {}
+  }
+
+  // Every recognized chunk goes straight to both chat boxes and to the pinned panel.
+  say(text) {
+    const said = String(text || '').trim().slice(0, 240);
+    if (!said) return;
+    const label = this.app.config?.lang === 'en' ? 'You' : 'Você';
+    this.app.chatBox?.push?.('you', `${label}: ${said}`);
+    this.app.voiceLog = [...(this.app.voiceLog || []), { user: label, text: said }].slice(-5);
+    this.app.pushStreamerState?.(true);
+    this.pushedText = `${this.pushedText || ''}${said} `;
+  }
+
   start() {
     if (this.active || this.app.config.pttEnabled !== true) return;
     this.active = true;
     this.text = '';
+    this.pushedText = '';
+    this.beep();
     this.indicator.style.display = 'block';
     this.app.tts?.skip?.();
     if (!this.supported) {
@@ -49,7 +83,7 @@ export class VoiceInput {
           if (r.isFinal) final += r[0].transcript;
           else interim += r[0].transcript;
         }
-        if (final) this.text += `${final} `;
+        if (final) { this.text += `${final} `; this.say(final); }
         this.partial.textContent = interim || (this.text ? this.text.slice(-60) : '');
       };
       rec.onerror = (e) => { this.text = ''; this.app.pushStreamerState?.(true); };
@@ -67,12 +101,11 @@ export class VoiceInput {
     this.partial.textContent = '';
     try { this.rec?.stop(); } catch {}
     this.rec = null;
+    this.beep(560, 35, 0.014);
     const said = String(this.text || '').trim().slice(0, 240);
     if (!said) return;
-    const label = this.app.config?.lang === 'en' ? 'You' : 'Você';
-    this.app.chatBox?.push?.('you', `${label}: ${said}`);
-    this.app.voiceLog = [...(this.app.voiceLog || []), { user: label, text: said }].slice(-5);
-    this.app.pushStreamerState?.(true);
+    // Some browsers only deliver the final transcript on stop: show it then.
+    if (!String(this.pushedText || '').trim()) this.say(said);
     const c = this.app.config;
     if (c.aiEnabled === true) {
       const cfg = {

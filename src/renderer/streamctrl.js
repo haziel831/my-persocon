@@ -280,7 +280,7 @@ export async function startStreamerControl(config) {
     body.append(el('h3', '', translate('☕ Modo Volto Já (BRB)')));
     const brb = el('input'); brb.type = 'checkbox'; brb.checked = !!config.streamBrb;
     brb.onchange = () => { window.petAPI?.saveConfig?.({ streamBrb: brb.checked }); rpc({ type: 'brb', value: brb.checked, text: brbText.value }); };
-    const brbText = el('input'); brbText.type = 'text'; brbText.value = config.streamBrbText || (config.lang === 'en' ? 'Be right back!' : 'Volto já!');
+    const brbText = el('input'); brbText.type = 'text'; brbText.value = config.streamBrbText || (config.lang === 'en' ? 'Be right back' : 'Já volto');
     brbText.onchange = () => window.petAPI?.saveConfig?.({ streamBrbText: brbText.value });
     const brbRow = el('div', 'stream-ctrl-row'); brbRow.append(brb, brbText);
     body.append(brbRow);

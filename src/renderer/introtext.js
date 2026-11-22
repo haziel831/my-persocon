@@ -29,6 +29,14 @@ export const TEXT = {
     units: [['ninna', 'Ninna · prata'], ['aghata', 'Aghata · preta']],
     sex: 'Sexo',
     sexes: [['M', 'M'], ['F', 'F'], ['X', '???']],
+    persona: 'Personalidade inicial',
+    personaDesc: {
+      estoica: 'Calma e ponderada, fala pouco.',
+      genki: 'Animada e doce, adora conversar.',
+      tsundere: 'Orgulhosa, esconde o carinho.',
+      dandere: 'Tímida e gentil, fala baixo.',
+    },
+    personaNote: 'Escolha uma. Depois você pode trocar em Opções.',
     open: 'Abrir!',
     clickToWake: 'Clique para ligar',
     boot: (owner, name) => [
@@ -102,6 +110,14 @@ export const TEXT = {
     units: [['ninna', 'Ninna · silver'], ['aghata', 'Aghata · black']],
     sex: 'Sex',
     sexes: [['M', 'M'], ['F', 'F'], ['X', '???']],
+    persona: 'Starting personality',
+    personaDesc: {
+      estoica: 'Calm and thoughtful, few words.',
+      genki: 'Cheerful and sweet, loves to chat.',
+      tsundere: 'Proud, hides her softer side.',
+      dandere: 'Shy and gentle, speaks softly.',
+    },
+    personaNote: 'Pick one. You can change it later in Options.',
     open: 'Open!',
     clickToWake: 'Click to switch on',
     boot: (owner, name) => [

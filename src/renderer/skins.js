@@ -124,25 +124,40 @@ async function bedArt(wool, planks) {
   return c.toDataURL('image/png');
 }
 
-// Animated GIF / APNG -> frames (max 64px..256px) with their delays.
+// Animated GIF / APNG -> frames with their real per-frame delays.
+// ImageDecoder already composites each frame using the GIF disposal method, so every
+// decoded frame is drawn on its own clean canvas (no trails from previous frames).
 export async function decodeAnimated(dataUrl, max = 160) {
   const blob = await (await fetch(dataUrl)).blob();
   if (!('ImageDecoder' in window)) return { frames: [dataUrl], delays: [100] };
-  const dec = new ImageDecoder({ data: blob.stream(), type: blob.type || 'image/gif' });
-  await dec.tracks.ready;
-  const n = Math.min(dec.tracks.selectedTrack?.frameCount || 1, 60);
-  const frames = [];
-  const delays = [];
-  for (let i = 0; i < n; i++) {
-    const { image } = await dec.decode({ frameIndex: i });
-    const s = Math.min(1, max / Math.max(image.displayWidth, image.displayHeight));
-    const [c, g] = canvas(Math.max(1, Math.round(image.displayWidth * s)), Math.max(1, Math.round(image.displayHeight * s)));
-    g.drawImage(image, 0, 0, c.width, c.height);
-    frames.push(c.toDataURL('image/png'));
-    delays.push(Math.max(20, (image.duration || 100000) / 1000));
-    image.close();
+  let dec;
+  try {
+    dec = new ImageDecoder({ data: blob.stream(), type: blob.type || 'image/gif' });
+    await dec.tracks.ready;
+    const total = dec.tracks.selectedTrack?.frameCount || 1;
+    const n = Math.min(total, 90); // folga bem acima dos 60 frames pedidos
+    const frames = [];
+    const delays = [];
+    for (let i = 0; i < n; i++) {
+      const { image } = await dec.decode({ frameIndex: i, complete: false });
+      const w = image.displayWidth || image.codedWidth || 1;
+      const h = image.displayHeight || image.codedHeight || 1;
+      const s = Math.min(1, max / Math.max(w, h));
+      const [c, g] = canvas(Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)));
+      g.clearRect(0, 0, c.width, c.height);
+      g.drawImage(image, 0, 0, c.width, c.height);
+      frames.push(c.toDataURL('image/png'));
+      // duration is in microseconds; 0 means "unspecified" in some encoders.
+      const us = Number(image.duration) || 0;
+      delays.push(Math.max(20, Math.min(5000, us > 0 ? Math.round(us / 1000) : 100)));
+      image.close();
+    }
+    return { frames, delays };
+  } catch {
+    return { frames: [dataUrl], delays: [100] };
+  } finally {
+    try { dec?.close?.(); } catch {}
   }
-  return { frames, delays };
 }
 
 // .gltf keeps the mesh and textures in sibling files. Pack them into one GLB so the
@@ -266,8 +281,14 @@ export class Skins {
   constructor(app) {
     this.app = app;
     this.objects = {};
+    this.objectsUpgrade = {};
     this.rp = null;
     this.music = null;
+    // Per-object animation clocks: entering "used" restarts at frame 0 and the used
+    // art is held for at least one full cycle before falling back to idle.
+    this._artState = new Map();
+    this._artAt = new Map();
+    this._artHold = new Map();
     globalThis.petSkins = this;
   }
 
@@ -275,6 +296,7 @@ export class Skins {
     const api = window.petAPI;
     try {
       this.objects = (await api?.loadBlob?.('objects')) || {};
+      this.objectsUpgrade = (await api?.loadBlob?.('objectsUpgrade')) || {};
     } catch {}
     this.rp = null;
     if (this.app.config?.theme === 'resourcepack') this.app.setOption?.('theme', 'padrao');
@@ -283,69 +305,99 @@ export class Skins {
 
   // Current image of an object (animated objects cycle through their frames).
   // `active` asks for the "working" art of dual-state machines; live edits take priority.
-  art(id, fallback, active = false) {
-    const live = this.app.toys?.live?.(id);
-    const o = live?.frames?.length ? live : this.objects[id];
+  art(id, fallback, active = false, upgraded = false) {
+    const live = this.app.toys?.live?.(id, upgraded);
+    const store = upgraded ? this.objectsUpgrade : this.objects;
+    const o = live?.frames?.length ? live : store[id];
+    const key = `${id}:${upgraded ? 'up' : 'base'}`;
+    const now = performance.now();
+    // New format keeps both states explicitly; old single-file skins use `frames`.
+    const idle = o?.idle?.frames?.length ? o.idle : o;
+    const used = (o?.mode === 'dual' || o?.active?.frames?.length) && o?.active?.frames?.length ? o.active : null;
+    const speedOf = (set) => set?.speed || o?.speed || 1;
+    const totalOf = (set) => {
+      if (!set?.frames?.length) return 0;
+      const delays = set.delays?.length ? set.delays : new Array(set.frames.length).fill(100);
+      return delays.reduce((a, b) => a + b, 0) / speedOf(set);
+    };
+    // Keep the "used" art alive for at least one complete loop, even if the interaction
+    // flag already cleared (short machine timers used to cut the spin at frame 3).
+    const hold = this._artHold.get(key);
+    if (!active && used && hold && now < hold.until) active = true;
+    if (active && used && (!hold || now >= hold.until)) {
+      this._artHold.set(key, { until: now + Math.max(1, totalOf(used)) });
+    } else if (!active && hold && now >= hold.until) {
+      this._artHold.delete(key);
+    }
+    const wasActive = this._artState.get(key) || false;
+    if (active !== wasActive) {
+      this._artState.set(key, active);
+      this._artAt.set(key, now); // restart at frame 0 whenever the state changes
+    }
+    const start = this._artAt.get(key) || 0;
     const frameOf = (set, frozen = false) => {
       if (!set?.frames?.length) return null;
       if (frozen || set.frames.length === 1) return set.frames[0];
-      const delays = set.delays?.length ? set.delays : [100];
-      const speed = set.speed || o?.speed || 1;
+      const delays = set.delays?.length ? set.delays : new Array(set.frames.length).fill(100);
+      const speed = speedOf(set);
       const total = delays.reduce((a, b) => a + b, 0) / speed;
-      let t = total > 0 ? performance.now() % total : 0;
+      let t = total > 0 ? (now - start) % total : 0;
       for (let i = 0; i < set.frames.length; i++) {
         t -= (delays[i] || 100) / speed;
         if (t < 0) return set.frames[i];
       }
       return set.frames[0];
     };
-    if (active && o?.mode === 'dual') {
-      const a = frameOf(o.active);
+    if (active && used) {
+      const a = frameOf(used);
       if (a) return a;
     }
-    if (o?.frames?.length) {
-      if (!active && o.mode === 'firstFrame') return frameOf(o, true);
-      return frameOf(o);
+    if (idle?.frames?.length) {
+      if (!active && o.mode === 'firstFrame') return frameOf(idle, true);
+      return frameOf(idle);
     }
     const rp = this.rp;
     if (rp?.tex?.[id] && ((rp.parts.mobilia && rp.furn?.includes(id)) || (rp.parts.itens && !rp.furn?.includes(id)))) return rp.tex[id];
     return fallback;
   }
 
-  has(id) {
-    return !!this.objects[id]?.frames?.length || !!this.rp?.tex?.[id];
+  has(id, upgraded = false) {
+    const store = upgraded ? this.objectsUpgrade : this.objects;
+    return !!store[id]?.frames?.length || !!this.rp?.tex?.[id];
   }
 
   // Height / width of a custom image (null = use the default proportions).
-  ratio(id) {
-    const live = this.app.toys?.live?.(id);
+  ratio(id, upgraded = false) {
+    const live = this.app.toys?.live?.(id, upgraded);
     if (live?.ratio) return live.ratio;
-    const o = this.objects[id];
+    const store = upgraded ? this.objectsUpgrade : this.objects;
+    const o = store[id];
     if (o?.ratio) return o.ratio;
-    if (!o && this.rp?.tex?.[id] && this.rp.ratio?.[id]) return this.rp.ratio[id];
+    if (!o && !upgraded && this.rp?.tex?.[id] && this.rp.ratio?.[id]) return this.rp.ratio[id];
     return null;
   }
 
-  region(id) {
-    return this.objects[id]?.region || null;
+  region(id, upgraded = false) {
+    return (upgraded ? this.objectsUpgrade : this.objects)[id]?.region || null;
   }
 
   // The hitbox of a custom image: the part that really answers the click (null = all of it).
-  hitbox(id) {
-    return this.objects[id]?.hitbox || null;
+  hitbox(id, upgraded = false) {
+    return (upgraded ? this.objectsUpgrade : this.objects)[id]?.hitbox || null;
   }
 
   // The size of a custom image (1 = the same size as the default art).
-  scale(id) {
-    const live = this.app.toys?.live?.(id);
+  scale(id, upgraded = false) {
+    const live = this.app.toys?.live?.(id, upgraded);
     if (live?.scale != null) return live.scale;
-    return this.objects[id]?.scale || 1;
+    return (upgraded ? this.objectsUpgrade : this.objects)[id]?.scale || 1;
   }
 
-  async setObject(id, data) {
-    if (data) this.objects[id] = data;
-    else delete this.objects[id];
-    await window.petAPI?.storeBlob?.('objects', this.objects).catch(() => {});
+  async setObject(id, data, upgraded = false) {
+    const store = upgraded ? this.objectsUpgrade : this.objects;
+    if (data) store[id] = data;
+    else delete store[id];
+    await window.petAPI?.storeBlob?.(upgraded ? 'objectsUpgrade' : 'objects', store).catch(() => {});
     this.app.toys?.refreshArt?.();
   }
 

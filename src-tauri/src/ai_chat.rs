@@ -62,9 +62,14 @@ fn curl_json(url: &str, headers: &[String], body: &Value, secrets: &[&str]) -> R
     ));
     fs::write(&file, serde_json::to_vec(body).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let mut cmd = Command::new("curl.exe");
-    cmd.arg("-sS")
+    // Windows/Schannel can hang on CRL revocation checks; -4 avoids slow IPv6 paths.
+    cmd.arg("-4")
+        .arg("--ssl-no-revoke")
+        .arg("-sS")
+        .arg("--connect-timeout")
+        .arg("8")
         .arg("--max-time")
-        .arg("20")
+        .arg("25")
         .arg("-X")
         .arg("POST")
         .arg("-H")
@@ -87,8 +92,9 @@ fn curl_json(url: &str, headers: &[String], body: &Value, secrets: &[&str]) -> R
         None => (raw.trim(), "?"),
     };
     if !out.status.success() {
+        let exit = out.status.code().unwrap_or(-1);
         let err = sanitize(&String::from_utf8_lossy(&out.stderr), secrets);
-        return Err(format!("erro de rede/TLS ({status}): {err}"));
+        return Err(format!("erro de rede/TLS (exit {exit}, HTTP {status}): {err}"));
     }
     let code = status.parse::<u16>().unwrap_or(0);
     if code == 0 || !(200..300).contains(&code) {
@@ -359,11 +365,21 @@ fn reply_one(entry: &Value, system: &str, prompt: &str, lang: &str) -> Result<St
     need_text(&value, kind, &status, &secrets)
 }
 
-fn is_quota_error(err: &str) -> bool {
+/// Quota/rate limits, server errors and network/TLS failures all move to the next provider.
+fn should_failover(err: &str) -> bool {
     let e = err.to_ascii_lowercase();
     e.contains("http 402")
         || e.contains("http 429")
         || e.contains("http 5")
+        || e.contains("http 000")
+        || e.contains("erro de rede")
+        || e.contains("exit 6")
+        || e.contains("exit 7")
+        || e.contains("exit 28")
+        || e.contains("exit 35")
+        || e.contains("timed out")
+        || e.contains("timeout")
+        || e.contains("network")
         || e.contains("quota")
         || e.contains("rate_limit")
         || e.contains("rate limit")
@@ -397,8 +413,8 @@ pub fn reply_chain(providers: &[Value], system: &str, prompt: &str, lang: &str, 
                 }));
             }
             Err(err) => {
-                if is_quota_error(&err) {
-                    notices.push(format!("{display} sem tokens/cota — alternado"));
+                if should_failover(&err) {
+                    notices.push(format!("{display} falhou — alternado para o próximo"));
                 }
                 errors.push(format!("{display}: {err}"));
                 if !auto {
