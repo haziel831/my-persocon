@@ -72,16 +72,13 @@ export async function startArena(app) {
   // (é o que libera os golpes SWORD_MOVES), sem precisar comprar nada na Shop.
   const swordBtn = btn('Equipar espada', 'Equipa/desequipa a espada (combate armado)', () => toggleSword());
   const swordLabel = el('span', { flex: '1', font: '11px PxEmoji, monospace', color: '#c9c1d8' }, '');
-  const swordDown = btn('−1', 'Baixa um nível da arte Espada', () => setSwordLevel(-1));
-  const swordUp = btn('+1', 'Sobe um nível da arte Espada', () => setSwordLevel(1));
+  // Os níveis são apenas informação: a arte Espada e o Combate sobem treinando no jogo normal.
   panel.append(swordBtn);
-  panel.append(el('div', { display: 'flex', gap: '4px', alignItems: 'center' }, ''), swordLabel, swordDown, swordUp);
+  panel.append(el('div', { display: 'flex', gap: '4px', alignItems: 'center' }, ''), swordLabel);
 
-  // Nível de combate na mão: Combate e Combate Corpo a Corpo são o mesmo dado (`unarmed`).
+  // Combate e Combate Corpo a Corpo são o mesmo dado (`unarmed`).
   const lvlLabel = el('span', { flex: '1', font: '11px PxEmoji, monospace', color: '#c9c1d8' }, '');
-  const lvlDown = btn('−1', 'Baixa um nível de Combate', () => setCombatLevel(-1));
-  const lvlUp = btn('+1', 'Sobe um nível de Combate', () => setCombatLevel(1));
-  panel.append(el('div', { display: 'flex', gap: '4px', alignItems: 'center' }, ''), lvlLabel, lvlDown, lvlUp);
+  panel.append(el('div', { display: 'flex', gap: '4px', alignItems: 'center' }, ''), lvlLabel);
 
   function combatLevel() {
     return skillLevel(app.game.skillXp?.('unarmed') || 0) || 1;
@@ -89,12 +86,6 @@ export async function startArena(app) {
 
   function paintLevel() {
     lvlLabel.textContent = `Combate (corpo a corpo) Nv ${combatLevel()}`;
-  }
-
-  function setCombatLevel(d) {
-    const lvl = Math.min(10, Math.max(1, combatLevel() + d));
-    app.game.skillSetLevel?.('unarmed', lvl);
-    paintLevel();
   }
 
   paintLevel();
@@ -109,11 +100,6 @@ export async function startArena(app) {
     swordLabel.textContent = `Espada Nv ${swordLevel()} · ${on ? 'na cintura' : 'guardada'}`;
     swordBtn.textContent = on ? 'Desequipar espada' : 'Equipar espada';
     swordBtn.style.borderColor = on ? '#c8a03c' : '#4a3f58';
-  }
-
-  function setSwordLevel(d) {
-    app.game.skillSetLevel?.('espada', Math.min(10, Math.max(1, swordLevel() + d)));
-    paintSword();
   }
 
   function toggleSword() {

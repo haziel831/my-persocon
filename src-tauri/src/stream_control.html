@@ -63,7 +63,7 @@
   .toast { position:fixed; right:16px; bottom:16px; background:#2a2440; border:1px solid var(--accent); padding:10px 14px; border-radius:8px; opacity:0; transition:opacity .25s; pointer-events:none; }
   .toast.show { opacity:1; }
   .panel-closed { min-height:100vh; display:grid; place-items:center; color:var(--muted); font:14px PxEmoji, system-ui, sans-serif; }
-  .section-block > h2 { cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; }
+  .section-block > h2 { cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; width:100%; }
   .section-block > h2::before { content:'▾'; font-size:11px; color:var(--accent2); }
   .section-block.collapsed > h2::before { content:'▸'; }
   .section-block.collapsed > :not(h2) { display:none !important; }
@@ -676,13 +676,27 @@ function setupSections() {
         el.setAttribute('role', 'button');
         el.setAttribute('aria-expanded', 'false');
         el.tabIndex = 0;
-        // One listener per heading; never let other handlers cancel the toggle.
-        const toggle = (e) => { e.preventDefault(); e.stopPropagation(); toggleBlock(block); };
-        el.addEventListener('click', toggle);
-        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') toggle(e); });
       } else if (block) block.append(el);
     }
   }
+  // Delegated toggle: works on any part of the heading (text, emoji, arrow) and survives
+  // DOM rebuilds. A single handler avoids the old double-listener conflict.
+  const main = $('main');
+  main.addEventListener('click', (e) => {
+    const h = e.target.closest?.('.section-block > h2');
+    if (!h) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleBlock(h.parentElement);
+  });
+  main.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const h = e.target.closest?.('.section-block > h2');
+    if (!h) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleBlock(h.parentElement);
+  });
   // Every menu starts minimized when the page opens (no stale localStorage state).
   setAllBlocks(true, false);
   $('#collapse-all')?.addEventListener('click', () => setAllBlocks(true));

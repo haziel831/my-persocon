@@ -1416,6 +1416,18 @@ body.app-hidden .bag-dock { opacity: 1; }
 .obj-stage { position: relative; justify-self: center; line-height: 0; border-radius: 6px; touch-action: none; margin: 8px;
   background: repeating-conic-gradient(#8884 0 25%, #0000 0 50%) 0 0 / 16px 16px; }
 .obj-preview { width: 200px; height: auto; image-rendering: pixelated; }
+.obj-step { display: grid; gap: 6px; margin-bottom: 10px; }
+.obj-step-title { font: 700 12px PxEmoji, system-ui, sans-serif; color: var(--accent2); letter-spacing: 1px; text-transform: uppercase; }
+.obj-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.obj-card { display: grid; gap: 8px; align-content: start; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.16); }
+.obj-card-title { font: 700 13px PxEmoji, system-ui, sans-serif; color: var(--fg); }
+.obj-preview-box { position: relative; display: grid; place-items: center; min-height: 150px; padding: 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: repeating-conic-gradient(#8884 0 25%, #0000 0 50%) 0 0 / 16px 16px; }
+.obj-preview-box .obj-preview { width: 100%; max-height: 180px; object-fit: contain; image-rendering: pixelated; }
+.obj-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.obj-choose { flex: 1; }
+.obj-card-hint { font: 11px PxEmoji, system-ui, sans-serif; color: var(--muted); }
+.obj-simple-options { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
 .obj-previews { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .obj-preview-slot { position: relative; display: grid; gap: 4px; justify-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: rgba(0,0,0,.18); }
 .obj-preview-label { font: 700 11px PxEmoji, system-ui, sans-serif; letter-spacing: 1px; color: var(--accent2); text-transform: uppercase; }

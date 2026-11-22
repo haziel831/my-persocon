@@ -854,16 +854,7 @@ export class Menu {
     };
     const combatLvl = skillLevel(g.skillXp('unarmed'));
     const combatNext = skillXpFor(Math.min(10, combatLvl + 1));
-    // Botões −1/+1 do nível de uma arte (Combate / Combate Corpo a Corpo).
-    const stepBtns = (id, lvl) => h('span.step',
-      h('button.mini.step-down', {
-        title: 'Baixar 1 nível', disabled: lvl <= 1,
-        onclick: (ev) => { ev.stopPropagation(); g.skillSetLevel(id, lvl - 1); this.render(); },
-      }, '−'),
-      h('button.mini.step-up', {
-        title: 'Subir 1 nível', disabled: lvl >= 10,
-        onclick: (ev) => { ev.stopPropagation(); g.skillSetLevel(id, lvl + 1); this.render(); },
-      }, '+'));
+    // Níveis só sobem treinando/jogando — sem atalhos de +1 no Perfil.
     const geral = [
       ['Nome', app.config.name || 'Ninna'],
       ['Idade', age(p.born)],
@@ -911,8 +902,6 @@ export class Menu {
     // ---------- Atributos ----------
     // Cada atributo é clicável: abre a explicação dele (e clicar fora fecha).
     const attrs = p.attrs || {};
-    // Atributos com botões −1/+1 (os que a luta usa); os demais são só leitura.
-    const STEP_ATTRS = new Set(['str', 'con', 'agi']);
     const attrBox = h('div.attrs', {}, ATTRS.map(([k, label]) => {
       const lvl = g.attrLevel?.(k) ?? (attrs[k] ?? 0);
       const xp = Math.floor(g.attrXp?.(k) || 0);
@@ -924,19 +913,7 @@ export class Menu {
         onclick: () => this.toggleAttr(k),
       },
         h('span', {}, label),
-        h('span.attr-side', {},
-          STEP_ATTRS.has(k)
-            ? h('span.step',
-              h('button.mini.step-down', {
-                title: 'Baixar 1 nível', disabled: lvl <= 1,
-                onclick: (ev) => { ev.stopPropagation(); g.attrSetLevel?.(k, lvl - 1); this.render(); },
-              }, '−'),
-              h('button.mini.step-up', {
-                title: 'Subir 1 nível', disabled: lvl >= 10,
-                onclick: (ev) => { ev.stopPropagation(); g.attrSetLevel?.(k, lvl + 1); this.render(); },
-              }, '+'))
-            : null,
-          h('b.attr-lvl', {}, `Nv ${lvl}`)),
+        h('span.attr-side', {}, h('b.attr-lvl', {}, `Nv ${lvl}`)),
         h('div.track', {}, h('div.fill.attr', { style: { width: `${(lvl / 10) * 100}%` } })),
         h('div.track.xp', {}, h('div.fill.xp', { style: { width: `${pr.done ? 100 : (pr.cur / pr.max) * 100}%` } })),
         h('small.muted.attr-xp', {}, pr.done ? 'nível máximo' : `${Math.floor(pr.cur)} / ${pr.need} XP`),
@@ -959,7 +936,7 @@ export class Menu {
       // A espada tem, além do treino, os golpes armados que ela usa de verdade na luta.
       const armed = id === 'espada' ? SWORD_MOVES.filter((m) => m.lvl <= lvl) : [];
       return h('div.combat-art', {},
-        h('div.combat-art-head', {}, `${def.icon} ${def.art}`, h('span.muted', {}, `Nv ${lvl}`), stepBtns(id, lvl)),
+        h('div.combat-art-head', {}, `${def.icon} ${def.art}`, h('span.muted', {}, `Nv ${lvl}`)),
         h('ul.skill-moves', {}, moves.map((m) => h('li', {}, `${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : m.kind === 'defend' ? 'defesa' : 'esquiva'}`))),
         armed.length ? h('ul.skill-moves.armed', {}, armed.map((m) => h('li', {}, `⚔ ${m.name} · ${m.kind === 'attack' ? `dano ${m.dmg}` : 'defesa'}`))) : null);
     }).filter(Boolean);
@@ -972,7 +949,7 @@ export class Menu {
       : null;
     const combatBody = h('div.combat', {},
       h('dl.facts.profile', {}, [
-        h('dt', {}, 'Combate'), h('dd', {}, `Nv ${combatLvl} · ${Math.floor(g.skillXp('unarmed'))}/${combatNext} XP`, stepBtns('unarmed', combatLvl)),
+        h('dt', {}, 'Combate'), h('dd', {}, `Nv ${combatLvl} · ${Math.floor(g.skillXp('unarmed'))}/${combatNext} XP`),
       ]),
       ...arts,
       manBox);
@@ -1833,22 +1810,35 @@ export class Menu {
         box.hidden = closed;
       };
       g.classList.add('fold');
+      g.dataset.foldKey = key;
+      g.setAttribute('role', 'button');
       set(startFolded ? !open.has(key) : folded.has(key));
-      g.addEventListener('click', () => {
-        const closed = !g.classList.contains('closed');
-        set(closed);
-        app.sound?.play('blip', { volume: 0.4 });
-        if (startFolded) {
-          if (closed) open.delete(key);
-          else open.add(key);
-          return;
-        }
-        const list = new Set(app.config.foldedGroups || []);
-        if (closed) list.add(key);
-        else list.delete(key);
-        app.setOption('foldedGroups', [...list]);
-      });
+      g.setAttribute('aria-expanded', String(!g.classList.contains('closed')));
     }
+    // One delegated handler for every collapsible group: clicking the title text, the arrow
+    // or any padding always toggles, with no duplicate listeners across re-renders.
+    panel.addEventListener('click', (e) => {
+      const g = e.target.closest?.('.group.fold');
+      if (!g) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const closed = !g.classList.contains('closed');
+      g.classList.toggle('closed', closed);
+      const box = g.nextElementSibling;
+      if (box?.classList.contains('fold-box')) box.hidden = closed;
+      g.setAttribute('aria-expanded', String(!closed));
+      app.sound?.play('blip', { volume: 0.4 });
+      const key = g.dataset.foldKey;
+      if (startFolded) {
+        if (closed) open.delete(key);
+        else open.add(key);
+        return;
+      }
+      const list = new Set(app.config.foldedGroups || []);
+      if (closed) list.add(key);
+      else list.delete(key);
+      app.setOption('foldedGroups', [...list]);
+    });
   }
 
   // Setups: save where every object on the desktop is and bring them back later.
@@ -2690,6 +2680,8 @@ export class ImageDropDialog extends Dialog {
 }
 
 const OBJ_EXTRA = [['bag', 'Bolsa de cartuchos', 'bag'], ['food', 'Inventário', 'backpack']];
+// Itens que realmente têm um visual "em uso" no palco.
+const USABLE_IDS = new Set(['gacha', 'slot', 'cafeteira', 'venda_comida', 'venda_bebida', 'impressora', 'videogame', 'banheira', 'escrivaninha', 'alvo']);
 
 // '#rrggbb' (ou #rgb) em [r, g, b].
 function hexToRgb(hex) {
@@ -2795,7 +2787,7 @@ export class ObjectsDialog extends Dialog {
     this.liveRatio = null;
     this.liveSeq = 0;
     this.ratioKey = '';
-    if (this.showHb === undefined) this.showHb = true;
+    if (this.showHb === undefined) this.showHb = false;
     this.captureSnapshot();
     if (preset?.kind === '3d') await this.load3d(preset.data, preset.rot);
     else if (preset?.kind === 'img') {
@@ -2822,7 +2814,13 @@ export class ObjectsDialog extends Dialog {
   }
 
   clearSkinSlot(key, d, id) {
-    if (!d) return;
+    if (!d) {
+      this.app.skins?.setObject(baseId(id), null, this.upgraded);
+      this.captureSnapshot();
+      this.render();
+      this.syncLive();
+      return;
+    }
     if (key === 'active') {
       d.active = null;
       d.mode = d.src?.length > 1 ? (d.mode === 'firstFrame' ? 'firstFrame' : 'single') : 'single';
@@ -2852,6 +2850,16 @@ export class ObjectsDialog extends Dialog {
       prev.active = decoded;
       prev.mode = 'dual';
       prev.activeSrc = decoded.src;
+      this.previewActive = false;
+    } else if (working) {
+      // Primeiro clique no card "Em uso": mantém o visual parado atual como base.
+      const idle = old.frames?.length ? old.frames : [this.current(this.sel)].filter(Boolean);
+      this.draft = {
+        kind: decoded.kind, src: idle.length ? idle : [decoded.src[0]], delays: idle.length ? (old.delays || [100]) : [100],
+        rot: 0, flip: false, speed: 1, scale: old.scale || 1,
+        mode: 'dual', active: decoded, activeSrc: decoded.src,
+        transparent: old.transparent ? { ...old.transparent } : { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
+      };
       this.previewActive = false;
     } else {
       const active = prev?.active ? { ...prev.active } : old.active ? { ...old.active, src: old.active.frames || [] } : null;
@@ -3150,15 +3158,18 @@ export class ObjectsDialog extends Dialog {
     const app = this.app;
     const id = this.sel;
     const d = this.draft;
+    // Passo 1 — escolha do item.
     const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
       onclick: () => { this.sel = oid; this.variant = 'base'; this.variants = null; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.captureSnapshot(); this.render(); this.syncLive(); },
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
-    // Two live previews: Idle and Em uso (both animated with their own delays).
-    const { frames: srcFrames } = this.draftFrames();
-    const shown = srcFrames ? srcFrames[0] : this.current(id);
-    const previewW = 200;
-    const makeSlot = (key, label, frames, delays) => {
-      const im = h('img.obj-preview', { src: frames?.[0] || shown || '', draggable: false, style: { width: `${previewW}px` } });
+    const base = baseId(id);
+    const hasUpgrade = !!UPGRADES[base];
+    const showActive = USABLE_IDS.has(base);
+
+    // Passo 3 — cards grandes, um para cada estado.
+    const shown = this.current(id);
+    const makeCard = (key, title, frames, delays, hint) => {
+      const im = h('img.obj-preview', { src: frames?.[0] || shown || '', draggable: false });
       if (d && d.kind !== '3d' && !this.hitMode) {
         im.addEventListener('click', (e) => this.pickColor(e, d, im));
         im.style.cursor = 'crosshair';
@@ -3173,32 +3184,36 @@ export class ObjectsDialog extends Dialog {
         };
         setTimeout(tick, 100);
       }
-      const filled = !!(key === 'active' ? d?.active?.src?.length : d?.src?.length);
-      const actions = h('div.row.obj-slot-actions', {},
-        h('button.mini', { onclick: () => this.pickImage(key === 'active') }, translate('Trocar')),
-        filled ? h('button.mini', { onclick: () => this.clearSkinSlot(key, d, id) }, translate('Limpar')) : null);
-      return { slot: h('div.obj-preview-slot', {}, h('span.obj-preview-label', {}, label), im, actions), im };
+      const choose = h('button.primary.obj-choose', { onclick: () => this.pickImage(key === 'active') }, translate('Escolher imagem/GIF'));
+      const reset = key === 'idle'
+        ? h('button.link', { onclick: () => this.clearSkinSlot('idle', d, id) }, translate('Usar padrão'))
+        : null;
+      const card = h('div.obj-card', {},
+        h('div.obj-card-title', {}, title),
+        h('div.obj-preview-box', {}, im),
+        h('div.obj-card-actions', {}, choose, reset),
+        hint ? h('div.obj-card-hint', {}, hint) : null);
+      return { card, im };
     };
     const idleFrames = d ? (this.baked?.frames?.length ? this.baked.frames : d.src) : null;
     const activeFrames = d?.active?.src?.length
       ? (this.baked?.activeFrames?.length ? this.baked.activeFrames : d.active.src) : null;
-    const idleSlot = makeSlot('idle', translate('Parada'), idleFrames, d?.delays);
-    const activeSlot = (d && (d.mode === 'dual' || activeFrames)) ? makeSlot('active', translate('Em uso'), activeFrames, d.active?.delays) : null;
-    const mainSlot = this.previewActive && activeSlot ? activeSlot.slot : idleSlot.slot;
-    const img = this.previewActive && activeSlot ? activeSlot.im : idleSlot.im;
+    const idleCard = makeCard('idle', translate('Parado'), idleFrames, d?.delays, null);
+    const activeCard = showActive ? makeCard('active', translate('Em uso'), activeFrames, d.active?.delays,
+      translate('Opcional: toca enquanto ela usa o item')) : null;
+    const mainSlot = idleCard.card.querySelector('.obj-preview-box');
+    const img = idleCard.im;
     this.previewImg = img;
-    const previews = h('div.obj-previews', {}, idleSlot.slot, activeSlot?.slot);
-    const previewToggle = d && (d.mode === 'dual' || activeFrames) ? h('div.row', {},
-      h('span.label', {}, translate('Pré-visualizar')),
-      segmented([['idle', translate('Parada')], ['active', translate('Em uso')]],
-        this.previewActive ? 'active' : 'idle',
-        (v) => { this.previewActive = v === 'active'; this.syncLive(); this.render(); })) : null;
-    const hasUpgrade = !!UPGRADES[baseId(id)];
-    const variantTabs = hasUpgrade ? h('div.row', {},
-      h('span.label', {}, translate('Visual')),
-      segmented([['base', translate('Normal (Base)')], ['upgrade', translate('Upgrade (Melhorado)')]],
+    const step2 = hasUpgrade ? h('div.obj-step', {},
+      h('div.obj-step-title', {}, translate('Passo 2 — Versão')),
+      segmented([['base', translate('Normal')], ['upgrade', translate('Upgrade')]],
         this.variant, (v) => this.switchVariant(v))) : null;
-    const stage = h('div.obj-stage', {}, variantTabs, previewToggle, previews);
+    const step3 = h('div.obj-step', {},
+      h('div.obj-step-title', {}, translate('Passo 3 — Imagens')),
+      h('div.obj-cards', {}, idleCard.card, activeCard?.card));
+    const stage = h('div.obj-stage', {},
+      h('div.obj-step', {}, h('div.obj-step-title', {}, translate('Passo 1 — Escolha o item'))),
+      step2, step3);
     // A caixa do hitbox: a parte da imagem que realmente responde ao clique. Com o
     // "Mostrar hitbox" ligado ela aparece na prévia; nos arquivos importados (imagem/GIF)
     // dá para arrastar a caixa e as 4 alças para ajustar.
@@ -3272,83 +3287,33 @@ export class ObjectsDialog extends Dialog {
         stage.addEventListener('pointerup', up);
       });
     }
+    // Opções simples: só o necessário para ajustar a imagem.
     const controls = [];
-    if (d?.kind === '3d') {
-      const rerender = () => { clearTimeout(this.rt); this.rt = setTimeout(() => this.render3d(), 250); };
-      controls.push(
-        slider({ label: 'Rotação', min: 0, max: 355, step: 5, value: d.rot, format: (v) => `${v}°`, onchange: (v) => { d.rot = v; rerender(); } }),
-        slider({ label: 'Inclinação', min: -60, max: 60, step: 5, value: d.tilt, format: (v) => `${v}°`, onchange: (v) => { d.tilt = v; rerender(); } }),
-        toggle({ label: 'Girando (animado)', value: d.spin, onchange: (v) => { d.spin = v; rerender(); } }));
-    } else if (d) {
-      const modes = [['single', translate('Mesma imagem sempre')]];
-      if (d.src.length > 1) modes.push(['firstFrame', translate('Parada = 1º frame')]);
-      modes.push(['dual', translate('2 imagens (Parada + Funcionando)')]);
-      controls.push(
-        h('div.row', {}, h('span.label', {}, translate('Modo de animação')),
-          segmented(modes, d.mode || 'single', (v) => { d.mode = v; this.previewActive = false; this.syncLive(); this.render(); })),
-        d.mode === 'dual' && !d.active?.src?.length
-          ? h('div.note', {}, translate('Importe a imagem da máquina funcionando para concluir o modo duplo.')) : null,
-      );
-      const hbDraft = this.hbCurrent(id, d);
-      const hbNow = hbDraft || { x: 0.2, y: 0.2, w: 0.6, h: 0.6 };
-      const numRow = (label, key, patchKey) => h('label.row.hb-num', {},
-        h('span.label', {}, label),
-        h('input', {
-          type: 'number', min: 0, max: 100, step: 1, value: Math.round(hbNow[key] * 100),
-          onchange: (e) => {
-            const v = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0))) / 100;
-            this.setHitbox({ [patchKey]: v }, d);
-          },
-        }));
-      controls.push(
-        h('div.row', {}, h('span.label', {}, 'Rotação fixa'), segmented([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], d.rot, (v) => { d.rot = v; this.render(); this.refreshBake(); })),
-        slider({ label: 'Rotação livre', min: 0, max: 360, step: 1, value: d.rot, format: (v) => `${v}°`, oninput: (v) => { d.rot = v; this.refreshBake(); }, onchange: () => this.render() }),
-        h('label.row.hb-num', {}, h('span.label', {}, 'Rotação (°)'),
-          h('input', {
-            type: 'number', min: 0, max: 360, step: 1, value: Math.round(d.rot),
-            onchange: (e) => {
-              d.rot = Math.min(360, Math.max(0, Math.round(Number(e.target.value) || 0)));
-              this.render();
-              this.refreshBake();
-            },
-          })),
-        slider({ label: 'Escala (0,1× a 3,0×)', min: 10, max: 300, step: 5, value: Math.round((d.scale || 1) * 100), format: (v) => `${(v / 100).toFixed(2)}×`, oninput: (v) => { d.scale = v / 100; this.syncLive(); }, onchange: () => this.render() }),
-        toggle({ label: 'Espelhar', value: d.flip, onchange: (v) => { d.flip = v; this.render(); this.refreshBake(); } }),
-        this.colorControl(d),
-        toggle({ label: 'Mostrar hitbox na prévia', value: this.showHb !== false, onchange: (v) => { this.showHb = v; this.render(); } }),
-        h('div.hb-grid', {},
-          numRow('Hitbox X', 'x', 'x'),
-          numRow('Hitbox Y', 'y', 'y'),
-          numRow('Hitbox Largura', 'w', 'w'),
-          numRow('Hitbox Altura', 'h', 'h')),
-        h('div.row', {},
-          h('button', { onclick: () => { this.hitMode = true; this.hitboxDraft = null; this.render(); } }, '🎯 Marcar hitbox'),
-          hbDraft ? h('button', { onclick: () => { delete d.hitbox; this.hitboxDraft = null; this.render(); } }, '✕ Limpar hitbox') : null),
-        h('small.muted', {}, 'Arraste a caixa para mover e as alças dos cantos para redimensionar. Os valores são % da imagem. O hitbox é a parte que responde ao clique (o resto deixa passar).'));
+    if (d && d.kind !== '3d') {
+      const tr = d.transparent || (d.transparent = { color: 'auto', on: false, tolerance: 24, edgeOnly: true });
+      tr.color = 'auto';
+      tr.edgeOnly = true;
+      controls.push(h('div.obj-simple-options', {},
+        h('label.row.toggle', {},
+          h('input', { type: 'checkbox', checked: !!tr.on, onchange: (e) => { tr.on = e.target.checked; this.render(); this.refreshBake(); } }),
+          h('span', {}, translate('Remover fundo verde (greenscreen)'))),
+        tr.on ? slider({ label: translate('Sensibilidade'), min: 0, max: 100, step: 1,
+          value: tr.tolerance ?? 24, format: (v) => `${v}`,
+          oninput: (v) => { tr.tolerance = v; this.refreshBake(); } }) : null));
     }
-    if (d && d.src.length > 1) controls.push(slider({ label: 'Velocidade', min: 0.25, max: 3, step: 0.25, value: d.speed, format: (v) => `${v}×`, oninput: (v) => { d.speed = v; this.syncLive(); } }));
-    const has = !!(this.upgraded ? app.skins?.objectsUpgrade : app.skins?.objects)?.[baseId(id)];
     const right = h('div.obj-edit', {},
       stage,
       id === 'videogame' && h('div.note', {}, 'Arraste sobre a imagem para marcar onde fica a tela da TV.'),
-      h('div.row', {},
-        h('button', { onclick: () => this.pickImage() }, '🖼 Imagem / GIF'),
-        d && d.mode === 'dual' ? h('button', { onclick: () => this.pickImage(true) }, translate('⚡ Imagem funcionando')) : null,
-        h('button', { onclick: () => this.pick3d() }, '🧊 Modelo 3D'),
-        has && h('button', { onclick: async () => {
-          await app.skins.setObject(baseId(id), null, this.upgraded);
-          if (id === 'pelucia') app.doll?.setScale(1);
-          this.draft = null; this.region = null; this.captureSnapshot(); this.render(); this.syncLive();
-        } }, '↺ Restaurar padrão')),
       controls,
+      h('div.row', {}, h('button.link', { onclick: () => this.pick3d() }, translate('Usar modelo 3D (opcional)'))),
       this.error && h('div.error', {}, this.error),
-      h('div.note', {}, 'PNG/GIF com transparência. Modelos 3D (.glb/.vrm) viram imagem na rotação escolhida (ou girando).'));
+      h('div.note', {}, translate('PNG ou GIF. O GIF continua animado em ambos os estados.')));
     // O objeto de verdade na área de trabalho já está no tamanho escolhido.
     this.syncLive();
     this.frame(h('div.objects', {}, list, right), [
       h('span.grow'),
-      h('button', { onclick: () => this.close() }, 'Fechar'),
-      h('button.primary', { onclick: () => this.save(), disabled: !d && !this.region }, 'Aplicar'),
+      h('button', { onclick: () => this.close() }, translate('Fechar')),
+      h('button.primary', { onclick: () => this.save(), disabled: !d && !this.region }, translate('Salvar')),
     ]);
   }
 }
