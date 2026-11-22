@@ -353,6 +353,8 @@ const EN = {
   'Remover fundo verde (greenscreen)': 'Remove green background (greenscreen)',
   'Sensibilidade': 'Sensitivity', 'Usar modelo 3D (opcional)': 'Use 3D model (optional)',
   'PNG ou GIF. O GIF continua animado em ambos os estados.': 'PNG or GIF. GIFs keep animating in both states.',
+  'Aguarde o carregamento da imagem antes de salvar.': 'Wait for the image to finish loading before saving.',
+  'Carregando…': 'Loading…',
   'Deseja realmente iniciar o Modo Streamer?': 'Do you really want to start Streamer Mode?',
   'Um save separado será usado e o Controle Streamer abrirá no navegador.': 'A separate save will be used and Stream Control will open in your browser.',
   'Iniciar Modo Streamer': 'Start Streamer Mode', 'Cancelar': 'Cancel', 'Modo Streamer': 'Streamer Mode',

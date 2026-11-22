@@ -124,10 +124,161 @@ async function bedArt(wool, planks) {
   return c.toDataURL('image/png');
 }
 
+// ---- GIF decoder (own LZW parser) -------------------------------------------------
+// ImageDecoder in WebView2 can report a wrong frameCount or stop decoding halfway through
+// a GIF, so GIFs go through this deterministic parser instead. It honours per-frame delays,
+// transparency, local colour tables, interlacing and the three disposal methods.
+function gifBytes(dataUrl) {
+  const b64 = String(dataUrl).split(',')[1] || '';
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function lzwDecode(minCodeSize, data, expected) {
+  const clear = 1 << minCodeSize;
+  const end = clear + 1;
+  let dict = [];
+  let codeSize = minCodeSize + 1;
+  let next = end + 1;
+  const reset = () => {
+    dict = new Array(4096);
+    for (let i = 0; i < clear; i++) dict[i] = [i];
+    dict[clear] = null;
+    dict[end] = null;
+    next = end + 1;
+    codeSize = minCodeSize + 1;
+  };
+  reset();
+  let bit = 0;
+  const read = () => {
+    if (bit + codeSize > data.length * 8) return undefined;
+    let v = 0;
+    for (let i = 0; i < codeSize; i++) {
+      const byte = data[(bit + i) >> 3];
+      v |= ((byte >> ((bit + i) & 7)) & 1) << i;
+    }
+    bit += codeSize;
+    return v;
+  };
+  const out = [];
+  let prev = null;
+  for (;;) {
+    const code = read();
+    if (code === undefined) break;
+    if (code === clear) { reset(); prev = null; continue; }
+    if (code === end) break;
+    let entry;
+    if (code < next && dict[code]) entry = dict[code];
+    else if (code === next && prev) entry = prev.concat(prev[0]);
+    else break;
+    for (const v of entry) out.push(v);
+    if (prev && next < 4096) {
+      dict[next++] = prev.concat(entry[0]);
+      if (next === (1 << codeSize) && codeSize < 12) codeSize++;
+    }
+    prev = entry;
+    if (out.length >= expected) break;
+  }
+  return out;
+}
+
+function decodeGif(dataUrl, max = 160) {
+  const b = gifBytes(dataUrl);
+  if (b.length < 14 || String.fromCharCode(b[0], b[1], b[2]) !== 'GIF') return null;
+  let p = 6;
+  const w = b[p] | (b[p + 1] << 8); p += 2;
+  const h = b[p] | (b[p + 1] << 8); p += 2;
+  const packed = b[p++]; p += 2; // background + aspect
+  const gctSize = (packed & 0x80) ? 3 * (2 << (packed & 7)) : 0;
+  const gct = b.slice(p, p + gctSize); p += gctSize;
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const frames = [];
+  const delays = [];
+  let gce = { disposal: 0, delay: 100, transparent: -1 };
+  let before = null;
+  while (p < b.length) {
+    const block = b[p++];
+    if (block === 0x3B) break;
+    if (block === 0x21) {
+      const label = b[p++];
+      const subs = [];
+      while (p < b.length) { const n = b[p++]; if (!n) break; subs.push(b.slice(p, p + n)); p += n; }
+      if (label === 0xF9 && subs[0]?.length >= 4) {
+        const s = subs[0];
+        gce = {
+          disposal: (s[0] >> 2) & 7,
+          delay: Math.max(20, ((s[1] | (s[2] << 8)) || 10) * 10),
+          transparent: (s[0] & 1) ? s[3] : -1,
+        };
+      }
+      continue;
+    }
+    if (block !== 0x2C) continue;
+    const left = b[p] | (b[p + 1] << 8); p += 2;
+    const top = b[p] | (b[p + 1] << 8); p += 2;
+    const iw = b[p] | (b[p + 1] << 8); p += 2;
+    const ih = b[p] | (b[p + 1] << 8); p += 2;
+    const ip = b[p++];
+    const lctSize = (ip & 0x80) ? 3 * (2 << (ip & 7)) : 0;
+    const palette = lctSize ? b.slice(p, p + lctSize) : gct; p += lctSize;
+    const minCode = b[p++];
+    const chunks = [];
+    while (p < b.length) { const n = b[p++]; if (!n) break; chunks.push(b.slice(p, p + n)); p += n; }
+    const size = chunks.reduce((a, c) => a + c.length, 0);
+    const packedData = new Uint8Array(size);
+    let o = 0;
+    for (const c of chunks) { packedData.set(c, o); o += c.length; }
+    const pixels = lzwDecode(minCode, packedData, iw * ih);
+
+    if (gce.disposal === 2) ctx.clearRect(left, top, iw, ih);
+    else if (gce.disposal === 3 && before) ctx.putImageData(before, 0, 0);
+    before = ctx.getImageData(0, 0, w, h);
+
+    const rows = [];
+    if (ip & 0x40) {
+      for (const start of [0, 4, 2, 1]) {
+        const step = start === 0 || start === 4 ? 8 : start === 2 ? 4 : 2;
+        for (let y = start; y < ih; y += step) rows.push(y);
+      }
+    } else {
+      for (let y = 0; y < ih; y++) rows.push(y);
+    }
+    const img = ctx.createImageData(iw, ih);
+    for (let i = 0; i < pixels.length && i < iw * ih; i++) {
+      const idx = pixels[i];
+      if (idx === gce.transparent) continue;
+      const row = rows[(i / iw) | 0];
+      if (row === undefined) continue;
+      const q = (row * iw + (i % iw)) * 4;
+      const c = idx * 3;
+      img.data[q] = palette[c] || 0;
+      img.data[q + 1] = palette[c + 1] || 0;
+      img.data[q + 2] = palette[c + 2] || 0;
+      img.data[q + 3] = 255;
+    }
+    ctx.putImageData(img, left, top);
+
+    const s = Math.min(1, max / Math.max(w, h));
+    if (s < 1) {
+      const [small, sg] = canvas(Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)));
+      sg.drawImage(cv, 0, 0, small.width, small.height);
+      frames.push(small.toDataURL('image/png'));
+    } else frames.push(cv.toDataURL('image/png'));
+    delays.push(gce.delay);
+  }
+  return frames.length ? { frames, delays } : null;
+}
+
 // Animated GIF / APNG -> frames with their real per-frame delays.
-// ImageDecoder already composites each frame using the GIF disposal method, so every
-// decoded frame is drawn on its own clean canvas (no trails from previous frames).
 export async function decodeAnimated(dataUrl, max = 160) {
+  // decodeGif checks the magic bytes itself and returns null for non-GIF data.
+  const parsed = decodeGif(dataUrl, max);
+  if (parsed) return parsed;
   const blob = await (await fetch(dataUrl)).blob();
   if (!('ImageDecoder' in window)) return { frames: [dataUrl], delays: [100] };
   let dec;
@@ -135,11 +286,11 @@ export async function decodeAnimated(dataUrl, max = 160) {
     dec = new ImageDecoder({ data: blob.stream(), type: blob.type || 'image/gif' });
     await dec.tracks.ready;
     const total = dec.tracks.selectedTrack?.frameCount || 1;
-    const n = Math.min(total, 90); // folga bem acima dos 60 frames pedidos
+    const n = Math.min(total, 120);
     const frames = [];
     const delays = [];
     for (let i = 0; i < n; i++) {
-      const { image } = await dec.decode({ frameIndex: i, complete: false });
+      const { image } = await dec.decode({ frameIndex: i });
       const w = image.displayWidth || image.codedWidth || 1;
       const h = image.displayHeight || image.codedHeight || 1;
       const s = Math.min(1, max / Math.max(w, h));
@@ -147,12 +298,11 @@ export async function decodeAnimated(dataUrl, max = 160) {
       g.clearRect(0, 0, c.width, c.height);
       g.drawImage(image, 0, 0, c.width, c.height);
       frames.push(c.toDataURL('image/png'));
-      // duration is in microseconds; 0 means "unspecified" in some encoders.
       const us = Number(image.duration) || 0;
       delays.push(Math.max(20, Math.min(5000, us > 0 ? Math.round(us / 1000) : 100)));
       image.close();
     }
-    return { frames, delays };
+    return frames.length ? { frames, delays } : { frames: [dataUrl], delays: [100] };
   } catch {
     return { frames: [dataUrl], delays: [100] };
   } finally {
@@ -289,15 +439,45 @@ export class Skins {
     this._artState = new Map();
     this._artAt = new Map();
     this._artHold = new Map();
+    this.version = 0;
+    this.error = '';
     globalThis.petSkins = this;
+  }
+
+  // Invalidates decoded-frame clocks and the DOM <img> cache so a saved skin shows instantly.
+  bump() {
+    this.version = (this.version || 0) + 1;
+    this._artState.clear();
+    this._artAt.clear();
+    this._artHold.clear();
+    for (const el of this.app.toys?.els?.values() || []) {
+      const img = el.querySelector?.('img:not(.mark)');
+      if (img) img.removeAttribute('src');
+    }
   }
 
   async load() {
     const api = window.petAPI;
+    // Old builds may have left skin maps in localStorage: migrate them once.
+    const migrate = (key) => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const value = JSON.parse(raw);
+        localStorage.removeItem(key);
+        return value && typeof value === 'object' ? value : null;
+      } catch (e) {
+        console.error('[skins] falha ao migrar skin antiga', key, e);
+        return null;
+      }
+    };
     try {
-      this.objects = (await api?.loadBlob?.('objects')) || {};
-      this.objectsUpgrade = (await api?.loadBlob?.('objectsUpgrade')) || {};
-    } catch {}
+      this.objects = (await api?.loadBlob?.('objects')) || migrate('objects') || migrate('skins') || {};
+      this.objectsUpgrade = (await api?.loadBlob?.('objectsUpgrade')) || migrate('objectsUpgrade') || {};
+    } catch (e) {
+      this.error = `Não foi possível carregar as aparências salvas: ${e?.message || e}`;
+      console.error('[skins] load', e);
+    }
     this.rp = null;
     if (this.app.config?.theme === 'resourcepack') this.app.setOption?.('theme', 'padrao');
     this.applyRp();
@@ -397,8 +577,16 @@ export class Skins {
     const store = upgraded ? this.objectsUpgrade : this.objects;
     if (data) store[id] = data;
     else delete store[id];
-    await window.petAPI?.storeBlob?.(upgraded ? 'objectsUpgrade' : 'objects', store).catch(() => {});
-    this.app.toys?.refreshArt?.();
+    try {
+      // Skins live in data/*.json via Tauri (no localStorage 5 MB quota).
+      await window.petAPI.storeBlob(upgraded ? 'objectsUpgrade' : 'objects', store);
+      this.error = '';
+    } catch (e) {
+      this.error = `Não foi possível salvar a aparência: ${e?.message || e}`;
+      console.error('[skins] store', e);
+    }
+    this.bump();
+    this.app.uiChanged?.();
   }
 
   // ---------- resourcepack ----------
@@ -448,7 +636,8 @@ export class Skins {
     }
     rp.music = music.map((n) => files[n]).filter(Boolean);
     this.rp = rp;
-    await window.petAPI.storeBlob('resourcepack', rp).catch(() => {});
+    try { await window.petAPI.storeBlob('resourcepack', rp); }
+    catch (e) { this.error = `Falha ao salvar o resourcepack: ${e?.message || e}`; console.error('[skins] pack', e); }
     if (parts.janelas && rp.gui) this.app.setOption?.('theme', 'resourcepack');
     this.applyRp();
     return rp;
@@ -457,7 +646,8 @@ export class Skins {
   async clearPack() {
     this.rp = null;
     this.stopMusic();
-    await window.petAPI?.storeBlob?.('resourcepack', null).catch(() => {});
+    try { await window.petAPI.storeBlob('resourcepack', null); }
+    catch (e) { this.error = `Falha ao remover o resourcepack: ${e?.message || e}`; console.error('[skins] pack', e); }
     if (this.app.config.theme === 'resourcepack') this.app.setOption?.('theme', 'padrao');
     this.applyRp();
   }

@@ -2720,6 +2720,11 @@ export async function bake(frames, rot, flip, transparent = null) {
 }
 
 export class ObjectsDialog extends Dialog {
+  constructor(app) {
+    super(app);
+    this.busy = 0;
+  }
+
   // Fechar (ou o X) sem aplicar: o objeto volta exatamente como estava ao abrir o modal.
   close() {
     this.revert();
@@ -2838,44 +2843,56 @@ export class ObjectsDialog extends Dialog {
   }
 
   async pickImage(working = false) {
-    const path = await window.petAPI.pickFile(working ? 'Imagem funcionando' : 'Imagem do objeto', 'Imagem', ['png', 'gif', 'webp', 'apng']);
-    if (!path) return;
-    const data = await window.petAPI.readFileData(path);
-    const { decodeAnimated } = await import('./skins.js');
-    const anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data).catch(() => null) : null;
-    const decoded = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100] };
-    const old = (this.upgraded ? this.app.skins.objectsUpgrade : this.app.skins.objects)[baseId(this.sel)] || {};
-    const prev = this.draft && this.draft.kind !== '3d' ? this.draft : null;
-    if (working && prev) {
-      prev.active = decoded;
-      prev.mode = 'dual';
-      prev.activeSrc = decoded.src;
-      this.previewActive = false;
-    } else if (working) {
-      // Primeiro clique no card "Em uso": mantém o visual parado atual como base.
-      const idle = old.frames?.length ? old.frames : [this.current(this.sel)].filter(Boolean);
-      this.draft = {
-        kind: decoded.kind, src: idle.length ? idle : [decoded.src[0]], delays: idle.length ? (old.delays || [100]) : [100],
-        rot: 0, flip: false, speed: 1, scale: old.scale || 1,
-        mode: 'dual', active: decoded, activeSrc: decoded.src,
-        transparent: old.transparent ? { ...old.transparent } : { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
-      };
-      this.previewActive = false;
-    } else {
-      const active = prev?.active ? { ...prev.active } : old.active ? { ...old.active, src: old.active.frames || [] } : null;
-      const speed = prev?.speed || 1;
-      this.draft = {
-        ...decoded, rot: prev?.rot || 0, flip: !!prev?.flip, speed, scale: prev?.scale || old.scale || 1,
-        mode: active?.src?.length ? 'dual' : old.mode === 'firstFrame' && decoded.src.length > 1 ? 'firstFrame' : 'single',
-        active,
-        transparent: prev?.transparent ? { ...prev.transparent } : { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
-      };
-      this.previewActive = false;
+    this.busy++;
+    this.error = '';
+    this.render(); // mostra "Carregando…" e desabilita Salvar enquanto lê/decodifica
+    try {
+      const path = await window.petAPI.pickFile(working ? 'Imagem funcionando' : 'Imagem do objeto', 'Imagem', ['png', 'gif', 'webp', 'apng']);
+      if (!path) return;
+      const data = await window.petAPI.readFileData(path);
+      const { decodeAnimated } = await import('./skins.js');
+      let anim = null;
+      try { anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data) : null; }
+      catch (e) { this.error = `Não foi possível ler a animação: ${e?.message || e}`; console.error('[skins] decode', e); }
+      const decoded = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100] };
+      const old = (this.upgraded ? this.app.skins.objectsUpgrade : this.app.skins.objects)[baseId(this.sel)] || {};
+      const prev = this.draft && this.draft.kind !== '3d' ? this.draft : null;
+      if (working && prev) {
+        prev.active = decoded;
+        prev.mode = 'dual';
+        prev.activeSrc = decoded.src;
+        this.previewActive = false;
+      } else if (working) {
+        // Primeiro clique no card "Em uso": mantém o visual parado atual como base.
+        const idle = old.frames?.length ? old.frames : [this.current(this.sel)].filter(Boolean);
+        this.draft = {
+          kind: decoded.kind, src: idle.length ? idle : [decoded.src[0]], delays: idle.length ? (old.delays || [100]) : [100],
+          rot: 0, flip: false, speed: 1, scale: old.scale || 1,
+          mode: 'dual', active: decoded, activeSrc: decoded.src,
+          transparent: old.transparent ? { ...old.transparent } : { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
+        };
+        this.previewActive = false;
+      } else {
+        const active = prev?.active ? { ...prev.active } : old.active ? { ...old.active, src: old.active.frames || [] } : null;
+        const speed = prev?.speed || 1;
+        this.draft = {
+          ...decoded, rot: prev?.rot || 0, flip: !!prev?.flip, speed, scale: prev?.scale || old.scale || 1,
+          mode: active?.src?.length ? 'dual' : old.mode === 'firstFrame' && decoded.src.length > 1 ? 'firstFrame' : 'single',
+          active,
+          transparent: prev?.transparent ? { ...prev.transparent } : { color: 'auto', on: false, tolerance: 24, edgeOnly: true },
+        };
+        this.previewActive = false;
+      }
+      this.baked = null;
+      this.bakeKey = '';
+      this.refreshBake();
+    } catch (e) {
+      this.error = `Não foi possível abrir a imagem: ${e?.message || e}`;
+      console.error('[skins] import', e);
+    } finally {
+      this.busy = Math.max(0, this.busy - 1);
+      this.render();
     }
-    this.baked = null;
-    this.bakeKey = '';
-    this.render();
-    this.refreshBake();
   }
 
   async pick3d() {
@@ -2911,6 +2928,7 @@ export class ObjectsDialog extends Dialog {
   }
 
   async save() {
+    if (this.busy) { this.error = translate('Aguarde o carregamento da imagem antes de salvar.'); this.render(); return; }
     const d = this.draft;
     const id = this.sel;
     const up = this.upgraded;
@@ -3306,14 +3324,15 @@ export class ObjectsDialog extends Dialog {
       id === 'videogame' && h('div.note', {}, 'Arraste sobre a imagem para marcar onde fica a tela da TV.'),
       controls,
       h('div.row', {}, h('button.link', { onclick: () => this.pick3d() }, translate('Usar modelo 3D (opcional)'))),
-      this.error && h('div.error', {}, this.error),
+      (this.error || app.skins?.error) && h('div.error', {}, this.error || app.skins.error),
       h('div.note', {}, translate('PNG ou GIF. O GIF continua animado em ambos os estados.')));
     // O objeto de verdade na área de trabalho já está no tamanho escolhido.
     this.syncLive();
     this.frame(h('div.objects', {}, list, right), [
       h('span.grow'),
       h('button', { onclick: () => this.close() }, translate('Fechar')),
-      h('button.primary', { onclick: () => this.save(), disabled: !d && !this.region }, translate('Salvar')),
+      h('button.primary', { onclick: () => this.save(), disabled: this.busy > 0 || (!d && !this.region) },
+        this.busy ? translate('Carregando…') : translate('Salvar')),
     ]);
   }
 }

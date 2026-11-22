@@ -2744,6 +2744,11 @@ export class Toys {
     return l && l.id === id && !!(l.upgraded) === !!upgraded ? l : null;
   }
 
+  // Called after a skin is saved/cleared: drops cached clocks and <img> sources.
+  refreshArt() {
+    this.app.skins?.bump?.();
+  }
+
   // O tamanho em edição (o diálogo de visual manda) tem prioridade sobre o salvo.
   liveScale(id) {
     const live = this.live(id);
@@ -2845,19 +2850,24 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const deskArt = deskLit ? icon(t.up ? 'escrivaninha_up_lamp' : 'escrivaninha_lamp') : null;
       const muralArt = b === 'mural' ? icon(`mural_${t.frame || 'cortica'}${t.orient === 'portrait' ? '_v' : ''}`) : null;
       const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : (muralArt || deskArt || this.furn.art(b, id)) || item?.img;
-      // Base and Upgrade use separate skin stores; old single-file skins keep working on Base.
-      const custom = this.live(b, up)?.frames?.length || skins?.[up ? 'objectsUpgrade' : 'objects']?.[b]?.frames?.length;
-      const bagUp = nb && (id === 'bag' || id === 'food') && !custom;
-      // Machines show their "working" art while in use (dual/firstFrame object skins).
       const casino = this.app.casino;
+      const cur = casino?.cur;
+      // Gacha/Slot animations use the base id; an upgraded machine still has `up` on the spin.
+      const activeGacha = !!cur && (b === 'gacha' || b === 'slot')
+        && (baseId(String(cur.id || '')) === b || cur.base === b);
+      const skinUp = up || (activeGacha && !!cur.up);
+      // Base and Upgrade use separate skin stores; old single-file skins keep working on Base.
+      const custom = this.live(b, skinUp)?.frames?.length || skins?.[skinUp ? 'objectsUpgrade' : 'objects']?.[b]?.frames?.length;
+      const bagUp = nb && (id === 'bag' || id === 'food') && !custom;
+      // Machines show their "working" art while in use.
       let artActive = false;
-      if (b === 'gacha' || b === 'slot') artActive = casino?.cur?.id === b || !!casino?.out;
+      if (b === 'gacha' || b === 'slot') artActive = activeGacha || !!casino?.out;
       else if (b === 'venda_comida' || b === 'venda_bebida' || b === 'cafeteira') artActive = casino?.vend?.cur?.id === b;
       else if (b === 'impressora') artActive = !!(this.unpacking || game.deliveries?.length);
       else if (b === 'videogame') artActive = pet.activity === 'jam';
       else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');
       else if (b === 'escrivaninha') artActive = !!this.app.pomodoro?.active;
-      const src = (custom ? skins?.art(b, base, artActive, up) : null) || deskArt || (up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive, up) || base;
+      const src = (custom ? skins?.art(b, base, artActive, skinUp) : null) || deskArt || (up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive, skinUp) || base;
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');
       if (img && img.getAttribute('src') !== src) img.src = src;
