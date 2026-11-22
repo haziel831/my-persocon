@@ -287,9 +287,11 @@ export class Doll {
     const train = add('button', '', left > 0 ? `${translate('🎓 Treinar')} (${fmtCooldown(left)})` : translate('🎓 Treinar'));
     train.disabled = left > 0;
     train.onclick = () => {
-      const id = d.focus || this.brain.nextSkill?.();
-      if (id && this.brain.teachSkill?.(id)) markTrain('doll', app.game);
-      this.menu(x, y);
+      app.toys.closeMenu?.();
+      if (!this.brain.startDuo('treinar', true)) {
+        app.sound?.play('cancel', { volume: 0.4 });
+        this.menu(x, y);
+      }
     };
     const rename = add('button', '', translate('✏️ Renomear'));
     rename.onclick = () => renameDialog(app.game.profile.dollName, (v) => {

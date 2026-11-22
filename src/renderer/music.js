@@ -1,7 +1,7 @@
-// Title / intro music: "Mysterious Synthwave" — procedural Web Audio, no audio files.
-// A minor, 92 BPM, 8-bar loop. Filtered analog-saw arpeggio, detuned warm pads,
-// a slow enigmatic bell lead with a long neon delay. Everything is scheduled ahead of
-// time and uses attack/release envelopes so the loop never clicks.
+// Title music: "Cyberpunk Drive" — procedural Web Audio, no audio files.
+// Dark A minor at 112 BPM: pulsing electronic/industrial bass, marked synthetic drums,
+// metallic dark arpeggios and a smooth cyber lead. Scheduled ahead of time with
+// attack/release envelopes so the loop never clicks.
 
 const NOTE = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
 const freq = (n) => {
@@ -10,30 +10,23 @@ const freq = (n) => {
   return 440 * 2 ** ((NOTE[m[1]] + (+m[2] + 1) * 12 - 69) / 12);
 };
 
-const BPM = 92;
-const LOOP = 128; // 8 bars of 16 sixteenths (~20.9s)
-// Roots: Am - F - Cmaj - G - Dm - E - Am - E. Minor with maj7/add9 colour.
+const BPM = 112;
+const LOOP = 128; // 8 bars of 16ths (~17s)
 const ROOTS = ['A1', 'F1', 'C2', 'G1', 'D2', 'E2', 'A1', 'E2'];
 const CHORD = [
-  ['A3', 'C4', 'E4', 'B4'], // Am9
+  ['A3', 'C4', 'E4', 'G4'], // Am7
   ['F3', 'A3', 'C4', 'E4'], // Fmaj7
   ['C3', 'E3', 'G3', 'B3'], // Cmaj7
-  ['G2', 'B2', 'D3', 'E3'], // G6
-  ['D3', 'F3', 'A3', 'E4'], // Dm9
+  ['G2', 'B2', 'D3', 'F3'], // G7
+  ['D3', 'F3', 'A3', 'C4'], // Dm7
   ['E2', 'G#2', 'B2', 'D3'], // E7
-  ['A3', 'C4', 'E4', 'B4'], // Am9
-  ['E2', 'G#2', 'B2', 'D3'], // E7 — unresolved, pulls back to Am
+  ['A3', 'C4', 'E4', 'G4'], // Am7
+  ['E2', 'G#2', 'B2', 'D3'], // E7 — pulls back to Am
 ];
-// Eighth-note arpeggio offsets from the root (semitones): a quiet pulsing analog line.
-const ARP = [0, 7, 12, 7, 0, 3, 12, 10];
-// Slow, sparse lead: [step in loop, note, length in sixteenths].
+const ARP = [0, 7, 12, 7, 0, 3, 10, 7];
 const LEAD = [
-  [4, 'E5', 22],
-  [30, 'C5', 18],
-  [50, 'D5', 20],
-  [70, 'B4', 16],
-  [88, 'A4', 24],
-  [112, 'G#4', 14],
+  [4, 'E5', 14], [22, 'C5', 12], [38, 'D5', 10], [54, 'A4', 16],
+  [74, 'G4', 12], [90, 'E5', 14], [108, 'C5', 12], [120, 'B4', 8],
 ];
 
 export class Music {
@@ -47,45 +40,39 @@ export class Music {
     return this.sound.ctx;
   }
 
-  start(volume = 0.9) {
+  start(volume = 1.0) {
     const c = this.ctx;
     if (!c || this.playing || !this.sound.enabled) return;
     c.resume?.().catch(() => {});
     this.playing = true;
 
-    // Gentle master tone shaping: keeps the synths warm and removes harsh top end.
     this.masterLp = c.createBiquadFilter();
     this.masterLp.type = 'lowpass';
-    this.masterLp.frequency.value = 4200;
-    this.masterLp.Q.value = 0.4;
+    this.masterLp.frequency.value = 5200;
+    this.masterLp.Q.value = 0.5;
 
     this.out = c.createGain();
     this.out.gain.setValueAtTime(0.0001, c.currentTime);
-    this.out.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), c.currentTime + 2.2);
+    this.out.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), c.currentTime + 1.6);
     this.masterLp.connect(this.out);
-
-    // Gate follows the game's mute/DND setting in real time.
-    this.gate = c.createGain();
-    this.gate.gain.value = this.sound.enabled ? 1 : 0.0001;
-    this.out.connect(this.gate);
-    this.gate.connect(this.sound.musicBus || this.sound.master);
+    this.out.connect(this.sound.musicBus || this.sound.master);
 
     this.bus = c.createGain();
-    this.bus.gain.value = 0.9;
+    this.bus.gain.value = 0.85;
     this.bus.connect(this.masterLp);
 
-    // Slightly detuned chorus taps for the wide analog pad.
+    // Slightly detuned chorus for the wide cyber pad.
     this.chorusWet = c.createGain();
-    this.chorusWet.gain.value = 0.28;
+    this.chorusWet.gain.value = 0.26;
     this.chorusWet.connect(this.masterLp);
     this.chorusLfos = [];
-    [0.018, 0.031].forEach((base, i) => {
+    [0.017, 0.029].forEach((base, i) => {
       const d = c.createDelay(0.1);
       d.delayTime.value = base;
       const lfo = c.createOscillator();
-      lfo.frequency.value = 0.17 + i * 0.09;
+      lfo.frequency.value = 0.31 + i * 0.13;
       const depth = c.createGain();
-      depth.gain.value = 0.0018;
+      depth.gain.value = 0.0017;
       lfo.connect(depth);
       depth.connect(d.delayTime);
       lfo.start();
@@ -94,33 +81,28 @@ export class Music {
       this.chorusLfos.push(lfo);
     });
 
-    // Long neon echo for the bell lead (dotted-eighth feel at 92 BPM).
+    // Long neon echo for the lead.
     this.delay = c.createDelay(1.5);
-    this.delay.delayTime.value = 0.49;
+    this.delay.delayTime.value = 0.36;
     const dfb = c.createGain();
-    dfb.gain.value = 0.36;
+    dfb.gain.value = 0.33;
     const dlp = c.createBiquadFilter();
     dlp.type = 'lowpass';
-    dlp.frequency.value = 2600;
+    dlp.frequency.value = 2800;
     this.delay.connect(dlp);
     dlp.connect(dfb);
     dfb.connect(this.delay);
-    this.delay.connect(this.masterLp);
-    this.delayWet = c.createGain();
-    this.delayWet.gain.value = 0.34;
-    this.delayWet.connect(this.masterLp);
-    dlp.connect(this.delayWet);
+    dlp.connect(this.masterLp);
 
-    // Shortroom taps, no rain: quiet, mysterious air.
     this.revWet = c.createGain();
     this.revWet.gain.value = 0.12;
     this.revWet.connect(this.masterLp);
-    [0.057, 0.093].forEach((t) => {
+    [0.047, 0.081].forEach((t) => {
       const d = c.createDelay(0.3);
       d.delayTime.value = t;
       const lp = c.createBiquadFilter();
       lp.type = 'lowpass';
-      lp.frequency.value = 1900;
+      lp.frequency.value = 2100;
       const fb = c.createGain();
       fb.gain.value = 0.3;
       this.bus.connect(d);
@@ -137,12 +119,10 @@ export class Music {
   }
 
   setVolume(v) {
-    if (this.out && this.ctx) {
-      this.out.gain.setTargetAtTime(Math.max(0.0002, v), this.ctx.currentTime, 0.4);
-    }
+    if (this.out && this.ctx) this.out.gain.setTargetAtTime(Math.max(0.0002, v), this.ctx.currentTime, 0.4);
   }
 
-  stop(fade = 1.2) {
+  stop(fade = 1.0) {
     if (!this.playing) return;
     this.playing = false;
     clearInterval(this.timer);
@@ -153,7 +133,6 @@ export class Music {
     out.gain.exponentialRampToValueAtTime(0.0001, t + fade);
     setTimeout(() => {
       out.disconnect();
-      this.gate?.disconnect();
       this.masterLp?.disconnect();
       this.delay?.disconnect();
       this.chorusLfos?.forEach((l) => { try { l.stop(); } catch (e) { /* ja parado */ } });
@@ -162,8 +141,6 @@ export class Music {
 
   schedule() {
     const c = this.ctx;
-    // Mute / DND is picked up on the next scheduler tick (25 ms).
-    if (this.gate) this.gate.gain.setTargetAtTime(this.sound.enabled ? 1 : 0.0001, c.currentTime, 0.08);
     const s16 = 60 / BPM / 4;
     while (this.next < c.currentTime + 0.22) {
       this.playStep(this.step, this.next, s16);
@@ -179,31 +156,34 @@ export class Music {
     const chord = CHORD[bar];
     const root = ROOTS[bar];
 
-    // Sub pulse: felt more than heard, two long notes per bar.
     if (beat === 0) this.sub(root, t, s16 * 10);
     if (beat === 8) this.sub(root, t, s16 * 8);
 
-    // Analog arpeggio: filtered saw eighths, gently opening and closing.
+    // Industrial 8th-note bass, acidic filter sweep.
     if (beat % 2 === 0) {
-      const off = ARP[beat / 2];
-      this.voice(freq(root) * 2 ** (off / 12), t, s16 * 1.75, 0.048, {
-        wave: 'saw', cutoff: 380, cutoffEnd: 980, attack: 0.008, release: 0.16, send: 0.08,
+      const off = ARP[(beat / 2) % ARP.length];
+      this.voice(freq(root) * 2 ** (off / 12), t, s16 * 1.7, 0.052, {
+        wave: 'saw', cutoff: 320, cutoffEnd: 1100, attack: 0.006, release: 0.14, send: 0.05,
       });
     }
 
-    // Warm detuned pad, re-triggered every bar with a long envelope.
     if (beat === 0) this.pad(chord, t, s16 * 16.6);
 
-    // Sparse glass shimmer in the upper register, well below whistle territory.
-    if (beat === 6 || beat === 14) {
-      this.voice(freq(chord[2]) * 2, t, s16 * 3, 0.005, {
-        wave: 'glass', cutoff: 2800, attack: 0.03, release: 0.8, send: 0.45,
+    // Synthetic 4-on-the-floor kick, backbeat clap and hats.
+    if (beat % 4 === 0) this.kick(t, beat === 0 ? 0.24 : 0.18);
+    if (beat === 4 || beat === 12) this.clap(t);
+    if (beat % 2 === 1) this.hat(t, beat % 4 === 3 ? 0.009 : 0.005);
+
+    // Metallic dark arpeggio.
+    if (beat === 2 || beat === 6 || beat === 10 || beat === 14) {
+      const n = chord[(beat / 4) % chord.length | 0];
+      this.voice(freq(n) * 2, t, s16 * 2.4, 0.006, {
+        wave: 'glass', cutoff: 3400, attack: 0.005, release: 0.5, send: 0.4,
       });
     }
 
-    // Enigmatic bell lead, with long delay tail.
     const hit = LEAD.find(([p]) => p === pos);
-    if (hit) this.bell(hit[1], t, hit[2] * s16);
+    if (hit) this.lead(hit[1], t, hit[2] * s16);
   }
 
   noiseBuffer() {
@@ -250,7 +230,7 @@ export class Music {
       const lfo = c.createOscillator();
       const depth = c.createGain();
       lfo.type = 'sine';
-      lfo.frequency.value = 3.6;
+      lfo.frequency.value = 4.2;
       depth.gain.value = f * (vibrato / 1200);
       lfo.connect(depth);
       depth.connect(o.frequency);
@@ -295,8 +275,8 @@ export class Music {
       o.type = 'sine';
       o.frequency.setValueAtTime(ff, t);
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(i ? 0.028 : 0.065, t + 0.4);
-      g.gain.setValueAtTime(i ? 0.028 : 0.065, t + Math.max(0.42, dur - 0.7));
+      g.gain.exponentialRampToValueAtTime(i ? 0.03 : 0.07, t + 0.3);
+      g.gain.setValueAtTime(i ? 0.03 : 0.07, t + Math.max(0.32, dur - 0.7));
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(g);
       g.connect(this.bus);
@@ -309,10 +289,10 @@ export class Music {
     chord.forEach((n, i) => {
       const f = freq(n);
       [-9, 0, 9].forEach((cents, j) => {
-        this.voice(f, t, dur, j === 1 ? 0.011 : 0.0075, {
+        this.voice(f, t, dur, j === 1 ? 0.011 : 0.007, {
           wave: i % 2 ? 'brass' : 'saw',
-          cutoff: 700, cutoffEnd: 1500,
-          attack: 1.1, release: 2.0,
+          cutoff: 650, cutoffEnd: 1600,
+          attack: 1.0, release: 1.8,
           detune: cents + (i - 1.5) * 2,
           send: 0.12,
         });
@@ -320,12 +300,62 @@ export class Music {
     });
   }
 
-  bell(n, t, dur) {
-    this.voice(freq(n), t, dur, 0.024, {
-      wave: 'bell', cutoff: 3000, attack: 0.02, release: Math.max(0.4, dur * 0.8), send: 0.55,
+  lead(n, t, dur) {
+    this.voice(freq(n), t, dur, 0.027, {
+      wave: 'bell', cutoff: 3200, attack: 0.02, release: Math.max(0.4, dur * 0.8), slide: 18, send: 0.55,
     });
-    this.voice(freq(n) / 2, t, dur * 0.9, 0.009, {
-      wave: 'sine', attack: 0.04, release: Math.max(0.4, dur * 0.7), send: 0.2,
+    this.voice(freq(n) / 2, t, dur, 0.011, {
+      wave: 'saw', cutoff: 800, attack: 0.04, release: Math.max(0.4, dur * 0.7), detune: -7, send: 0.2,
     });
+  }
+
+  kick(t, vol = 0.2) {
+    const c = this.ctx;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(110, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.18);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    o.connect(g);
+    g.connect(this.bus);
+    o.start(t);
+    o.stop(t + 0.4);
+  }
+
+  clap(t) {
+    const c = this.ctx;
+    const src = c.createBufferSource();
+    src.buffer = this.noiseBuffer();
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1800;
+    bp.Q.value = 0.9;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.035, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(this.bus);
+    src.start(t);
+    src.stop(t + 0.18);
+  }
+
+  hat(t, vol = 0.006) {
+    const c = this.ctx;
+    const src = c.createBufferSource();
+    src.buffer = this.noiseBuffer();
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 7500;
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    src.connect(hp);
+    hp.connect(g);
+    g.connect(this.bus);
+    src.start(t);
+    src.stop(t + 0.06);
   }
 }

@@ -129,17 +129,32 @@ export class Care {
     }
   }
 
+  // Sits the Persocon down into the tub: smooth vertical sink + a cut below the foam line so
+  // legs/feet never show under the front sprite. Applies to BOTH the normal and upgraded tub.
+  bathPose(dt, tubEl, P) {
+    const pet = this.app.pet;
+    const target = P * 0.26;
+    pet.bodyY = (pet.bodyY || 0) + (target - (pet.bodyY || 0)) * Math.min(1, dt * 6);
+    let cutY;
+    if (tubEl) {
+      const r = tubEl.getBoundingClientRect();
+      cutY = r.top + r.height * 0.42; // foam/rim line of the tub sprite
+    } else {
+      const waist = this.app.view?.waistPoint?.();
+      cutY = pet.y - (waist?.y ?? P * 0.55);
+    }
+    pet.hideRect = { x: 0, y: cutY, w: innerWidth, h: Math.max(1, innerHeight - cutY + 20) };
+  }
+
   // stall: the element of the upgraded tub. No more cyan laser belt — curtain + silhouette instead.
   bathTick(dt, tp, tub, stall = null) {
     const { pet, sound } = this.app;
     const P = this.P;
+    const tubEl = stall || this.app.toys?.els?.get('banheira');
+    this.bathPose(dt, tubEl, P);
     if (stall) {
       if (!this.curtain) this.bathCurtain(stall);
       this.placeBathCurtain(stall);
-      // Cut everything below the waist out of the pet canvas: only shoulders/head stay above the foam.
-      const waist = this.app.view?.waistPoint?.();
-      const cutY = pet.y - (waist?.y ?? P * 0.55);
-      pet.hideRect = { x: 0, y: cutY, w: innerWidth, h: Math.max(1, innerHeight - cutY + 20) };
       tp.bub = (tp.bub ?? 0) - dt;
       if (tp.bub <= 0) {
         tp.bub = 0.16;
@@ -165,10 +180,27 @@ export class Care {
     pet.exertion = Math.max(0, pet.exertion - 6 * dt);
   }
 
+  releaseBathPose() {
+    const pet = this.app.pet;
+    pet.hideRect = null;
+    const from = pet.bodyY || 0;
+    if (!from) return;
+    const seq = (this._bathPoseSeq = (this._bathPoseSeq || 0) + 1);
+    const t0 = performance.now();
+    const step = () => {
+      if (seq !== this._bathPoseSeq) return;
+      const k = Math.min(1, (performance.now() - t0) / 450);
+      pet.bodyY = from * (1 - k) ** 2;
+      if (k < 1) requestAnimationFrame(step);
+      else pet.bodyY = 0;
+    };
+    requestAnimationFrame(step);
+  }
+
   bathEnd(interrupted, laser = false) {
     const { pet, sound } = this.app;
     pet.squash = null;
-    pet.hideRect = null;
+    this.releaseBathPose();
     if (laser) this.closeBathCurtain();
     if (interrupted) return;
     sound.tone8(700, 1400, 0.15, laser ? 'square' : 'triangle', 0.05);

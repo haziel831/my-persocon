@@ -356,10 +356,11 @@ const EN = {
   'PNG ou GIF. O GIF continua animado em ambos os estados.': 'PNG or GIF. GIFs keep animating in both states.',
   'Aguarde o carregamento da imagem antes de salvar.': 'Wait for the image to finish loading before saving.',
   'Carregando…': 'Loading…',
-  'Desenhar área da tela da TV': 'Draw TV screen area', 'Confirmar área': 'Confirm area',
+  'Desenhar área da tela da TV': 'Draw TV screen area', 'Selecionar a área de imagem': 'Select image area', 'Confirmar área': 'Confirm area',
   '✏️ Clique e arraste sobre a imagem para desenhar o quadrado exato onde a tela/animação vai aparecer.':
     '✏️ Click and drag over the image to draw the exact square where the screen/animation will appear.',
-  'Voz e TTS': 'Voice & TTS',
+  'Voz e TTS': 'Voice & TTS', 'Treinar': 'Train',
+  'O Doll vem até a Persocon e aprende uma Skill': 'The Doll comes to the Persocon and learns a Skill',
   'Passo 1 — Ligar e escolher o motor de voz': 'Step 1 — Turn it on and choose the voice engine',
   'Windows funciona na hora; Voz Offline/Neural e API externa precisam de serviço ou chave.': 'Windows works right away; Offline/Neural voice and external APIs need a service or key.',
   'Passo 2 — Idioma, voz e ajuste fino': 'Step 2 — Language, voice and fine tuning',

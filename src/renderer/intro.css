@@ -46,7 +46,7 @@ body.title-on .status-dock, body.intro-on .status-dock, body.title-on .bag-dock,
 
 /* ---------- intro: box ---------- */
 .intro-box { position: fixed; left: 0; top: 0; z-index: 6; cursor: pointer; transform-origin: 50% 100%; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.45)); }
-.intro-box canvas { display: block; image-rendering: pixelated; }
+.intro-box canvas, .intro-box img { display: block; image-rendering: pixelated; }
 .intro-lid { position: absolute; left: 0; top: 0; transform-origin: 20% 100%; }
 .intro-crate { margin-top: 0; }
 .intro-box:hover .intro-crate, .intro-box:hover .intro-lid { filter: brightness(1.12); }

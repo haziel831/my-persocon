@@ -12,6 +12,7 @@ const chance = (p) => Math.random() < p;
 
 // Duo minigames (Brincar → Persocon & Doll). alive: needs the Crystal Mágico.
 export const DUOS = [
+  { id: 'treinar', icon: '🎓', name: 'Treinar', desc: 'O Doll vem até a Persocon e aprende uma Skill', alive: true },
   { id: 'abraco', icon: '🤗', name: 'Abraço', desc: 'A Persocon vai até o Doll e dá um abraço' },
   { id: 'pega', icon: '🏃', name: 'Pega-pega', desc: 'Os dois correm um atrás do outro (30s)', alive: true },
   { id: 'corrida', icon: '🏁', name: 'Corrida', desc: 'Aposte em quem chega primeiro', alive: true },
@@ -1655,6 +1656,11 @@ export class DollBrain {
     const d = this.doll;
     if (this.duo || this.waking != null || !d.active || pet.dead || pet.chase || minigames?.active || (pet.mini && !this.duo)) return false;
     if (kind !== 'abraco' && !d.alive) return false;
+    // Training has its own cooldown, claimed at the start of the duo (like the Crow).
+    if (kind === 'treinar') {
+      if (!this.app.doll || !trainReady('doll', this.app.game)) return false;
+      markTrain('doll', this.app.game);
+    }
     if (['pega', 'corrida', 'chute'].includes(kind) && (manual ? this.app.care?.refuse() : pet.drained?.())) return false;
     if (kind === 'chute' && !this.app.ball?.active) {
       if (manual) minigames?.toast('Coloque uma bola na área de trabalho primeiro');
@@ -1771,6 +1777,37 @@ export class DollBrain {
     }
     duo.t += dt;
     this[`duo_${duo.kind}`](dt, duo, grounded);
+  }
+
+  // Training: the Doll walks over to the Persocon, they practice together, then XP is granted.
+  // This mirrors the Crow's duo flow so both companions train side by side.
+  duo_treinar(dt, duo, grounded) {
+    const { pet } = this.app;
+    const d = this.doll;
+    if (duo.phase === 'start') {
+      if (this.dollMove(this.besidePet(), 1.15, dt, grounded)) {
+        this.petFace(d.x, 'idle');
+        this.duoPose = 'idle';
+        duo.phase = 'train';
+        duo.t = 0;
+        pet.emit('dollTrain', { id: d.focus || this.nextSkill?.() });
+      }
+      return;
+    }
+    if (duo.phase === 'train') {
+      // Little practice motions while they work together.
+      if (!duo.beat || (duo.beat -= dt) <= 0) {
+        duo.beat = 0.55;
+        this.petHappy();
+        d.anim?.(d.pickClip?.(['emote', 'idle'], ['idle']) || 'idle', { facing: pet.dir < 0 ? 'right' : 'left' });
+      }
+      if ((duo.elapsed = (duo.elapsed || 0) + dt) < 3) return;
+      const id = d.focus || this.nextSkill?.();
+      const ok = id ? teachDollSkill(this.app, id) : false;
+      pet.emit('dollLearn', { id, ok });
+      duo.react = ok ? 'happy' : 'sad';
+      this.endDuo();
+    }
   }
 
   // Hug: the pet walks over and hugs the Doll (alive or not).

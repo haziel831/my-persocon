@@ -101,6 +101,8 @@ const MORE = {
   dollGameEnd: [(d) => (d.won ? ['Ganhei do Doll!', 'Hehe, treina mais, Doll!', 'Mais uma?'] : d.tie ? ['Empate! Justo.', 'Ninguém ganhou!'] : ['O Doll me venceu?!', 'Como ele é bom nisso?!', 'Revanche!']),
     (d) => (d.won ? ['I beat the Doll!', 'Hehe, practice more, Doll!', 'One more?'] : d.tie ? ["A tie! Fair.", 'Nobody won!'] : ['The Doll beat me?!', "How is he so good?!", 'Rematch!']), 0.9],
   dollRead: [['Lendo junto comigo, Doll?', 'Essa parte é a melhor, Doll!', 'Não dá spoiler, hein!'], ['Reading with me, Doll?', 'This part is the best, Doll!', 'No spoilers, ok?'], 0.8],
+  dollTrain: [['Vem cá, Doll, vamos treinar!', 'Presta atenção, tá?', 'Hoje você vai aprender!'], ['Come here, Doll, let\'s train!', 'Pay attention, ok?', 'You\'re learning something today!'], 0.9],
+  dollLearn: [['Ele aprendeu!', 'Muito bem, Doll!', 'Eu sou uma ótima professora!'], ['He learned it!', 'Well done, Doll!', "I'm a great teacher!"], 1],
   crowBorn: [['Um corvo?!', 'Era isso na caixa? Que fofo!', 'Oi, passarinho!'], ['A crow?!', 'That was in the box? So cute!', 'Hi, birdie!'], 1],
   crowTrain: [(d) => (d.done ? ['Vamos praticar!', 'Você já sabe tudo, hein?'] : d.fresh ? ['Hoje vou te ensinar uma coisa nova!', 'Presta atenção, corvinho!'] : ['Mais um treino!', 'Vamos lá, de novo!', 'Olha como eu faço!']),
     (d) => (d.done ? ["Let's practice!", 'You know it all, huh?'] : d.fresh ? ["Today I'll teach you something new!", 'Pay attention, birdie!'] : ['One more practice!', "Let's go, again!", 'Watch how I do it!']), 0.9],

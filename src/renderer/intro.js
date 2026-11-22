@@ -7,8 +7,9 @@ import { upgradeJingle } from './upgradefx.js';
 import { personaLabel } from './persona.js';
 
 const LOGO_URL = new URL('./assets/logo.png', import.meta.url).href;
-const BW = 36;
-const BH = 30;
+const BOX_URL = new URL('./assets/items/delivery_box.png', import.meta.url).href;
+const BW = 64;
+const BH = 52;
 const VOICE = { M: 'grave', F: 'agudo', X: 'normal' };
 // Bundled units the player picks from; switching reloads the page and resumes at the box opening.
 const UNITS = { ninna: { dir: 'models/MyPersocon', name: 'Ninna' }, aghata: { dir: 'models/Aghata', name: 'Aghata' } };
@@ -146,19 +147,15 @@ export class Intro {
     const P = this.app.pet.P;
     this.scale = Math.max(2, (P * 0.95) / BW);
     this.box = el('div', 'intro-box hitzone');
-    const body = el('canvas', 'intro-crate');
-    const lid = el('canvas', 'intro-lid');
-    body.width = lid.width = BW;
-    body.height = BH;
-    lid.height = 6;
-    drawCrate(body.getContext('2d'), false);
-    drawCrate(lid.getContext('2d'), true);
-    body.style.width = lid.style.width = `${BW * this.scale}px`;
-    body.style.height = `${BH * this.scale}px`;
-    lid.style.height = `${6 * this.scale}px`;
+    // Official pixel-art delivery box; one crisp image (no canvas smoothing).
+    const img = el('img', 'intro-crate intro-lid');
+    img.src = BOX_URL;
+    img.draggable = false;
+    img.style.width = `${BW * this.scale}px`;
+    img.style.height = `${BH * this.scale}px`;
     this.hint = el('div', 'intro-hint', this.T.boxHint);
-    this.box.append(body, lid, this.hint);
-    this.lid = lid;
+    this.box.append(img, this.hint);
+    this.lid = img; // the whole sprite lifts away when the box bursts
     this.box.onclick = () => this.clickBox();
     document.body.append(this.box);
     this.bx = null;

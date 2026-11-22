@@ -3364,13 +3364,15 @@ export class ObjectsDialog extends Dialog {
         this.drawRegion
           ? h('button.act', { onclick: () => {
               if (this._regionDraft) this.region = this._regionDraft;
-              this.drawRegion = false; this._regionDraft = null; this.render();
+              this.drawRegion = false; this._regionDraft = null;
+              // Persist the normalized rectangle into this skin's store (Base/Upgrade) right away.
+              this.save();
             } }, translate('Confirmar área'))
           : h('button.act', { onclick: () => {
               this.drawRegion = true;
               this._regionDraft = this.region || app.skins.region(id, this.upgraded) || null;
               this.render();
-            } }, translate('Desenhar área da tela da TV')),
+            } }, translate('Selecionar a área de imagem')),
         this.drawRegion ? h('button.act', { onclick: () => {
           this.drawRegion = false; this._regionDraft = null; this.render();
         } }, translate('Cancelar')) : null) : null,

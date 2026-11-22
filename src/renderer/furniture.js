@@ -898,7 +898,7 @@ export class Furniture {
       const care = this.app.care;
       const up = this.app.game.toys.banheira?.up;
       // Both tiers sit inside the tub; the upgraded one gets a curtain + silhouette and the lower body is clipped.
-      pet.playToy({ id, dur: up ? rand(9, 15) : rand(14, 22), gain: this.gainOf(id, it), scale: 1, anim: 'sit', pose: 'sit', facing: 'front',
+      pet.playToy({ id, dur: up ? rand(9, 15) : rand(14, 22), gain: this.gainOf(id, it), scale: 1, anim: 'sit', pose: 'sit', facing: 'front', lift: 0,
         tick: (dt, tp) => care?.bathTick(dt, tp, true, up && this.toys.els.get('banheira')),
         onEnd: (i, tp) => { care?.bathEnd(i, !!up); end(i, tp); } });
       pet.emit('bath', { tub: true });

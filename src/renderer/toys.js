@@ -15,6 +15,9 @@ import { skillPick, skillGain, skillLevel } from './skills.js';
 import { dayPeriod } from './watch.js';
 import { ATTR_XP } from './attrxp.js';
 
+const FOOD_BAG_BASE = new URL('./assets/items/food_bag_base.png', import.meta.url).href;
+const FOOD_BAG_UP = new URL('./assets/items/food_bag_upgrade.png', import.meta.url).href;
+
 // The TV's "Em uso" art plays while she watches TV, plays a cartridge, or the TV overlay is on.
 const tvActive = (app, pet) => !!app.tvWatch?.on
   || pet.activity === 'watch'
@@ -623,13 +626,8 @@ export class Toys {
         el.append(sub);
       }
       btn('🎓 Ensinar skill ao Doll', () => {
-        const next = this.app.doll?.brain?.nextSkill?.();
-        if (!next) return sound.play('cancel', { volume: 0.4 });
-        this.app.doll?.brain?.teachSkill?.(next);
-        sound.play('ok', { volume: 0.4 });
-        const d = dollData(app);
-        const pct = Math.min(99, Math.round((d.xp[next] || 0)));
-        app.speech?.say(`${translate(DOLL_SKILLS[next].name)} · ${pct}%`, 3);
+        this.closeMenu?.();
+        if (!this.app.doll?.brain?.startDuo('treinar', true)) sound.play('cancel', { volume: 0.4 });
       });
     }
     if (id === 'videogame' && t && !t.broken) {
@@ -2870,7 +2868,9 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
         && (t.lampOn || this.app.pomodoro?.active || ['noite', 'madrugada'].includes(dayPeriod()));
       const deskArt = deskLit ? icon(t.up ? 'escrivaninha_up_lamp' : 'escrivaninha_lamp') : null;
       const muralArt = b === 'mural' ? icon(`mural_${t.frame || 'cortica'}${t.orient === 'portrait' ? '_v' : ''}`) : null;
-      const base = id === 'bag' ? icon('bag' + nb) : id === 'food' ? icon('backpack' + nb) : (muralArt || deskArt || this.furn.art(b, id)) || item?.img;
+      const base = id === 'bag' ? icon('bag' + nb)
+        : id === 'food' ? (nb ? FOOD_BAG_UP : FOOD_BAG_BASE)
+        : (muralArt || deskArt || this.furn.art(b, id)) || item?.img;
       const casino = this.app.casino;
       const cur = casino?.cur;
       // Gacha/Slot animations use the base id; an upgraded machine still has `up` on the spin.
