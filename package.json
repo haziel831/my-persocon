@@ -8,6 +8,7 @@
     "start": "tauri dev",
     "dist": "node scripts/build-edition.mjs beta",
     "dist:base": "node scripts/build-edition.mjs base",
+    "dist:combat": "node scripts/build-edition.mjs combat",
     "demo": "node scripts/demo.mjs",
     "preview": "node scripts/package.mjs --preview",
     "sim": "node test/sim.mjs",

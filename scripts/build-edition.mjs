@@ -1,13 +1,14 @@
 // Builds one of the two 2.0 editions from the same source, then restores the flags.
-//   node scripts/build-edition.mjs beta  -> dist/My Persocon 2.0 BETA  (Streamer/Twitch/IA/PTT)
-//   node scripts/build-edition.mjs base  -> dist/My Persocon 2.0       (game only)
+//   node scripts/build-edition.mjs beta   -> dist/My Persocon 2.0 BETA (Streamer/Twitch/IA/PTT)
+//   node scripts/build-edition.mjs base   -> dist/My Persocon 2.0      (game only)
+//   node scripts/build-edition.mjs combat -> dist/My Persocon Combat   (arena only)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const root = join(import.meta.dirname, '..');
 const mode = process.argv[2];
-if (mode !== 'base' && mode !== 'beta') throw new Error('Use: node scripts/build-edition.mjs base|beta');
+if (!['base', 'beta', 'combat'].includes(mode)) throw new Error('Use: node scripts/build-edition.mjs base|beta|combat');
 
 const jsFile = join(root, 'src', 'renderer', 'edition.js');
 const rsFile = join(root, 'src-tauri', 'src', 'main.rs');
@@ -21,6 +22,7 @@ if (!jsSrc.includes(JS_ON) && !jsSrc.includes(JS_OFF)) throw new Error('edition.
 if (!rsSrc.includes(RS_ON) && !rsSrc.includes(RS_OFF)) throw new Error('main.rs: STREAM_BUILD flag not found');
 
 const wantStream = mode === 'beta';
+const wantCombat = mode === 'combat';
 writeFileSync(jsFile, jsSrc.replace(JS_OFF, JS_ON).replace(JS_ON, wantStream ? JS_ON : JS_OFF));
 writeFileSync(rsFile, rsSrc.replace(RS_OFF, RS_ON).replace(RS_ON, wantStream ? RS_ON : RS_OFF));
 
@@ -30,6 +32,7 @@ try {
   if (code === 0) {
     const args = [join(root, 'scripts', 'package.mjs')];
     if (wantStream) args.push('--beta');
+    if (wantCombat) args.push('--combat');
     code = spawnSync(process.execPath, args, { stdio: 'inherit', cwd: root }).status ?? 1;
   }
 } finally {

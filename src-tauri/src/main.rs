@@ -1482,7 +1482,8 @@ fn main() {
         .ok()
         .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_lowercase()))
         .unwrap_or_default();
-    let combate = !preview && (args.iter().any(|a| a == "--combate") || exe_name.contains("combate"));
+    let combate = !preview && (args.iter().any(|a| a == "--combate")
+        || exe_name.contains("combate") || exe_name.contains("combat"));
     COMBATE.store(combate, Ordering::Relaxed);
     let root = find_root();
     let data = find_data(&root, combate);

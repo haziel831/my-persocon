@@ -9,10 +9,11 @@ const root = join(import.meta.dirname, '..');
 const { version, edition } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const demo = process.argv.includes('--demo');
 const beta = process.argv.includes('--beta');
-const name = demo ? 'My Persocon Demo' : 'My Persocon';
+const combat = process.argv.includes('--combat');
+const name = combat ? 'My Persocon Combat' : demo ? 'My Persocon Demo' : 'My Persocon';
 const short = version.replace(/^(\d+\.\d+)\.0$/, '$1');
-const suffix = demo ? '' : (beta ? 'BETA' : edition);
-const out = join(root, 'dist', [name, short, suffix].filter(Boolean).join(' '));
+const suffix = combat || demo ? '' : (beta ? 'BETA' : edition);
+const out = join(root, 'dist', combat ? name : [name, short, suffix].filter(Boolean).join(' '));
 const exe = join(out, `${name}.exe`);
 
 if (process.argv.includes('--preview')) {
@@ -26,8 +27,7 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const targetDir = process.env.CARGO_TARGET_DIR || join(root, 'src-tauri', 'target');
 copyFileSync(join(targetDir, 'release', 'persocon.exe'), exe);
-// A copy named "… Combate.exe" boots the arena: isolated fights, own player folder, no overlay.
-copyFileSync(exe, join(out, `${name} Combate.exe`));
+// The arena is its own build ("My Persocon Combat.exe"); normal editions ship only the game exe.
 for (const item of ['models/MyPersocon', 'models/Aghata', 'THIRD_PARTY_LICENSES.txt', 'LEIA-ME.txt']) {
   if (existsSync(join(root, item))) cpSync(join(root, item), join(out, item), { recursive: true });
   else console.warn(`Missing: ${item}`);
