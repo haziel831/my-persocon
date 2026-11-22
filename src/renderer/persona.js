@@ -443,6 +443,77 @@ export function personifyAutoLine(app, text) {
   return text;
 }
 
+const THANKS = {
+  estoica: {
+    pt: {
+      follow: ['Ah... você apareceu. Obrigada.', 'Mais um sinal na rede, obrigada.', 'Fico contente que tenha vindo.', 'Seu nome ficou registrado. Obrigada.', 'Olá... obrigada pelo follow.', 'O canal ganhou mais uma presença. Valeu.'],
+      sub: ['...obrigada pelo sub. Significa bastante.', 'Você escolheu ficar por aqui. Obrigada.', 'Gentil demais... obrigada.', 'Vou guardar isso com calma. Obrigada.', 'Seu apoio chegou até mim. Valeu.', '...obrigada, de verdade.'],
+      raid: ['Muitos sinais novos... bem-vindos.', 'Trouxeram a galera. Obrigada.', 'A sala encheu. Bem-vindos.', 'Obrigada por trazer todo mundo.', 'Bem-vindos ao canal, pessoal.', '...que movimento. Valeu.'],
+      bits: ['Recebi seus bits... obrigada.', 'Vou guardar com cuidado. Valeu.', 'Sinal brilhante. Obrigada.', 'Não precisava, mas obrigada.', 'Seu apoio chegou. Valeu.', 'Obrigada pelos bits.'],
+    },
+    en: {
+      follow: ['Ah... you showed up. Thank you.', 'Another signal in the network, thanks.', 'I am glad you came.', 'Your name is noted. Thank you.', 'Hello... thanks for the follow.', 'The channel gained one more presence. Thanks.'],
+      sub: ['...thanks for the sub. It means a lot.', 'You chose to stay here. Thank you.', 'Too kind... thank you.', 'I will keep this close. Thank you.', 'Your support reached me. Thanks.', '...thank you, truly.'],
+      raid: ['So many new signals... welcome.', 'You brought the crew. Thank you.', 'The room filled up. Welcome.', 'Thanks for bringing everyone.', 'Welcome to the channel, everyone.', '...what a rush. Thanks.'],
+      bits: ['I received your bits... thank you.', 'I will keep them safe. Thanks.', 'A bright signal. Thank you.', 'You did not have to, but thanks.', 'Your support arrived. Thanks.', 'Thank you for the bits.'],
+    },
+  },
+  genki: {
+    pt: { follow: ['Obrigada por aparecer!', 'Eba, follow novo!', 'Que bom te ver aqui!', 'Valeu demais pelo apoio!', 'Você chegou! Yay!', 'Bem-vindo ao canal!'],
+      sub: ['Valeu o sub! Você é incrível!', 'Sub novo! Aee!', 'Obrigada pelo apoio!', 'Isso me deixou feliz!', 'Você arrasou!', 'Muito obrigada mesmo!'],
+      raid: ['Bem-vindos, galera!', 'Chegou gente! Oi todo mundo!', 'Uma raid! Valeu!', 'A casa encheu! Bem-vindos!', 'Bora comemorar juntos!', 'Que chegada boa!'],
+      bits: ['Valeu os bits!', 'Chuva de moedas! Obrigada!', 'Você é demais!', 'Tlim-tlim! Valeu!', 'Fiquei feliz!', 'Obrigada pelo carinho!'] },
+    en: { follow: ['Thanks for showing up!', 'Yay, a new follow!', 'So good to see you here!', 'Thanks so much for the support!', 'You made it! Yay!', 'Welcome to the channel!'],
+      sub: ['Thanks for the sub! You are amazing!', 'New sub! Yay!', 'Thanks for the support!', 'This made me so happy!', 'You rocked it!', 'Thank you so much!'],
+      raid: ['Welcome, everyone!', 'We got company! Hi all!', 'A raid! Thanks!', 'The place is packed! Welcome!', "Let's celebrate together!", 'What a great arrival!'],
+      bits: ['Thanks for the bits!', 'Coin rain! Thank you!', 'You are the best!', 'Tlim-tlim! Thanks!', 'I am so happy!', 'Thanks for the love!'] },
+  },
+  tsundere: {
+    pt: { follow: ['Não é como se eu tivesse esperado... mas obrigada.', 'Você apareceu? Tudo bem, fico grata.', 'Follow registrado. Só isso.', 'Não pense que isso me deixou feliz.', 'Valeu... acho eu.', 'Bem-vindo, mas não faça drama.'],
+      sub: ['Não precisava, mas obrigada.', 'Um sub? Hm... aceito.', 'Você exagerou. Valeu.', 'Tá, fiquei feliz. Só isso.', 'Obrigada... não comemore tanto.', 'Não é como se eu precisasse.'],
+      raid: ['Tanta gente... bem-vindos, acho.', 'Você trouxe todo mundo? Hm.', 'Não foi nada de mais. Bem-vindos.', 'Faz silêncio aí, pessoal.', 'Obrigada pela raid... acho.', 'Que movimento. Valeu.'],
+      bits: ['Bits? Não precisava... mas valeu.', 'Recebi. Só isso.', 'Você tá tentando me impressionar?', 'Obrigada, acho eu.', 'Guardei com cuidado.', 'Tá, fiquei grata.'] },
+    en: { follow: ['Not like I was waiting... but thanks.', 'You showed up? Fine, I am grateful.', 'Follow noted. That is all.', 'Do not think this made me happy.', 'Thanks... I guess.', 'Welcome, but no drama.'],
+      sub: ['You did not have to, but thanks.', 'A sub? Hm... I accept.', 'You overdid it. Thanks.', 'Fine, I am happy. That is all.', 'Thanks... do not cheer so much.', 'Not like I needed it.'],
+      raid: ['So many people... welcome, I guess.', 'You brought everyone? Hm.', 'No big deal. Welcome.', 'Quiet down, everyone.', 'Thanks for the raid... I guess.', 'What a rush. Thanks.'],
+      bits: ['Bits? You did not have to... but thanks.', 'Received. That is all.', 'Trying to impress me?', 'Thanks, I guess.', 'I kept them safe.', 'Fine, I am grateful.'] },
+  },
+  dandere: {
+    pt: { follow: ['O-obrigada por aparecer...', 'Fico feliz que você esteja aqui.', 'Oi... obrigada pelo follow.', 'Não sei o que dizer... valeu.', 'Você veio me ver? Obrigada.', 'Fico envergonhada, mas obrigada.'],
+      sub: ['Um sub? Fico sem palavras...', 'Obrigada, fico feliz demais.', 'Não mereço tanta coisa...', 'Vou guardar com carinho.', 'Obrigada mesmo, {user}.', 'Fico corada só de pensar.'],
+      raid: ['Tanta gente... oi, pessoal.', 'Bem-vindos... fico nervosa.', 'Obrigada por trazer todo mundo.', 'Sejam bem-vindos, por favor.', 'A sala encheu... valeu.', 'Oi, oi... obrigada.'],
+      bits: ['O-brigada pelos bits...', 'Fico feliz com seu apoio.', 'Vou cuidar bem deles.', 'Obrigada, fico sem jeito.', 'Recebi... valeu mesmo.', 'Obrigada pelo carinho.'] },
+    en: { follow: ['T-thanks for showing up...', 'I am happy you are here.', 'Hi... thanks for the follow.', 'I do not know what to say... thanks.', 'You came to see me? Thank you.', 'I am embarrassed, but thanks.'],
+      sub: ['A sub? I am speechless...', 'Thank you, I am so happy.', 'I do not deserve this...', 'I will keep it with care.', 'Thank you so much.', 'I blush just thinking about it.'],
+      raid: ['So many people... hi everyone.', 'Welcome... I am nervous.', 'Thanks for bringing everyone.', 'Welcome, please.', 'The room filled up... thanks.', 'Hi, hi... thank you.'],
+      bits: ['T-thanks for the bits...', 'I am happy with your support.', 'I will take good care of them.', 'Thank you, I feel shy.', 'Received... thanks so much.', 'Thanks for the kindness.'] },
+  },
+  chuuni: {
+    pt: { follow: ['Mais uma alma cruzou o portal do canal!', 'Seu sinal foi selado nas runas. Bem-vindo.', 'O pacto se amplia. Obrigada.', 'A lenda ganha novo capítulo: {user}.', 'A rede recebeu sua aura. Valeu.', 'Sua chegada foi profecia. Obrigada.'],
+      sub: ['Seu vínculo foi selado! Aceito o sub.', 'A insígnia de {user} brilha nas trevas.', 'O contrato se fortalece. Obrigada.', 'Energia dimensional recebida. Valeu.', 'O ritual aceita sua oferenda.', 'Que a chakra da inscrição te acompanhe.'],
+      raid: ['Uma incursão! A legião atravessou o portal!', 'Muitas assinaturas... bem-vindos, soldados.', 'O céu rachou e {user} trouxe sua legião.', 'A batalha pela atenção começou!', 'Recebo a chuva de espectadores. Valeu.', 'Que os astros abençoem esta raid.'],
+      bits: ['Fragmentos de luz de {user}... o altar agradece.', 'A essência dourada foi aceita.', 'Os bits de {user} brilham como estrelas.', 'A oferenda foi selada no pergaminho.', 'A chakra dourada renova o portal.', 'Recebo o tributo. Obrigada.'] },
+    en: { follow: ['Another soul crossed the channel portal!', 'Your signal is sealed in the runes. Welcome.', 'The pact grows. Thank you.', 'The legend gains a chapter: {user}.', 'The network received your aura. Thanks.', 'Your arrival was prophecy. Thank you.'],
+      sub: ['Your bond is sealed! Sub accepted.', 'The insignia of {user} shines in the dark.', 'The contract strengthens. Thank you.', 'Dimensional energy received. Thanks.', 'The ritual accepts your offering.', 'May the chakra of subscription guide you.'],
+      raid: ['An incursion! The legion crossed the portal!', 'Many signatures... welcome, soldiers.', 'The sky split and {user} brought a legion.', 'The battle for attention began!', 'I receive the rain of viewers. Thanks.', 'May the stars bless this raid.'],
+      bits: ['Light fragments from {user}... the altar thanks you.', 'The golden essence was accepted.', 'The bits of {user} shine like stars.', 'The offering is sealed in the scroll.', 'Golden chakra renews the portal.', 'I receive the tribute. Thank you.'] },
+  },
+};
+
+const lastThanks = {};
+export function alertThanks(app, type, user) {
+  const en = app?.config?.lang === 'en';
+  const id = getPersona(app);
+  const list = THANKS[id]?.[en ? 'en' : 'pt']?.[type] || [];
+  if (!list.length) return '';
+  const key = `${id}:${type}`;
+  let pickList = list;
+  if (list.length > 1 && lastThanks[key] != null) pickList = list.filter((_, i) => i !== lastThanks[key]);
+  const idx = Math.floor(Math.random() * pickList.length);
+  lastThanks[key] = list.indexOf(pickList[idx]);
+  return pickList[idx].replace(/\{user\}/g, String(user || ''));
+}
+
 const AFFINITY_LINE = {
   love: {
     pt: 'Hmm... isso combina comigo. Obrigada.',

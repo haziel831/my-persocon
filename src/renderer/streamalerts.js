@@ -1,5 +1,5 @@
 // Local bridge alert queue: batches follows and reacts with speech, VFX and helpers.
-import { personaLine, randomReaction } from './persona.js';
+import { alertThanks, personaLine, randomReaction } from './persona.js';
 import { upgradeJingle } from './upgradefx.js';
 
 export class StreamAlerts {
@@ -57,11 +57,11 @@ export class StreamAlerts {
     switch (cfg.action) {
       case 'moedas':
         app.game.earn(coins, 'Pontos do canal');
-        app.speech?.say(personaLine(app, 'coins', { user, coins }), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'coins', { user, coins }), 3, { priority: true, source: 'alert' });
         break;
       case 'sky_drop':
         app.toys?.skyDrop?.(cfg.item || 'maca', { fromUser: false });
-        app.speech?.say(personaLine(app, 'drop', { user }), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'drop', { user }), 3, { priority: true, source: 'alert' });
         break;
       case 'mural_note': {
         const key = Object.keys(app.game.toys || {}).find((k) => k.split('#')[0] === 'mural' && app.game.toys[k].placed);
@@ -69,14 +69,14 @@ export class StreamAlerts {
           app.game.toys[key].note = text;
           app.game.changed();
           app.toys.updateMural(key);
-          app.speech?.say(personaLine(app, 'mural', { user, text }), 4, { priority: true });
-        } else app.speech?.say(app.config.lang === 'en' ? 'There is no placed photo board.' : 'Não há um mural posicionado.', 3, { priority: true });
+          app.speech?.say(personaLine(app, 'mural', { user, text }), 4, { priority: true, source: 'alert' });
+        } else app.speech?.say(app.config.lang === 'en' ? 'There is no placed photo board.' : 'Não há um mural posicionado.', 3, { priority: true, source: 'alert' });
         break;
       }
       case 'bolhas': case 'aviao': case 'trio': {
         const id = cfg.action === 'bolhas' ? 'bolhas' : cfg.action === 'aviao' ? 'aviao' : 'trio';
         if (id === 'trio') app.trio?.startTheft?.(); else app.toys?.callFurn?.(id);
-        app.speech?.say(personaLine(app, 'toy', { user, id }), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'toy', { user, id }), 3, { priority: true, source: 'alert' });
         break;
       }
       case 'pagar_cafe': {
@@ -85,7 +85,7 @@ export class StreamAlerts {
         app.game.changed?.();
         app.toys?.callFurn?.('cafeteira');
         app.gainAffection?.(5, 'pagar_cafe');
-        app.speech?.say(personaLine(app, 'coffee', { user }), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'coffee', { user }), 3, { priority: true, source: 'alert' });
         break;
       }
       case 'dar_lanche': {
@@ -93,31 +93,31 @@ export class StreamAlerts {
         app.game.inventory[food] = (app.game.inventory[food] || 0) + 1;
         app.game.changed?.();
         app.gainAffection?.(5, 'dar_lanche');
-        app.speech?.say(personaLine(app, 'snack', { user }), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'snack', { user }), 3, { priority: true, source: 'alert' });
         break;
       }
       case 'cafune':
         app.setHand?.('pat');
         app.emoticons?.show?.('love', true);
         app.gainAffection?.(6, 'cafune');
-        app.speech?.say(personaLine(app, 'pat', { user }), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'pat', { user }), 3, { priority: true, source: 'alert' });
         break;
       case 'desenho': {
         const key = Object.keys(app.game.toys || {}).find((k) => k.split('#')[0] === 'mural' && app.game.toys[k].placed);
         if (key) { app.game.toys[key].note = `♥ ${user}`; app.game.changed?.(); app.toys?.updateMural?.(key); }
-        app.speech?.say(personaLine(app, 'draw', { user }), 4, { priority: true });
+        app.speech?.say(personaLine(app, 'draw', { user }), 4, { priority: true, source: 'alert' });
         break;
       }
       case 'susto':
         app.pet?.react?.('scare');
-        app.speech?.say(personaLine(app, 'scare'), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'scare'), 3, { priority: true, source: 'alert' });
         break;
       case 'clima': {
         const all = ['chuva', 'sakura', 'neve', 'vagalumes'];
         const kind = all.find((k) => text.toLowerCase().includes(k) || cfg.climate === k)
           || all[Math.floor(Math.random() * all.length)];
         if (app.weather) { app.weather.start(kind); app.weather.until = Date.now() + 120000; }
-        app.speech?.say(personaLine(app, 'climate', { kind }), 3, { priority: true });
+        app.speech?.say(personaLine(app, 'climate', { kind }), 3, { priority: true, source: 'alert' });
         break;
       }
       case 'tts_say':
@@ -130,9 +130,10 @@ export class StreamAlerts {
   }
 
   // Floating reaction emote (bottom-left of the stage), 3s hold, no stacking.
-  showReactionEmote(emotion = 'normal') {
+  showReactionEmote(emotion = 'normal', speech = '') {
     const app = this.app;
-    if (!window.__PET_STREAMER__ || app.config.reactionEmote === false) return;
+    if (!window.__PET_STREAMER__ && app.config.emotesOutsideStreamer !== true) return;
+    if (app.config.reactionEmote === false) return;
     const folder = /aghata|agatha/i.test(app.config?.modelDir || '') ? 'aghata' : 'ninna';
     const files = {
       normal: 'normal.png', shy: 'shy.png', sad: 'sad.png', anxious: 'anxious.png',
@@ -154,13 +155,36 @@ export class StreamAlerts {
       img.onerror = null;
       img.src = new URL(`../assets/emotes/aghata/normal.png`, import.meta.url).href;
     };
+    let bubble = this.reactionBubble;
+    if (!bubble || !bubble.isConnected) {
+      bubble = document.createElement('div');
+      bubble.className = 'reaction-bubble';
+      document.body.append(bubble);
+      this.reactionBubble = bubble;
+    }
+    if (speech) {
+      bubble.textContent = String(speech).replace(/[<>&"']/g, '').slice(0, 220);
+      bubble.hidden = false;
+    } else {
+      bubble.hidden = true;
+    }
     el.classList.add('up');
+    bubble.classList.add('up');
     clearTimeout(this.reactionTimer);
     clearTimeout(this.reactionTimer2);
-    this.reactionTimer = setTimeout(() => {
+    const finish = () => {
       el.classList.remove('up');
-      this.reactionTimer2 = setTimeout(() => { el.remove(); this.reactionEl = null; }, 500);
-    }, 3000);
+      bubble.classList.remove('up');
+      this.reactionTimer2 = setTimeout(() => {
+        el.remove(); this.reactionEl = null;
+        bubble.remove(); this.reactionBubble = null;
+      }, 500);
+    };
+    this.reactionTimer = setTimeout(() => {
+      // Keep her on screen while the TTS is still talking, plus 2 extra seconds.
+      if (app.tts?.speaking) this.reactionTimer = setTimeout(finish, 2000);
+      else finish();
+    }, 6000);
   }
 
   reactionForText(text) {
@@ -175,12 +199,12 @@ export class StreamAlerts {
 
   // 5-second Follow celebration: same approach state as "ask for attention",
   // rhythmic hops, a held thank-you sign and the furniture-upgrade jingle.
-  followCelebration(user, subtitle = '', extras = false) {
+  followCelebration(user, subtitle = '', extras = false, kind = 'follow') {
     const app = this.app;
     const pet = app.pet;
     if (!pet) return;
-    upgradeJingle(app.sound);
     const name = String(user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40);
+    const thanks = alertThanks(app, kind, name);
     const sign = document.createElement('div');
     sign.className = 'follow-thanks';
     const who = document.createElement('b');
@@ -191,9 +215,11 @@ export class StreamAlerts {
       sub.textContent = subtitle;
       sign.append(sub);
     }
-    const thanks = document.createElement('span');
-    thanks.textContent = 'Thanks!';
-    sign.append(who, thanks);
+    const phrase = document.createElement('span');
+    phrase.className = 'ft-phrase';
+    phrase.textContent = thanks;
+    sign.append(who, phrase);
+    sign.style.display = 'none';
     document.body.append(sign);
     let spotlights = null;
     let spotRaf = 0;
@@ -202,57 +228,69 @@ export class StreamAlerts {
       spotlights.className = 'follow-spotlights';
       spotlights.width = innerWidth; spotlights.height = innerHeight;
       document.body.append(spotlights);
+      spotlights.style.display = 'none';
       const g = spotlights.getContext('2d');
       const colors = ['#ff3ea5', '#5ef0ff', '#a855f7', '#ffd23f'];
       const t0 = performance.now();
       const draw = (now) => {
         const t = (now - t0) / 1000;
-        if (t >= 5 || !spotlights.isConnected) return;
+        if (!spotlights.isConnected || spotlights.style.display === 'none') { spotRaf = requestAnimationFrame(draw); return; }
+        if (t >= 5) return;
         g.clearRect(0, 0, spotlights.width, spotlights.height);
         for (let i = 0; i < 4; i++) {
           const x = spotlights.width * (0.2 + 0.2 * i) + Math.sin(t * 1.6 + i) * spotlights.width * 0.18;
           g.globalAlpha = 0.12 + 0.06 * Math.sin(t * 6 + i);
           g.fillStyle = colors[i];
-          g.beginPath();
-          g.moveTo(x, -20);
-          g.lineTo(x + 130, spotlights.height);
-          g.lineTo(x - 130, spotlights.height);
-          g.closePath(); g.fill();
+          g.beginPath(); g.moveTo(x, -20); g.lineTo(x + 130, spotlights.height);
+          g.lineTo(x - 130, spotlights.height); g.closePath(); g.fill();
         }
         g.globalAlpha = 1;
         spotRaf = requestAnimationFrame(draw);
       };
       spotRaf = requestAnimationFrame(draw);
-      app.fx?.confettiRain?.(60);
     }
-    let jumpAt = -1;
-    app.interact?.toy?.('attention', {
-      id: 'ix_follow', dur: 5, anim: 'idle', facing: 'front',
+    let appeared = false;
+    const cleanup = () => {
+      cancelAnimationFrame(spotRaf);
+      app.closeup?.resetVisual?.();
+      pet.hideRect = null;
+      pet.bodyY = 0;
+      for (const el of [sign, spotlights]) {
+        if (!el) continue;
+        el.classList.add('leaving');
+        setTimeout(() => el.remove(), 350);
+      }
+    };
+    pet.playToy({
+      id: 'ix_alert', dur: 5.8, anim: 'idle', facing: 'front',
       tick: (dt, tp) => {
         const P = pet.P || 64;
-        const z = pet.zoom || 1;
-        pet.zoom = 1 + 0.35 * Math.min(1, tp.t / 1.2);
-        sign.style.left = `${Math.round(pet.x - 70)}px`;
-        sign.style.top = `${Math.round(pet.y - P * z * 1.15 + pet.bodyY)}px`;
-        const phase = Math.floor(tp.t / 0.55);
-        if (phase !== jumpAt) {
-          jumpAt = phase;
-          pet.anim('jump', { facing: 'front', restart: true });
+        if (tp.t < 0.35) {
+          // Fase 1: jump up and disappear from the normal stage.
+          const u = tp.t / 0.35;
+          pet.bodyY = -Math.sin(Math.PI * u) * P * 1.1;
+          pet.hideRect = u > 0.85 ? { x: -innerWidth, y: pet.y, w: innerWidth * 3, h: innerHeight * 2 } : null;
+          return;
         }
-        const u = (tp.t % 0.55) / 0.55;
-        pet.bodyY = -Math.sin(Math.PI * u) * P * 0.45;
-      },
-      onEnd: () => {
-        cancelAnimationFrame(spotRaf);
-        if (spotlights) {
-          spotlights.classList.add('leaving');
-          setTimeout(() => spotlights.remove(), 350);
+        if (!appeared) {
+          appeared = true;
+          pet.bodyY = 0;
+          pet.hideRect = null;
+          upgradeJingle(app.sound);
+          const Z = 2.6;
+          const sx = innerWidth / 2 - Z * P * 0.35;
+          const feet = innerHeight + Z * P * 0.2;
+          if (app.closeup?.place) app.closeup.place(Z, feet, sx);
+          else { pet.zoom = Z; pet.shiftX = sx - pet.x; pet.bodyY = feet - pet.y - (Z - 1) * P * 0.55; }
+          sign.style.display = 'flex';
+          sign.style.left = `${Math.round(sx - 70)}px`;
+          sign.style.top = `${Math.round(innerHeight * 0.26)}px`;
+          if (spotlights) spotlights.style.display = 'block';
+          if (extras) app.fx?.confettiRain?.(60);
         }
-        sign.classList.add('leaving');
-        setTimeout(() => sign.remove(), 350);
-        pet.bodyY = 0;
-        pet.zoom = null;
+        sign.classList.add('up');
       },
+      onEnd: cleanup,
     });
   }
 
@@ -347,24 +385,24 @@ export class StreamAlerts {
           app.doll?.brain?.say?.('♥', 2);
           app.fx?.followHearts?.(6);
         }
-        this.followCelebration(user);
+        this.followCelebration(user, '', false, 'follow');
         app.gainAffection?.(2, 'follow');
         line = thanks('follow', { user });
         break;
       case 'sub':
-        if (window.__PET_STREAMER__) this.followCelebration(user, 'SUB!', true);
+        if (window.__PET_STREAMER__) this.followCelebration(user, 'SUB!', true, 'sub');
         else if (rich) { app.pet?.react?.('cheer'); app.fx?.confettiRain?.(18); app.crow?.say?.('🎉', 2); }
         app.gainAffection?.(8, 'sub');
         line = thanks('sub', { user });
         break;
       case 'raid':
-        if (window.__PET_STREAMER__) this.followCelebration(user, 'RAID!', true);
+        if (window.__PET_STREAMER__) this.followCelebration(user, 'RAID!', true, 'raid');
         else if (rich) { app.pet?.react?.('cheer'); app.fx?.confettiRain?.(28); }
         app.gainAffection?.(6, 'raid');
         line = thanks('raid', { user, viewers: ev.viewers || 15 });
         break;
       case 'bits':
-        if (window.__PET_STREAMER__) this.followCelebration(user, `${ev.amount || 0} BITS`, true);
+        if (window.__PET_STREAMER__) this.followCelebration(user, `${ev.amount || 0} BITS`, true, 'bits');
         else if (rich) { app.pet?.react?.('cheer'); app.fx?.coinRain?.(20); app.sound?.play?.('coin', { volume: 0.75 }); }
         app.gainAffection?.(4, 'bits');
         line = thanks('bits', { user, amount: ev.amount || 0 });
@@ -383,10 +421,10 @@ export class StreamAlerts {
       follow: 'shy', sub: 'hype', raid: 'hype', bits: 'hype', redeem: 'gentle',
       pagar_cafe: 'gentle', dar_lanche: 'gentle', cafune: 'shy', susto: 'anxious', tts_say: 'normal',
     };
-    this.showReactionEmote(emotionByType[ev.type] || this.reactionForText(line));
+    this.showReactionEmote(emotionByType[ev.type] || this.reactionForText(line), line);
     if (line) {
       app.chatBox?.push?.(ev.type, line);
-      app.speech?.say(line, 3.5, { priority: true });
+      app.speech?.say(line, 3.5, { priority: true, source: 'alert' });
     }
   }
 }

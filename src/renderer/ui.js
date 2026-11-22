@@ -1363,6 +1363,24 @@ export class Menu {
       h('div.row', {}, h('span.label', {}, 'Painel do Streamer'), segmented([
         ['window', 'Janela separada'], ['tab', 'Aba no navegador'],
       ], c.streamPanelMode || 'window', (v) => { app.setOption('streamPanelMode', v); window.petAPI?.openStreamerPanel?.(v); })),
+      h('div.group', {}, '🔑 IAs & Chaves API'),
+      toggle({ label: 'Trocar automaticamente para a próxima IA quando os tokens acabarem', value: c.aiAutoFallback !== false, onchange: (v) => app.setOption('aiAutoFallback', v) }),
+      ...(c.aiProviders || []).map((p, i) => h('div.row', {},
+        h('span.label', {}, p.name || `IA ${i + 1}`),
+        h('button.mini', { onclick: () => {
+          const list = c.aiProviders.slice();
+          if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; app.setOption('aiProviders', list); }
+        } }, '↑'),
+        h('button.mini', { onclick: () => {
+          const list = c.aiProviders.slice();
+          if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; app.setOption('aiProviders', list); }
+        } }, '↓'),
+        h('button.mini', { onclick: () => app.setOption('aiProviders', c.aiProviders.filter((_, n) => n !== i)) }, '×'),
+      )),
+      h('div.row', {}, h('button', { onclick: () => app.setOption('aiProviders', [
+        ...(c.aiProviders || []),
+        { id: `ai-${Date.now()}`, name: 'OpenAI compatível', provider: 'openai', endpoint: '', model: 'gpt-4o-mini', apiKey: '', enabled: true },
+      ]) }, '+ Adicionar IA')),
       h('div.row', {}, h('span.label', {}, 'Motor de voz'), segmented([
         ['edge', 'Edge Neural'], ['fish', 'Fish Audio'], ['offline', 'Offline TTS'], ['system', 'Windows'],
       ], c.ttsEngine || 'edge', (v) => { app.setOption('ttsEngine', v); this.render(); })),
@@ -1400,11 +1418,14 @@ export class Menu {
       h('div.row', {}, h('span.label', {}, 'Filtro de timbre'), segmented([
         ['natural', 'Natural'], ['warm', 'Quente'], ['wired', 'Wired'],
       ], c.ttsFilter || 'natural', (v) => app.setOption('ttsFilter', v))),
+      h('div.row', {}, h('span.label', {}, 'Quando responder com TTS'), segmented([
+        ['always', 'Todo tempo'], ['never', 'Nunca'], ['viewers_only', 'Só viewers'],
+        ['me_only', 'Apenas eu'], ['viewers_and_me', 'Viewers e eu'], ['mixed', 'Misturado'],
+      ], c.ttsRespondMode || 'mixed', (v) => app.setOption('ttsRespondMode', v))),
       h('div.row', {}, h('span.label', {}, 'Personalidade de voz'), segmented([
         ['padrao', 'Padrão'], ['estoica', 'Estóica'],
       ], c.streamPersona || 'padrao', (v) => app.setOption('streamPersona', v))),
       toggle({ label: 'Audio Ducking', value: c.ttsDucking !== false, onchange: (v) => app.setOption('ttsDucking', v) }),
-      toggle({ label: 'Mostrar equalizador de voz', value: c.ttsVisualizer !== false, onchange: (v) => app.setOption('ttsVisualizer', v) }),
       toggle({ label: `Modo "Esperando você voltar" quando ausente`, value: c.awayCozy !== false, onchange: (v) => app.setOption('awayCozy', v) }),
       app.tts?.lastError ? h('div.note', { style: { color: '#ff8fa0' } }, app.tts.lastError) : null,
       h('div.group', {}, 'Ajuda'),
@@ -1483,6 +1504,7 @@ export class Menu {
       ], c.weather || 'auto', (v) => app.setOption('weather', v))),
       h('div.note', {}, 'Automático: eventos raros de 2 a 4 minutos · vagalumes só à noite ou madrugada.'),
       h('div.group', {}, 'Comportamento'),
+      toggle({ label: 'Usar emotes fora do Modo Streamer', value: c.emotesOutsideStreamer === true, onchange: (v) => app.setOption('emotesOutsideStreamer', v) }),
       toggle({ label: 'Rotina diária (saudações por período)', value: c.dayRoutine !== false, onchange: (v) => app.setOption('dayRoutine', v) }),
       toggle({ label: 'Começar Ouvir Música / Assistir sozinho', value: c.autoActivity !== false, onchange: (v) => app.setOption('autoActivity', v) }),
       toggle({ label: 'Reagir ao que acontece no desktop (janelas, mouse)', value: c.desktopReactions !== false, onchange: (v) => app.setOption('desktopReactions', v) }),

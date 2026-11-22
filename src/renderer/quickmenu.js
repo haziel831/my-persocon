@@ -34,6 +34,17 @@ export class QuickMenu {
       };
       return btn;
     };
+    const ttsToggle = () => {
+      const streamer = !!window.__PET_STREAMER__ || !!app.config.streamer;
+      const key = streamer ? 'ttsEnabled' : 'offlineTts';
+      const on = key === 'ttsEnabled' ? app.config.ttsEnabled !== false : app.config.offlineTts === true;
+      const btn = document.createElement('button');
+      btn.className = `qm-item${on ? ' on' : ''}`;
+      btn.innerHTML = `<span>🗣 TTS</span><b>${on ? 'ON' : 'OFF'}</b>`;
+      btn.title = streamer ? 'Voz do Modo Streamer' : 'Voz offline do jogo';
+      btn.onclick = () => { app.sound.play('ok'); this.close(); app.setOption(key, !on); };
+      return btn;
+    };
     const action = (label, tip, fn) => {
       const btn = document.createElement('button');
       btn.className = 'qm-item';
@@ -99,7 +110,8 @@ export class QuickMenu {
       slider('🔊 Efeitos', 'volume', 0.3),
       slider('🗨 Voz', 'voiceVolume', 0.7),
       slider('🎮 GameBuddy', 'gbVolume', 0.25, 2),
-      item('🔈 Efeitos sonoros', 'sound'));
+      item('🔈 Efeitos sonoros', 'sound'),
+      ttsToggle());
     document.body.append(el);
     const r = el.getBoundingClientRect();
     el.style.left = `${Math.round(Math.min(Math.max(6, x - r.width / 2), innerWidth - r.width - 6))}px`;

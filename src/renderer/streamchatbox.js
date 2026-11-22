@@ -1,5 +1,6 @@
 // Floating chat-style panel for the Streamer stage: draggable, resizable,
 // hideable and persisted in config (save-streamer.json).
+import { aiBackground, personaLine } from './persona.js';
 const MAX = 30;
 const DEFAULTS = { x: 24, y: 90, w: 360, h: 320, visible: true };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -30,9 +31,22 @@ export class StreamChatBox {
     this.head.append(grip, title, this.clearBtn, this.hideBtn);
     this.list = document.createElement('div');
     this.list.className = 'scb-list';
+    this.form = document.createElement('form');
+    this.form.className = 'scb-input-row';
+    this.input = document.createElement('input');
+    this.input.type = 'text';
+    this.input.maxLength = 240;
+    this.input.placeholder = app.config?.lang === 'en' ? 'Talk to the Persocon...' : 'Falar com a Persocon...';
+    const send = document.createElement('button');
+    send.type = 'submit';
+    send.textContent = app.config?.lang === 'en' ? 'Send' : 'Enviar';
+    this.form.append(this.input, send);
+    this.form.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.form.addEventListener('mousedown', (e) => e.stopPropagation());
+    this.form.addEventListener('submit', (e) => { e.preventDefault(); this.send(); });
     this.resize = document.createElement('div');
     this.resize.className = 'scb-resize';
-    this.root.append(this.head, this.list, this.resize);
+    this.root.append(this.head, this.list, this.form, this.resize);
     document.body.append(this.root);
     this.bind();
     this.restore();
@@ -74,6 +88,39 @@ export class StreamChatBox {
       width: `${DEFAULTS.w}px`, height: `${DEFAULTS.h}px`,
     });
     this.setVisible(true);
+  }
+
+  send() {
+    this.submitText(this.input.value);
+    this.input.value = '';
+  }
+
+  submitText(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return;
+    const app = this.app;
+    const who = app.config?.name || (app.config?.lang === 'en' ? 'You' : 'Você');
+    this.push('you', `${who}: ${text}`);
+    const c = app.config || {};
+    const fallback = () => {
+      const line = personaLine(app, 'hi') || (c.lang === 'en' ? 'Hi! I am listening.' : 'Oi! Estou ouvindo.');
+      this.push('pet', line);
+      app.speech?.say(line, 3.5, { source: 'owner' });
+    };
+    if (c.aiEnabled !== true) { fallback(); return; }
+    const cfg = {
+      aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
+      aiApiKey: c.aiApiKey || '', lang: c.lang || 'pt',
+    };
+    const prompt = `${c.lang === 'en' ? 'The streamer said' : 'O dono do canal disse'}: ${text}`;
+    window.petAPI?.aiReply?.(prompt, c.aiSystemPrompt || aiBackground(app), cfg)
+      .then((reply) => {
+        const line = String(reply?.text || '').trim().slice(0, 200);
+        if (!line) throw new Error('empty');
+        this.push('pet', line);
+        app.speech?.say(line, 4, { source: 'owner' });
+      })
+      .catch(() => fallback());
   }
 
   push(kind, text) {

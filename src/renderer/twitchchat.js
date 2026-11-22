@@ -3,6 +3,19 @@ import { personaLine } from './persona.js';
 
 const BOTS = ['nightbot', 'streamelements', 'streamlabs', 'moobot'];
 
+export const DEFAULT_KEYWORD_RULES = [
+  { words: 'gg', action: 'cheer', text: '' },
+  { words: 'f', action: 'sad', text: '' },
+  { words: 'kkk,haha,lol', action: 'laugh', text: '' },
+  { words: 'postura,posture', action: 'posture', text: '' },
+  { words: 'agua,água,hidrata,water', action: 'water', text: '' },
+];
+
+const ACTION_PERSONA = {
+  cheer: 'gg', laugh: 'gg', sad: 'f', dance: 'dance', love: 'pat',
+  scare: 'scare', sleep: 'brb', confetti: 'gg', posture: 'posture', water: 'water', say: 'gg',
+};
+
 export class TwitchChat {
   constructor(app) {
     this.app = app;
@@ -102,12 +115,14 @@ export class TwitchChat {
   }
 
   speakChat(raw, user, t, login) {
-    let text = String(raw || '');
+    // Twitch spans count Unicode code points, not UTF-16 units.
+    const chars = Array.from(String(raw || ''));
     for (const [a, b] of this.emoteSpans(t.emotes).sort((x, y) => y[0] - x[0])) {
-      text = text.slice(0, a) + ' ' + text.slice(b + 1);
+      chars.splice(a, b - a + 1, ' ');
     }
+    const text = chars.join('');
     return this.app.tts?.enqueue?.(text, {
-      chat: true, user, login, badges: t.badges || '',
+      chat: true, source: 'viewer', user, login, badges: t.badges || '',
       follower: t.follower === '1' || t.follower === 'true'
         || this.app.knownFollowers?.has(String(user || '').toLowerCase())
         || this.app.knownFollowers?.has(String(login || '').toLowerCase()),
@@ -175,6 +190,10 @@ export class TwitchChat {
   maybeAi(text, user, deny) {
     const c = this.app.config;
     if (c.aiEnabled !== true || this.aiBusy || deny) return false;
+    if (typeof window.petAPI?.aiReply !== 'function') {
+      this.pushLog(user, 'aiReply indisponível', 'IA: erro');
+      return false;
+    }
     const active = String(c.name || '').toLowerCase();
     const match = /\b(aghata|agatha|ninna)\b/i.exec(text);
     if (!match) return false;
@@ -184,18 +203,23 @@ export class TwitchChat {
     if (now - this.lastAi < (Number(c.aiCooldown ?? 20) * 1000)) return false;
     this.lastAi = now;
     this.aiBusy = true;
+    this.app.chatBox?.push?.('chat', `${user}: ${text}`);
     const cfg = {
       aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
       aiApiKey: c.aiApiKey || '', lang: c.lang || 'pt',
     };
     window.petAPI?.aiReply?.(text, c.aiSystemPrompt || '', cfg).then((reply) => {
-      const out = String(reply || '').trim();
+      const out = String(reply?.text || '').trim();
+      this.app.aiStatus = { active: reply?.usedProvider || '', notice: reply?.fallbackNotice || '' };
       if (!out) throw new Error('empty');
       this.app.chatBox?.push?.('pet', out);
-      this.app.speech?.say(out, 4);
+      this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(out) || 'normal', out);
+      this.app.speech?.say(out, 4, { source: 'viewer' });
       this.pushLog(user, out, 'IA: ok');
     }).catch((err) => {
-      this.pushLog(user, String(err?.message || err || 'erro').slice(0, 60), 'IA: erro');
+      const msg = String(err?.message || err || 'erro').slice(0, 80);
+      const hint = !c.aiApiKey && c.aiProvider !== 'ollama' ? ' (sem API key)' : (!c.aiModel ? ' (sem modelo)' : '');
+      this.pushLog(user, msg + hint, 'IA: erro');
     }).finally(() => { this.aiBusy = false; });
     return true;
   }
@@ -204,26 +228,40 @@ export class TwitchChat {
     const app = this.app;
     const line = personaLine(app, key, vars);
     if (!line) return;
+    this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(line) || 'normal', line);
     app.speech?.say(line, duration);
     if (app.config.streamTtsSpeak !== false) {
       // Replies to commands/keywords are priority lines: they ignore the chat
       // permission gate so the stage always reacts, even under Seguidores+.
-      app.tts?.enqueue?.(line, { priority: true, test: true });
+      app.tts?.enqueue?.(line, { priority: true, test: true, source: 'viewer' });
     }
   }
 
   react(text, user) {
-    const now = Date.now();
-    const cool = (this.app.config.streamReactCooldown || 30) * 1000;
-    if (now - this.lastReact < cool) return '';
-    const t = text.toLowerCase();
     const app = this.app;
-    if (/\bgg\b/.test(t)) { app.pet?.react?.('cheer'); this.replyLine('gg'); this.lastReact = now; return 'reação: gg'; }
-    if (/^f[!.?]?$/.test(t)) { app.pet?.react?.('sad'); this.replyLine('f'); this.lastReact = now; return 'reação: f'; }
-    if (/\b(kkk|haha|lol)\b/.test(t)) { app.pet?.react?.('laugh'); return 'reação: risada'; }
-    if (/\b(postura|posture)\b/.test(t)) { this.replyLine('posture'); this.lastReact = now; return 'reação: postura'; }
-    if (/\b(agua|água|hidrata|hydrate|water)\b/.test(t)) { this.replyLine('water'); this.lastReact = now; return 'reação: água'; }
-    return '';
+    const rules = Array.isArray(app.config.streamKeywordRules)
+      ? app.config.streamKeywordRules : DEFAULT_KEYWORD_RULES;
+    const t = text.toLowerCase();
+    const hit = rules.find((r) => String(r?.words || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean)
+      .some((w) => (w.length === 1 ? new RegExp(`(^|\\s)${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z])`, 'i').test(t)
+        : t.includes(w))));
+    if (!hit) return '';
+    const now = Date.now();
+    const cool = (app.config.streamReactCooldown || 30) * 1000;
+    if (now - this.lastReact < cool) return '';
+    this.lastReact = now;
+    const action = hit.action || 'say';
+    const reactMap = { cheer: 'cheer', laugh: 'laugh', sad: 'sad', dance: 'happy', love: 'love', scare: 'scare', sleep: 'sleep' };
+    if (reactMap[action]) app.pet?.react?.(reactMap[action]);
+    if (action === 'dance') app.startMode?.('jam');
+    if (action === 'confetti') app.fx?.confettiRain?.(24);
+    const key = ACTION_PERSONA[action] || 'gg';
+    let line = String(hit.text || '').trim().replace(/\{user\}/gi, user).slice(0, 180)
+      || personaLine(app, key, { user });
+    this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(line) || 'normal', line);
+    app.speech?.say(line, 3.5, { source: 'viewer' });
+    if (app.config.streamTtsSpeak !== false) app.tts?.enqueue?.(line, { priority: true, source: 'viewer' });
+    return `reação: ${action}`;
   }
 
   command(text, user) {

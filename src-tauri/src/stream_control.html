@@ -35,6 +35,14 @@
   input[type=text], select, textarea { background:#100e19; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:7px; width:100%; }
   textarea { resize:vertical; min-height:60px; }
   .val { text-align:right; color:var(--muted); font-size:11px; }
+  .ai-row { display:grid; grid-template-columns:auto 1fr 1fr 1fr 1fr auto auto auto; gap:4px; align-items:center; margin-bottom:4px; }
+  .ai-row input, .ai-row select { font-size:11px; padding:4px; }
+  .kw-editor { display:grid; gap:5px; margin:6px 0 10px; }
+  .kw-row { display:grid; grid-template-columns:1.2fr 1fr 1.4fr auto auto; gap:5px; align-items:center; }
+  .kw-row input, .kw-row select { font-size:11px; padding:5px; }
+  .panel-chat { display:grid; gap:6px; }
+  .panel-chat-list { max-height:220px; overflow:auto; background:#100e19; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:12px; }
+  .quota-banner { margin-top:8px; padding:8px 12px; border:1px solid #ff8f4a; border-radius:8px; background:rgba(120,40,10,.45); color:#ffd6b0; font:700 12px PxEmoji, system-ui, sans-serif; }
   .note { color:var(--muted); font-size:11px; }
   .ignore-box { display:grid; gap:5px; }
   .ignore-options, .ignore-list { display:flex; flex-wrap:wrap; gap:5px; }
@@ -62,6 +70,11 @@
     <span>Fila TTS: <b id="st-queue">—</b></span>
     <span>BRB: <b id="st-brb">—</b></span>
   </div>
+  <div class="row"><span>Quando responder com TTS</span><select data-key="ttsRespondMode" data-type="text" style="max-width:280px">
+    <option value="always">Todo tempo</option><option value="never">Nunca</option>
+    <option value="viewers_only">Só viewers</option><option value="me_only">Apenas eu</option>
+    <option value="viewers_and_me">Viewers e eu</option><option value="mixed">Misturado</option></select></div>
+  <div class="quota-banner" id="quota-banner" hidden></div>
   <div class="note" id="rpc-status"></div>
   <div class="row"><button class="act" id="switch-panel">Abrir em aba no navegador</button></div>
 </header>
@@ -80,6 +93,29 @@
     <button class="act" id="clear">🗑️ Limpar fila</button>
     <button class="act danger" id="exit">Sair do Streamer</button>
     <span class="queue" id="queue">Fila: 0</span>
+  </div>
+
+  <h2>💬 Chat no Stream Control</h2>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" data-key="streamChatInPanel" data-type="bool"> Mostrar caixa de chat no Stream Control</label>
+    <div id="panel-chat" class="panel-chat" hidden><div id="panel-chat-list" class="panel-chat-list"></div>
+      <div class="row"><input type="text" id="panel-chat-input" placeholder="Falar com a Persocon..."><button class="act" id="panel-chat-send">Enviar</button></div>
+    </div>
+  </div>
+
+  <h2>☕ Modo Volto Já (BRB)</h2>
+  <div class="card">
+    <label class="field wide"><span>Ação da Persocon</span><select data-key="brbPersoconAction" data-type="text">
+      <option value="sit">Sentada esperando</option><option value="sleep">Dormindo / Cochilando</option>
+      <option value="study">Estudando / Lendo</option><option value="coffee">Tomando café</option>
+      <option value="chill">Ouvindo música</option><option value="dance">Dançando no palco</option></select></label>
+    <label class="field wide"><span>Ação dos companheiros</span><select data-key="brbCompanionsAction" data-type="text">
+      <option value="wait">Esperando junto</option><option value="sleep">Descansando</option>
+      <option value="patrol">Vigiando o palco</option><option value="play">Brincando / Animando</option>
+      <option value="free">Comportamento livre</option></select></label>
+    <label class="toggle"><input type="checkbox" data-key="brbPauseDrain" data-type="bool" data-default="true" checked> Pausar dreno de status durante o BRB</label>
+    <label class="toggle"><input type="checkbox" id="brb-on"> ☕ Modo Volto Já (BRB)</label>
+    <label class="field wide"><span>Texto da plaquinha</span><input type="text" data-key="streamBrbText" data-type="text"></label>
   </div>
 
   <h2>Fundo Chroma Key</h2>
@@ -120,7 +156,6 @@
     <label class="field wide"><span>Personalidade da live</span><select data-key="streamPersona" data-type="text">
       <option value="padrao">Padrão (animada)</option><option value="estoica">Estóica (calma)</option></select></label>
     <label class="toggle"><input type="checkbox" data-key="ttsDucking" data-type="bool" data-default="true" checked> Ducking de áudio</label>
-    <label class="toggle"><input type="checkbox" data-key="ttsVisualizer" data-type="bool" data-default="true" checked> Mostrar equalizador de voz</label>
     <div class="row"><button class="act primary" id="test-voice">🔊 Testar voz com filtros</button><button class="act" id="test-persona">🔊 Testar frase estóica</button></div>
   </div>
 
@@ -144,6 +179,11 @@
       <span class="note" id="twitch-state">Desconectado</span>
     </div>
     <label class="toggle"><input type="checkbox" data-key="streamKeywords" data-type="bool" data-default="true" checked> Reagir a palavras-chave</label>
+    <div class="kw-editor" id="kw-editor">
+      <div class="note">Regras de palavras-chave do chat</div>
+      <div id="kw-rows"></div>
+      <div class="row"><button class="act" id="kw-add">+ Adicionar palavra-chave</button><button class="act primary" id="kw-save">Salvar regras</button><button class="act" id="kw-reset">Restaurar padrão</button></div>
+    </div>
     <label class="toggle"><input type="checkbox" data-key="streamCommands" data-type="bool" data-default="true" checked> Permitir comandos !</label>
     <label class="toggle"><input type="checkbox" data-key="streamTtsSpeak" data-type="bool" data-default="true" checked> Falar respostas no TTS</label>
     <label class="toggle"><input type="checkbox" data-key="ttsHideViewerNames" data-type="bool"> Não ler nomes dos viewers</label>
@@ -204,6 +244,14 @@
     <p class="note">Ações: moedas, sky_drop, mural_note, bolhas, aviao, trio, pagar_cafe, dar_lanche, cafune, desenho, clima, susto, tts_say · formato: nome=acao:moedas</p>
   </div>
 
+  <h2>🔑 IAs & Chaves API</h2>
+  <div class="card">
+    <div class="note" id="ai-status"></div>
+    <label class="toggle"><input type="checkbox" data-key="aiAutoFallback" data-type="bool" data-default="true" checked> Trocar automaticamente para a próxima IA quando os tokens acabarem</label>
+    <div id="ai-rows"></div>
+    <div class="row"><button class="act" id="ai-add">+ Adicionar IA</button><button class="act primary" id="ai-save">Salvar IAs</button><button class="act" id="ai-reset">Restaurar padrão</button></div>
+  </div>
+
   <h2>🤖 Resposta por IA</h2>
   <div class="card">
     <label class="toggle"><input type="checkbox" data-key="aiEnabled" data-type="bool"> Responder com IA quando chamarem o nome dela no chat</label>
@@ -215,21 +263,6 @@
     <label class="toggle"><input type="checkbox" data-key="aiAllNames" data-type="bool"> Responder a Aghata, Agatha e Ninna (qualquer nome)</label>
     <label class="field wide"><span>Background / Personalidade</span><textarea id="ai-system" data-key="aiSystemPrompt" data-type="text" rows="4">Você é a Persocon, uma companheira anime gentil que vive na área de trabalho de um streamer. Fique no personagem, responda em 1 ou 2 frases curtas, amigáveis e seguras para uma live na Twitch. Evite tópicos proibidos, respostas estranhas e nunca mencione que é uma IA.</textarea></label>
     <div class="row"><button class="act primary" id="ai-test">Testar resposta IA</button><button class="act" id="ai-restore-bg">Restaurar background padrão</button></div>
-  </div>
-
-  <h2>☕ Modo Volto Já (BRB)</h2>
-  <div class="card">
-    <label class="field wide"><span>Ação da Persocon</span><select data-key="brbPersoconAction" data-type="text">
-      <option value="sit">Sentada esperando</option><option value="sleep">Dormindo / Cochilando</option>
-      <option value="study">Estudando / Lendo</option><option value="coffee">Tomando café</option>
-      <option value="chill">Ouvindo música</option><option value="dance">Dançando no palco</option></select></label>
-    <label class="field wide"><span>Ação dos companheiros</span><select data-key="brbCompanionsAction" data-type="text">
-      <option value="wait">Esperando junto</option><option value="sleep">Descansando</option>
-      <option value="patrol">Vigiando o palco</option><option value="play">Brincando / Animando</option>
-      <option value="free">Comportamento livre</option></select></label>
-    <label class="toggle"><input type="checkbox" data-key="brbPauseDrain" data-type="bool" data-default="true" checked> Pausar dreno de status durante o BRB</label>
-    <label class="toggle"><input type="checkbox" id="brb-on"> ☕ Modo Volto Já (BRB)</label>
-    <label class="field wide"><span>Texto da plaquinha</span><input type="text" data-key="streamBrbText" data-type="text"></label>
   </div>
 
   <h2>Moedas e queda do céu</h2>
@@ -297,7 +330,6 @@ const TIPS = {
   'apply-persona-voice': ['Aplica voz, velocidade e tom sugeridos pela personalidade.', 'Applies the voice, rate and pitch suggested by the personality.'],
   'persona': ['Muda o jeito de falar da Persocon.', 'Changes how the Persocon speaks.'],
   'ttsEnabled': ['Liga/desliga a voz offline no palco.', 'Turns the offline stage voice on/off.'],
-  'ttsVisualizer': ['Mostra o equalizador neon junto da boca.', 'Shows the neon equalizer near her mouth.'],
   'ttsDucking': ['Baixa o som dos efeitos enquanto ela fala.', 'Ducks sound effects while she speaks.'],
   'ttsSpeed': ['Velocidade da fala (mais baixo = mais calmo).', 'Speech rate (lower = calmer).'],
   'ttsVolume': ['Volume da voz (0 a 100%).', 'Voice volume (0–100%).'],
@@ -357,6 +389,144 @@ function tipFor(el) {
   const pair = (key && TIPS[key]) || (el.dataset?.alert && { pt:'Dispara um alerta de teste no palco.', en:'Triggers a test alert on stage.' }) || TIP_FALLBACK;
   return en ? pair[1] : pair[0];
 }
+function kwRules() {
+  return Array.isArray(state.config?.streamKeywordRules) ? state.config.streamKeywordRules : KW_DEFAULT;
+}
+function renderKwRules() {
+  const root = $('#kw-rows');
+  if (!root) return;
+  const rules = kwRules();
+  const sig = JSON.stringify(rules);
+  if (root.dataset.sig === sig) return;
+  if (root.contains(document.activeElement)) return;
+  root.dataset.sig = sig;
+  root.replaceChildren(...rules.map((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'kw-row';
+    const words = document.createElement('input'); words.type = 'text'; words.value = r.words || '';
+    words.placeholder = 'gg, lol';
+    const action = document.createElement('select');
+    for (const [v, label] of KW_ACTIONS) {
+      const o = document.createElement('option'); o.value = v; o.textContent = label;
+      if (v === r.action) o.selected = true;
+      action.append(o);
+    }
+    const text = document.createElement('input'); text.type = 'text'; text.value = r.text || '';
+    text.placeholder = 'Opcional {user}';
+    const test = document.createElement('button'); test.className = 'act'; test.textContent = 'Testar';
+    test.onclick = () => rpc({ cmd: 'keywordTest', rule: { words: words.value, action: action.value, text: text.value } });
+    const del = document.createElement('button'); del.className = 'act'; del.textContent = '×';
+    del.title = 'Remover';
+    del.onclick = () => { const list = kwRules().slice(); list.splice(i, 1); setKwRules(list); };
+    for (const el of [words, action, text]) el.addEventListener('input', () => { root.dataset.dirty = '1'; });
+    row.append(words, action, text, test, del);
+    return row;
+  }));
+}
+function setKwRules(rules) {
+  const clean = (rules || []).map(r => ({
+    words: String(r.words || '').slice(0, 120),
+    action: String(r.action || 'say'),
+    text: String(r.text || '').slice(0, 180),
+  })).filter(r => r.words.trim());
+  if (state.config) state.config.streamKeywordRules = clean;
+  const root = $('#kw-rows');
+  if (root) { root.dataset.sig = JSON.stringify(clean); root.dataset.dirty = ''; }
+  rpc({ cmd: 'setOption', key: 'streamKeywordRules', value: clean });
+}
+function bindKwEditor() {
+  $('#kw-add')?.addEventListener('click', () => {
+    const list = kwRules().slice();
+    list.push({ words: '', action: 'say', text: '' });
+    const root = $('#kw-rows'); if (root) root.dataset.dirty = '';
+    if (state.config) state.config.streamKeywordRules = list;
+    renderKwRules();
+  });
+  $('#kw-save')?.addEventListener('click', () => {
+    const rows = [...$$('#kw-rows .kw-row')].map(row => {
+      const [w, a, t] = row.querySelectorAll('input, select');
+      return { words: w.value, action: a.value, text: t.value };
+    });
+    setKwRules(rows);
+    toast('Regras salvas');
+  });
+  $('#kw-reset')?.addEventListener('click', () => { setKwRules(KW_DEFAULT); renderKwRules(); toast('Regras restauradas'); });
+}
+
+const AI_PRESETS = {
+  gemini: { name: 'Gemini', provider: 'gemini', endpoint: '', model: 'gemini-2.0-flash', apiKey: '' },
+  openai: { name: 'OpenAI compatível', provider: 'openai', endpoint: '', model: 'gpt-4o-mini', apiKey: '' },
+  ollama: { name: 'Ollama local', provider: 'ollama', endpoint: '', model: 'llama3.2', apiKey: '' },
+};
+function aiProviders() {
+  const c = state.config || {};
+  if (Array.isArray(c.aiProviders) && c.aiProviders.length) return c.aiProviders;
+  return [{
+    id: 'legacy', name: c.aiProvider || 'Ollama', provider: c.aiProvider || 'ollama',
+    endpoint: c.aiEndpoint || '', model: c.aiModel || '', apiKey: c.aiApiKey || '', enabled: true,
+  }];
+}
+function renderAiProviders() {
+  const root = $('#ai-rows');
+  if (!root || root.contains(document.activeElement)) return;
+  const list = aiProviders();
+  const sig = JSON.stringify(list);
+  if (root.dataset.sig === sig) return;
+  root.dataset.sig = sig;
+  root.replaceChildren(...list.map((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'ai-row';
+    const enabled = document.createElement('input'); enabled.type = 'checkbox'; enabled.checked = p.enabled !== false;
+    const name = document.createElement('input'); name.type = 'text'; name.value = p.name || ''; name.placeholder = 'Nome';
+    const provider = document.createElement('select');
+    for (const [v, label] of [['gemini','Gemini'],['openai','OpenAI compat.'],['ollama','Ollama']]) {
+      const o = document.createElement('option'); o.value = v; o.textContent = label;
+      if (v === p.provider) o.selected = true;
+      provider.append(o);
+    }
+    const model = document.createElement('input'); model.type = 'text'; model.value = p.model || ''; model.placeholder = 'Modelo';
+    const endpoint = document.createElement('input'); endpoint.type = 'text'; endpoint.value = p.endpoint || ''; endpoint.placeholder = 'Endpoint';
+    const key = document.createElement('input'); key.type = 'password'; key.value = p.apiKey || ''; key.placeholder = 'API Key';
+    for (const el of [name, model, endpoint, key, provider]) el.addEventListener('input', () => { root.dataset.dirty = '1'; });
+    const up = document.createElement('button'); up.className = 'act'; up.textContent = '↑'; up.onclick = () => moveAi(i, -1);
+    const down = document.createElement('button'); down.className = 'act'; down.textContent = '↓'; down.onclick = () => moveAi(i, 1);
+    const test = document.createElement('button'); test.className = 'act'; test.textContent = 'Testar';
+    test.onclick = () => rpc({ cmd: 'aiTestProvider', index: i });
+    const del = document.createElement('button'); del.className = 'act'; del.textContent = '×';
+    del.onclick = () => setAiProviders(aiProviders().filter((_, n) => n !== i));
+    row.append(enabled, name, provider, model, endpoint, key, up, down, test, del);
+    return row;
+  }));
+}
+function collectAiRows() {
+  return [...$$('#ai-rows .ai-row')].map((row) => {
+    const [enabled, name, provider, model, endpoint, key] = row.querySelectorAll('input, select');
+    return { id: name.value || String(Math.random()), enabled: enabled.checked, name: name.value,
+      provider: provider.value, model: model.value, endpoint: endpoint.value, apiKey: key.value };
+  });
+}
+function setAiProviders(list) {
+  const clean = (list || []).map((p, i) => ({
+    id: p.id || `ai-${i}`, enabled: p.enabled !== false, name: String(p.name || `IA ${i+1}`).slice(0, 40),
+    provider: String(p.provider || 'ollama'), model: String(p.model || '').slice(0, 120),
+    endpoint: String(p.endpoint || '').slice(0, 240), apiKey: String(p.apiKey || '').slice(0, 300),
+  }));
+  if (state.config) state.config.aiProviders = clean;
+  const root = $('#ai-rows'); if (root) root.dataset.sig = JSON.stringify(clean);
+  rpc({ cmd: 'setOption', key: 'aiProviders', value: clean });
+}
+function moveAi(i, dir) {
+  const list = aiProviders().slice();
+  const j = i + dir; if (j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  setAiProviders(list);
+}
+function bindAiEditor() {
+  $('#ai-add')?.addEventListener('click', () => setAiProviders([...aiProviders(), { ...AI_PRESETS.openai, id: `ai-${Date.now()}` }]));
+  $('#ai-save')?.addEventListener('click', () => { setAiProviders(collectAiRows()); toast('IAs salvas'); });
+  $('#ai-reset')?.addEventListener('click', () => setAiProviders([{ ...AI_PRESETS.gemini, id: 'gemini' }, { ...AI_PRESETS.ollama, id: 'ollama' }]));
+}
+
 function refreshTipTexts() {
   for (const el of $$('button, input, select, textarea, label.toggle')) {
     const text = tipFor(el);
@@ -401,17 +571,31 @@ function setupSections() {
         block.className = 'section-block';
         sec.insertBefore(block, el);
         block.append(el);
-        el.onclick = () => toggleBlock(block);
+        el.setAttribute('role', 'button');
+        el.tabIndex = 0;
+        el.addEventListener('click', (e) => { e.stopPropagation(); toggleBlock(block); });
+        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBlock(block); } });
       } else if (block) block.append(el);
     }
   }
-  const folded = new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]'));
+  const saved = localStorage.getItem(FOLD_KEY);
+  const titles = $$('.section-block').map(b => b.querySelector('h2')?.textContent || '');
+  // No saved preference yet: every section starts collapsed.
+  const folded = new Set(saved === null ? titles : JSON.parse(saved || '[]'));
   for (const b of $$('.section-block')) {
     const title = b.querySelector('h2')?.textContent || '';
     b.classList.toggle('collapsed', folded.has(title));
   }
   $('#collapse-all')?.addEventListener('click', () => setAllBlocks(true));
   $('#expand-all')?.addEventListener('click', () => setAllBlocks(false));
+}
+function applyFolds() {
+  const raw = localStorage.getItem(FOLD_KEY);
+  if (raw === null) return;
+  const folded = new Set(JSON.parse(raw || '[]'));
+  for (const b of $$('.section-block')) {
+    b.classList.toggle('collapsed', folded.has(b.querySelector('h2')?.textContent || ''));
+  }
 }
 function toggleBlock(block) {
   block.classList.toggle('collapsed');
@@ -427,6 +611,8 @@ function persistFolds() {
 }
 setupSections();
 setupTips();
+bindKwEditor();
+bindAiEditor();
 
 const rpc = (payload) => {
   const msg = { ...payload, _rid: (window._rpcSeq = (window._rpcSeq || 0) + 1) };
@@ -548,6 +734,9 @@ $('#sim').onclick = (e) => {
   toast('Alerta de ' + type + ' disparado!');
 };
 const sendSay = () => { const v = $('#say').value.trim(); if (!v) return; rpc({cmd:'say',text:v}); $('#say').value=''; };
+const sendPanelChat = () => { const v = $('#panel-chat-input').value.trim(); if (!v) return; rpc({ cmd: 'panelChat', text: v }); $('#panel-chat-input').value = ''; };
+$('#panel-chat-send').onclick = sendPanelChat;
+$('#panel-chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendPanelChat(); } });
 $('#say-btn').onclick = sendSay;
 $('#say').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSay(); } });
 $('#copy').onclick = () => navigator.clipboard?.writeText($('#endpoint').value);
@@ -653,6 +842,17 @@ $('#modes').onclick = (e) => { const b=e.target.closest('[data-mode]'); if (b) r
 $('#toys').onclick = (e) => { const b=e.target.closest('[data-toy]'); if (b) rpc({cmd:'callToy',id:b.dataset.toy}); };
 $('#weather').onclick = (e) => { const b=e.target.closest('[data-weather]'); if (b) rpc({cmd:'weather',kind:b.dataset.weather}); };
 
+const KW_ACTIONS = [
+  ['cheer', 'Comemorar'], ['laugh', 'Rir'], ['sad', 'Triste'], ['dance', 'Dançar'],
+  ['love', 'Amor/Coração'], ['scare', 'Susto'], ['sleep', 'Sono'], ['confetti', 'Confete'],
+  ['posture', 'Postura'], ['water', 'Água'], ['say', 'Apenas falar'],
+];
+const KW_DEFAULT = [
+  { words:'gg', action:'cheer', text:'' }, { words:'f', action:'sad', text:'' },
+  { words:'kkk,haha,lol', action:'laugh', text:'' },
+  { words:'postura,posture', action:'posture', text:'' },
+  { words:'agua,água,hidrata,water', action:'water', text:'' },
+];
 const EDGE_VOICES = {
   pt: ['pt-BR-LeticiaNeural','pt-BR-GiovannaNeural','pt-BR-ManuelaNeural','pt-BR-FranciscaNeural','pt-BR-ThalitaMultilingualNeural'],
   en: ['en-US-AnaNeural','en-US-JennyNeural','en-US-AriaNeural','en-US-EmmaMultilingualNeural','en-US-AvaMultilingualNeural'],
@@ -676,6 +876,7 @@ const voiceLabel = (v) => { const i = voiceInfo(v); return `${i.name} (${i.lang 
 
 function render() {
   const c = state.config || {};
+  applyFolds();
   refreshTipTexts();
   $('#st-mode').textContent = c.streamer ? 'Streamer' : 'Jogo Normal';
   $('#st-coins').textContent = state.coins ?? '—';
@@ -705,6 +906,27 @@ function render() {
     b.onclick = () => rpc({ cmd: 'unignoreUser', user: u });
     return b;
   }));
+  renderKwRules();
+  renderAiProviders();
+  const aiStatus = $('#ai-status');
+  if (aiStatus) {
+    const parts = [];
+    if (state.aiActiveProvider) parts.push((c.lang === 'en' ? 'Active:' : 'Ativa:') + ' ' + state.aiActiveProvider);
+    if (state.aiFallbackNotice) parts.push(state.aiFallbackNotice);
+    aiStatus.textContent = parts.join(' · ');
+  }
+  const panelChat = $('#panel-chat');
+  if (panelChat) {
+    panelChat.hidden = c.streamChatInPanel !== true;
+    const pcList = $('#panel-chat-list');
+    const rows = [
+      ...(state.voiceLog || []).map(x => `${x.user}: ${x.text}`),
+      ...(state.recentChat || []).map(x => `${x.user}: ${x.text}`),
+      ...(state.recentSpeech || []).map(x => typeof x === 'string' ? x : (x?.text || '')),
+    ].filter(Boolean).slice(-20);
+    pcList.replaceChildren(...rows.map(t => { const d = document.createElement('div'); d.textContent = t; return d; }));
+    pcList.scrollTop = pcList.scrollHeight;
+  }
   const logBox = $('#twitch-log');
   const logs = Array.isArray(state.recentChat) ? state.recentChat : [];
   if (!logs.length) {
@@ -745,6 +967,15 @@ function render() {
   }
   const systemEl = $('#ai-system');
   if (systemEl && !c.aiSystemPrompt && !systemEl.dataset.dirty) systemEl.value = AI_BG[c.lang === 'en' ? 'en' : 'pt'];
+  const quotaBanner = $('#quota-banner');
+  if (quotaBanner) {
+    quotaBanner.hidden = !state.ttsQuotaWarning;
+    if (state.ttsQuotaWarning) {
+      quotaBanner.textContent = state.ttsQuotaError
+        ? (c.lang === 'en' ? `TTS quota warning: ${state.ttsQuotaError}. Voice may fall back to Windows.` : `Aviso de cota do TTS: ${state.ttsQuotaError}. A voz pode cair para o Windows.`)
+        : (c.lang === 'en' ? 'TTS credits/tokens are running low. Voice may fall back to Windows.' : 'Créditos/tokens do TTS estão acabando. A voz pode cair para o Windows.');
+    }
+  }
   const engineNote = $('#tts-engine-note');
   engineNote.textContent = state.ttsEngineNote || '';
   engineNote.hidden = !engineNote.textContent;

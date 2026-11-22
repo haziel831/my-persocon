@@ -12,6 +12,8 @@ use std::os::windows::process::CommandExt;
 const NO_WINDOW: u32 = 0x0800_0000;
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
+static TTS_CHARS: AtomicU64 = AtomicU64::new(0);
+static TTS_QUOTA_ERR: Mutex<String> = Mutex::new(String::new());
 
 struct Session {
     dir: PathBuf,
@@ -203,6 +205,7 @@ pub fn speak_remote(
     let output = tmp.join(format!("persocon-tts-remote-{}-{}.mp3", std::process::id(), id));
     fs::write(&script, REMOTE_PS).map_err(|e| e.to_string())?;
     fs::write(&input, text.as_bytes()).map_err(|e| e.to_string())?;
+    TTS_CHARS.fetch_add(text.chars().count() as u64, Ordering::Relaxed);
     let result = Command::new("powershell")
         .arg("-NoProfile").arg("-ExecutionPolicy").arg("Bypass").arg("-File")
         .arg(&script)
@@ -227,10 +230,22 @@ pub fn speak_remote(
         Ok(out) => {
             let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
             cleanup();
+            let lower = err.to_ascii_lowercase();
+            if lower.contains("402") || lower.contains("429") || lower.contains("quota")
+                || lower.contains("credit") || lower.contains("balance") || lower.contains("saldo") {
+                *TTS_QUOTA_ERR.lock().unwrap_or_else(|e| e.into_inner()) = err.clone();
+            }
             Err(if err.is_empty() { "TTS remoto falhou".into() } else { err })
         }
         Err(e) => { cleanup(); Err(e.to_string()) }
     }
+}
+
+pub fn quota() -> Value {
+    json!({
+        "charsUsed": TTS_CHARS.load(Ordering::Relaxed),
+        "quotaError": TTS_QUOTA_ERR.lock().unwrap_or_else(|e| e.into_inner()).clone(),
+    })
 }
 
 pub fn shutdown() {

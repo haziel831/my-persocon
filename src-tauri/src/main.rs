@@ -993,18 +993,30 @@ fn list_open_windows() -> Result<Vec<Value>, String> {
 }
 
 #[tauri::command]
-async fn ai_reply(prompt: String, system_prompt: String, config: Value) -> Result<String, String> {
+async fn ai_reply(prompt: String, system_prompt: String, config: Value) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let provider = config.get("aiProvider").and_then(Value::as_str).unwrap_or("ollama").to_string();
-        let model = config.get("aiModel").and_then(Value::as_str).unwrap_or("").to_string();
-        let key = config.get("aiApiKey").and_then(Value::as_str).unwrap_or("").to_string();
         let lang = config.get("lang").and_then(Value::as_str).unwrap_or("pt").to_string();
         let system = if system_prompt.trim().is_empty() {
             "You are the Persocon, a gentle anime-style desktop companion living on a streamer's desktop.".to_string()
         } else { system_prompt };
-        ai_chat::reply(&provider, &model, &key, &system, &prompt, &lang)
+        let providers: Vec<Value> = match config.get("aiProviders").and_then(Value::as_array) {
+            Some(list) if !list.is_empty() => list.clone(),
+            _ => vec![json!({
+                "name": config.get("aiProvider").and_then(Value::as_str).unwrap_or("Ollama"),
+                "provider": config.get("aiProvider").and_then(Value::as_str).unwrap_or("ollama"),
+                "model": config.get("aiModel").and_then(Value::as_str).unwrap_or(""),
+                "endpoint": config.get("aiEndpoint").and_then(Value::as_str).unwrap_or(""),
+                "apiKey": config.get("aiApiKey").and_then(Value::as_str).unwrap_or(""),
+                "enabled": true,
+            })],
+        };
+        let auto = config.get("aiAutoFallback").and_then(Value::as_bool).unwrap_or(true);
+        ai_chat::reply_chain(&providers, &system, &prompt, &lang, auto)
     }).await.unwrap_or_else(|e| Err(e.to_string()))
 }
+
+#[tauri::command]
+fn tts_quota() -> Result<Value, String> { Ok(tts::quota()) }
 
 #[tauri::command]
 fn streamer_take_rpc() -> Result<Vec<Value>, String> {
@@ -1546,6 +1558,7 @@ fn main() {
             tts_voices,
             tts_speak,
             tts_speak_remote,
+            tts_quota,
             tts_stop,
             stream_bridge_start,
             stream_bridge_stop,

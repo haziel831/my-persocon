@@ -224,8 +224,19 @@ export class VoiceTTS {
     return !this.denyReason(opts);
   }
 
+  sourceAllowed(source) {
+    const mode = this.app.config.ttsRespondMode || 'mixed';
+    if (mode === 'never') return false;
+    if (mode === 'always' || mode === 'mixed') return true;
+    if (mode === 'viewers_only') return source === 'viewer' || source === 'alert';
+    if (mode === 'me_only') return source === 'owner';
+    if (mode === 'viewers_and_me') return source === 'viewer' || source === 'alert' || source === 'owner';
+    return true;
+  }
+
   enqueue(text, opts = {}) {
     if (!this.enabled || this.muted) return false;
+    if (!this.sourceAllowed(opts.source || 'auto')) return false;
     const c = this.app.config;
     if (opts.chat && !this.allowed(opts)) return false;
     const clean = this.prepareText(text, opts);

@@ -518,8 +518,9 @@ export async function startPet(files, config) {
   const speechSay = speech.say.bind(speech);
   speech.say = (text, life, ttsOpts) => {
     const spoken = replacePetNames(app, personifyAutoLine(app, text));
-    if (window.__PET_STREAMER__ && !ttsOpts?.noEmote) {
-      app.streamAlerts?.showReactionEmote?.(app.streamAlerts?.reactionForText?.(spoken) || 'normal');
+    if (!window.__PET_STREAMER__ && config.emotesOutsideStreamer === true
+        && ['owner', 'viewer'].includes(ttsOpts?.source)) {
+      app.streamAlerts?.showReactionEmote?.(app.streamAlerts?.reactionForText?.(spoken) || 'normal', spoken);
     }
     app.chatBox?.push?.('pet', spoken);
     const r = speechSay(spoken, life);
@@ -606,11 +607,6 @@ export async function startPet(files, config) {
   app.tts = new VoiceTTS(app);
   app.chatBox = window.__PET_STREAMER__ ? new StreamChatBox(app) : null;
   app.voiceInput = new VoiceInput(app);
-  const eq = document.createElement('div');
-  eq.className = 'tts-eq';
-  for (let i = 0; i < 5; i++) eq.append(document.createElement('i'));
-  eq.style.display = 'none';
-  document.body.append(eq);
   app.twitch = new TwitchChat(app);
   app.streamAlerts = new StreamAlerts(app);
   app.knownFollowers = new Set((config.streamFollowers || []).map((s) => String(s).toLowerCase()));
@@ -1919,6 +1915,7 @@ api.onTrayClick?.(() => {
   });
   // Commands from the second-monitor control window.
   // Snapshot for the browser-based control panel (Rust serves it at GET /state).
+  let quotaInfo = {};
   let statePushAt = 0;
   let voiceCache = [];
   let voiceStatus = { ok: false, text: '' };
@@ -1940,16 +1937,24 @@ api.onTrayClick?.(() => {
     const now = Date.now();
     if (!force && now - statePushAt < 900) return;
     statePushAt = now;
+    api.ttsQuota?.().then((q) => { quotaInfo = q || {}; }).catch?.(() => {});
     api.streamerPushState?.({
       config,
       coins: game.coins,
       affection: Math.round(pet.affection),
       twitch: !!app.twitch?.connected,
       recentChat: app.twitch?.recentLog || [],
+      recentSpeech: (app.speechHistory || []).slice(-5),
+      voiceLog: app.voiceLog || [],
+      aiActiveProvider: app.aiStatus?.active || '',
+      aiFallbackNotice: app.aiStatus?.notice || '',
       activeViewers: app.twitch?.activeViewers || [],
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
       ttsError: app.tts?.lastError || '',
+      ttsQuotaWarning: !!quotaInfo.quotaError || Number(quotaInfo.charsUsed || 0) > 1500,
+      ttsCreditsRemaining: quotaInfo.quotaError ? 0 : null,
+      ttsQuotaError: quotaInfo.quotaError || '',
       ttsEngine: app.tts?.engine || 'offline',
       ttsEngineNote: app.tts?.engineNote || '',
       voices: voiceCache,
@@ -1983,6 +1988,23 @@ api.onTrayClick?.(() => {
     else if (p.type === 'chatBoxReset') app.chatBox?.reset?.();
     else if (p.type === 'chatBoxClear') app.chatBox?.clear?.();
     else if (p.type === 'testEmote') app.streamAlerts?.showReactionEmote?.('shy');
+    else if (p.type === 'panelChat') app.chatBox?.submitText?.(p.text);
+    else if (p.type === 'aiTestProvider') {
+      const providers = config.aiProviders || [];
+      const one = providers[p.index];
+      const cfg = {
+        lang: config.lang || 'pt',
+        aiAutoFallback: false,
+        aiProviders: one ? [one] : providers,
+      };
+      api.aiReply?.('Diga oi em uma frase curta.', config.aiSystemPrompt || '', cfg)
+        .then((reply) => speech.say(String(reply?.text || (config.lang === 'en' ? 'AI failed.' : 'IA falhou.')).slice(0, 160), 3))
+        .catch?.(() => speech.say(config.lang === 'en' ? 'AI failed.' : 'IA falhou.', 3));
+    }
+    else if (p.type === 'keywordTest') {
+      const r = p.rule || {};
+      app.twitch?.react?.(String(r.words || '').split(',')[0].trim(), config.name || 'Teste');
+    }
     else if (p.type === 'ignoreUser') addIgnored(p.user);
     else if (p.type === 'unignoreUser') removeIgnored(p.user);
     else if (p.type === 'aiTest') {
@@ -1991,7 +2013,7 @@ api.onTrayClick?.(() => {
         aiApiKey: config.aiApiKey || '', lang: config.lang || 'pt',
       };
       api.aiReply?.('Oi! Este é um teste de resposta curta.', config.aiSystemPrompt || '', cfg)
-        .then((reply) => speech.say(String(reply || 'IA sem resposta').slice(0, 180), 4))
+        .then((reply) => speech.say(String(reply?.text || 'IA sem resposta').slice(0, 180), 4))
         .catch((err) => speech.say(config.lang === 'en' ? 'AI failed: no reply.' : 'IA falhou: sem resposta.', 3));
     }
     else if (p.type === 'ttsMute') app.tts?.setMuted?.(!app.tts.muted);
@@ -2322,18 +2344,6 @@ api.onTrayClick?.(() => {
       app.weather.update(dt, hidden, canvas.style.visibility === 'hidden');
       app.trio.update(dt);
       window.__PET_TTS_LEVEL__ = app.tts.mouthLevel;
-      const eqOn = !!app.tts?.speaking && !hidden && config.ttsVisualizer !== false;
-      eq.style.display = eqOn ? 'flex' : 'none';
-      if (eqOn) {
-        eq.style.left = `${Math.round(pet.x + pet.P * 0.72)}px`;
-        eq.style.top = `${Math.round(pet.y - pet.P * 0.95)}px`;
-        const now = performance.now();
-        const level = app.tts.mouthLevel;
-        for (let i = 0; i < eq.children.length; i++) {
-          const v = 0.25 + level * (0.55 + 0.45 * Math.sin(now / 90 + i * 1.3));
-          eq.children[i].style.height = `${Math.round(4 + v * 20)}px`;
-        }
-      }
       pushStreamerState();
       drainRpcQueue();
       updateDock();
