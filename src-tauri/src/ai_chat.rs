@@ -138,8 +138,4 @@ pub fn reply_chain(providers: &[Value], system: &str, prompt: &str, lang: &str, 
     Err(if errors.is_empty() { "nenhum provedor ativo".into() } else { errors.join(" | ") })
 }
 
-/// Backwards-compatible single-provider call.
-pub fn reply(provider: &str, model: &str, api_key: &str, system: &str, prompt: &str, lang: &str) -> Result<String, String> {
-    let entry = json!({ "provider": provider, "model": model, "apiKey": api_key, "enabled": true, "name": provider });
-    reply_one(&entry, system, prompt, lang)
-}
+
