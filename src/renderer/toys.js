@@ -716,7 +716,11 @@ export class Toys {
     this.menuEl = el;
     this.app.sound.play('blip', { volume: 0.4 });
     // Any click outside closes it (capture: objects stop their own pointerdown from bubbling).
-    this.menuOff = (e) => !el.contains(e.target) && this.closeMenu();
+    this.menuOff = (e) => {
+      if (e?.type === 'blur') { this.closeMenu(); return; }
+      if (!(e?.target instanceof Node)) return; // blur/Window targets are not Nodes
+      if (!el.contains(e.target)) this.closeMenu();
+    };
     setTimeout(() => this.menuEl === el && window.addEventListener('pointerdown', this.menuOff, true), 0);
     window.addEventListener('blur', this.menuOff);
     this.menuKey = (e) => { if (e.key === 'Escape') this.closeMenu(); };
@@ -767,7 +771,11 @@ export class Toys {
     document.body.append(el);
     this.menuEl = el;
     this.app.sound.play('blip', { volume: 0.4 });
-    this.menuOff = (e) => !el.contains(e.target) && this.closeMenu();
+    this.menuOff = (e) => {
+      if (e?.type === 'blur') { this.closeMenu(); return; }
+      if (!(e?.target instanceof Node)) return; // blur/Window targets are not Nodes
+      if (!el.contains(e.target)) this.closeMenu();
+    };
     setTimeout(() => this.menuEl === el && window.addEventListener('pointerdown', this.menuOff, true), 0);
     window.addEventListener('blur', this.menuOff);
     this.menuKey = (e) => { if (e.key === 'Escape') this.closeMenu(); };

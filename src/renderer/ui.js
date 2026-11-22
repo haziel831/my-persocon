@@ -2815,6 +2815,8 @@ export class ObjectsDialog extends Dialog {
     this.liveRatio = null;
     this.liveSeq = 0;
     this.ratioKey = '';
+    this.drawRegion = false;
+    this._regionDraft = null;
     if (this.showHb === undefined) this.showHb = false;
     this.captureSnapshot();
     if (preset?.kind === '3d') await this.load3d(preset.data, preset.rot);
@@ -3201,7 +3203,7 @@ export class ObjectsDialog extends Dialog {
     const d = this.draft;
     // Passo 1 — escolha do item.
     const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
-      onclick: () => { this.sel = oid; this.variant = 'base'; this.variants = null; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.captureSnapshot(); this.render(); this.syncLive(); },
+      onclick: () => { this.sel = oid; this.variant = 'base'; this.variants = null; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.drawRegion = false; this._regionDraft = null; this.captureSnapshot(); this.render(); this.syncLive(); },
     }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
     const base = baseId(id);
     const hasUpgrade = !!UPGRADES[base];
@@ -3306,27 +3308,34 @@ export class ObjectsDialog extends Dialog {
         stage.addEventListener('pointerup', up);
       });
     }
-    if (id === 'videogame') {
-      const reg = this.region || app.skins.region(id) || { x: 0.1, y: 0.2, w: 0.8, h: 0.5 };
+    if (id === 'videogame' && d?.src?.length) {
+      const reg = this.drawRegion && this._regionDraft
+        ? this._regionDraft : (this.region || app.skins.region(id) || { x: 0.1, y: 0.2, w: 0.8, h: 0.5 });
       const box = h('div.obj-region', { style: { left: `${reg.x * 100}%`, top: `${reg.y * 100}%`, width: `${reg.w * 100}%`, height: `${reg.h * 100}%` } });
       mainSlot.append(box);
-      stage.addEventListener('pointerdown', (e) => {
-        const r = img.getBoundingClientRect();
-        const fx = (v) => Math.min(1, Math.max(0, (v - r.left) / r.width));
-        const fy = (v) => Math.min(1, Math.max(0, (v - r.top) / r.height));
-        const x0 = fx(e.clientX);
-        const y0 = fy(e.clientY);
-        stage.setPointerCapture(e.pointerId);
-        const move = (ev) => {
-          const x1 = fx(ev.clientX);
-          const y1 = fy(ev.clientY);
-          this.region = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.max(0.05, Math.abs(x1 - x0)), h: Math.max(0.05, Math.abs(y1 - y0)) };
-          Object.assign(box.style, { left: `${this.region.x * 100}%`, top: `${this.region.y * 100}%`, width: `${this.region.w * 100}%`, height: `${this.region.h * 100}%` });
-        };
-        const up = () => { stage.removeEventListener('pointermove', move); stage.removeEventListener('pointerup', up); };
-        stage.addEventListener('pointermove', move);
-        stage.addEventListener('pointerup', up);
-      });
+      // The drawing mode is opt-in: no pointer listener at all while the normal editor buttons are used.
+      if (this.drawRegion) {
+        stage.addEventListener('pointerdown', (e) => {
+          if (!mainSlot.contains(e.target)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const r = img.getBoundingClientRect();
+          const fx = (v) => Math.min(1, Math.max(0, (v - r.left) / r.width));
+          const fy = (v) => Math.min(1, Math.max(0, (v - r.top) / r.height));
+          const x0 = fx(e.clientX);
+          const y0 = fy(e.clientY);
+          try { stage.setPointerCapture(e.pointerId); } catch {}
+          const move = (ev) => {
+            const x1 = fx(ev.clientX);
+            const y1 = fy(ev.clientY);
+            this._regionDraft = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.max(0.05, Math.abs(x1 - x0)), h: Math.max(0.05, Math.abs(y1 - y0)) };
+            Object.assign(box.style, { left: `${this._regionDraft.x * 100}%`, top: `${this._regionDraft.y * 100}%`, width: `${this._regionDraft.w * 100}%`, height: `${this._regionDraft.h * 100}%` });
+          };
+          const up = () => { stage.removeEventListener('pointermove', move); stage.removeEventListener('pointerup', up); };
+          stage.addEventListener('pointermove', move);
+          stage.addEventListener('pointerup', up);
+        });
+      }
     }
     // Opções simples: só o necessário para ajustar a imagem.
     const controls = [];
@@ -3344,7 +3353,20 @@ export class ObjectsDialog extends Dialog {
     }
     const right = h('div.obj-edit', {},
       stage,
-      id === 'videogame' && h('div.note', {}, 'Arraste sobre a imagem para marcar onde fica a tela da TV.'),
+      id === 'videogame' && d?.src?.length ? h('div.row', {},
+        this.drawRegion
+          ? h('button.act', { onclick: () => {
+              if (this._regionDraft) this.region = this._regionDraft;
+              this.drawRegion = false; this._regionDraft = null; this.render();
+            } }, translate('Confirmar área'))
+          : h('button.act', { onclick: () => {
+              this.drawRegion = true;
+              this._regionDraft = this.region || app.skins.region(id) || { x: 0.1, y: 0.2, w: 0.8, h: 0.5 };
+              this.render();
+            } }, translate('Desenhar área da tela da TV')),
+        this.drawRegion ? h('button.act', { onclick: () => {
+          this.drawRegion = false; this._regionDraft = null; this.render();
+        } }, translate('Cancelar')) : null) : null,
       controls,
       h('div.row', {}, h('button.link', { onclick: () => this.pick3d() }, translate('Usar modelo 3D (opcional)'))),
       (this.error || app.skins?.error) && h('div.error', {}, this.error || app.skins.error),

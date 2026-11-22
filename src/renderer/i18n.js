@@ -355,6 +355,7 @@ const EN = {
   'PNG ou GIF. O GIF continua animado em ambos os estados.': 'PNG or GIF. GIFs keep animating in both states.',
   'Aguarde o carregamento da imagem antes de salvar.': 'Wait for the image to finish loading before saving.',
   'Carregando…': 'Loading…',
+  'Desenhar área da tela da TV': 'Draw TV screen area', 'Confirmar área': 'Confirm area',
   'Voz e TTS': 'Voice & TTS',
   'Passo 1 — Ligar e escolher o motor de voz': 'Step 1 — Turn it on and choose the voice engine',
   'Windows funciona na hora; Voz Offline/Neural e API externa precisam de serviço ou chave.': 'Windows works right away; Offline/Neural voice and external APIs need a service or key.',

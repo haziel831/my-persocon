@@ -115,8 +115,24 @@ fn curl_json(url: &str, headers: &[String], body: &Value, secrets: &[&str]) -> R
 }
 
 /// Accepts base URLs and full URLs without ever duplicating `/chat/completions`.
+/// Accepts a plain URL or an accidentally pasted Markdown link `[text](https://...)`.
+fn clean_endpoint(raw: &str) -> String {
+    let mut s = raw.trim().trim_matches('`').trim().to_string();
+    if s.starts_with('[') {
+        if let Some(open) = s.rfind("](") {
+            if s.ends_with(')') {
+                s = s[open + 2..s.len() - 1].trim().to_string();
+            }
+        }
+    }
+    if s.starts_with('(') && s.ends_with(')') && s.len() > 2 {
+        s = s[1..s.len() - 1].trim().to_string();
+    }
+    s.trim_end_matches('/').to_string()
+}
+
 fn endpoint_for(kind: &str, brand: &str, endpoint: &str, model: &str) -> Result<String, String> {
-    let ep = endpoint.trim().trim_end_matches('/').to_string();
+    let ep = clean_endpoint(endpoint);
     match kind {
         "ollama" => {
             if ep.is_empty() {
