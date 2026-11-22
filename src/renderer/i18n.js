@@ -37,6 +37,7 @@ const EN = {
   'Pega-pega': 'Tag', 'Parar Música': 'Stop Music', 'Dança a música que está tocando no PC': 'Dances to the music playing on the PC',
   'Modo Karaokê': 'Karaoke mode', 'Ouvir Música': 'Listen to Music', 'Ouvir Música segurando o microfone e cantando junto': 'Listen to Music holding the microphone and singing along',
   'Parar de assistir': 'Stop watching', 'Assistir': 'Watch', 'Senta e assiste ao vídeo atrás dela': 'Sits and watches the video behind her',
+  'Trocar jogo': 'Switch game', 'Assistir TV': 'Watch TV',
   // ---- focus (Pomodoro) ----
   'Foco': 'Focus', 'Pausa': 'Break', 'Sessão de foco': 'Focus session', 'Clique para encerrar o modo foco': 'Click to end focus mode', 'Modo Foco (Pomodoro)': 'Focus Mode (Pomodoro)',
   'Clique: menu · 2×: menu rápido · botão direito: opções': 'Click: menu · double: quick menu · right click: options',
@@ -356,6 +357,8 @@ const EN = {
   'Aguarde o carregamento da imagem antes de salvar.': 'Wait for the image to finish loading before saving.',
   'Carregando…': 'Loading…',
   'Desenhar área da tela da TV': 'Draw TV screen area', 'Confirmar área': 'Confirm area',
+  '✏️ Clique e arraste sobre a imagem para desenhar o quadrado exato onde a tela/animação vai aparecer.':
+    '✏️ Click and drag over the image to draw the exact square where the screen/animation will appear.',
   'Voz e TTS': 'Voice & TTS',
   'Passo 1 — Ligar e escolher o motor de voz': 'Step 1 — Turn it on and choose the voice engine',
   'Windows funciona na hora; Voz Offline/Neural e API externa precisam de serviço ou chave.': 'Windows works right away; Offline/Neural voice and external APIs need a service or key.',
@@ -554,6 +557,7 @@ const EN = {
   'Ficou preso na máquina e quebrou': 'Got stuck in the machine and broke', 'Doll pegou da máquina → mochila': 'Doll grabbed it from the machine → backpack',
   'Banheira Hi-Tech': 'Hi-Tech Bathtub', 'Limpa mais rápido e dá um pouco de energia': 'Cleans faster and gives a bit of energy',
   'Cabine de Limpeza Laser': 'Laser Cleaning Stall', 'Cabine com lasers neon: limpa mais rápido, dá um pouco de energia e esconde a Persocon atrás do vidro': 'Stall with neon lasers: cleans faster, gives a bit of energy and hides the Persocon behind the glass',
+  'Cabine synthwave ampliada (2×): limpa mais rápido, dá um pouco de energia e esconde a Persocon atrás da cortina roxa': 'Enlarged synthwave stall (2×): cleans faster, gives a bit of energy and hides the Persocon behind the purple curtain',
   'Esconder o app': 'Hide the app', 'Mostrar o app': 'Show the app',
   'Exclusivo das máquinas de venda': 'Only from the vending machines', 'Máquina de venda → mochila': 'Vending machine → backpack',
   'Sopa de Milho em Lata': 'Canned Corn Soup', 'Oden em Lata': 'Canned Oden', 'Pão de Melão': 'Melon Bread', 'Pão de Yakisoba': 'Yakisoba Bread',

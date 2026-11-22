@@ -94,30 +94,59 @@ export class Care {
     return true;
   }
 
-  // Neon laser lines sweeping over a box of the screen (the laser stall).
-  laserScan(r, life) {
+  // Upgraded tub: a translucent synthwave curtain rises over the stall while she bathes.
+  bathCurtain(stall) {
+    if (this.curtain) return;
     const el = document.createElement('div');
-    el.className = 'laser-scan';
-    Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    el.className = 'synth-curtain';
+    el.innerHTML = '<div class="synth-silhouette"><i class="synth-head"></i><i class="synth-arm left"></i><i class="synth-arm right"></i><i class="synth-body"></i></div><div class="synth-sheen"></div>';
     document.body.append(el);
-    setTimeout(() => el.remove(), life);
+    this.curtain = el;
+    requestAnimationFrame(() => el.classList.add('up'));
+    this.placeBathCurtain(stall);
   }
 
-  // stall: the element of the upgraded tub (laser stall) instead of the bubbles.
+  placeBathCurtain(stall) {
+    if (!this.curtain || !stall) return;
+    const r = stall.getBoundingClientRect();
+    Object.assign(this.curtain.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  }
+
+  closeBathCurtain() {
+    const el = this.curtain;
+    if (!el) return;
+    this.curtain = null;
+    el.classList.remove('up');
+    el.classList.add('down');
+    setTimeout(() => el.remove(), 650);
+  }
+
+  steam(n, r) {
+    for (let i = 0; i < n; i++) {
+      const s = Math.round(this.P * rand(0.12, 0.22));
+      this.particle('bath-steam', null, rand(r.left + r.width * 0.15, r.left + r.width * 0.85), r.top + r.height * 0.55,
+        s, 1800, { '--dx': `${rand(-14, 14)}px`, '--dy': `${-rand(45, 90)}px` });
+    }
+  }
+
+  // stall: the element of the upgraded tub. No more cyan laser belt — curtain + silhouette instead.
   bathTick(dt, tp, tub, stall = null) {
     const { pet, sound } = this.app;
     const P = this.P;
     if (stall) {
+      if (!this.curtain) this.bathCurtain(stall);
+      this.placeBathCurtain(stall);
+      // Cut everything below the waist out of the pet canvas: only shoulders/head stay above the foam.
+      const waist = this.app.view?.waistPoint?.();
+      const cutY = pet.y - (waist?.y ?? P * 0.55);
+      pet.hideRect = { x: 0, y: cutY, w: innerWidth, h: Math.max(1, innerHeight - cutY + 20) };
       tp.bub = (tp.bub ?? 0) - dt;
       if (tp.bub <= 0) {
-        tp.bub = 1.2;
+        tp.bub = 0.16;
         const r = stall.getBoundingClientRect();
-        this.laserScan({ left: r.left + r.width * 0.1, top: r.top + r.height * 0.1, width: r.width * 0.8, height: r.height * 0.8 }, 1200);
-      }
-      tp.zap = (tp.zap ?? 0) - dt;
-      if (tp.zap <= 0) {
-        tp.zap = rand(0.15, 0.4);
-        sound.tone8(2400 + Math.random() * 800, 500, 0.05, 'square', 0.018);
+        this.bubbles(2, r.left + r.width * 0.15, r.left + r.width * 0.85, r.top + r.height * 0.32, r.top + r.height * 0.55);
+        this.steam(1, r);
+        if (Math.random() < 0.3) sound.tone8(900 + Math.random() * 500, 1500, 0.04, 'triangle', 0.018);
       }
       pet.exertion = Math.max(0, pet.exertion - 6 * dt);
       return;
@@ -139,6 +168,8 @@ export class Care {
   bathEnd(interrupted, laser = false) {
     const { pet, sound } = this.app;
     pet.squash = null;
+    pet.hideRect = null;
+    if (laser) this.closeBathCurtain();
     if (interrupted) return;
     sound.tone8(700, 1400, 0.15, laser ? 'square' : 'triangle', 0.05);
     const h = this.app.head;

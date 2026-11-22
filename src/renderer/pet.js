@@ -481,7 +481,12 @@ export async function startPet(files, config) {
     m.className = 'toy-menu hitzone';
     const title = document.createElement('div');
     title.className = 'title';
-    title.textContent = config.lang === 'en' ? 'Console screen' : 'Tela do console';
+    // TVs are scenery: their screen must stay 100% opaque at a fixed 1:1 scale with the frame,
+    // so the handheld-only opacity/zoom controls are never shown for them.
+    const isTV = screen.el.dataset.console === 'tv' || screen.el.classList.contains('tvback');
+    title.textContent = isTV
+      ? (config.lang === 'en' ? 'TV screen' : 'Tela da TV')
+      : (config.lang === 'en' ? 'Console screen' : 'Tela do console');
     m.append(title);
     const btn = (label, fn) => {
       const b = document.createElement('button');
@@ -495,13 +500,26 @@ export async function startPet(files, config) {
       };
       m.append(b);
     };
-    btn(config.lang === 'en' ? 'Opacity 30%' : 'Opacidade 30%', () => { screen.el.style.opacity = '0.3'; });
-    btn(config.lang === 'en' ? 'Opacity 60%' : 'Opacidade 60%', () => { screen.el.style.opacity = '0.6'; });
-    btn(config.lang === 'en' ? 'Opacity 100%' : 'Opacidade 100%', () => { screen.el.style.opacity = '1.0'; });
-    const zoom = (v) => { gbZoom = clamp(v, 0.6, 1.6); app.setOption('gbZoom', gbZoom); };
-    btn(config.lang === 'en' ? 'Small' : 'Pequeno', () => zoom(0.7));
-    btn(config.lang === 'en' ? 'Normal' : 'Normal', () => zoom(1));
-    btn(config.lang === 'en' ? 'Large' : 'Grande', () => zoom(1.4));
+    if (isTV) {
+      // Keep the TV screen full opacity / fixed scale; only furniture-level actions remain.
+      btn(translate('Trocar jogo'), () => app.toys?.toggleBag?.());
+      btn(translate(app.tvWatch?.on ? 'Parar de assistir' : 'Assistir TV'), () => {
+        if (app.tvWatch?.on) app.tvWatch.stop();
+        else app.tvWatch?.start();
+      });
+      btn(translate('Guardar no inventário'), () => {
+        app.tvWatch?.stop?.();
+        app.game.pickUpToy?.('videogame');
+      });
+    } else {
+      btn(config.lang === 'en' ? 'Opacity 30%' : 'Opacidade 30%', () => { screen.el.style.opacity = '0.3'; });
+      btn(config.lang === 'en' ? 'Opacity 60%' : 'Opacidade 60%', () => { screen.el.style.opacity = '0.6'; });
+      btn(config.lang === 'en' ? 'Opacity 100%' : 'Opacidade 100%', () => { screen.el.style.opacity = '1.0'; });
+      const zoom = (v) => { gbZoom = clamp(v, 0.6, 1.6); app.setOption('gbZoom', gbZoom); };
+      btn(config.lang === 'en' ? 'Small' : 'Pequeno', () => zoom(0.7));
+      btn(config.lang === 'en' ? 'Normal' : 'Normal', () => zoom(1));
+      btn(config.lang === 'en' ? 'Large' : 'Grande', () => zoom(1.4));
+    }
     document.body.append(m);
     m.style.left = `${Math.min(e.clientX, innerWidth - m.offsetWidth - 8)}px`;
     m.style.top = `${Math.min(e.clientY, innerHeight - m.offsetHeight - 8)}px`;
@@ -1276,6 +1294,7 @@ api.onTrayClick?.(() => {
         el.classList.add('tvback');
         document.body.append(el);
       }
+      el.style.opacity = '1'; // TV screens stay fully opaque; opacity is a handheld-only setting.
       el.style.width = `${Math.round(tv.w)}px`;
       el.style.height = `${Math.round(tv.h)}px`;
       el.style.transformOrigin = `${Math.round(tv.ox - tv.x)}px ${Math.round(tv.oy - tv.y)}px`;

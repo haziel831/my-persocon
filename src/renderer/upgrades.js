@@ -17,7 +17,7 @@ export const UPGRADES = {
   cafeteira: { name: 'Estação Energy Neon', note: 'Máquina maior, cardápio exclusivo de Energy Drinks fictícios e power-ups fortes, todos pela carteira dela', pix: 'cafeteira_up', size: 1.15, ratio: 48 / 34 },
   camera: { name: 'Câmera Instantânea Pro', note: 'Amplia o Álbum de 20 para 50 fotos e dá um visual cromo/neon', pix: 'camera_up' },
   almofada: { name: 'Almofada de Veludo', note: 'Mais confortável: descanso e humor melhores', pix: 'almofada_up' },
-  banheira: { name: 'Cabine de Limpeza Laser', note: 'Cabine com lasers neon: limpa mais rápido, dá um pouco de energia e esconde a Persocon atrás do vidro', pix: 'tub_up', size: 0.85, ratio: 48 / 28 },
+  banheira: { name: 'Cabine de Limpeza Laser', note: 'Cabine synthwave ampliada (2×): limpa mais rápido, dá um pouco de energia e esconde a Persocon atrás da cortina roxa', pix: 'tub_up', size: 2, ratio: 48 / 28 },
   teclado: { name: 'Sintetizador Neon', note: 'Som de sintetizador (mono), playlist de MIDI e timbres', pix: 'teclado_up_back' },
   aquario: { name: 'Aquário de Koi', note: 'Design moderno synthwave, tanque maior e carpas koi grandes e ativas', size: 1.35 },
   slot: { name: 'Slot-Machine Neon', note: 'Visual neon, animações mais épicas e apostas e prêmios maiores' },

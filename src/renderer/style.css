@@ -1108,6 +1108,28 @@ button.mini { font-size: 11px; padding: 2px 6px; margin-left: auto; }
 .laser-scan::before { background: #5ef0ff; box-shadow: 0 0 6px 2px #5ef0ff, 0 0 14px 4px rgba(94,240,255,0.5); animation: laserSweep 1.2s ease-in-out forwards; }
 .laser-scan::after { background: #ff3ea5; box-shadow: 0 0 6px 2px #ff3ea5, 0 0 14px 4px rgba(255,62,165,0.5); animation: laserSweep 1.2s ease-in-out reverse forwards; }
 @keyframes laserSweep { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: calc(100% - 2px); opacity: 0; } }
+/* Upgraded bath: translucent synthwave curtain with a dark silhouette washing her hair. */
+.synth-curtain { position: fixed; z-index: 9; pointer-events: none; overflow: hidden; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(168,85,247,.75), rgba(255,42,157,.75));
+  border-top: 2px solid #00f0ff; box-shadow: 0 0 18px rgba(0,240,255,.55), inset 0 0 26px rgba(255,42,157,.35);
+  opacity: 0; transform: translateY(100%); transition: transform .75s cubic-bezier(.2,.8,.2,1), opacity .45s; }
+.synth-curtain.up { opacity: 1; transform: translateY(0); }
+.synth-curtain.down { opacity: 0; transform: translateY(100%); }
+.synth-sheen { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(0,240,255,.08) 0 2px, transparent 2px 14px); animation: synthSheen 3.2s ease-in-out infinite; }
+.synth-silhouette { position: absolute; left: 50%; bottom: 6%; width: 46%; height: 62%; transform: translateX(-50%); animation: synthSway 2.6s ease-in-out infinite; }
+.synth-head { position: absolute; left: 50%; top: 0; width: 26%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; background: #1a0b2e; animation: synthHead 2.6s ease-in-out infinite; }
+.synth-body { position: absolute; left: 50%; top: 22%; width: 72%; height: 78%; transform: translateX(-50%); border-radius: 42% 42% 14% 14%; background: #1a0b2e; }
+.synth-arm { position: absolute; top: 30%; width: 14%; height: 46%; border-radius: 10px; background: #1a0b2e; transform-origin: 50% 0; }
+.synth-arm.left { left: 8%; animation: synthArmL 1.3s ease-in-out infinite; }
+.synth-arm.right { right: 8%; animation: synthArmR 1.3s ease-in-out infinite; }
+@keyframes synthSheen { 0%,100% { opacity: .65; } 50% { opacity: 1; } }
+@keyframes synthSway { 0%,100% { transform: translateX(-50%) rotate(-1.2deg); } 50% { transform: translateX(-50%) rotate(1.2deg); } }
+@keyframes synthHead { 0%,100% { transform: translateX(-50%) rotate(-6deg); } 50% { transform: translateX(-50%) rotate(6deg); } }
+@keyframes synthArmL { 0%,100% { transform: rotate(-16deg); } 50% { transform: rotate(22deg); } }
+@keyframes synthArmR { 0%,100% { transform: rotate(16deg); } 50% { transform: rotate(-22deg); } }
+.bath-steam { position: fixed; z-index: 10; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.4), transparent 70%); animation: bathSteam 1.8s ease-out forwards; }
+@keyframes bathSteam { 0% { opacity: .7; transform: scale(.6); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(2.2); } }
 .toy .pj { position: absolute; inset: 0; pointer-events: none; }
 .toy .pj > :not(.pj-q) { display: none; }
 .toy .pj.on > * { display: block; }
@@ -1429,6 +1451,8 @@ body.app-hidden .bag-dock { opacity: 1; }
 .obj-choose { flex: 1; }
 .obj-card-hint { font: 11px PxEmoji, system-ui, sans-serif; color: var(--muted); }
 .obj-simple-options { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.obj-banner { padding: 8px 10px; border: 1px solid #00f0ff; border-radius: 8px; background: rgba(0,240,255,.08); color: #d9faff;
+  font: 700 12px/1.4 PxEmoji, system-ui, sans-serif; box-shadow: 0 0 10px rgba(0,240,255,.2); }
 .obj-previews { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .obj-preview-slot { position: relative; display: grid; gap: 4px; justify-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: rgba(0,0,0,.18); }
 .obj-preview-label { font: 700 11px PxEmoji, system-ui, sans-serif; letter-spacing: 1px; color: var(--accent2); text-transform: uppercase; }

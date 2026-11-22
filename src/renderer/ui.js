@@ -3310,9 +3310,10 @@ export class ObjectsDialog extends Dialog {
     }
     if (id === 'videogame' && d?.src?.length) {
       const reg = this.drawRegion && this._regionDraft
-        ? this._regionDraft : (this.region || app.skins.region(id) || { x: 0.1, y: 0.2, w: 0.8, h: 0.5 });
-      const box = h('div.obj-region', { style: { left: `${reg.x * 100}%`, top: `${reg.y * 100}%`, width: `${reg.w * 100}%`, height: `${reg.h * 100}%` } });
-      mainSlot.append(box);
+        ? this._regionDraft : (this.region || app.skins.region(id, this.upgraded));
+      // No pre-drawn rectangle: the preview starts clean until the player draws one.
+      let box = reg ? h('div.obj-region', { style: { left: `${reg.x * 100}%`, top: `${reg.y * 100}%`, width: `${reg.w * 100}%`, height: `${reg.h * 100}%` } }) : null;
+      if (box) mainSlot.append(box);
       // The drawing mode is opt-in: no pointer listener at all while the normal editor buttons are used.
       if (this.drawRegion) {
         stage.addEventListener('pointerdown', (e) => {
@@ -3324,6 +3325,10 @@ export class ObjectsDialog extends Dialog {
           const fy = (v) => Math.min(1, Math.max(0, (v - r.top) / r.height));
           const x0 = fx(e.clientX);
           const y0 = fy(e.clientY);
+          if (!box) {
+            box = h('div.obj-region');
+            mainSlot.append(box);
+          }
           try { stage.setPointerCapture(e.pointerId); } catch {}
           const move = (ev) => {
             const x1 = fx(ev.clientX);
@@ -3352,6 +3357,8 @@ export class ObjectsDialog extends Dialog {
           oninput: (v) => { tr.tolerance = v; this.refreshBake(); } }) : null));
     }
     const right = h('div.obj-edit', {},
+      id === 'videogame' ? h('div.obj-banner', {},
+        translate('✏️ Clique e arraste sobre a imagem para desenhar o quadrado exato onde a tela/animação vai aparecer.')) : null,
       stage,
       id === 'videogame' && d?.src?.length ? h('div.row', {},
         this.drawRegion
@@ -3361,7 +3368,7 @@ export class ObjectsDialog extends Dialog {
             } }, translate('Confirmar área'))
           : h('button.act', { onclick: () => {
               this.drawRegion = true;
-              this._regionDraft = this.region || app.skins.region(id) || { x: 0.1, y: 0.2, w: 0.8, h: 0.5 };
+              this._regionDraft = this.region || app.skins.region(id, this.upgraded) || null;
               this.render();
             } }, translate('Desenhar área da tela da TV')),
         this.drawRegion ? h('button.act', { onclick: () => {
@@ -3373,10 +3380,12 @@ export class ObjectsDialog extends Dialog {
       h('div.note', {}, translate('PNG ou GIF. O GIF continua animado em ambos os estados.')));
     // O objeto de verdade na área de trabalho já está no tamanho escolhido.
     this.syncLive();
+    const hasRegion = !!(this.region || app.skins.region(id, this.upgraded));
+    const saveDisabled = this.busy > 0 || (!d && !this.region) || (id === 'videogame' && !!d && !hasRegion);
     this.frame(h('div.objects', {}, list, right), [
       h('span.grow'),
       h('button', { onclick: () => this.close() }, translate('Fechar')),
-      h('button.primary', { onclick: () => this.save(), disabled: this.busy > 0 || (!d && !this.region) },
+      h('button.primary', { onclick: () => this.save(), disabled: saveDisabled },
         this.busy ? translate('Carregando…') : translate('Salvar')),
     ]);
   }

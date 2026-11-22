@@ -1180,13 +1180,21 @@ export class Toys {
     const el = this.els.get('videogame');
     const t = this.app.game.toys.videogame;
     if (!el || el.style.display === 'none' || !t) return null;
-    const w = this.size('videogame');
-    const h = w * this.ratio('videogame');
+    // The skin's screen rectangle is stored as fractions of the imported image, so the overlay
+    // must use the exact rendered box of the TV sprite — including the editor's scale and the
+    // toy's own y — otherwise the video spills over the frame.
+    const sc = this.liveScale('videogame');
+    const base = this.size('videogame');
+    const ratio = this.ratio('videogame');
+    const w = base * sc;
+    const h = w * ratio;
+    const baseY = t.y ?? this.floorY();
     const left = t.x - w / 2;
-    const top = this.floorY() - h;
+    // The sprite scales around its centre, so its top is not simply baseY - h when sc != 1.
+    const top = baseY - (base * ratio * (1 + sc)) / 2;
     const s = this.app.skins?.region('videogame', !!t.up) || FURN.videogame.screen;
     const sx = t.flip ? 1 - s.x - s.w : s.x;
-    return { x: left + w * sx, y: top + h * s.y, w: w * s.w, h: h * s.h, rot: t.rot || 0, ox: t.x, oy: this.floorY() };
+    return { x: left + w * sx, y: top + h * s.y, w: w * s.w, h: h * s.h, rot: t.rot || 0, ox: t.x, oy: baseY };
   }
 
   // ---------- furniture editor (Ações → Editar mobília) ----------
