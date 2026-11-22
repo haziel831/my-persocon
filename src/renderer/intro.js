@@ -138,6 +138,8 @@ export class Intro {
     pet.powerOff = false;
     game.profile.booted = false;
     document.body.classList.add('intro-on');
+    // Make sure the frameless window accepts clicks before the first box click.
+    window.petAPI?.setInteractive?.(true);
     this.buildBox();
   }
 
@@ -148,22 +150,30 @@ export class Intro {
     this.scale = Math.max(2, (P * 0.95) / BW);
     this.box = el('div', 'intro-box hitzone');
     // Official pixel-art delivery box; one crisp image (no canvas smoothing).
-    const img = el('img', 'intro-crate intro-lid');
+    const img = el('img', 'intro-crate');
     img.src = BOX_URL;
     img.draggable = false;
     img.style.width = `${BW * this.scale}px`;
     img.style.height = `${BH * this.scale}px`;
+    // The image is pointer-events:none, so the container MUST have its own size to be hittable.
+    this.box.style.width = `${BW * this.scale}px`;
+    this.box.style.height = `${BH * this.scale}px`;
     this.hint = el('div', 'intro-hint', this.T.boxHint);
     img.style.pointerEvents = 'none'; // the click always lands on the box container
     this.box.append(img, this.hint);
     this.lid = img; // the whole sprite lifts away when the box bursts
-    // pointerdown on the whole box (image included) is the single reliable opener.
+    // Document-level hit test in capture phase: reliable even if a child or an overlay
+    // would otherwise swallow the pointerdown. Covers the whole box image.
     this._boxDown = (e) => {
+      if (!this.box || (this.stage !== 'box' && this.stage !== 'signed')) return;
+      const r = this.box.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return;
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
       e.preventDefault();
       e.stopPropagation();
       this.clickBox();
     };
-    this.box.addEventListener('pointerdown', this._boxDown);
+    document.addEventListener('pointerdown', this._boxDown, true);
     document.body.append(this.box);
     this.bx = null;
   }
@@ -397,7 +407,7 @@ export class Intro {
     this.stage = 'opening';
     this.hint.remove();
     this.box.classList.remove('hitzone');
-    if (this._boxDown) { this.box.removeEventListener('pointerdown', this._boxDown); this._boxDown = null; }
+    if (this._boxDown) { document.removeEventListener('pointerdown', this._boxDown, true); this._boxDown = null; }
     this.openT = 0;
     this.shake = 1.4;
     this.app.sound?.tone8?.(90, 140, 0.5, 'sawtooth', 0.05);

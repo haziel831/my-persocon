@@ -695,6 +695,7 @@ export async function startPet(files, config) {
   };
   const startFlow = async () => {
     if (!pet.offstage) return;
+    window.petAPI?.setInteractive?.(true); // title/intro must accept clicks
     const restart = sessionStorage.getItem('mp-new') === '1';
     const resume = sessionStorage.getItem('mp-resume') === '1';
     sessionStorage.removeItem('mp-new');

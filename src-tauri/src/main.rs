@@ -885,7 +885,8 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
             }
         });
     } else if !preview && !combate {
-        win.set_ignore_cursor_events(true)?;
+        // Start interactive. The renderer switches to click-through only when it knows the
+        // cursor is over empty space — starting ignored swallowed every click (incl. the intro box).
         if let Ok(h) = win.hwnd() {
             win32::set_tool_window(h.0 as _);
         }
