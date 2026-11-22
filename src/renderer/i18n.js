@@ -355,6 +355,17 @@ const EN = {
   'PNG ou GIF. O GIF continua animado em ambos os estados.': 'PNG or GIF. GIFs keep animating in both states.',
   'Aguarde o carregamento da imagem antes de salvar.': 'Wait for the image to finish loading before saving.',
   'Carregando…': 'Loading…',
+  'Voz e TTS': 'Voice & TTS',
+  'Passo 1 — Ligar e escolher o motor de voz': 'Step 1 — Turn it on and choose the voice engine',
+  'Windows funciona na hora; Voz Offline/Neural e API externa precisam de serviço ou chave.': 'Windows works right away; Offline/Neural voice and external APIs need a service or key.',
+  'Passo 2 — Idioma, voz e ajuste fino': 'Step 2 — Language, voice and fine tuning',
+  'Escolha o idioma e a voz, ajuste o som e teste antes de continuar.': 'Pick the language and voice, adjust the sound and test before moving on.',
+  'Modelo (Fish Audio)': 'Model (Fish Audio)', 'Idioma': 'Language',
+  'Passo 3 — Perfis de voz': 'Step 3 — Voice profiles',
+  'Salve um perfil para trocar de voz rapidamente depois.': 'Save a profile to switch voices quickly later.',
+  'IMPORTAR / EXPORTAR SAVE': 'IMPORT / EXPORT SAVE',
+  'Exportar save': 'Export save', 'Importar save': 'Import save',
+  'O save atual vira backup antes de importar (3 backups automáticos).': 'The current save is backed up before importing (3 automatic backups).',
   'Deseja realmente iniciar o Modo Streamer?': 'Do you really want to start Streamer Mode?',
   'Um save separado será usado e o Stream Control abrirá no navegador.': 'A separate save will be used and Stream Control will open in your browser.',
   'Iniciar Modo Streamer': 'Start Streamer Mode', 'Cancelar': 'Cancel', 'Modo Streamer': 'Streamer Mode',
@@ -882,7 +893,7 @@ const EN = {
   'Ninja da Névoa': 'Mist Ninja', 'Carteiro Saltador': 'Jumping Mail Carrier', 'Ouriço Velocista': 'Sprinter Hedgehog', 'Gato-Robô': 'Robot Cat',
   'Garota Mágica': 'Magical Girl', 'Samurai Errante': 'Wandering Samurai', 'Caçadora Espacial': 'Space Huntress', 'Pirata dos Sete Mares': 'Seven Seas Pirate',
   'Mecha Gigante': 'Giant Mecha', 'Dragão Ancestral': 'Ancient Dragon', 'Idol Virtual': 'Virtual Idol', 'Herói da Espada Antiga': 'Hero of the Ancient Sword',
-  'VideoGame (TV + console)': 'VideoGame (TV + console)',
+  'VideoGame (TV + console)': 'VideoGame (TV + console)', 'TV / VideoGame': 'TV / VideoGame',
   // ---- loot boxes / prizes ----
   'Comum': 'Common', 'Incomum': 'Uncommon', 'Raro': 'Rare', 'Lendário': 'Legendary', 'Épico': 'Epic', 'Rara': 'Rare', 'Épica': 'Epic',
   'Caixa Comum': 'Common Box', 'Caixa Rara': 'Rare Box', 'Caixa Lendária': 'Legendary Box',
@@ -1012,6 +1023,26 @@ const EN = {
     'YSM models: import the exported folder (or a .zip of it). .ysm files are not accepted. The Doll still only has the Minecraft skin (right click it).',
   'Com resourcepack, o Inventário (bolsa) vira um barril e a bolsa de cartuchos vira um baú. Temas e visuais por objeto continuam tendo prioridade.':
     'With a resourcepack, the Inventory (bag) becomes a barrel and the cartridge bag becomes a chest. Themes and per-object looks keep priority.',
+
+  // ---- profile / behavior / saves / options / import (audit 2.0) ----
+  'Informações Gerais': 'General Information',
+  'Você já resetou as missões hoje': 'You already reset today’s missions',
+  'Compre e coloque na área de trabalho primeiro': 'Buy and place it on the desktop first',
+  '— selecione —': '— select —',
+  'Mostrar dicas e tutoriais na tela': 'Show tips and tutorials on screen',
+  'Alt dir.': 'Right Alt',
+  'Ela passa a carregar a espada na cintura e luta com ela': 'She starts carrying the sword at her waist and fights with it',
+  'Insere o cartucho preto na TV (a ameaça da TV)': 'Inserts the black cartridge into the TV (the TV threat)',
+  'Ela pega a espada do chão e passa a carregá-la na cintura': 'She picks up the sword from the floor and carries it at her waist',
+  'Equipada: ela luta com golpes de espada': 'Equipped: she fights with sword strikes',
+  'Devolve a espada para o inventário': 'Returns the sword to the inventory',
+  'Modelo YSM': 'YSM model', 'Apagar modelo': 'Delete model', 'Apagar?': 'Delete?',
+  'Solte o arquivo na janela ou use o botão para escolher.': 'Drop the file on the window or use the button to choose.',
+  '⚔ Forçar combate entra no COMBAT_MODE contra o Sucataoxidado, sem precisar do boneco nem de energia. ▶ toca qualquer golpe ou manobra, mesmo bloqueado e mesmo com a animação desligada.':
+    '⚔ Force combat enters COMBAT_MODE against the Scrap Dummy, with no need for the dummy or energy. ▶ plays any move, even locked ones and even with animation off.',
+  '⚔ Forçar combate': '⚔ Force combat', 'Sair do COMBAT_MODE': 'Leave COMBAT_MODE', '⏹ Parar prévia': '⏹ Stop preview',
+  'Não deu para começar': 'Couldn’t start', 'O modelo atual não tem os clipes de combate.': 'The current model has no combat clips.',
+  'Abrir Caixas': 'Open Boxes', 'Quantidade a abrir': 'Amount to open',
 };
 
 // Texts with numbers or names in them.
@@ -1205,6 +1236,19 @@ const PATTERNS = [
   [/ por (\d+(?:[.,]\d+)?) min\b/g, ' for $1 min'],
   [/^Não achei "(.+)" na pasta do modelo\.$/, (_, u) => `I couldn't find "${u}" in the model folder.`],
   [/^Este \.gltf não traz a malha num único arquivo ao lado\.$/, "This .gltf doesn't bring the mesh in a single file next to it."],
+  [/^(\d+(?:[.,]\d+)?) XP no total$/, '$1 XP total'],
+  [/^IA (\d+)$/, 'AI $1'],
+  [/^Não foi possível abrir esta seção: (.+)$/, (_, e) => `Could not open this section: ${e}`],
+  [/^Não foi possível carregar as aparências salvas: (.+)$/, (_, e) => `Could not load saved looks: ${e}`],
+  [/^Não foi possível salvar a aparência: (.+)$/, (_, e) => `Could not save the look: ${e}`],
+  [/^Falha ao salvar o resourcepack: (.+)$/, (_, e) => `Failed to save the resourcepack: ${e}`],
+  [/^Falha ao remover o resourcepack: (.+)$/, (_, e) => `Failed to remove the resourcepack: ${e}`],
+  [/^Não foi possível ler a animação: (.+)$/, (_, e) => `Could not read the animation: ${e}`],
+  [/^Não foi possível abrir a imagem: (.+)$/, (_, e) => `Could not open the image: ${e}`],
+  [/^Total: (\d+) caixa\(s\)$/, 'Total: $1 box(es)'],
+  [/^Abrir (\d+) caixa$/, 'Open $1 box'],
+  [/^Abrir (\d+) caixas$/, 'Open $1 boxes'],
+  [/^ignorado: (.+)$/, (_, r) => `ignored: ${r}`],
 ];
 
 // Single words/phrases replaced inside longer texts (stat lines, labels with numbers…).

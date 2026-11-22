@@ -14,6 +14,11 @@ import { upgradeFx } from './upgradefx.js';
 import { skillPick, skillGain, skillLevel } from './skills.js';
 import { dayPeriod } from './watch.js';
 import { ATTR_XP } from './attrxp.js';
+
+// The TV's "Em uso" art plays while she watches TV, plays a cartridge, or the TV overlay is on.
+const tvActive = (app, pet) => !!app.tvWatch?.on
+  || pet.activity === 'watch'
+  || baseId(String(pet.toyPlay?.id || '')) === 'videogame';
 import { crowName } from './game.js';
 import { DOLL_SKILLS, dollHasSkill, dollData, dollBonus, dollWave } from './dollskills.js';
 import { translate } from './i18n.js';
@@ -2870,7 +2875,7 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       if (b === 'gacha' || b === 'slot') artActive = activeGacha || outId === b;
       else if (isVend) artActive = activeVend;
       else if (b === 'impressora') artActive = !!(this.unpacking || game.deliveries?.length);
-      else if (b === 'videogame') artActive = pet.activity === 'jam';
+      else if (b === 'videogame') artActive = tvActive(this.app, pet);
       else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');
       else if (b === 'escrivaninha') artActive = !!this.app.pomodoro?.active;
       const src = (custom ? skins?.art(b, base, artActive, skinUp) : null) || deskArt || (up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive, skinUp) || base;

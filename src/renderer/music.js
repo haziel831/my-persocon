@@ -47,7 +47,7 @@ export class Music {
     return this.sound.ctx;
   }
 
-  start(volume = 0.72) {
+  start(volume = 0.9) {
     const c = this.ctx;
     if (!c || this.playing || !this.sound.enabled) return;
     c.resume?.().catch(() => {});

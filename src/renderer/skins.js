@@ -1,5 +1,6 @@
 // Custom looks for objects. Priority: an image/GIF/3D model imported for that object, then the
 // Minecraft resourcepack (1.20.1 layout), then the built-in pixel art.
+import { translate } from './i18n.js';
 const TEX = 'assets/minecraft/textures/';
 const SND = 'assets/minecraft/sounds/';
 
@@ -489,7 +490,7 @@ export class Skins {
       this.objects = (await api?.loadBlob?.('objects')) || migrate('objects') || migrate('skins') || {};
       this.objectsUpgrade = (await api?.loadBlob?.('objectsUpgrade')) || migrate('objectsUpgrade') || {};
     } catch (e) {
-      this.error = `Não foi possível carregar as aparências salvas: ${e?.message || e}`;
+      this.error = translate(`Não foi possível carregar as aparências salvas: ${e?.message || e}`);
       console.error('[skins] load', e);
     }
     this.rp = null;
@@ -596,7 +597,7 @@ export class Skins {
       await window.petAPI.storeBlob(upgraded ? 'objectsUpgrade' : 'objects', store);
       this.error = '';
     } catch (e) {
-      this.error = `Não foi possível salvar a aparência: ${e?.message || e}`;
+      this.error = translate(`Não foi possível salvar a aparência: ${e?.message || e}`);
       console.error('[skins] store', e);
     }
     this.bump();
@@ -651,7 +652,7 @@ export class Skins {
     rp.music = music.map((n) => files[n]).filter(Boolean);
     this.rp = rp;
     try { await window.petAPI.storeBlob('resourcepack', rp); }
-    catch (e) { this.error = `Falha ao salvar o resourcepack: ${e?.message || e}`; console.error('[skins] pack', e); }
+    catch (e) { this.error = translate(`Falha ao salvar o resourcepack: ${e?.message || e}`); console.error('[skins] pack', e); }
     if (parts.janelas && rp.gui) this.app.setOption?.('theme', 'resourcepack');
     this.applyRp();
     return rp;
@@ -661,7 +662,7 @@ export class Skins {
     this.rp = null;
     this.stopMusic();
     try { await window.petAPI.storeBlob('resourcepack', null); }
-    catch (e) { this.error = `Falha ao remover o resourcepack: ${e?.message || e}`; console.error('[skins] pack', e); }
+    catch (e) { this.error = translate(`Falha ao remover o resourcepack: ${e?.message || e}`); console.error('[skins] pack', e); }
     if (this.app.config.theme === 'resourcepack') this.app.setOption?.('theme', 'padrao');
     this.applyRp();
   }

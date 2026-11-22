@@ -1084,6 +1084,7 @@ body[data-hand="slap"], body[data-hand="slap"] * { cursor: var(--cur-slap) 14 6,
 .head-btns button small { font: bold 8px PxEmoji, system-ui, sans-serif; letter-spacing: 0.5px; }
 .head-btns button.on { opacity: 1; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .prefs { display: flex; flex-direction: column; gap: 4px; }
+.save-tools { display: grid; gap: 8px; }
 .pref { display: flex; align-items: center; gap: 6px; }
 .pref b.up { color: #5fbf5a; } .pref b.down { color: #e8433f; }
 button.mini { font-size: 11px; padding: 2px 6px; margin-left: auto; }

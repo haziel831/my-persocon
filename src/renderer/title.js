@@ -214,7 +214,7 @@ export class TitleScreen {
     this.onKey = (e) => this.key(e);
     window.addEventListener('keydown', this.onKey);
     await this.initGL();
-    this.music.start();
+    this.music.start(0.9); // a bit louder, still below clipping (master volume/mute still apply)
     // Click / tap anywhere during the logo intro: rush visuals to the menu (music unchanged).
     this.onSkip = (e) => {
       if (this.closing || this.sub || this.t >= 4.7) return;

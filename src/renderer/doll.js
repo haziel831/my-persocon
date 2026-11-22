@@ -214,7 +214,8 @@ export class Doll {
   }
 
   menu(x, y) {
-    if (!this.alive || this.held || this.brain?.duo) return;
+    // Always open on right-click, even while the Doll is asleep — the menu itself has the wake button.
+    if (this.held || this.brain?.duo) return;
     const app = this.app;
     const d = dollData(app);
     const el = document.createElement('div');
@@ -232,6 +233,9 @@ export class Doll {
     const totalSkills = Object.keys(DOLL_SKILLS).length + Object.keys(DOLL_COMBAT_SKILLS).length;
     const learnedCount = Object.keys({ ...DOLL_SKILLS, ...DOLL_COMBAT_SKILLS }).filter((id) => dollHasSkill(app, id)).length;
     add('div', 'crow-stats', `${translate('Treinos')}: ${d.trains || 0} · ${translate('Skills')}: ${learnedCount}/${totalSkills}`);
+    const wake = add('button', '', translate(this.alive
+      ? '😴 Fazer o Doll dormir (parar de se mexer)' : '✨ Acordar o Doll'));
+    wake.onclick = () => { this.setAwake(!this.alive); this.menu(x, y); };
     const cols = add('div', 'crow-cols');
     const mkCol = (title, combat) => {
       const col = document.createElement('div');
@@ -351,7 +355,7 @@ export class Doll {
   }
 
   grab(e) {
-    if (e.button !== 0) return;
+    if (e.button !== 0) { e.stopPropagation(); return; }
     e.stopPropagation();
     const el = this.el;
     try { el.setPointerCapture(e.pointerId); } catch {}

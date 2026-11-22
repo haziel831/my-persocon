@@ -1,5 +1,6 @@
 // Anonymous read-only Twitch IRC over WebSocket. No OAuth, no token, no password.
 import { personaLine } from './persona.js';
+import { translate } from './i18n.js';
 
 const BOTS = ['nightbot', 'streamelements', 'streamlabs', 'moobot'];
 
@@ -211,7 +212,7 @@ export class TwitchChat {
       }
       if (!status) {
         // Plain chat read aloud by TTS: here the permission gate really does block the line.
-        if (deny) status = `ignorado: ${deny}`;
+        if (deny) status = translate(`ignorado: ${deny}`);
         else if (this.app.config.streamTtsSpeak === false) status = 'ok (TTS desligado)';
         else status = (this.app.tts?.enabled && !this.app.tts?.muted && spoke === false) ? 'ignorado: cooldown' : 'ok';
       }

@@ -459,7 +459,7 @@ export class Menu {
         try { return this[this.category](); }
         catch (e) {
           console.error('[menu] falha ao abrir a seção', this.category, e);
-          return h('div.note', {}, `Não foi possível abrir esta seção: ${e?.message || e}`);
+          return h('div.note', {}, translate(`Não foi possível abrir esta seção: ${e?.message || e}`));
         }
       })()),
       h('div.menu-foot', {},
@@ -822,7 +822,7 @@ export class Menu {
           disabled: !canReset,
           title: canReset
             ? 'Sorteia de novo só as missões que você ainda não concluiu (1 vez por dia)'
-            : 'Você já resetou as missões hoje',
+            : translate('Você já resetou as missões hoje'),
           onclick: () => {
             if (!r.resetDaily?.()) return this.app.sound.play('cancel', { volume: 0.4 });
             this.app.sound.play('ok', { volume: 0.5 });
@@ -835,6 +835,32 @@ export class Menu {
       h('span.ach-ico', {}, h('img', { src: a.icon, draggable: 'false', alt: '' })),
       h('div.quest-body', {}, h('b', {}, a.name), h('small', {}, a.desc), a.done ? null : bar(a.n, a.goal), a.done ? null : h('small', {}, `${a.n} / ${a.goal}`)),
       boxImg(a.box))))];
+  }
+
+  // Save tools live only in Opções — reused here so the Profile menu no longer duplicates them.
+  saveTools() {
+    const app = this.app;
+    const del = h('button.danger', {
+      onclick: () => {
+        if (!del.dataset.sure) {
+          del.dataset.sure = '1';
+          del.textContent = translate('Tem certeza? Clique de novo para apagar tudo');
+          return;
+        }
+        app.deleteSave();
+        this.render();
+      },
+    }, translate('🗑 Apagar save e começar uma nova Persocon'));
+    return h('div.save-tools', {},
+      h('div.row.center', {},
+        h('button', { onclick: () => window.petAPI.exportSave?.().then((ok) => ok && app.sound.play('ok')).catch(() => app.sound.play('cancel')) }, translate('Exportar save')),
+        h('button', { onclick: async () => {
+          await app.game.persist();
+          const ok = await window.petAPI.importSave?.().catch(() => { app.sound.play('cancel'); return false; });
+          if (ok) { app.game.frozen = true; location.reload(); }
+        } }, translate('Importar save'))),
+      h('div.note', {}, translate('O save atual vira backup antes de importar (3 backups automáticos).')),
+      h('div.row.center', {}, del));
   }
 
   perfilMain() {
@@ -888,17 +914,6 @@ export class Menu {
       ...(p.fun?.tama ? [['Tamapet', `fome ${Math.round(p.fun.tama.hunger)}% · humor ${Math.round(p.fun.tama.mood)}%`]] : []),
       ['Pega-pega', `${p.chases} partidas · ${p.chaseWins} vitórias da Persocon · ${p.escapes} fugas`],
     ];
-    const del = h('button.danger', {
-      onclick: () => {
-        if (!del.dataset.sure) {
-          del.dataset.sure = '1';
-          del.textContent = 'Tem certeza? Clique de novo para apagar tudo';
-          return;
-        }
-        app.deleteSave();
-        this.render();
-      },
-    }, '🗑 Apagar save e começar uma nova Persocon');
     // ---------- Atributos ----------
     // Cada atributo é clicável: abre a explicação dele (e clicar fora fecha).
     const attrs = p.attrs || {};
@@ -909,7 +924,7 @@ export class Menu {
       const shown = this._attrOpen === k;
       return h(`div.attr${shown ? '.open' : ''}`, {
         'data-attr': k,
-        title: `${xp} XP no total`,
+        title: translate(`${xp} XP no total`),
         onclick: () => this.toggleAttr(k),
       },
         h('span', {}, label),
@@ -955,7 +970,7 @@ export class Menu {
       manBox);
     return [
       h('div.group', {}, 'Perfil'),
-      ...section('geral', 'Informações Gerais', geral),
+      ...section('geral', translate('Informações Gerais'), geral),
       ...section('favoritos', 'Favoritos', favoritos),
       ...section('pats', 'Cafunés / tapas', [['Cafunés / tapas', `${p.pats} / ${p.slaps}`]]),
       ...section('games', 'Jogos no GameBuddy', [['Jogos no GameBuddy', p.gamesPlayed]]),
@@ -972,15 +987,6 @@ export class Menu {
             h('b', { class: v > 0 ? 'up' : 'down' }, `${v > 0 ? '+' : ''}${Math.round((2 ** v - 1) * 100)}%`),
             h('button.mini', { onclick: () => { delete app.pet.prefs[k]; g.changed(); this.render(); } }, 'Retirar'))))
         : h('div.note', {}, 'Nada ainda. Faça cafuné enquanto ele faz algo para incentivar; um tapa desincentiva.'),
-      h('div.row.center', {},
-        h('button', { onclick: () => window.petAPI.exportSave?.().then((ok) => ok && app.sound.play('ok')).catch(() => app.sound.play('cancel')) }, '⤒ Exportar save'),
-        h('button', { onclick: async () => {
-          await app.game.persist();
-          const ok = await window.petAPI.importSave?.().catch(() => { app.sound.play('cancel'); return false; });
-          if (ok) { app.game.frozen = true; location.reload(); }
-        } }, '⤓ Importar save')),
-      h('div.note', {}, 'O save atual vira backup antes de importar (3 backups automáticos).'),
-      h('div.row.center', {}, del),
     ];
   }
 
@@ -1075,7 +1081,7 @@ export class Menu {
               const ready = game.toys[item.id]?.placed && !game.toys[item.id]?.broken;
               return h('button.train-btn', {
                 disabled: !ready,
-                title: ready ? spec.title : 'Compre e coloque na área de trabalho primeiro',
+                title: ready ? translate(spec.title) : translate('Compre e coloque na área de trabalho primeiro'),
                 onclick: () => {
                   this.app.sound?.play?.('blip', { volume: 0.4 });
                   if (spec.study) this.app.pomodoro?.start?.('25/5');
@@ -1144,12 +1150,12 @@ export class Menu {
         item.toy && !game.toys[item.id]?.broken && (item.weapon === 'espada'
           ? h('button.buy', {
             onclick: () => { if (game.equipSword()) { app.sound.play('ok'); app.toys?.equipSwordShow?.(app.pet); } this.render(); },
-            title: 'Ela passa a carregar a espada na cintura e luta com ela',
+            title: translate('Ela passa a carregar a espada na cintura e luta com ela'),
           }, '⚔ Equipar')
           : h('button.buy', { onclick: () => app.placeToy(item.id) }, 'Colocar')),
         item.id === 'cart_unknown' && h('button.buy', {
           onclick: () => { if (!app.unknown?.insert?.()) { /* insert já avisa */ } },
-          title: 'Insere o cartucho preto na TV (a ameaça da TV)',
+          title: translate('Insere o cartucho preto na TV (a ameaça da TV)'),
         }, '🕹 Usar na TV'),
         nSell > 0 && h('button.buy', {
           onclick: () => {
@@ -1196,17 +1202,17 @@ export class Menu {
         t.broken && repairBtn(key),
         item.weapon === 'espada' && !t.broken && h('button.buy', {
           onclick: () => { if (game.equipSword()) { app.sound.play('ok'); app.toys?.equipSwordShow?.(app.pet); } this.render(); },
-          title: 'Ela pega a espada do chão e passa a carregá-la na cintura',
+          title: translate('Ela pega a espada do chão e passa a carregá-la na cintura'),
         }, '⚔ Equipar'),
         item.fixed ? null : h('button.buy', { onclick: () => game.pickUpToy(key) }, 'Guardar'));
     // A espada equipada sai do inventário e do desktop: esta linha é o único lugar dela.
     const equippedRow = equipped && h('div.item.equipped', { 'data-item': 'espada', 'data-name': normText('Espada de bamboo'), 'data-flags': 'colocados' },
       itemIcon(itemById('espada')),
       h('span.item-name', {}, 'Espada de bamboo', h('span.count', {}, 'na cintura')),
-      h('span.item-fx', {}, 'Equipada: ela luta com golpes de espada'),
+      h('span.item-fx', {}, translate('Equipada: ela luta com golpes de espada')),
       h('button.buy', {
         onclick: () => { if (game.unequipSword()) { app.sound.play('ok', { volume: 0.5 }); this.render(); } },
-        title: 'Devolve a espada para o inventário',
+        title: translate('Devolve a espada para o inventário'),
       }, '↩ Desequipar'),
       h('button.buy', {
         onclick: () => { if (game.placeSword()) { app.sound.play('ok', { volume: 0.5 }); this.render(); } },
@@ -1274,7 +1280,7 @@ export class Menu {
     let extra = null;
     if (exp === 'size') extra = this.sizeSlider();
     if (exp === 'anims') extra = [
-      app.previewing ? h('div.row', {}, h('button', { onclick: () => { app.stopPreview(); this.render(); } }, '⏹ Parar prévia')) : null,
+      app.previewing ? h('div.row', {}, h('button', { onclick: () => { app.stopPreview(); this.render(); } }, translate('⏹ Parar prévia'))) : null,
       ...this.animItems(),
     ];
     if (exp === 'parts') {
@@ -1338,9 +1344,53 @@ export class Menu {
       }, label))),
       slider({ label: 'Intensidade', min: 0, max: 2, step: 0.05, value: c.filterStrength ?? 1, format: (v) => `${Math.round(v * 100)}%`,
         oninput: (v) => app.setOption('filterStrength', v) }),
-      h('div.group', {}, '🗣️ Voz offline (Estúdio TTS)'),
-      h('div.row', {}, h('span.label', {}, 'Preset de voz'), segmented([
-        ['', 'Padrão do TTS (motor)'], ['aghata', 'Aghata — Lain/Rei'],
+      h('div.group', {}, translate('Voz e TTS')),
+      h('div.note', {}, translate('Passo 1 — Ligar e escolher o motor de voz')),
+      h('div.note', {}, translate('Windows funciona na hora; Voz Offline/Neural e API externa precisam de serviço ou chave.')),
+      toggle({ label: translate('Ativar voz no jogo normal'), value: c.offlineTts === true, onchange: (v) => app.setOption('offlineTts', v) }),
+      h('div.row', {}, h('span.label', {}, translate('Motor de voz')), segmented([
+        ['edge', 'Edge Neural'], ['fish', 'Fish Audio'], ['offline', 'Offline TTS'], ['system', 'Windows'],
+      ], c.ttsEngine || 'edge', (v) => { app.setOption('ttsEngine', v); this.render(); })),
+      c.ttsEngine === 'fish' ? h('div.row', {},
+        h('input.text', { type: 'password', placeholder: translate('Fish Audio API Key'), value: c.fishApiKey || '', onchange: (e) => app.setOption('fishApiKey', e.target.value) }),
+        h('input.text', { placeholder: translate('Voice / Reference ID'), value: c.fishVoiceId || '', onchange: (e) => app.setOption('fishVoiceId', e.target.value) }),
+        h('input.text', { placeholder: translate('Modelo (Fish Audio)'), value: c.fishModel || '', onchange: (e) => app.setOption('fishModel', e.target.value) }),
+      ) : null,
+      h('div.note', {}, translate('Passo 2 — Idioma, voz e ajuste fino')),
+      h('div.note', {}, translate('Escolha o idioma e a voz, ajuste o som e teste antes de continuar.')),
+      h('div.row', {}, h('span.label', {}, translate('Idioma')), segmented([
+        ['pt', 'Português'], ['en', 'English'],
+      ], c.lang === 'en' ? 'en' : 'pt', (v) => app.setOption('lang', v))),
+      h('div.row', {}, h('span.label', {}, translate('Pasta do TTS')), h('input.text', {
+        value: c.ttsDir || 'D:\\Program Files\\Offline TTS',
+        onchange: (e) => app.setOption('ttsDir', e.target.value),
+      }), h('button', { onclick: () => { app.loadOfflineVoices?.(c.ttsDir); this.render(); } }, translate('🔄 Carregar vozes'))),
+      h('div.row', {}, h('span.label', {}, translate('Voz')), h('select', {
+        onchange: (e) => { app.setOption('ttsVoice', e.target.value); app.tts?.preview?.('Olá... testando esta voz.', e.target.value); },
+      }, (['edge', 'fish'].includes(c.ttsEngine)
+        ? (EDGE_VOICES[c.lang === 'en' ? 'en' : 'pt'] || []).map(id => ({ id, name: id, lang: c.lang }))
+        : filterVoicesForLang(app.offlineVoices || [], c.lang)
+      ).map((v) => {
+        const id = typeof v === 'string' ? v.replace(/^neural:/, '') : String(v.id || v.name || '').replace(/^neural:/, '');
+        const lang = typeof v === 'string' ? '' : (v.lang || '');
+        return h('option', { value: id, selected: id === c.ttsVoice }, `${typeof v === 'string' ? id : (v.name || id)} (${lang || id})`);
+      }))),
+      h('div.row', {}, h('button', { onclick: () => app.tts?.preview?.('Olá... testando esta voz.', c.ttsVoice) }, translate('🔊 Testar voz'))),
+      slider({ label: translate('Velocidade'), min: 0.7, max: 1.4, step: 0.05, value: c.ttsSpeed ?? 1, format: (v) => `${v.toFixed(2)}×`,
+        oninput: (v) => app.setOption('ttsSpeed', v) }),
+      slider({ label: translate('Volume da Voz'), min: 0, max: 1, step: 0.05, value: c.ttsVolume ?? 0.85, format: (v) => `${Math.round(v*100)}%`,
+        oninput: (v) => app.setOption('ttsVolume', v) }),
+      slider({ label: translate('Tom (semitons)'), min: -6, max: 6, step: 1, value: c.ttsPitch ?? 0, format: (v) => `${v > 0 ? '+' : ''}${v}`,
+        oninput: (v) => app.setOption('ttsPitch', v) }),
+      h('div.row', {}, h('span.label', {}, translate('Filtro de timbre')), segmented([
+        ['natural', 'Natural'], ['warm', translate('Quente')], ['wired', 'Wired'],
+      ], c.ttsFilter || 'natural', (v) => app.setOption('ttsFilter', v))),
+      h('div.row', {}, h('span.label', {}, translate('Quando responder com TTS')), segmented([
+        ['always', translate('Todo tempo')], ['never', translate('Nunca')], ['viewers_only', translate('Só viewers')],
+        ['me_only', translate('Apenas eu')], ['viewers_and_me', translate('Viewers e eu')], ['mixed', translate('Misturado')],
+      ], c.ttsRespondMode || 'mixed', (v) => app.setOption('ttsRespondMode', v))),
+      h('div.row', {}, h('span.label', {}, translate('Preset de voz')), segmented([
+        ['', translate('Padrão do TTS (motor)')], ['aghata', 'Aghata — Lain/Rei'],
       ], c.voicePreset || '', (v) => {
         if (v === 'aghata') {
           const p = presetForLang(VOICE_PRESETS.aghata, c.lang);
@@ -1349,52 +1399,63 @@ export class Menu {
         } else app.setOption('voicePreset', '');
         this.render();
       })),
-      h('div.row', {}, h('span.label', {}, 'Personalidade'), segmented(
+      h('div.row', {}, h('span.label', {}, translate('Personalidade')), segmented(
         PERSONA_IDS.map(id => [id, personaLabel(id, c.lang)]),
         c.persona || (c.streamPersona === 'estoica' ? 'estoica' : 'genki'),
         (v) => { app.setOption('persona', v); this.render(); },
       )),
-      h('div.row', {}, h('button', { onclick: () => { app.applyConfigPatch(personaVoiceSuggestion(app)); this.render(); } }, 'Aplicar voz sugerida da personalidade')),
-      h('div.group', {}, 'Perfil de voz (TTS)'),
+      h('div.row', {}, h('button', { onclick: () => { app.applyConfigPatch(personaVoiceSuggestion(app)); this.render(); } }, translate('Aplicar voz sugerida da personalidade'))),
+      h('div.row', {}, h('span.label', {}, translate('Personalidade de voz')), segmented([
+        ['padrao', translate('Padrão')], ['estoica', translate('Estóica')],
+      ], c.streamPersona || 'padrao', (v) => app.setOption('streamPersona', v))),
+      toggle({ label: translate('Ducking de áudio'), value: c.ttsDucking !== false, onchange: (v) => app.setOption('ttsDucking', v) }),
+      toggle({ label: translate('Falar em eventos importantes'), value: c.offlineTtsEvents !== false, onchange: (v) => app.setOption('offlineTtsEvents', v) }),
+      toggle({ label: translate('Falar em interações diretas'), value: c.offlineTtsInteract !== false, onchange: (v) => app.setOption('offlineTtsInteract', v) }),
+      toggle({ label: translate('Falar em conversas aleatórias'), value: c.offlineTtsChatter === true, onchange: (v) => app.setOption('offlineTtsChatter', v) }),
+      slider({ label: translate('Intervalo das conversas'), min: 1, max: 15, step: 1, value: c.offlineTtsChatterMin ?? 4, format: (v) => `${v} min`,
+        oninput: (v) => app.setOption('offlineTtsChatterMin', v) }),
+      app.tts?.lastError ? h('div.note', { style: { color: '#ff8fa0' } }, app.tts.lastError) : null,
+      h('div.note', {}, translate('Passo 3 — Perfis de voz')),
+      h('div.note', {}, translate('Salve um perfil para trocar de voz rapidamente depois.')),
       (() => {
         const draft = app.ttsProfileDraft || (app.ttsProfileDraft = { id: '', name: '' });
-        const nameInput = h('input.text', { type: 'text', placeholder: 'Nome do perfil', value: draft.name,
+        const nameInput = h('input.text', { type: 'text', placeholder: translate('Nome do perfil'), value: draft.name,
           oninput: (e) => { draft.name = e.target.value; } });
         const select = h('select', { onchange: (e) => {
           draft.id = e.target.value;
           const p = ttsProfiles(app.config).find(x => x.id === draft.id);
           if (p) draft.name = p.name;
           nameInput.value = draft.name;
-        } }, h('option', { value: '' }, '— selecione —'),
+        } }, h('option', { value: '' }, translate('— selecione —')),
           ...ttsProfiles(app.config).map(p => h('option', { value: p.id, selected: p.id === draft.id }, p.name)));
         return h('div', {},
-          h('div.row', {}, h('span.label', {}, 'Perfil salvo'), select),
-          h('div.row', {}, h('span.label', {}, 'Nome'), nameInput),
+          h('div.row', {}, h('span.label', {}, translate('Perfil salvo')), select),
+          h('div.row', {}, h('span.label', {}, translate('Nome')), nameInput),
           h('div.row', {},
             h('button', { onclick: () => {
               const { list, entry } = captureTtsProfile(app.config, nameInput.value, draft.id || null);
               app.setOption('ttsProfiles', list);
               draft.id = entry.id; draft.name = entry.name;
               this.render();
-            } }, 'Salvar perfil'),
+            } }, translate('Salvar perfil')),
             h('button', { onclick: () => {
               const p = ttsProfiles(app.config).find(x => x.id === draft.id);
               if (p) { app.applyConfigPatch(p.settings); this.render(); }
-            } }, 'Carregar perfil'),
+            } }, translate('Carregar perfil')),
             h('button', { onclick: () => {
               if (!draft.id) return;
               app.setOption('ttsProfiles', deleteTtsProfile(app.config, draft.id));
               draft.id = ''; draft.name = '';
               this.render();
-            } }, 'Excluir perfil')),
-          h('div.note', {}, 'Perfis ficam só neste computador e nunca incluem chaves de API.'),
+            } }, translate('Excluir perfil'))),
+          h('div.note', {}, translate('Perfis ficam só neste computador e nunca incluem chaves de API.')),
         );
       })(),
       ...(STREAM ? [
         h('div.group', {}, '🔑 IAs & Chaves API'),
         toggle({ label: 'Trocar automaticamente para a próxima IA quando os tokens acabarem', value: c.aiAutoFallback !== false, onchange: (v) => app.setOption('aiAutoFallback', v) }),
         ...(c.aiProviders || []).map((p, i) => h('div.row', {},
-          h('span.label', {}, p.name || `IA ${i + 1}`),
+          h('span.label', {}, p.name || translate(`IA ${i + 1}`)),
           h('button.mini', { onclick: () => {
             const list = c.aiProviders.slice();
             if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; app.setOption('aiProviders', list); }
@@ -1420,56 +1481,10 @@ export class Menu {
           { id: `ai-${Date.now()}`, name: 'OpenAI compatível', provider: 'openai', endpoint: '', model: 'gpt-4o-mini', apiKey: '', enabled: true },
         ]) }, '+ Adicionar IA')),
       ] : []),
-      h('div.row', {}, h('span.label', {}, 'Motor de voz'), segmented([
-        ['edge', 'Edge Neural'], ['fish', 'Fish Audio'], ['offline', 'Offline TTS'], ['system', 'Windows'],
-      ], c.ttsEngine || 'edge', (v) => { app.setOption('ttsEngine', v); this.render(); })),
-      c.ttsEngine === 'fish' ? h('div.row', {},
-        h('input.text', { type: 'password', placeholder: 'Fish Audio API Key', value: c.fishApiKey || '', onchange: (e) => app.setOption('fishApiKey', e.target.value) }),
-        h('input.text', { placeholder: 'Voice / Reference ID', value: c.fishVoiceId || '', onchange: (e) => app.setOption('fishVoiceId', e.target.value) }),
-      ) : null,
-      toggle({ label: 'Ativar voz no jogo normal', value: c.offlineTts === true, onchange: (v) => app.setOption('offlineTts', v) }),
-      toggle({ label: 'Falar em eventos importantes', value: c.offlineTtsEvents !== false, onchange: (v) => app.setOption('offlineTtsEvents', v) }),
-      toggle({ label: 'Falar em interações diretas', value: c.offlineTtsInteract !== false, onchange: (v) => app.setOption('offlineTtsInteract', v) }),
-      toggle({ label: 'Falar em conversas aleatórias', value: c.offlineTtsChatter === true, onchange: (v) => app.setOption('offlineTtsChatter', v) }),
-      slider({ label: 'Intervalo das conversas', min: 1, max: 15, step: 1, value: c.offlineTtsChatterMin ?? 4, format: (v) => `${v} min`,
-        oninput: (v) => app.setOption('offlineTtsChatterMin', v) }),
-      h('div.row', {}, h('span.label', {}, 'Pasta do TTS'), h('input.text', {
-        value: c.ttsDir || 'D:\\Program Files\\Offline TTS',
-        onchange: (e) => app.setOption('ttsDir', e.target.value),
-      }), h('button', { onclick: () => { app.loadOfflineVoices?.(c.ttsDir); this.render(); } }, '🔄 Carregar vozes')),
-      h('div.row', {}, h('span.label', {}, 'Voz'), h('select', {
-        onchange: (e) => { app.setOption('ttsVoice', e.target.value); app.tts?.preview?.('Olá... testando esta voz.', e.target.value); },
-      }, (['edge', 'fish'].includes(c.ttsEngine)
-        ? (EDGE_VOICES[c.lang === 'en' ? 'en' : 'pt'] || []).map(id => ({ id, name: id, lang: c.lang }))
-        : filterVoicesForLang(app.offlineVoices || [], c.lang)
-      ).map((v) => {
-        const id = typeof v === 'string' ? v.replace(/^neural:/, '') : String(v.id || v.name || '').replace(/^neural:/, '');
-        const lang = typeof v === 'string' ? '' : (v.lang || '');
-        return h('option', { value: id, selected: id === c.ttsVoice }, `${typeof v === 'string' ? id : (v.name || id)} (${lang || id})`);
-      }))),
-      h('div.row', {}, h('button', { onclick: () => app.tts?.preview?.('Olá... testando esta voz.', c.ttsVoice) }, '🔊 Testar voz')),
-      slider({ label: 'Velocidade', min: 0.7, max: 1.4, step: 0.05, value: c.ttsSpeed ?? 1, format: (v) => `${v.toFixed(2)}×`,
-        oninput: (v) => app.setOption('ttsSpeed', v) }),
-      slider({ label: 'Volume da Voz', min: 0, max: 1, step: 0.05, value: c.ttsVolume ?? 0.85, format: (v) => `${Math.round(v*100)}%`,
-        oninput: (v) => app.setOption('ttsVolume', v) }),
-      slider({ label: 'Tom (semitons)', min: -6, max: 6, step: 1, value: c.ttsPitch ?? 0, format: (v) => `${v > 0 ? '+' : ''}${v}`,
-        oninput: (v) => app.setOption('ttsPitch', v) }),
-      h('div.row', {}, h('span.label', {}, 'Filtro de timbre'), segmented([
-        ['natural', 'Natural'], ['warm', 'Quente'], ['wired', 'Wired'],
-      ], c.ttsFilter || 'natural', (v) => app.setOption('ttsFilter', v))),
-      h('div.row', {}, h('span.label', {}, 'Quando responder com TTS'), segmented([
-        ['always', 'Todo tempo'], ['never', 'Nunca'], ['viewers_only', 'Só viewers'],
-        ['me_only', 'Apenas eu'], ['viewers_and_me', 'Viewers e eu'], ['mixed', 'Misturado'],
-      ], c.ttsRespondMode || 'mixed', (v) => app.setOption('ttsRespondMode', v))),
-      h('div.row', {}, h('span.label', {}, 'Personalidade de voz'), segmented([
-        ['padrao', 'Padrão'], ['estoica', 'Estóica'],
-      ], c.streamPersona || 'padrao', (v) => app.setOption('streamPersona', v))),
-      toggle({ label: 'Audio Ducking', value: c.ttsDucking !== false, onchange: (v) => app.setOption('ttsDucking', v) }),
       toggle({ label: `Modo "Esperando você voltar" quando ausente`, value: c.awayCozy !== false, onchange: (v) => app.setOption('awayCozy', v) }),
-      app.tts?.lastError ? h('div.note', { style: { color: '#ff8fa0' } }, app.tts.lastError) : null,
       h('div.group', {}, 'Ajuda'),
       toggle({
-        label: 'Mostrar dicas e tutoriais na tela',
+        label: translate('Mostrar dicas e tutoriais na tela'),
         value: !app.game.profile.tipsOff,
         onchange: (v) => {
           if (v) resetTips(app.game);
@@ -1507,7 +1522,7 @@ export class Menu {
         h('div.group', {}, '🎙️ Push-to-Talk'),
         toggle({ label: 'Ativar Push-to-Talk', value: c.pttEnabled === true, onchange: (v) => app.setOption('pttEnabled', v) }),
         h('div.row', {}, h('span.label', {}, 'Tecla'), segmented([
-          ['F8', 'F8'], ['F9', 'F9'], ['F10', 'F10'], ['CapsLock', 'Caps'], ['RightAlt', 'Alt dir.'],
+          ['F8', 'F8'], ['F9', 'F9'], ['F10', 'F10'], ['CapsLock', 'Caps'], ['RightAlt', translate('Alt dir.')],
         ], c.pttKey || 'F9', (v) => app.setOption('pttKey', v))),
       ] : []),
       h('div.group', {}, 'Não Perturbe'),
@@ -1632,6 +1647,8 @@ export class Menu {
       ] : []),
       h('div.group', {}, 'Setups da mesa'),
       this.setupRows(),
+      h('div.group', {}, translate('IMPORTAR / EXPORTAR SAVE')),
+      this.saveTools(),
       ...(STREAM ? [
         h('div.group', {}, 'Streamer Mode'),
         toggle({ label: 'Streamer Mode (janela para o OBS)', value: !!c.streamer, onchange: (v) => {
@@ -1957,7 +1974,7 @@ export class Menu {
       h('div.group', {}, `Animações do modelo (${list.length})`),
       h('div.row', {},
         h('button', { onclick: () => { this.animsOpen = !open; this.render(); } }, open ? '▲ Esconder lista' : '▼ Mostrar lista'),
-        app.previewing ? h('button', { onclick: () => { app.stopPreview(); this.render(); } }, '⏹ Parar prévia') : null),
+        app.previewing ? h('button', { onclick: () => { app.stopPreview(); this.render(); } }, translate('⏹ Parar prévia')) : null),
       ...(open ? this.animItems(list) : []),
     ];
   }
@@ -2020,17 +2037,17 @@ export class Menu {
     }, label);
     return [
       h('div.group.debug', {}, `Combate — debug (${list.length})`),
-      h('div.note', {}, '⚔ Forçar combate entra no COMBAT_MODE contra o Sucataoxidado, sem precisar do boneco nem de energia. ▶ toca qualquer golpe ou manobra, mesmo bloqueado e mesmo com a animação desligada.'),
+      h('div.note', {}, translate('⚔ Forçar combate entra no COMBAT_MODE contra o Sucataoxidado, sem precisar do boneco nem de energia. ▶ toca qualquer golpe ou manobra, mesmo bloqueado e mesmo com a animação desligada.')),
       h('div.filters', {},
-        btn('⚔ Forçar combate', () => app.debugFight?.() || app.speech?.say('Não deu para começar', 2)),
-        btn('Sair do COMBAT_MODE', () => { app.melee?.stop?.('cancelled'); this.render(); }),
-        app.previewing ? h('button.chip', { onclick: () => { app.stopPreview(); this.render(); } }, '⏹ Parar prévia') : null),
+        btn(translate('⚔ Forçar combate'), () => app.debugFight?.() || app.speech?.say(translate('Não deu para começar'), 2)),
+        btn(translate('Sair do COMBAT_MODE'), () => { app.melee?.stop?.('cancelled'); this.render(); }),
+        app.previewing ? h('button.chip', { onclick: () => { app.stopPreview(); this.render(); } }, translate('⏹ Parar prévia')) : null),
       list.length
         ? h('div.filters', {}, list.map((m) => h('button.chip', {
           title: m.tag,
           onclick: () => { this.done(); setTimeout(() => app.previewCombat?.(m.clip), 80); },
         }, `▶ ${m.name}`)))
-        : h('div.note', {}, 'O modelo atual não tem os clipes de combate.'),
+        : h('div.note', {}, translate('O modelo atual não tem os clipes de combate.')),
     ];
   }
 
@@ -2273,7 +2290,7 @@ export class ImportDialog {
     const current = cfg.modelDir || DEFAULT_MODEL_DIR;
     const box = h('div.recent-models');
     const wrap = h('div.field-block', {}, h('span.label', {}, 'Modelos recentes'), box);
-    const KIND = { mc: ['🟫', 'Skin de blocos'], vrm: ['🧊', 'Modelo 3D'], ysm: ['📦', 'Modelo YSM'] };
+    const KIND = { mc: ['🟫', 'Skin de blocos'], vrm: ['🧊', 'Modelo 3D'], ysm: ['📦', translate('Modelo YSM')] };
     const face = (skin) => {
       const c = h('canvas.recent-face', { width: 8, height: 8 });
       const img = new Image();
@@ -2315,12 +2332,12 @@ export class ImportDialog {
         }, m.skin ? face(m.skin) : h('span.recent-icon', {}, icon), h('span.recent-name', {}, m.name), h('span.hint', {}, using ? 'em uso' : label));
         if (using || !m.removable) return card;
         const del = h('button.recent-del', {
-          title: 'Apagar modelo',
+          title: translate('Apagar modelo'),
           onclick: async (e) => {
             e.stopPropagation();
             if (!del.classList.contains('confirm')) {
               del.classList.add('confirm');
-              del.textContent = 'Apagar?';
+              del.textContent = translate('Apagar?');
               return;
             }
             try {
@@ -2859,7 +2876,7 @@ export class ObjectsDialog extends Dialog {
       const { decodeAnimated } = await import('./skins.js');
       let anim = null;
       try { anim = /\.(gif|webp|apng)$/i.test(path) ? await decodeAnimated(data) : null; }
-      catch (e) { this.error = `Não foi possível ler a animação: ${e?.message || e}`; console.error('[skins] decode', e); }
+      catch (e) { this.error = translate(`Não foi possível ler a animação: ${e?.message || e}`); console.error('[skins] decode', e); }
       const decoded = { kind: anim && anim.frames.length > 1 ? 'gif' : 'img', src: anim?.frames || [data], delays: anim?.delays || [100] };
       const old = (this.upgraded ? this.app.skins.objectsUpgrade : this.app.skins.objects)[baseId(this.sel)] || {};
       const prev = this.draft && this.draft.kind !== '3d' ? this.draft : null;
@@ -2893,7 +2910,7 @@ export class ObjectsDialog extends Dialog {
       this.bakeKey = '';
       this.refreshBake();
     } catch (e) {
-      this.error = `Não foi possível abrir a imagem: ${e?.message || e}`;
+      this.error = translate(`Não foi possível abrir a imagem: ${e?.message || e}`);
       console.error('[skins] import', e);
     } finally {
       this.busy = Math.max(0, this.busy - 1);
@@ -3414,7 +3431,7 @@ export class BoxOpenDialog extends Dialog {
   }
 
   open() {
-    super.open('Abrir Caixas');
+    super.open(translate('Abrir Caixas'));
     const { game } = this.app;
     const boxItem = ITEMS.find((i) => i.id === this.boxId);
     const boxIcon = boxItem?.img || '🎁';
@@ -3423,10 +3440,10 @@ export class BoxOpenDialog extends Dialog {
       h('div.box-preview.center', {},
         h('div.box-icon', {}, isArtSrc(boxIcon) ? h('img', { src: boxIcon, alt: '', draggable: false }) : h('span.glyph', {}, boxIcon)),
         h('div.box-name', {}, boxItem?.name || 'Caixa'),
-        h('div.box-count', {}, `Total: ${this.maxCount} caixa(s)`),
+        h('div.box-count', {}, translate(`Total: ${this.maxCount} caixa(s)`)),
       ),
       h('div.slider-container.center', {},
-        h('div.slider-label', {}, 'Quantidade a abrir'),
+        h('div.slider-label', {}, translate('Quantidade a abrir')),
         h('div.slider-wrapper', {},
           slider({
             label: '',
@@ -3439,7 +3456,7 @@ export class BoxOpenDialog extends Dialog {
             onchange: () => {},
           }),
         ),
-        h('div.slider-value.big', {}, `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`),
+        h('div.slider-value.big', {}, translate(`Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`)),
       ),
       h('div.quick-buttons.center', {},
         h('button.quick-btn', { onclick: () => { this.selectedCount = Math.min(5, this.maxCount); this.render(); } }, '×5'),
@@ -3461,7 +3478,7 @@ export class BoxOpenDialog extends Dialog {
           this.app.closeMenu?.();
           this.close();
         },
-      }, `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`),
+      }, translate(`Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`)),
     ];
 
     this.frame(body, footer);
@@ -3471,7 +3488,7 @@ export class BoxOpenDialog extends Dialog {
     // Update the slider value display
     const valueEl = this.modal?.querySelector('.slider-value.big');
     if (valueEl) {
-      valueEl.textContent = `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`;
+      valueEl.textContent = translate(`Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`);
     }
     // Update slider input
     const sliderInput = this.modal?.querySelector('input[type="range"]');
@@ -3481,7 +3498,7 @@ export class BoxOpenDialog extends Dialog {
     // Update button text
     const primaryBtn = this.modal?.querySelector('.modal-foot button.primary');
     if (primaryBtn) {
-      primaryBtn.textContent = `Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`;
+      primaryBtn.textContent = translate(`Abrir ${this.selectedCount} ${this.selectedCount === 1 ? 'caixa' : 'caixas'}`);
     }
   }
 }

@@ -6,6 +6,10 @@ import { upIcon, upSize, ARCADE_SCREEN } from './upgrades.js';
 import { ArcadeShooter } from './arcadeshooter.js';
 import { crtFilter, GAMES } from './games.js';
 import { ATTR_XP, MANGA_RARITY_XP } from './attrxp.js';
+
+const tvActive = (app, pet) => !!app.tvWatch?.on
+  || pet.activity === 'watch'
+  || baseId(String(pet.toyPlay?.id || '')) === 'videogame';
 import { RARITIES } from './lootitems.js';
 import { dollBonus, dollWave, dollHasSkill } from './dollskills.js';
 
@@ -282,7 +286,7 @@ export const baseId = (key) => String(key).split('#')[0];
 
 export const FURN_ITEMS = [
   item('cama', 'mobilia', 'Cama', 300, 'bed', { furn: true, gain: { energy: 0.1, mood: 0.2 }, note: 'Dorme deitado de lado até encher a energia · às vezes senta ou deita para brincar' }),
-  item('videogame', 'mobilia', 'VideoGame (TV + console)', 450, 'tvset', { furn: true, gain: { mood: 0.5 }, note: 'Senta de frente para a TV e joga qualquer cartucho · come pipoca e bebe refri enquanto joga' }),
+  item('videogame', 'mobilia', 'TV / VideoGame', 450, 'tvset', { furn: true, gain: { mood: 0.5 }, note: 'Senta de frente para a TV e joga qualquer cartucho · come pipoca e bebe refri enquanto joga' }),
   item('almofada', 'mobilia', 'Almofada', 90, 'almofada', { furn: true, gain: { mood: 0.2, energy: 0.12 }, note: 'Senta para descansar e brincar' }),
   item('banheira', 'mobilia', 'Banheira', 320, 'tub', { furn: true, gain: { hygiene: 6, mood: 0.3, energy: 0.05 }, note: 'Toma banho de espuma sozinha quando está suja · clique para mandar tomar banho' }),
   item('estante', 'mobilia', 'Estante', 250, 'estante_icon', { furn: true, decor: true, noWear: true, note: 'Guarda 65 mangás ou 30 bonecos colecionáveis · pode ter várias · a Persocon lê e brinca sozinha' }),
@@ -607,7 +611,7 @@ export class Furniture {
       } else if (b === 'cafeteira' || b === 'venda_comida' || b === 'venda_bebida') {
         active = baseId(String(vend?.id || '')) === b;
       } else if (b === 'impressora') active = !!(this.toys.unpacking || this.app.game.deliveries?.length);
-      else if (b === 'videogame') active = this.app.pet.activity === 'jam';
+      else if (b === 'videogame') active = tvActive(this.app, this.app.pet);
       else if (b === 'banheira') active = /bath|banho/.test(this.app.pet.action || '');
       else if (b === 'escrivaninha') active = !!this.app.pomodoro?.active;
       const custom = skins.art(b, null, active, up);
