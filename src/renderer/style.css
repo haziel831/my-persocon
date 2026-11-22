@@ -96,7 +96,7 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; }
 .qte .info { color: var(--muted); font-size: 11px; }
 
 /* ---------- shared ---------- */
-.backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.001); z-index: 10; }
+.backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.001); z-index: 60; }
 .backdrop.dim { background: rgba(8, 8, 14, 0.45); display: grid; place-items: center; animation: fade 0.15s; }
 @keyframes fade { from { opacity: 0; } }
 button {

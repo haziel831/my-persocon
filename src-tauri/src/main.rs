@@ -1037,8 +1037,10 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                     }
                 }
                 if !value {
+                    // The control panel is a normal browser TAB, not a --app= window. Sending
+                    // WM_CLOSE to the browser window would close the user's whole browser.
+                    // Only flag the state: the panel polls /state and closes its own tab.
                     stream_bridge::mark_closing();
-                    win32::close_windows_containing("my persocon - controle streamer");
                     let mut cfg = config.clone();
                     cfg["streamer"] = json!(false);
                     stream_bridge::set_state(json!({ "config": cfg }));
@@ -1624,8 +1626,8 @@ fn main() {
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 if STREAMER.load(Ordering::Relaxed) {
+                    // Never close the browser window here: only tell the panel tab to close.
                     stream_bridge::mark_closing();
-                    win32::close_windows_containing("my persocon - controle streamer");
                 }
                 let _ = app;
             }

@@ -93,8 +93,14 @@ const ANTIC_EFFORT = { squats: 2.2, shadowbox: 2.3, hops: 2, twirl: 1.8, butterf
 const SEAT_TOYS = new Set(['cama', 'almofada', 'banheira', 'videogame', 'pelucia', 'perch']);
 
 export const FULL_STATS = { health: 100, hunger: 80, mood: 70, energy: 100, thirst: 80, hygiene: 100 };
-export const AFFECTION_MAX = 1000;
+export const AFFECTION_MAX = 1000; // absolute ceiling after the Black Cartridge boss
+export const AFFECTION_CAP_DEFAULT = 100;
 export const AFFECTION_LEAVE = -100;
+let affectionCap = AFFECTION_CAP_DEFAULT;
+export function setAffectionCap(value) {
+  affectionCap = Math.max(AFFECTION_CAP_DEFAULT, Math.min(AFFECTION_MAX, Number(value) || AFFECTION_CAP_DEFAULT));
+}
+export function getAffectionCap() { return affectionCap; }
 // The crouch before every jump (the vertical velocity only comes after it).
 export const JUMP_PREP = 0.22;
 // The knockback sequence: the flight, the fall on the floor and the get-up.
@@ -203,7 +209,8 @@ export class Pet {
     this.sitClip = this.roleClips('sentar')[0] || null;
   }
 
-  // Affection: slowest stat, -100..1000. Gains shrink as it grows; at -100 the pet leaves.
+  // Affection: capped at 100 until the Black Cartridge boss is defeated. Gains shrink as it
+  // grows; at -100 the pet leaves.
   love(n) {
     if (this.dead) return;
     if (n > 0) {
@@ -213,7 +220,7 @@ export class Pet {
       n *= this.debuffGain();
     }
     const before = this.affection;
-    this.affection = clamp(this.affection + n, AFFECTION_LEAVE, AFFECTION_MAX);
+    this.affection = clamp(this.affection + n, AFFECTION_LEAVE, getAffectionCap());
     const mark = Math.floor(this.affection / 100) * 100;
     if (n > 0 && mark > 0 && mark > before) this.emit('loveMilestone', { level: mark });
     if (this.affection <= AFFECTION_LEAVE) this.leave();

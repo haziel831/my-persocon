@@ -104,8 +104,9 @@ pub fn list_open_windows() -> Vec<(String, String)> {
     state.rows
 }
 
-/// Closes only top-level windows whose title contains `needle` (used for the
-/// browser --app= control panel). Never touches the process, only WM_CLOSE.
+/// Legacy helper for old --app= control windows. Unused now that the panel is a browser tab:
+/// sending WM_CLOSE to a normal browser window would close every tab, so keep it dormant.
+#[allow(dead_code)]
 pub fn close_windows_containing(needle: &str) -> usize {
     struct State { needle: String, found: Vec<isize> }
     unsafe extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {

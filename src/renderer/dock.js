@@ -1,6 +1,6 @@
 // Status Dock: always-visible bars, chips and logs in a corner of the screen.
 // Extracted from pet.js — all markup, classes, translations and caches stay identical.
-import { AFFECTION_MAX, DEBUFFS } from './behavior.js';
+import { DEBUFFS, getAffectionCap } from './behavior.js';
 import { BUFF_ICONS, BUFF_LABELS, itemById } from './game.js';
 import { translate } from './i18n.js';
 import { icon } from './pixel.js';
@@ -339,7 +339,7 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
       + `<button class="sd-hide" type="button" title="${hideTip}" aria-label="${hideTip}">${isHidden() ? '😑' : '👁'}</button></div>`
       + bar('❤️', (Math.min(s.health, maxHp) / maxHp) * 100, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
-      + bar('💗', (pet.affection / AFFECTION_MAX) * 100, '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
+      + bar('💗', Math.max(0, Math.min(100, (pet.affection / getAffectionCap()) * 100)), '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
       + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock() + focusChip;
     // Rebuilding the markup kills the click on the hide button and the selection, so only do it
     // when something visible actually changed.

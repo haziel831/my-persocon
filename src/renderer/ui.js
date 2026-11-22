@@ -8,7 +8,7 @@ import { SWORD_MOVES } from './swordanims.js';
 import { MANEUVERS } from './melee.js';
 import { GAMES } from './games.js';
 import { FILTERS } from './filters.js';
-import { AFFECTION_MAX, FULL_STATS } from './behavior.js';
+import { FULL_STATS, getAffectionCap } from './behavior.js';
 import { SOUND_THEMES } from './sound.js';
 import { RP_PARTS, readModel, applyChromaKey } from './skins.js';
 import { icon, cartSheetStyle } from './pixel.js';
@@ -150,7 +150,7 @@ function wireSounds(root, sound) {
 
 const DIFFICULTY_OPTIONS = [['facil', 'Fácil'], ['normal', 'Normal'], ['dificil', 'Difícil'], ['extremo', 'Extremo']];
 
-const affectionWidth = (a) => `${Math.max(0, (a / AFFECTION_MAX) * 100)}%`;
+const affectionWidth = (a) => `${Math.max(0, Math.min(100, (a / getAffectionCap()) * 100))}%`;
 
 function statBars(stats, affection) {
   return h('div.bars', {}, Object.entries(STAT_LABELS).map(([k, label]) =>
@@ -358,6 +358,11 @@ export class Menu {
   }
 
   select(category) {
+    // "Profile" must always land on the profile tab, never on a stale album/collection tab.
+    if (category === 'perfil') {
+      this.perfilTab = 'perfil';
+      if (this.app) this.app.albumTab = false;
+    }
     if (category !== this.category) {
       this.openGroups = new Set();
       this.search = '';
@@ -450,7 +455,13 @@ export class Menu {
             ? h('img.cat-pix', { src: icon('backpack'), draggable: false, alt: '' })
             : h('span.icon', {}, ico),
           label))),
-      h('div.panel', {}, this[this.category]()),
+      h('div.panel', {}, (() => {
+        try { return this[this.category](); }
+        catch (e) {
+          console.error('[menu] falha ao abrir a seção', this.category, e);
+          return h('div.note', {}, 'Não foi possível abrir esta seção. Veja o console (F12).');
+        }
+      })()),
       h('div.menu-foot', {},
         h('span.hint', {}, 'Botão direito: arrastar o menu ou a Persocon'),
         h('button.link', { onclick: () => app.quit() }, 'Sair')),
@@ -852,7 +863,7 @@ export class Menu {
     const geral = [
       ['Nome', app.config.name || 'Ninna'],
       ['Idade', age(p.born)],
-      ['Afeição', `${Math.round(app.pet.affection)} / ${AFFECTION_MAX} · moedas ×${(1 + Math.max(0, app.pet.affection) / 500).toFixed(1)}`],
+      ['Afeição', `${Math.round(app.pet.affection)} / ${getAffectionCap()} · moedas ×${(1 + Math.max(0, app.pet.affection) / 500).toFixed(1)}`],
       ['Moedas', (() => {
         const bits = [`¥ ${coinText(g)}`, `ganhou ${p.coinsEarned}`];
         const active = [];

@@ -8,6 +8,7 @@
 // (combatanims.js) and the result is rolled with the Combat Skill Level: a higher level means
 // more accuracy, more crits and a better defense.
 import { combatMoves, skillLevel, skillGain } from './skills.js';
+import { AFFECTION_MAX, setAffectionCap } from './behavior.js';
 import { SWORD_MOVES, SWORD_MULT } from './swordanims.js';
 import { COMBAT_META } from './combatanims.js';
 import { ITEMS, itemById } from './game.js';
@@ -1403,6 +1404,12 @@ export class Melee {
       }
       // O cartucho preto continua guardado no Especial: dá para repetir as ondas.
       game.profile.unknownDone = true;
+      // Derrotar o inimigo do cartucho preto libera a afeição acima de 100.
+      if (!game.profile.blackCartridgeBossDefeated) {
+        game.profile.blackCartridgeBossDefeated = true;
+        setAffectionCap(AFFECTION_MAX);
+        this.app.gains?.show?.('Afeição desbloqueada', 'stat', 'limite 100 → 1000', null);
+      }
       game.changed();
       game.persist?.();
     } else if (reason === 'safety' || reason === 'tired' || reason === 'ko') {

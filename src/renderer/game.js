@@ -1,5 +1,5 @@
 // Shop catalog, inventory, coins, toys and saved progress (save.json next to the app).
-import { FULL_STATS, DIFFICULTIES, DEBUFFS } from './behavior.js';
+import { FULL_STATS, DIFFICULTIES, DEBUFFS, AFFECTION_MAX, setAffectionCap, getAffectionCap } from './behavior.js';
 import { icon, cartridge } from './pixel.js';
 import { GAMES } from './games.js';
 import { FURN_ITEMS, COFFEE_ITEMS, baseId } from './furniture.js';
@@ -308,6 +308,9 @@ export class Game {
     this.profile.swordEquipped = this.profile.swordEquipped === true;
     this.profile.cristalAwarded ??= !!this.profile.unknownDone;
     this.profile.blackCartLore ??= false;
+    // Defeating the enemy spawned by the Black Cartridge unlocks affection above 100.
+    this.profile.blackCartridgeBossDefeated = this.profile.blackCartridgeBossDefeated === true;
+    setAffectionCap(this.profile.blackCartridgeBossDefeated ? AFFECTION_MAX : 100);
     // toys: { id: { uses, maxUses, broken, placed, x } }
     this.toys = { ...(save?.toys || {}) };
     // Decor kept in the inventory is just a count (older saves also had a record for it).
@@ -350,7 +353,7 @@ export class Game {
     this.ensureDesktopBuddy();
     this.ensureSyntoyoToy();
     this.pet.buffs = { ...(save?.buffs || {}) };
-    this.pet.affection = save?.affection ?? 0;
+    this.pet.affection = Math.min(save?.affection ?? 0, getAffectionCap());
     this.profile.loveTop ??= Math.max(0, Math.floor(this.pet.affection / 100) * 100);
     this.pet.jamMoves = this.profile.jamMoves || 0;
     this.pet.gear = this.gear;

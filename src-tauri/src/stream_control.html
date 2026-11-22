@@ -30,6 +30,9 @@
   .bar .queue { margin-left:auto; font-weight:700; }
   .bar-title { font:700 12px PxEmoji, system-ui, sans-serif; color:var(--accent2); text-transform:uppercase; letter-spacing:1px; margin-right:2px; }
   .bar-brb { margin-left:6px; }
+  .sc-window-btns button { -webkit-app-region: no-drag; }
+  body.sc-minimized main { display:none; }
+  body.sc-minimized #status { display:none; }
   label.toggle { display:flex; gap:8px; align-items:center; margin:5px 0; cursor:pointer; }
   label.field { display:grid; grid-template-columns:170px 1fr 52px; gap:8px; align-items:center; margin:5px 0; }
   label.field.wide { grid-template-columns:170px 1fr; }
@@ -89,6 +92,7 @@
     <div class="row"><button class="act primary" id="first-viewer-read">Ler o chat</button><button class="act" id="first-viewer-name">Só quando chamarem meu nome</button></div>
   </div>
   <div class="note" id="rpc-status"></div>
+  <div class="row sc-window-btns"><button type="button" class="act" id="sc-min">Minimizar</button><button type="button" class="act" id="sc-max">Maximizar</button></div>
 </header>
 <nav id="nav">
   <button class="on" data-tab="streamer">🎥 Streamer</button>
@@ -346,6 +350,8 @@ const TIPS = {
   'exit': ['Desliga o Modo Streamer e volta ao jogo normal.', 'Turns off Streamer Mode and returns to the normal game.'],
   'collapse-all': ['Recolhe todas as seções deste painel.', 'Collapses every section of this panel.'],
   'expand-all': ['Expande todas as seções deste painel.', 'Expands every section of this panel.'],
+  'sc-min': ['Minimiza o painel (deixa só o cabeçalho).', 'Minimizes the panel (header only).'],
+  'sc-max': ['Restaura e expande todas as seções.', 'Restores and expands every section.'],
   'streamerClean': ['Esconde Dock/UI na janela do palco para OBS.', 'Hides Dock/UI on the stage window for OBS.'],
   'streamChatBoxVisible': ['Mostra a caixa de chat flutuante no palco.', 'Shows the floating chat box on the stage.'],
   'streamChatPinned': ['Fixa o chat no canto superior direito deste painel.', 'Pins the chat to the top right of this panel.'],
@@ -840,6 +846,21 @@ $('#mute').onclick = () => { muted=!muted; rpc({cmd:'ttsMute'}); $('#mute').clas
 $('#skip').onclick = () => rpc({cmd:'ttsSkip'});
 $('#clear').onclick = () => rpc({cmd:'ttsClear'});
 $('#exit').onclick = () => rpc({cmd:'exitStreamer'});
+function setPanelMinimized(on) {
+  document.body.classList.toggle('sc-minimized', on);
+  setAllBlocks(on);
+  const min = $('#sc-min'); const max = $('#sc-max');
+  if (min) min.textContent = on ? 'Restaurar' : 'Minimizar';
+  if (max) max.textContent = on ? 'Expandir tudo' : 'Maximizar';
+}
+$('#sc-min').onclick = () => setPanelMinimized(!document.body.classList.contains('sc-minimized'));
+$('#sc-max').onclick = () => {
+  document.body.classList.remove('sc-minimized');
+  setAllBlocks(false);
+  const min = $('#sc-min'); const max = $('#sc-max');
+  if (min) min.textContent = 'Minimizar';
+  if (max) max.textContent = 'Maximizar';
+};
 $('#test-voice').onclick = () => rpc({cmd:'ttsTest'});
 $('#test-voice-inline').onclick = () => rpc({cmd:'ttsPreview', voice: $('#voice').value});
 $('#test-persona').onclick = () => rpc({cmd:'say',text:'Pausa na transmissão... já voltamos.'});
@@ -1233,11 +1254,19 @@ function shutdownPanel(reason) {
   document.body.textContent = '';
   const box = document.createElement('div');
   box.className = 'panel-closed';
-  box.textContent = state.lang === 'en'
-    ? 'My Persocon has closed — you can close this tab now.'
-    : 'My Persocon encerrado — você já pode fechar esta aba';
+  const en = state.config?.lang === 'en';
+  box.append(document.createTextNode(en
+    ? 'My Persocon has closed. Only this tab will close.'
+    : 'My Persocon encerrado. Apenas esta aba será fechada.'));
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'act';
+  closeBtn.style.marginTop = '12px';
+  closeBtn.textContent = en ? 'Close this tab' : 'Fechar esta aba';
+  closeBtn.onclick = () => { try { window.open('', '_self'); } catch {} window.close(); };
+  box.append(closeBtn);
   document.body.append(box);
-  try { window.open('', '_self'); window.close(); } catch {}
+  // Browsers block close() without a user gesture / opener: the button above is the reliable path.
+  try { window.close(); } catch {}
 }
 async function poll() {
   try {
