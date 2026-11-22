@@ -3199,7 +3199,7 @@ export class ObjectsDialog extends Dialog {
     const activeFrames = d?.active?.src?.length
       ? (this.baked?.activeFrames?.length ? this.baked.activeFrames : d.active.src) : null;
     const idleCard = makeCard('idle', translate('Parado'), idleFrames, d?.delays, null);
-    const activeCard = showActive ? makeCard('active', translate('Em uso'), activeFrames, d.active?.delays,
+    const activeCard = showActive ? makeCard('active', translate('Em uso'), activeFrames, d?.active?.delays,
       translate('Opcional: toca enquanto ela usa o item')) : null;
     const mainSlot = idleCard.card.querySelector('.obj-preview-box');
     const img = idleCard.im;
