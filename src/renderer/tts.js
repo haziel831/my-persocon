@@ -3,6 +3,9 @@ import { isStoic } from './persona.js';
 
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu;
+const DECOR_RE = /[♥❤★☆✨♪♫~*_^`|\\<>\[\]{}]/gu;
+const PUNCT_RUN_RE = /([!?.,;:])\1+/g;
+const PAUSE_RE = /(?:\.{3,}|—|–)+/g;
 export const VOICE_PRESETS = {
   aghata: {
     voice: 'pf_dora',
@@ -29,6 +32,8 @@ export class VoiceTTS {
     this.ctx = null;
     this.current = null;
     this.muted = false; // quick mute: balloons and alerts keep working
+    this.engine = 'offline'; // 'offline' (Offline TTS Studio) | 'windows' (speechSynthesis)
+    this.engineNote = '';
     this.lastError = '';
     this.lastChatterAt = 0;
     this.gen = 0;
@@ -86,7 +91,16 @@ export class VoiceTTS {
         s = s.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(term)}(?![\\p{L}\\p{N}])`, 'giu'), say);
       } catch {}
     }
-    s = s.replace(/\s+/g, ' ').trim();
+    // Never let the engine read punctuation/symbol names aloud. Accented letters
+    // are kept exactly as typed (valid UTF-8, no NFD splitting).
+    s = s.replace(EMOJI_RE, ' ')
+      .replace(DECOR_RE, ' ')
+      .replace(PAUSE_RE, ',')
+      .replace(PUNCT_RUN_RE, '$1')
+      .replace(/["']/g, ' ')
+      .replace(/\s*([,.!?;:])\s*/g, '$1 ')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (!s) return '';
     if (opts.chat && c.ttsSpeakUser !== false && opts.user) {
       s = `${opts.user} ${c.lang === 'en' ? 'said:' : 'disse:'} ${s}`;
@@ -165,9 +179,19 @@ export class VoiceTTS {
       const lang = job.lang || langForVoice(chosen, fallbackLang);
       const voice = chosen || (lang.startsWith('en') ? 'af_nicole' : 'pf_dora');
       const speed = job.speed ?? c.ttsSpeed ?? preset?.speed ?? (calm ? 0.88 : 1);
-      const data = await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed, job.blend || preset?.blend || null);
+      let data = null;
+      try {
+        data = await window.petAPI?.ttsSpeak?.(c.ttsDir || '', job.text, voice, lang, speed, job.blend || preset?.blend || null);
+      } catch (err) {
+        this.lastError = String(err?.message || err || 'offline TTS failed');
+      }
       if (gen !== this.gen) return; // superseded by a newer preview/selection
-      if (!data) throw new Error('no audio');
+      if (!data) {
+        // The .zip can be installed without the Offline TTS Studio: use the
+        // native Windows voice instead of leaving the game silent.
+        if (this.speakWindows(job, lang, speed, gen)) { playing = true; return; }
+        throw new Error(this.lastError || 'no audio');
+      }
       const base64 = String(data).slice(String(data).indexOf(',') + 1);
       const binary = atob(base64);
       const bytes = new Uint8Array(binary.length);
@@ -228,6 +252,51 @@ export class VoiceTTS {
     }
   }
 
+  // Last-resort voice: Windows Speech Synthesis (SAPI/OneCore). Single queue,
+  // smooth synthetic mouth level, same volume/rate/pitch and ducking behaviour.
+  speakWindows(job, lang, speed, gen) {
+    if (typeof speechSynthesis === 'undefined') return false;
+    const synth = window.speechSynthesis;
+    const c = this.app.config;
+    const u = new SpeechSynthesisUtterance(job.text);
+    const want = lang.startsWith('en') ? ['en-US', 'en-GB'] : ['pt-BR', 'pt-PT'];
+    const voices = synth.getVoices() || [];
+    const soft = ['maria', 'francisca', 'zira', 'aria', 'samantha', 'google português', 'microsoft helena'];
+    const match = voices.find((v) => want.some((l) => v.lang?.toLowerCase() === l.toLowerCase()) && soft.some((s) => v.name?.toLowerCase().includes(s)))
+      || voices.find((v) => want.some((l) => v.lang?.toLowerCase().startsWith(l.slice(0, 2).toLowerCase())));
+    if (match) u.voice = match;
+    u.lang = match?.lang || (lang.startsWith('en') ? 'en-US' : 'pt-BR');
+    u.rate = Math.max(0.5, Math.min(2, speed));
+    u.pitch = Math.max(0, Math.min(2, 1 + (Number(c.ttsPitch) || 0) * 0.05));
+    u.volume = Math.max(0, Math.min(1, c.ttsVolume ?? 0.85));
+    this.engine = 'windows';
+    this.engineNote = c.lang === 'en'
+      ? 'Using Windows voice (Offline TTS not found)'
+      : 'Usando voz do Windows (Offline TTS não encontrado)';
+    this.lastError = '';
+    this.speaking = true;
+    this.duck(true);
+    const finish = () => {
+      if (this._winTimer) { clearInterval(this._winTimer); this._winTimer = null; }
+      if (gen !== this.gen) return;
+      this.mouthLevel = 0;
+      this.duck(false);
+      this.next();
+    };
+    u.onend = finish;
+    u.onerror = finish;
+    try {
+      synth.cancel();
+      synth.speak(u);
+    } catch { this.duck(false); return false; }
+    this._winTimer = setInterval(() => {
+      if (gen !== this.gen) { clearInterval(this._winTimer); this._winTimer = null; return; }
+      this.mouthLevel = 0.25 + Math.random() * 0.5;
+    }, 90);
+    this.app.pushStreamerState?.();
+    return true;
+  }
+
   tick() {
     const cur = this.current;
     if (!cur) return;
@@ -244,6 +313,8 @@ export class VoiceTTS {
 
   stopCurrent() {
     this.gen = (this.gen || 0) + 1;
+    if (this._winTimer) { clearInterval(this._winTimer); this._winTimer = null; }
+    try { if (this.engine === 'windows' && typeof speechSynthesis !== 'undefined') speechSynthesis.cancel(); } catch {}
     if (this.current) {
       this.current.src.onended = null; // never let an old source advance the queue
       try { this.current.src.stop(); } catch {}

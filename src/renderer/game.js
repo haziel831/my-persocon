@@ -96,9 +96,9 @@ export const ITEMS = [
   pix('bolsa_g', 'fun', 'Bolsa grande', 520, 'bag_g', { gear: true, bagSlots: 9, note: 'Inventário dela: 9 slots' }),
   // Specials: rare and expensive (no consumables/food).
   pix('cristal', 'specials', 'Crystal Mágico', 2500, 'crystal', { gear: true, rare: true, note: 'Dá vida ao Doll: ele passeia, investiga objetos e mobília e brinca com a Persocon (precisa do Doll na área de trabalho)' }),
-  pix('trevo', 'specials', 'Trevo da Sorte', 1500, 'clover', { gear: true, rare: true, note: '+50% em todas as moedas ganhas' }),
+  pix('trevo', 'specials', 'Trevo da Sorte', 6500, 'clover', { gear: true, rare: true, note: '+50% em todas as moedas ganhas' }),
   pix('corvo', 'specials', 'Caixa Misteriosa', 3000, 'crowbox', { gear: true, rare: true, note: 'Tem algo vivo aí dentro... dá para ouvir umas bicadas. Um novo amigo para a Persocon treinar?' }),
-  pix('estrela', 'specials', 'Estrela dos Desejos', 1000, 'wishstar', { consumable: true, rare: true, effects: { affection: 40, mood: 40 } }),
+  pix('estrela', 'specials', 'Estrela dos Desejos', 6000, 'wishstar', { consumable: true, rare: true, note: 'Estrela da Sorte: +40 Afeição e +40 Humor', effects: { affection: 40, mood: 40 } }),
   // Cartridges: art cut from cartuchos3.png into one image per game.
   ...Object.entries(GAMES).filter(([id]) => CART_GAMES.includes(id)).map(([id, g]) => ({
     id: `cart_${id}`, cat: 'cartuchos', cart: id, name: g.name, price: CART_PRICES[id], effects: {},

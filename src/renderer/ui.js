@@ -1322,6 +1322,9 @@ export class Menu {
     const emo = (key) => (v) => { app.setOption(key, v); app.previewEmoticon(); };
     return h('div.rows', {},
       h('div.group', {}, 'Jogo'),
+      h('div.row', {}, h('span.label', {}, 'Idioma'), segmented([
+        ['pt', 'Português'], ['en', 'English'],
+      ], c.lang === 'en' ? 'en' : 'pt', (v) => { app.setOption('lang', v); this.render(); })),
       h('div.row', {}, h('span.label', {}, 'Dificuldade'), segmented(DIFFICULTY_OPTIONS, c.difficulty || 'normal', (v) => app.setOption('difficulty', v))),
       h('div.note', {}, 'A dificuldade muda a velocidade com que Energia, Fome e Humor caem.'),
       h('div.group', {}, 'Persocon'),

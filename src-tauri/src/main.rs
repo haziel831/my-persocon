@@ -955,6 +955,7 @@ fn set_streamer(app: AppHandle, state: State<'_, PetState>, value: bool) -> Resu
                     }
                 }
                 if !value {
+                    stream_bridge::mark_closing();
                     let mut cfg = config.clone();
                     cfg["streamer"] = json!(false);
                     stream_bridge::set_state(json!({ "config": cfg }));
@@ -1498,6 +1499,14 @@ fn main() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("failed to run My Persocon");
+        .build(tauri::generate_context!())
+        .expect("failed to build My Persocon")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                if STREAMER.load(Ordering::Relaxed) {
+                    stream_bridge::mark_closing();
+                }
+                let _ = app;
+            }
+        });
 }

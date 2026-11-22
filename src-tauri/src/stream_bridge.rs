@@ -1,5 +1,5 @@
 // Tiny local-only HTTP bridge for stream alerts (Streamer.bot, SAMMI, OBS scripts...).
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,6 +9,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
+static CLOSING: AtomicBool = AtomicBool::new(false);
 static STOP: Mutex<Option<TcpListener>> = Mutex::new(None);
 static STATE: Mutex<Value> = Mutex::new(Value::Null);
 static RPC_QUEUE: Mutex<Vec<Value>> = Mutex::new(Vec::new());
@@ -27,8 +28,21 @@ pub fn set_state(next: Value) {
 }
 
 pub fn state() -> Value {
-    STATE.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    let mut value = STATE.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    if CLOSING.load(Ordering::Relaxed) {
+        if let Value::Object(map) = &mut value { map.insert("closing".into(), json!(true)); }
+        else { value = json!({ "closing": true }); }
+    }
+    value
 }
+
+// Lets the browser panel see the shutdown before the HTTP server goes away.
+pub fn mark_closing() {
+    CLOSING.store(true, Ordering::Relaxed);
+    thread::sleep(Duration::from_millis(400));
+}
+
+pub fn is_closing() -> bool { CLOSING.load(Ordering::Relaxed) }
 
 // Browser-originated commands are queued here as well as emitted as Tauri events,
 // so a missed listener can never swallow a button click from the control panel.
@@ -154,6 +168,7 @@ fn handle(mut stream: TcpStream, app: AppHandle, token: String) {
 }
 
 pub fn start(app: AppHandle, port: u16, token: String) -> Result<(), String> {
+    CLOSING.store(false, Ordering::Release);
     if RUNNING.swap(true, Ordering::AcqRel) { return Ok(()); }
     let listener = TcpListener::bind(("127.0.0.1", port)).map_err(|e| {
         RUNNING.store(false, Ordering::Release);

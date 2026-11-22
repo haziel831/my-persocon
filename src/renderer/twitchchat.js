@@ -134,20 +134,22 @@ export class TwitchChat {
           || this.app.knownFollowers?.has(login.toLowerCase()),
       };
       const deny = this.app.tts?.denyReason?.(chatOpts) || '';
-      if (deny) {
-        this.pushLog(displayName, text, `ignorado: ${deny}`);
-        continue;
-      }
-      const spoke = this.speakChat(m[4], displayName, t, login);
+      const canSpeak = !deny && this.app.config.streamTtsSpeak !== false;
+      const spoke = canSpeak ? this.speakChat(m[4], displayName, t, login) : false;
       let status = '';
       if (this.app.config.streamCommands !== false && text.startsWith('!')) {
         status = this.command(text, displayName) || '';
+        if (status) status += canSpeak ? '' : ` (sem TTS: ${deny || 'desligado'})`;
       }
       if (!status && this.app.config.streamKeywords !== false) {
         status = this.react(text, displayName) || '';
+        if (status) status += canSpeak ? '' : ` (sem TTS: ${deny || 'desligado'})`;
       }
       if (!status) {
-        status = (this.app.tts?.enabled && !this.app.tts?.muted && spoke === false) ? 'ignorado: cooldown' : 'ok';
+        // Plain chat read aloud by TTS: here the permission gate really does block the line.
+        if (deny) status = `ignorado: ${deny}`;
+        else if (this.app.config.streamTtsSpeak === false) status = 'ok (TTS desligado)';
+        else status = (this.app.tts?.enabled && !this.app.tts?.muted && spoke === false) ? 'ignorado: cooldown' : 'ok';
       }
       this.pushLog(displayName, text, status);
     }
@@ -159,7 +161,9 @@ export class TwitchChat {
     if (!line) return;
     app.speech?.say(line, duration);
     if (app.config.streamTtsSpeak !== false) {
-      app.tts?.enqueue?.(line, { priority: true });
+      // Replies to commands/keywords are priority lines: they ignore the chat
+      // permission gate so the stage always reacts, even under Seguidores+.
+      app.tts?.enqueue?.(line, { priority: true, test: true });
     }
   }
 

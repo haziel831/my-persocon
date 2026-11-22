@@ -1,5 +1,5 @@
 // Local bridge alert queue: batches follows and reacts with speech, VFX and helpers.
-import { personaLine } from './persona.js';
+import { personaLine, randomReaction } from './persona.js';
 
 export class StreamAlerts {
   constructor(app) {
@@ -83,6 +83,7 @@ export class StreamAlerts {
         app.game.inventory[drink] = (app.game.inventory[drink] || 0) + 1;
         app.game.changed?.();
         app.toys?.callFurn?.('cafeteira');
+        app.gainAffection?.(5, 'pagar_cafe');
         app.speech?.say(personaLine(app, 'coffee', { user }), 3, { priority: true });
         break;
       }
@@ -90,12 +91,14 @@ export class StreamAlerts {
         const food = cfg.item || 'maca';
         app.game.inventory[food] = (app.game.inventory[food] || 0) + 1;
         app.game.changed?.();
+        app.gainAffection?.(5, 'dar_lanche');
         app.speech?.say(personaLine(app, 'snack', { user }), 3, { priority: true });
         break;
       }
       case 'cafune':
         app.setHand?.('pat');
         app.emoticons?.show?.('love', true);
+        app.gainAffection?.(6, 'cafune');
         app.speech?.say(personaLine(app, 'pat', { user }), 3, { priority: true });
         break;
       case 'desenho': {
@@ -205,6 +208,7 @@ export class StreamAlerts {
     if (!app) return;
     const user = String(ev.user || 'alguém').replace(/[<>&"']/g, '').slice(0, 40);
     const rich = app.config.streamRandomAlerts !== false;
+    const thanks = (key, vars) => rich ? randomReaction(app, key, vars) : personaLine(app, key, vars);
     let line = '';
     switch (ev.type) {
       case 'follow':
@@ -213,7 +217,8 @@ export class StreamAlerts {
           app.doll?.brain?.say?.('♥', 2);
           app.fx?.followHearts?.(6);
         }
-        line = personaLine(app, 'follow', { user }, { simple: !rich });
+        app.gainAffection?.(2, 'follow');
+        line = thanks('follow', { user });
         break;
       case 'sub':
         if (rich) {
@@ -222,14 +227,16 @@ export class StreamAlerts {
           app.crow?.say?.('🎉', 2);
           if (window.__PET_STREAMER__ && app.config.subShow !== false) this.subShow(user);
         }
-        line = personaLine(app, 'sub', { user }, { simple: !rich });
+        app.gainAffection?.(8, 'sub');
+        line = thanks('sub', { user });
         break;
       case 'raid':
         if (rich) {
           app.pet?.react?.('cheer');
           app.fx?.confettiRain?.(28);
         }
-        line = personaLine(app, 'raid', { user, viewers: ev.viewers || 15 }, { simple: !rich });
+        app.gainAffection?.(6, 'raid');
+        line = thanks('raid', { user, viewers: ev.viewers || 15 });
         break;
       case 'bits':
         if (rich) {
@@ -237,7 +244,8 @@ export class StreamAlerts {
           app.fx?.coinRain?.(20);
           app.sound?.play?.('coin', { volume: 0.75 });
         }
-        line = personaLine(app, 'bits', { user, amount: ev.amount || 0 }, { simple: !rich });
+        app.gainAffection?.(4, 'bits');
+        line = thanks('bits', { user, amount: ev.amount || 0 });
         break;
       case 'redeem':
         if (!this.redeem(ev)) {

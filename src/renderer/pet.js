@@ -733,6 +733,19 @@ export async function startPet(files, config) {
     setTimeout(() => el.remove(), 3700);
   }
   app.loveFx = loveFx;
+  // Single entry point for Affection gains from alerts, redeems and panel actions.
+  // Pet.love already applies the normal scaling/caps; game.changed() persists it
+  // immediately to save-streamer.json (or save.json outside the Streamer Mode).
+  app.gainAffection = (n, reason = '') => {
+    const amount = Number(n) || 0;
+    if (!amount || pet.dead) return 0;
+    const before = pet.affection;
+    pet.love(amount);
+    game.changed();
+    app.dock?.invalidate?.();
+    app.uiChanged?.();
+    return pet.affection - before;
+  };
 
   // Ominous popup above her head + a log line whenever a negative status starts or ends.
   function debuffEvent(data) {
@@ -1877,11 +1890,14 @@ api.onTrayClick?.(() => {
     api.streamerPushState?.({
       config,
       coins: game.coins,
+      affection: Math.round(pet.affection),
       twitch: !!app.twitch?.connected,
       recentChat: app.twitch?.recentLog || [],
       brb: document.body.classList.contains('brb-on'),
       tts: { queue: app.tts?.queue?.length || 0, muted: !!app.tts?.muted, speaking: !!app.tts?.speaking },
       ttsError: app.tts?.lastError || '',
+      ttsEngine: app.tts?.engine || 'offline',
+      ttsEngineNote: app.tts?.engineNote || '',
       voices: voiceCache,
       voicesStatus: voiceStatus,
     }).catch?.(() => {});
@@ -1921,7 +1937,14 @@ api.onTrayClick?.(() => {
     else if (p.type === 'setOption') app.setOption?.(p.key, p.value);
     else if (p.type === 'applyPatch') app.applyConfigPatch?.(p.patch);
     else if (p.type === 'exitStreamer') app.setOption?.('streamer', false);
-    else if (p.type === 'startMode') app.startMode?.(p.mode);
+    else if (p.type === 'cafune' || p.type === 'pat') {
+      app.setHand?.('pat');
+      app.gainAffection?.(6, 'cafune');
+    }
+    else if (p.type === 'startMode') {
+      app.startMode?.(p.mode);
+      if (p.mode === 'pat') app.gainAffection?.(6, 'cafune');
+    }
     else if (p.type === 'callToy') app.toys?.callFurn?.(p.id);
     else if (p.type === 'weather') {
       if (p.kind === 'off') app.weather?.stop?.();
