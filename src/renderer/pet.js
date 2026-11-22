@@ -1543,6 +1543,12 @@ api.onTrayClick?.(() => {
       document.body.classList.remove('hover');
       return setInteractive(true);
     }
+    // The title/intro overlay lives in the same frameless window: it must always accept clicks,
+    // otherwise click-through can swallow the first click on the delivery box.
+    if (document.body.classList.contains('intro-on') || document.body.classList.contains('title-on')) {
+      document.body.classList.remove('hover');
+      return setInteractive(true);
+    }
     if (uiOpen() || press) {
       document.body.classList.remove('hover');
       // Panels closed/open change what is clickable: force a full check on the next tick.
@@ -1588,6 +1594,7 @@ api.onTrayClick?.(() => {
   // de tempos em tempos — nunca o contrário (ficar interativo é o estado seguro).
   setInterval(() => {
     if (interactiveWant !== false || window.__PET_COMBATE__) return;
+    if (document.body.classList.contains('intro-on') || document.body.classList.contains('title-on')) return;
     if (uiOpen() || press || canvas.style.visibility === 'hidden') return;
     setInteractive(false, true);
   }, 800);
@@ -1595,7 +1602,8 @@ api.onTrayClick?.(() => {
   // O cursor saiu da janela: solta o mouse na hora (sem isso o overlay prende o clique
   // até o próximo poll do host, e o clique se perde).
   const releaseMouse = (e) => {
-    if (e?.relatedTarget || !interactive || uiOpen() || press || window.__PET_COMBATE__) return;
+    if (e?.relatedTarget || !interactive || uiOpen() || press || window.__PET_COMBATE__
+      || document.body.classList.contains('intro-on') || document.body.classList.contains('title-on')) return;
     misses = 99;
     document.body.classList.remove('hover');
     setInteractive(false);

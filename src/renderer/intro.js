@@ -9,7 +9,7 @@ import { personaLabel } from './persona.js';
 const LOGO_URL = new URL('./assets/logo.png', import.meta.url).href;
 const BOX_URL = new URL('./assets/items/delivery_box.png', import.meta.url).href;
 const BW = 64;
-const BH = 52;
+const BH = 53;
 const VOICE = { M: 'grave', F: 'agudo', X: 'normal' };
 // Bundled units the player picks from; switching reloads the page and resumes at the box opening.
 const UNITS = { ninna: { dir: 'models/MyPersocon', name: 'Ninna' }, aghata: { dir: 'models/Aghata', name: 'Aghata' } };
@@ -154,9 +154,16 @@ export class Intro {
     img.style.width = `${BW * this.scale}px`;
     img.style.height = `${BH * this.scale}px`;
     this.hint = el('div', 'intro-hint', this.T.boxHint);
+    img.style.pointerEvents = 'none'; // the click always lands on the box container
     this.box.append(img, this.hint);
     this.lid = img; // the whole sprite lifts away when the box bursts
-    this.box.onclick = () => this.clickBox();
+    // pointerdown on the whole box (image included) is the single reliable opener.
+    this._boxDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.clickBox();
+    };
+    this.box.addEventListener('pointerdown', this._boxDown);
     document.body.append(this.box);
     this.bx = null;
   }
@@ -390,7 +397,7 @@ export class Intro {
     this.stage = 'opening';
     this.hint.remove();
     this.box.classList.remove('hitzone');
-    this.box.onclick = null;
+    if (this._boxDown) { this.box.removeEventListener('pointerdown', this._boxDown); this._boxDown = null; }
     this.openT = 0;
     this.shake = 1.4;
     this.app.sound?.tone8?.(90, 140, 0.5, 'sawtooth', 0.05);
