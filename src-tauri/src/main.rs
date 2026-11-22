@@ -975,6 +975,17 @@ async fn ai_reply(prompt: String, system_prompt: String, config: Value) -> Resul
         let system = if system_prompt.trim().is_empty() {
             "You are the Persocon, a gentle anime-style desktop companion living on a streamer's desktop.".to_string()
         } else { system_prompt };
+        // A PTT voice order is a direct command from the creator: it outranks chat events,
+        // alerts and autonomous behaviour. The instruction goes at the very top of the system
+        // prompt (reply_one appends language/length rules after it).
+        let system = if config.get("userPriority").and_then(Value::as_bool).unwrap_or(false) {
+            let head = if lang == "en" {
+                "[MAXIMUM PRIORITY / USER_PRIORITY] The creator has just given a direct voice command. Ignore Twitch chat, stream events, alerts and any autonomous chatter. Obey this order immediately and answer only what was asked."
+            } else {
+                "[PRIORIDADE MÁXIMA / USER_PRIORITY] O criador acabou de dar uma ordem direta por voz. Ignore o chat da Twitch, eventos da stream, alertas e qualquer fala autônoma. Obedeça imediatamente e responda apenas ao que foi pedido."
+            };
+            format!("{head}\n{system}")
+        } else { system };
         let providers: Vec<Value> = match config.get("aiProviders").and_then(Value::as_array) {
             Some(list) if !list.is_empty() => list.clone(),
             _ => {

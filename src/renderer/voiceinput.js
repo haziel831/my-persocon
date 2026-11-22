@@ -7,6 +7,9 @@ export class VoiceInput {
     this.active = false;
     this.text = '';
     this.rec = null;
+    this.priority = false;       // USER_PRIORITY flag (absolute focus on the creator)
+    this.pausedByPtt = false;
+    this.releaseTimer = null;
     this.indicator = document.createElement('div');
     this.indicator.className = 'ptt-indicator';
     this.dot = document.createElement('span');
@@ -22,6 +25,55 @@ export class VoiceInput {
     this.supported = !!SR;
     window.petAPI?.onPttStart?.(() => this.start());
     window.petAPI?.onPttStop?.(() => this.stop());
+    // There is no host-side "audio ended" event: the TTS line-end callback drives the resume.
+    if (this.app.tts) {
+      this.app.tts.onOwnerLineEnd = (job) => {
+        if (job?.ownerPriority) this.scheduleRelease();
+      };
+    }
+  }
+
+  // ---------- USER_PRIORITY ----------
+
+  // Immediate interruption: kill audio, drop the queue, silence autonomous speech and chat,
+  // and put the pet in a still, front-facing listening pose.
+  enterPriority() {
+    if (this.priority) return;
+    this.priority = true;
+    const app = this.app;
+    app.tts?.clear();
+    if (app.tts) app.tts.userPriority = true;
+    if (app.speech) app.speech.userPriority = true;
+    if (app.twitch) app.twitch.userPriority = true;
+    const pet = app.pet;
+    this.pausedByPtt = !!pet && !pet.paused && !pet.dead;
+    if (this.pausedByPtt) app.pause?.();
+    pet?.anim?.('idle', { facing: 'front', restart: true });
+    this.indicator.classList.add('listening');
+    document.body.classList.add('ptt-active');
+    clearTimeout(this.releaseTimer);
+  }
+
+  // Resume only after the owner's reply audio ends, plus a ~2s cooldown. Re-arming while the
+  // TTS is still generating/playing also covers slow remote voices and the Windows fallback.
+  scheduleRelease(ms = 2000) {
+    clearTimeout(this.releaseTimer);
+    this.releaseTimer = setTimeout(() => {
+      if (this.app.tts?.speaking) { this.scheduleRelease(ms); return; }
+      this.releasePriority();
+    }, ms);
+  }
+
+  releasePriority() {
+    if (!this.priority) return;
+    this.priority = false;
+    const app = this.app;
+    if (app.tts) app.tts.userPriority = false;
+    if (app.speech) app.speech.userPriority = false;
+    if (app.twitch) app.twitch.userPriority = false;
+    this.indicator.classList.remove('listening');
+    document.body.classList.remove('ptt-active');
+    if (this.pausedByPtt) { app.resume?.(); this.pausedByPtt = false; }
   }
 
   // Short, soft sine beep generated locally (no external file, low volume for live streams).
@@ -61,9 +113,9 @@ export class VoiceInput {
     this.active = true;
     this.text = '';
     this.pushedText = '';
+    this.enterPriority();
     this.beep();
     this.indicator.style.display = 'block';
-    this.app.tts?.skip?.();
     if (!this.supported) {
       this.app.speech?.say(this.app.config.lang === 'en'
         ? 'Voice recognition is not available here.'
@@ -103,7 +155,7 @@ export class VoiceInput {
     this.rec = null;
     this.beep(560, 35, 0.014);
     const said = String(this.text || '').trim().slice(0, 240);
-    if (!said) return;
+    if (!said) { this.scheduleRelease(1200); return; }
     // Some browsers only deliver the final transcript on stop: show it then.
     if (!String(this.pushedText || '').trim()) this.say(said);
     const c = this.app.config;
@@ -114,8 +166,11 @@ export class VoiceInput {
         aiAutoFallback: c.aiAutoFallback !== false,
         aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
         aiApiKey: c.aiApiKey || '', aiEndpoint: c.aiEndpoint || '',
+        userPriority: true, // tells the host to wrap the system prompt as a max-priority order
       };
-      const prompt = `${c.lang === 'en' ? 'The streamer said' : 'O dono do canal disse'}: ${said}`;
+      const prompt = c.lang === 'en'
+        ? `DIRECT VOICE COMMAND from the creator (highest priority): ${said}`
+        : `ORDEM DIRETA POR VOZ do criador (prioridade máxima): ${said}`;
       window.petAPI?.aiReply?.(prompt, c.aiSystemPrompt || '', cfg)
         .then((reply) => {
           if (reply?.fallbackNotice) this.app.pushStreamerState?.(true);
@@ -129,9 +184,10 @@ export class VoiceInput {
 
   answer(text, fallback = false) {
     const out = String(text || '').trim().slice(0, 200);
-    if (!out) return;
+    if (!out) { this.scheduleRelease(); return; }
     this.app.chatBox?.push?.('pet', out);
     this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(out) || 'normal', out);
-    this.app.speech?.say(out, 4, { source: 'owner' });
+    this.app.speech?.say(out, 4, { source: 'owner', ownerPriority: true });
+    this.scheduleRelease();
   }
 }

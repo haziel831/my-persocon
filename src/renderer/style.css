@@ -228,6 +228,8 @@ body.stream-clean #pet, body.stream-clean .status-dock, body.stream-clean .gains
 .ptt-partial { color:#ffd6e2; font-size:12px; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 @keyframes ptt-pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.7); } }
 .ptt-indicator { position: fixed; display:flex; align-items:center; gap:8px; left: 50%; bottom: 60px; transform: translateX(-50%); z-index: 40; padding: 6px 14px; border: 1px solid #5ef0ff; border-radius: 20px; background: rgba(14,2,30,.9); color: #d9f6ff; font: 700 13px PxEmoji, system-ui, sans-serif; box-shadow: 0 0 16px rgba(94,240,255,.35); pointer-events: none; }
+.ptt-indicator.listening { border-color: #7dfcff; box-shadow: 0 0 24px rgba(94,240,255,.75), inset 0 0 12px rgba(94,240,255,.22); }
+.ptt-indicator.listening .ptt-dot { background: #5ef0ff; box-shadow: 0 0 12px #5ef0ff; }
 .dnd-windows { display:flex; flex-wrap:wrap; gap:4px; max-height:140px; overflow:auto; margin:4px 0; }
 .dnd-window { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:11px PxEmoji, system-ui, sans-serif; }
 
@@ -523,6 +525,10 @@ body.love-glitch { animation: love-shake 0.7s steps(7); }
 /* O objeto cresce a partir do chão (o "Tamanho" do import escala do pé para cima). */
 .toy { pointer-events: auto; cursor: pointer; z-index: 6; transform-origin: 50% 100%; }
 .toy.dropped { pointer-events: none; animation: dropIn 0.4s ease-out; }
+/* TV layout mode: crisp selection border + bottom-right grip (aspect ratio stays locked). */
+.toy.selected { outline: 2px solid #5ef0ff; outline-offset: 2px; }
+.tv-resize { position: absolute; right: -8px; bottom: -8px; width: 14px; height: 14px; z-index: 9; cursor: nwse-resize; pointer-events: auto; background: linear-gradient(135deg, transparent 52%, #5ef0ff 52%, #5ef0ff 70%, transparent 70%); }
+body.tv-adjusting #pet { pointer-events: none !important; }
 @keyframes dropIn { from { opacity: 0; margin-top: -40px; } }
 .toy .mark { position: absolute; right: -6px; top: -6px; width: 16px !important; display: none; }
 .toy.broken > img:first-child { filter: grayscale(0.55) brightness(0.8) drop-shadow(-2px 0 0 rgba(255, 40, 90, 0.75)) drop-shadow(2px 0 0 rgba(40, 240, 255, 0.75)); animation: brokenWarp 1.7s steps(1) infinite; }

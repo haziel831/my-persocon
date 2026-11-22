@@ -1192,7 +1192,13 @@ export class Toys {
     const top = baseY - (base * ratio * (1 + sc)) / 2;
     const s = this.app.skins?.region('videogame', !!t.up) || FURN.videogame.screen;
     const sx = t.flip ? 1 - s.x - s.w : s.x;
-    return { x: left + w * sx, y: top + h * s.y, w: w * s.w, h: h * s.h, rot: t.rot || 0, ox: t.x, oy: baseY };
+    // Integer CSS pixels only: fractional overlay boxes blur the video and make the frame
+    // drift relative to the sprite when the editor scale changes.
+    return {
+      x: Math.round(left + w * sx), y: Math.round(top + h * s.y),
+      w: Math.round(w * s.w), h: Math.round(h * s.h),
+      rot: t.rot || 0, ox: Math.round(t.x), oy: Math.round(baseY),
+    };
   }
 
   // ---------- furniture editor (Ações → Editar mobília) ----------
@@ -1254,7 +1260,8 @@ export class Toys {
     this.editing = null;
     ed.bar.remove();
     ed.tools.remove();
-    document.body.classList.remove('editing-furn');
+    document.body.classList.remove('editing-furn', 'tv-adjusting');
+    this.els.get('videogame')?.querySelector('.tv-resize')?.remove();
     for (const el of this.els.values()) el.classList.remove('selected');
     if (!ed.wasPaused) this.app.resume();
     this.app.game.changed();
@@ -1266,6 +1273,7 @@ export class Toys {
     if (!this.editing) return;
     this.editing.sel = id && this.app.game.toys[id] ? id : null;
     for (const [k, el] of this.els) el.classList.toggle('selected', k === this.editing.sel);
+    this.syncTvHandle();
   }
 
   rotate(deg) {
@@ -1318,6 +1326,59 @@ export class Toys {
     const x = clamp(r.left + r.width / 2 - w / 2, 4, innerWidth - w - 4);
     const y = r.top - h - 10 < 4 ? r.bottom + 10 : r.top - h - 10;
     ed.tools.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  }
+
+  // Bottom-right resize grip for the TV frame. A uniform scale keeps the sprite aspect ratio
+  // locked (Shift = finer steps). Nothing is saved until pointerup, so the rAF loop that
+  // positions the overlay never fights an in-progress drag.
+  syncTvHandle() {
+    const tvEl = this.els.get('videogame');
+    if (!tvEl) return;
+    const want = this.editing?.sel === 'videogame' && !!this.app.game.toys.videogame?.placed;
+    let h = tvEl.querySelector('.tv-resize');
+    if (!want) { h?.remove(); return; }
+    if (h) return;
+    h = document.createElement('div');
+    h.className = 'tv-resize hitzone';
+    h.title = 'Arraste para redimensionar · Shift = ajuste fino';
+    tvEl.append(h);
+    h.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const t = this.app.game.toys.videogame;
+      if (!t) return;
+      const r = tvEl.getBoundingClientRect();
+      const ox = r.left + r.width / 2;  // the sprite's transform origin (50% 100%)
+      const oy = r.bottom;
+      const s0 = t.scale || 1;
+      const d0 = Math.max(1, Math.hypot(e.clientX - ox, e.clientY - oy));
+      let moved = false;
+      try { h.setPointerCapture(e.pointerId); } catch {}
+      document.body.classList.add('tv-adjusting');
+      const move = (ev) => {
+        const d = Math.hypot(ev.clientX - ox, ev.clientY - oy);
+        const step = ev.shiftKey ? 0.01 : 0.05;
+        const next = clamp(Math.round((s0 * d / d0) / step) * step, 0.5, 2.5);
+        const scale = Math.round(next * 100) / 100;
+        if (scale === t.scale) return;
+        t.scale = scale;
+        moved = true;
+        this.app.game.dirty = true;
+      };
+      const end = () => {
+        h.removeEventListener('pointermove', move);
+        h.removeEventListener('pointerup', end);
+        h.removeEventListener('pointercancel', end);
+        document.body.classList.remove('tv-adjusting');
+        if (!moved) return;
+        this.app.game.changed();
+        this.app.sound.play('blip', { volume: 0.3 });
+      };
+      h.addEventListener('pointermove', move);
+      h.addEventListener('pointerup', end);
+      h.addEventListener('pointercancel', end);
+    });
   }
 
   place(id) {
@@ -2462,13 +2523,15 @@ export class Toys {
       document.body.dataset.dragToy = id;
       if (lift && po.on) po.on = po.dx = undefined;
       this.ys.delete(id);
-      const x = clamp(x0 + ev.clientX - start, edge, this.app.world.width - edge);
+      const rawX = clamp(x0 + ev.clientX - start, edge, this.app.world.width - edge);
+      const x = id === 'videogame' ? Math.round(rawX) : rawX;
       if (id === 'bag') game.bagX = x;
       else if (id === 'food') game.foodBagX = x;
       else game.toys[id].x = x;
       if (decor) {
         const h = this.size(id) * this.ratio(id);
-        const y = clamp(y0 + ev.clientY - startY, h * 0.4, floor + h * 0.6);
+        const rawY = clamp(y0 + ev.clientY - startY, h * 0.4, floor + h * 0.6);
+        const y = id === 'videogame' ? Math.round(rawY) : rawY;
         po.y = Math.abs(floor - y) < 6 ? undefined : y;
       }
     };
@@ -2494,7 +2557,10 @@ export class Toys {
       }
     };
     if (this.editing) this.select(id);
+    // While the TV frame is being adjusted the pet sprite must not steal pointer events.
+    if (this.editing && id === 'videogame') document.body.classList.add('tv-adjusting');
     const up = (ev) => {
+      document.body.classList.remove('tv-adjusting');
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
       // Let her-bag panel receive the drop before we clear the drag id.
@@ -2510,7 +2576,11 @@ export class Toys {
       delete document.body.dataset.dragToy;
       if (moved && lift) settle();
       if (this.editing) {
-        if (moved) game.dirty = true;
+        if (moved) {
+          game.dirty = true;
+          // Persist the TV frame once, on release — never during the pointermove loop.
+          if (id === 'videogame') game.changed();
+        }
         return;
       }
       if (moved) {

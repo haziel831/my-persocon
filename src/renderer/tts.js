@@ -108,6 +108,9 @@ export class VoiceTTS {
     this.gen = 0;
     this.lastAt = 0;
     this.userAt = new Map();
+    // USER_PRIORITY: while the creator holds PTT, only the owner's own reply may be spoken.
+    this.userPriority = false;
+    this.onOwnerLineEnd = null;
   }
 
   get enabled() {
@@ -236,7 +239,9 @@ export class VoiceTTS {
 
   enqueue(text, opts = {}) {
     if (!this.enabled || this.muted) return false;
-    if (!this.sourceAllowed(opts.source || 'auto')) return false;
+    // USER_PRIORITY blocks every autonomous/chat line; only the PTT reply (ownerPriority) plays.
+    if (this.userPriority && !opts.ownerPriority) return false;
+    if (!opts.ownerPriority && !this.sourceAllowed(opts.source || 'auto')) return false;
     const c = this.app.config;
     if (opts.chat && !this.allowed(opts)) return false;
     const clean = this.prepareText(text, opts);
@@ -333,6 +338,7 @@ export class VoiceTTS {
         this.current = null;
         this.mouthLevel = 0;
         this.duck(false);
+        this.onOwnerLineEnd?.(job);
         this.next();
       };
       this.duck(true);
@@ -399,6 +405,7 @@ export class VoiceTTS {
       if (gen !== this.gen) return;
       this.mouthLevel = 0;
       this.duck(false);
+      this.onOwnerLineEnd?.(job);
       this.next();
     };
     u.onend = finish;

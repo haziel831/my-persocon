@@ -381,6 +381,7 @@ export class Speech {
     this.t = 0;
     this.cool = 0;
     this.chatter = 40;
+    this.userPriority = false;
     app.pet.on((type, data) => this.react(type, data));
   }
 
@@ -402,7 +403,7 @@ export class Speech {
   }
 
   react(type, data) {
-    if (this.app.config.speech === false) return;
+    if (this.app.config.speech === false || this.userPriority) return;
     // Em combate só o combate fala: nada de comentários da área de trabalho no meio da luta.
     if (this.app.melee?.active || this.app.pet?.combatMode) return;
     // Asleep she stays completely quiet (wake lines only fire after she is up).
@@ -440,7 +441,7 @@ export class Speech {
   // Idle chatter.
   idle(dt) {
     const { pet } = this.app;
-    if (this.app.config.speech === false || this.freq <= 0 || pet.dead || this.text) return;
+    if (this.app.config.speech === false || this.userPriority || this.freq <= 0 || pet.dead || this.text) return;
     // Nada de conversa fiada de desktop durante a luta.
     if (this.app.melee?.active || pet.combatMode) return;
     this.chatter -= dt * this.freq;

@@ -30,6 +30,7 @@ export class TwitchChat {
     this.lastAi = 0;
     this.aiBusy = false;
     this.firstViewerDone = false;
+    this.userPriority = false;
   }
 
   pushLog(user, text, status) {
@@ -150,6 +151,7 @@ export class TwitchChat {
   }
 
   message(raw) {
+    if (this.userPriority) return; // USER_PRIORITY: no chat event competes with the creator's voice.
     for (const line of raw.split(/\r?\n/)) {
       if (!line) continue;
       if (line.startsWith('PING')) {
@@ -266,7 +268,7 @@ export class TwitchChat {
   maybeAi(text, user, deny) {
     const c = this.app.config;
     // `deny` only mutes the audio; the balloon/chat reply must still happen.
-    if (c.aiEnabled !== true || this.aiBusy) return false;
+    if (this.userPriority || c.aiEnabled !== true || this.aiBusy) return false;
     if (typeof window.petAPI?.aiReply !== 'function') {
       this.pushLog(user, 'aiReply indisponível', 'IA: erro');
       return false;
