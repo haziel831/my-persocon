@@ -459,7 +459,7 @@ export class Menu {
         try { return this[this.category](); }
         catch (e) {
           console.error('[menu] falha ao abrir a seção', this.category, e);
-          return h('div.note', {}, 'Não foi possível abrir esta seção. Veja o console (F12).');
+          return h('div.note', {}, `Não foi possível abrir esta seção: ${e?.message || e}`);
         }
       })()),
       h('div.menu-foot', {},
@@ -761,17 +761,21 @@ export class Menu {
   }
 
   perfil() {
-    const r = this.app.rewards;
+    const app = this.app;
+    const r = app.rewards;
+    const safe = (fn, fallback) => { try { return fn(); } catch (e) { console.error('[perfil]', e); return fallback; } };
     if (this.app.albumTab) {
       this.app.albumTab = false;
       this.perfilTab = 'album';
     }
     const tab = this.perfilTab || 'perfil';
-    const done = r ? r.missions().filter((m) => m.done).length : 0;
-    const got = r ? r.achievements().filter((a) => a.done).length : 0;
+    const missions = r ? safe(() => r.missions(), []) : [];
+    const achievements = r ? safe(() => r.achievements(), []) : [];
+    const done = missions.filter((m) => m.done).length;
+    const got = achievements.filter((a) => a.done).length;
     const figs = this.app.game.figures || [];
     const photos = this.app.game.profile.fun?.photos || [];
-    const tabs = segmented([['perfil', '👤 Perfil'], ['missoes', `📅 Missões ${done}/3`], ['conquistas', `🏆 Conquistas ${got}/${r?.achievements().length || 0}`], ['colecao', `🧸 Coleção ${figs.length}/${FIGURES.length}`], ['album', `📷 Álbum ${photos.length}/${albumMax(app.game)}`]], tab,
+    const tabs = segmented([['perfil', '👤 Perfil'], ['missoes', `📅 Missões ${done}/3`], ['conquistas', `🏆 Conquistas ${got}/${achievements.length}`], ['colecao', `🧸 Coleção ${figs.length}/${FIGURES.length}`], ['album', `📷 Álbum ${photos.length}/${albumMax(app.game)}`]], tab,
       (id) => { this.perfilTab = id; this.render(); });
     tabs.classList.add('wrap');
     if (tab === 'album') {
