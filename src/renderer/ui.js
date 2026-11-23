@@ -2970,6 +2970,19 @@ export class ObjectsDialog extends Dialog {
     this.render();
   }
 
+  // Persists only the TV screen rectangle. Unlike save(), it keeps the image draft alive so
+  // the movable sample square does not vanish when the user releases the resize/move handle.
+  async saveRegion() {
+    const id = this.sel;
+    if (id !== 'videogame' || !this.region) return;
+    const up = this.upgraded;
+    const store = up ? this.app.skins.objectsUpgrade : this.app.skins.objects;
+    const old = store[id] || {};
+    await this.app.skins.setObject(id, { ...old, region: this.region }, up);
+    this.snapshot = null;
+    this.syncLive();
+  }
+
   async save() {
     if (this.busy) { this.error = translate('Aguarde o carregamento da imagem antes de salvar.'); this.render(); return; }
     const d = this.draft;
@@ -3380,7 +3393,7 @@ export class ObjectsDialog extends Dialog {
             handle.removeEventListener('pointermove', move);
             handle.removeEventListener('pointerup', end);
             handle.removeEventListener('pointercancel', end);
-            if (start.moved) this.save(); // persist only when released
+            if (start.moved) this.saveRegion(); // persist only when released, keep the sample square
           };
           handle.addEventListener('pointermove', move);
           handle.addEventListener('pointerup', end);
