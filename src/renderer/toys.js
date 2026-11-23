@@ -1194,15 +1194,16 @@ export class Toys {
     const top = baseY - h;
     const s = this.app.skins?.region('videogame', !!t.up) || FURN.videogame.screen;
     const sx = t.flip ? 1 - s.x - s.w : s.x;
-    // The game picture is always square: fit a square inside the marked area and centre it.
-    // This avoids stretched games and keeps the overlay stable regardless of the skin's ratio.
+    // Games render at 96x72 (4:3): fit that ratio inside the marked area, centred, so the
+    // canvas fills the glass with no stretch and no floating border.
     const sw = w * s.w;
     const sh = h * s.h;
-    const side = Math.max(1, Math.round(Math.min(sw, sh)));
-    const x = left + w * sx + (sw - side) / 2;
-    const y = top + h * s.y + (sh - side) / 2;
+    const sideW = Math.max(1, Math.round(Math.min(sw, sh * 4 / 3)));
+    const sideH = Math.max(1, Math.round(sideW * 3 / 4));
+    const x = left + w * sx + (sw - sideW) / 2;
+    const y = top + h * s.y + (sh - sideH) / 2;
     return {
-      x: Math.round(x), y: Math.round(y), w: side, h: side,
+      x: Math.round(x), y: Math.round(y), w: sideW, h: sideH,
       rot: t.rot || 0, ox: Math.round(t.x), oy: Math.round(baseY),
     };
   }

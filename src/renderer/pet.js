@@ -1306,7 +1306,8 @@ api.onTrayClick?.(() => {
     // GameBuddy screen: placed once when the game starts, then stays put while the pet moves.
     const tv = tp?.tv && tp.picked && !hidden ? toys.tvRect() : null;
     if (tv && screen.game) {
-      screen.setHd(!!toys.app.game.toys.videogame?.up);
+      // The TV always uses the crisp 2x pixel-art remaster (dark CRT base + bright 1px edges).
+      screen.setHd(true);
       screen.update(dt);
       const el = screen.el;
       // TV: the screen sits on the TV, behind the pet and the Doll playing in front of it.

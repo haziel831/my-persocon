@@ -3,7 +3,8 @@
 // everything else runs split-screen (left = pet, right = player).
 
 const PAL = ['#0f380f', '#306230', '#8bac0f', '#9bbc0f'];
-const W = 80;
+// 4:3 pixel-perfect viewport (96x72). The 2x HD remaster doubles it to 192x144.
+const W = 96;
 const H = 72;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const ri = (n) => Math.floor(Math.random() * n);
@@ -219,6 +220,7 @@ export class GameScreen {
     this.el.append(this.canvas, this.title);
     document.body.appendChild(this.el);
     this.g = this.canvas.getContext('2d', { willReadFrequently: true });
+    this.g.imageSmoothingEnabled = false; // pixel art stays crisp at every zoom
     this.game = null;
     this.keys = {};
     addEventListener('keydown', (e) => this.key(e, true));
@@ -325,6 +327,9 @@ export class GameScreen {
     this.split = vs && !this.native;
     this.canvas.width = this.split ? W * 2 + 2 : W;
     this.canvas.height = H;
+    // Resetting canvas size resets the context state: restore pixel-perfect scaling.
+    this.g.imageSmoothingEnabled = false;
+    if (this.hdG) this.hdG.imageSmoothingEnabled = false;
     this.el.classList.toggle('vs', vs);
     this.el.classList.toggle('split', this.split);
     this.title.textContent = (GAMES[game]?.name || game) + (vs ? (this.ai2 ? ' · VS Doll' : ' · VS') : '');
@@ -445,14 +450,14 @@ export class GameScreen {
   get games() {
     return {
       tetris: { init: (s) => this.tetrisInit(s), think: (s) => this.tetrisThink(s), step: this.tetris },
-      pong: { init: (s) => Object.assign(s, { bx: 40, by: 36, vx: 40, vy: 25, l: 36, r: 36, score2: 0 }), think: (s) => ({ x: 0, y: Math.sign(s.by - s.l + rnd(-3, 3) * (1 - this.skill) * 3), a: false }), step: this.pong },
+      pong: { init: (s) => Object.assign(s, { bx: W / 2, by: 36, vx: 40, vy: 25, l: 36, r: 36, score2: 0 }), think: (s) => ({ x: 0, y: Math.sign(s.by - s.l + rnd(-3, 3) * (1 - this.skill) * 3), a: false }), step: this.pong },
       asteroids: { init: (s) => Object.assign(s, { ang: 0, shots: [], rocks: Array.from({ length: 5 }, () => this.rock(6)), cool: 0 }), think: this.asteroidsThink, step: this.asteroids },
-      invaders: { init: (s) => Object.assign(s, { inv: this.grid(), dx: 6, px: 40, shots: [], cool: 0, galaga: false, divers: [] }), think: this.shooterThink, step: this.shooter },
-      galaga: { init: (s) => Object.assign(s, { inv: this.grid(), dx: 4, px: 40, shots: [], cool: 0, galaga: true, divers: [] }), think: this.shooterThink, step: this.shooter },
+      invaders: { init: (s) => Object.assign(s, { inv: this.grid(), dx: 6, px: W / 2, shots: [], cool: 0, galaga: false, divers: [] }), think: this.shooterThink, step: this.shooter },
+      galaga: { init: (s) => Object.assign(s, { inv: this.grid(), dx: 4, px: W / 2, shots: [], cool: 0, galaga: true, divers: [] }), think: this.shooterThink, step: this.shooter },
       flappy: { init: (s) => Object.assign(s, { y: 36, vy: 0, pipes: [], next: 0, flapped: false }), think: this.flappyThink, step: this.flappy },
-      breakout: { init: (s) => Object.assign(s, { px: 40, bx: 40, by: 50, vx: 30, vy: -34, bricks: this.bricks() }), think: (s) => ({ x: Math.sign(s.bx - s.px) * (Math.abs(s.bx - s.px) > 2 ? 1 : 0), y: 0, a: false }), step: this.breakout },
+      breakout: { init: (s) => Object.assign(s, { px: W / 2, bx: W / 2, by: 50, vx: 30, vy: -34, bricks: this.bricks() }), think: (s) => ({ x: Math.sign(s.bx - s.px) * (Math.abs(s.bx - s.px) > 2 ? 1 : 0), y: 0, a: false }), step: this.breakout },
       combat: { init: (s) => Object.assign(s, { tanks: [{ x: 12, y: 36, a: 0, cool: 0 }, { x: 68, y: 36, a: Math.PI, cool: 0 }], shots: [], score2: 0 }), think: this.combatThink, step: this.combat },
-      riverraid: { init: (s) => Object.assign(s, { px: 40, scroll: 0, river: [], foes: [], shots: [], fuel: 1, cool: 0 }), think: this.riverThink, step: this.riverraid },
+      riverraid: { init: (s) => Object.assign(s, { px: W / 2, scroll: 0, river: [], foes: [], shots: [], fuel: 1, cool: 0 }), think: this.riverThink, step: this.riverraid },
       pacman: { init: (s) => this.pacInit(s), think: this.pacThink, step: this.pacman },
       donkeykong: { init: (s) => Object.assign(s, { x: 8, y: 0, floor: 0, vy: 0, barrels: [], next: 1, climbing: false }), think: this.kongThink, step: this.donkeykong },
       sonic: { init: (s) => this.runnerInit(s, 'sonic'), think: this.runnerThink, step: this.runner },
@@ -526,7 +531,7 @@ export class GameScreen {
     };
     g.fillStyle = PAL[2];
     g.fillRect(0, 0, 4, H);
-    g.fillRect(44, 0, 4, H);
+    g.fillRect(W / 2 + 2, 0, 4, H);
     s.board.forEach((row, y) => row.forEach((v, x) => v && cell(x, y, 1)));
     s.piece.forEach((row, j) => row.forEach((v, i) => v && cell(s.px + i, s.py + j, 0)));
     this.text(g, String(s.score), 52, 8);
@@ -556,11 +561,11 @@ export class GameScreen {
       if (s.bx < 0) s.score2++;
       else s.score++;
       const dir = s.bx < 0 ? 1 : -1;
-      Object.assign(s, { bx: 40, by: 36, vx: dir * 40, vy: rnd(-25, 25) });
+      Object.assign(s, { bx: W / 2, by: 36, vx: dir * 40, vy: rnd(-25, 25) });
       this.sfx(200, 80, 0.25);
     }
     g.fillStyle = PAL[1];
-    for (let y = 0; y < H; y += 6) g.fillRect(39, y, 2, 3);
+    for (let y = 0; y < H; y += 6) g.fillRect(W / 2 - 1, y, 2, 3);
     g.fillStyle = PAL[0];
     g.fillRect(3, s.l - 7, 2, 14);
     g.fillRect(75, s.r - 7, 2, 14);
@@ -578,7 +583,7 @@ export class GameScreen {
   asteroidsThink(s) {
     const r = s.rocks[0];
     if (!r) return { x: 1, y: 0, a: false };
-    const want = Math.atan2(r.y - 36, r.x - 40);
+    const want = Math.atan2(r.y - 36, r.x - W / 2);
     const diff = Math.atan2(Math.sin(want - s.ang), Math.cos(want - s.ang));
     return { x: Math.abs(diff) > 0.15 ? Math.sign(diff) : 0, y: 0, a: Math.abs(diff) < 0.4 };
   }
@@ -588,7 +593,7 @@ export class GameScreen {
     s.cool -= dt;
     if (c.a && s.cool <= 0) {
       s.cool = 0.3;
-      s.shots.push({ x: 40, y: 36, vx: Math.cos(s.ang) * 60, vy: Math.sin(s.ang) * 60, t: 1 });
+      s.shots.push({ x: W / 2, y: 36, vx: Math.cos(s.ang) * 60, vy: Math.sin(s.ang) * 60, t: 1 });
       this.sfx(900, 300, 0.05, 'square', 0.06);
     }
     for (const o of s.shots) {
@@ -620,9 +625,9 @@ export class GameScreen {
     }
     for (const o of s.shots) g.fillRect(o.x, o.y, 1, 1);
     g.beginPath();
-    g.moveTo(40 + Math.cos(s.ang) * 5, 36 + Math.sin(s.ang) * 5);
-    g.lineTo(40 + Math.cos(s.ang + 2.5) * 4, 36 + Math.sin(s.ang + 2.5) * 4);
-    g.lineTo(40 + Math.cos(s.ang - 2.5) * 4, 36 + Math.sin(s.ang - 2.5) * 4);
+    g.moveTo(W / 2 + Math.cos(s.ang) * 5, 36 + Math.sin(s.ang) * 5);
+    g.lineTo(W / 2 + Math.cos(s.ang + 2.5) * 4, 36 + Math.sin(s.ang + 2.5) * 4);
+    g.lineTo(W / 2 + Math.cos(s.ang - 2.5) * 4, 36 + Math.sin(s.ang - 2.5) * 4);
     g.closePath();
     g.fill();
     this.text(g, String(s.score), 2, 2);
@@ -638,7 +643,7 @@ export class GameScreen {
 
   shooterThink(s) {
     if (!s.aim || !s.aim.alive || Math.random() < 0.01) s.aim = s.inv.filter((i) => i.alive)[ri(s.inv.filter((i) => i.alive).length)];
-    const dx = (s.aim?.x ?? 40) - s.px;
+    const dx = (s.aim?.x ?? W / 2) - s.px;
     return { x: Math.abs(dx) > 1.5 ? Math.sign(dx) : 0, y: 0, a: Math.abs(dx) < 4 };
   }
 
@@ -810,7 +815,7 @@ export class GameScreen {
       const sp = -k.y * 18 * dt;
       t.x = clamp(t.x + Math.cos(t.a) * sp, 4, W - 4);
       t.y = clamp(t.y + Math.sin(t.a) * sp, 4, H - 4);
-      if (Math.abs(t.x - 40) < 4 && Math.abs(t.y - 36) < 10) t.x = t.x < 40 ? 36 : 44;
+      if (Math.abs(t.x - W / 2) < 4 && Math.abs(t.y - 36) < 10) t.x = t.x < W / 2 ? W / 2 - 4 : W / 2 + 4;
       t.cool -= dt;
       if (k.a && t.cool <= 0) {
         t.cool = 0.9;
@@ -858,7 +863,7 @@ export class GameScreen {
 
   riverAt(s, y) {
     const k = (s.scroll - y) * 0.05;
-    const center = 40 + Math.sin(k) * 14 + Math.sin(k * 0.37) * 8;
+    const center = W / 2 + Math.sin(k) * 14 + Math.sin(k * 0.37) * 8;
     const half = 16 + Math.sin(k * 0.6) * 6;
     return [center - half, center + half];
   }
@@ -1249,7 +1254,7 @@ export class GameScreen {
     g.fillStyle = PAL[0];
     g.fillRect(36, 60, 8, 5);
     g.fillRect(34, 63, 2, 3);
-    g.fillRect(44, 63, 2, 3);
+    g.fillRect(W / 2 - 4, 63, 2, 3);
     this.text(g, `${s.place}º`, 2, 1);
   }
 }
