@@ -471,6 +471,18 @@ export class Skins {
     }
   }
 
+  // Badge info for the Change Look selector: which variants are customized and the decoded
+  // frame count (used to confirm a GIF loaded completely).
+  customInfo(id) {
+    const base = this.objects?.[id];
+    const up = this.objectsUpgrade?.[id];
+    return {
+      base: !!base,
+      up: !!up,
+      frames: Math.max(base?.frames?.length || 0, up?.frames?.length || 0),
+    };
+  }
+
   async load() {
     const api = window.petAPI;
     // Old builds may have left skin maps in localStorage: migrate them once.

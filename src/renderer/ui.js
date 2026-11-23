@@ -2720,7 +2720,28 @@ export class ImageDropDialog extends Dialog {
   }
 }
 
-const OBJ_EXTRA = [['bag', 'Bolsa de cartuchos', 'bag'], ['food', 'Inventário', 'backpack']];
+// Extra editables that are not shop items. Data URLs / asset URLs are used directly as icons.
+const DELIVERY_IMG = new URL('./assets/items/delivery_box.png', import.meta.url).href;
+function clawIcon() {
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = 24;
+    const g = c.getContext('2d');
+    const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+    px(2, 2, 20, 20, '#16131f'); px(3, 3, 18, 18, '#2a2140');
+    px(4, 4, 16, 2, '#5ef0ff'); px(4, 18, 16, 1, '#ff3ea5');
+    px(6, 7, 12, 7, '#0d0b16'); px(7, 8, 10, 5, '#ff8fd0');
+    px(11, 5, 2, 5, '#c8ccd8'); px(9, 9, 2, 4, '#c8ccd8'); px(13, 9, 2, 4, '#c8ccd8');
+    px(4, 19, 3, 2, '#5ef0ff'); px(17, 19, 3, 2, '#ff3ea5');
+    return c.toDataURL();
+  } catch { return icon('gacha_icon'); }
+}
+const OBJ_EXTRA = [
+  ['bag', 'Bolsa de inventário', icon('bag')],
+  ['food', 'Bolsa de comida', icon('backpack')],
+  ['delivery', 'Caixa de entrega', DELIVERY_IMG],
+  ['claw', 'Máquina de garra', clawIcon()],
+];
 // Itens que realmente têm um visual "em uso" no palco.
 const USABLE_IDS = new Set(['gacha', 'slot', 'cafeteira', 'venda_comida', 'venda_bebida', 'impressora', 'videogame', 'banheira', 'escrivaninha', 'alvo']);
 
@@ -2821,9 +2842,14 @@ export class ObjectsDialog extends Dialog {
 
   async show(focus, preset) {
     this.open('Visual dos objetos');
+    // Clearer names for a few ids whose internal name is technical.
+    const lookName = (id, name) => ({
+      videogame: 'TV / Videogame', alvo: 'Arcade / Alvo', estante_cartuchos: 'Gaming Shelf',
+    }[id]) || name;
     this.list = [
-      ...ITEMS.filter((i) => i.toy || i.cat === 'mobilia' || i.cat === 'fun').filter((i) => i.cat !== 'cartuchos').map((i) => [i.id, i.name, i.img, i]),
-      ...OBJ_EXTRA.map(([id, name, pix]) => [id, name, icon(pix), null]),
+      ...ITEMS.filter((i) => i.toy || i.cat === 'mobilia' || i.cat === 'fun').filter((i) => i.cat !== 'cartuchos')
+        .map((i) => [i.id, lookName(i.id, i.name), i.img, i]),
+      ...OBJ_EXTRA.map(([id, name, img]) => [id, name, img, null]),
     ];
     this.sel = focus || this.list[0][0];
     this.variant = 'base';
@@ -3235,7 +3261,14 @@ export class ObjectsDialog extends Dialog {
     // Passo 1 — escolha do item.
     const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
       onclick: () => { this.sel = oid; this.variant = 'base'; this.variants = null; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.drawRegion = false; this._regionDraft = null; this.captureSnapshot(); this.render(); this.syncLive(); },
-    }, h('img', { src: this.current(oid) || '', draggable: false }), h('span', {}, name), app.skins?.objects[oid]?.frames ? h('b', {}, '★') : null)));
+    }, h('img', { src: this.current(oid) || '', draggable: false }), h('span.obj-name', {}, translate(name)), h('span.obj-badges', {}, (() => {
+         const info = app.skins?.customInfo?.(oid) || { base: false, up: false, frames: 0 };
+         const out = [];
+         if (info.base) out.push(h('i.obj-badge', {}, translate('Custom')));
+         if (info.up) out.push(h('i.obj-badge.up', {}, translate('Upgrade')));
+         if (info.frames > 1) out.push(h('i.obj-badge.gif', {}, 'GIF'));
+         return out;
+       })()))));
     const base = baseId(id);
     const hasUpgrade = !!UPGRADES[base];
     const showActive = USABLE_IDS.has(base);
@@ -3258,13 +3291,24 @@ export class ObjectsDialog extends Dialog {
         };
         setTimeout(tick, 100);
       }
+      // Live caption: natural size and decoded frame count confirm the GIF loaded fully.
+      const info = h('div.obj-frame-info', {}, '—');
+      const firstSrc = frames?.[0] || shown;
+      if (firstSrc) {
+        const probe = new Image();
+        probe.onload = () => {
+          info.textContent = `${probe.naturalWidth}×${probe.naturalHeight} px · ${frames?.length || 1} ${translate('frames')}`;
+        };
+        probe.onerror = () => { info.textContent = ''; };
+        probe.src = firstSrc;
+      }
       const choose = h('button.primary.obj-choose', { onclick: () => this.pickImage(key === 'active') }, translate('Escolher imagem/GIF'));
       const reset = key === 'idle'
         ? h('button.link', { onclick: () => this.clearSkinSlot('idle', d, id) }, translate('Usar padrão'))
         : null;
       const card = h('div.obj-card', {},
         h('div.obj-card-title', {}, title),
-        h('div.obj-preview-box', {}, im),
+        h('div.obj-preview-box', {}, im, info),
         h('div.obj-card-actions', {}, choose, reset),
         hint ? h('div.obj-card-hint', {}, hint) : null);
       return { card, im };
@@ -3371,10 +3415,10 @@ export class ObjectsDialog extends Dialog {
             const s = start.reg;
             let g;
             if (resize && !ev.shiftKey) {
-              // Square screen by default (Shift frees the aspect ratio).
-              const maxSide = Math.min(1 - s.x, 1 - s.y);
-              const side = Math.min(maxSide, Math.max(0.05, Math.min(s.w, s.h) + (dx + dy) / 2));
-              g = { x: s.x, y: s.y, w: side, h: side };
+              // 4:3 game screen by default (Shift frees the aspect ratio).
+              const maxW = Math.min(1 - s.x, (1 - s.y) * 4 / 3);
+              const sideW = Math.min(maxW, Math.max(0.05, Math.min(s.w, s.h * 4 / 3) + (dx + dy) / 2));
+              g = { x: s.x, y: s.y, w: sideW, h: sideW * 3 / 4 };
             } else if (resize) {
               g = { x: s.x, y: s.y, w: Math.min(1 - s.x, Math.max(0.05, s.w + dx)), h: Math.min(1 - s.y, Math.max(0.05, s.h + dy)) };
             } else {
@@ -3420,7 +3464,13 @@ export class ObjectsDialog extends Dialog {
     }
     const right = h('div.obj-edit', {},
       id === 'videogame' ? h('div.obj-banner', {},
-        translate('Mova o quadrado e use a alça do canto para redimensionar. A tela é quadrada por padrão (Shift libera).')) : null,
+        translate('Mova o quadrado e use a alça do canto para redimensionar. Proporção 4:3 por padrão (Shift libera).')) : null,
+      (() => {
+        const px = Math.round(((FURN[base]?.size || 0.3) * (app.config.petHeight || 90)) / 4) * 4;
+        const lo = Math.max(16, px - 12);
+        const hi = Math.max(lo + 8, Math.round(px * 1.4 / 4) * 4);
+        return h('div.obj-size-hint', {}, `${translate('Recomendado')}: ~${lo}–${hi} px ${translate('em PNG/GIF transparente')}`);
+      })(),
       stage,
       id === 'videogame' && (d?.src?.length || shown) ? h('div.row', {},
         h('button.act', { onclick: () => {

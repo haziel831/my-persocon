@@ -350,6 +350,15 @@ const EN = {
   'Passo 2 — Versão': 'Step 2 — Version', 'Passo 3 — Imagens': 'Step 3 — Images',
   'Normal': 'Normal', 'Upgrade': 'Upgrade', 'Parado': 'Idle', 'Em uso': 'In use',
   'Escolher imagem/GIF': 'Choose image/GIF', 'Usar padrão': 'Use default',
+  // ---- Change Look: selector names, badges and hints ----
+  'Bolsa de inventário': 'Inventory bag', 'Bolsa de comida': 'Snack bag',
+  'Caixa de entrega': 'Delivery box', 'Máquina de garra': 'Claw machine',
+  'TV / Videogame': 'TV / Video game', 'Arcade / Alvo': 'Arcade / Target',
+  'Custom': 'Custom', 'frames': 'frames', 'Recomendado': 'Recommended',
+  'em PNG/GIF transparente': 'in transparent PNG/GIF',
+  'Restaurar área padrão': 'Restore default area',
+  'Mova o quadrado e use a alça do canto para redimensionar. Proporção 4:3 por padrão (Shift libera).':
+    'Drag the square and use the corner grip to resize. 4:3 by default (hold Shift to free it).',
   'Opcional: toca enquanto ela usa o item': 'Optional: plays while she uses the item',
   'Remover fundo verde (greenscreen)': 'Remove green background (greenscreen)',
   'Sensibilidade': 'Sensitivity', 'Usar modelo 3D (opcional)': 'Use 3D model (optional)',
