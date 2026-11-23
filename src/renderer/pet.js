@@ -635,6 +635,10 @@ export async function startPet(files, config) {
   app.chatBox = STREAM && window.__PET_STREAMER__ ? new StreamChatBox(app) : null;
   app.voiceInput = STREAM ? new VoiceInput(app) : null;
   app.twitch = STREAM ? new TwitchChat(app) : null;
+  // Session state for the first-chat TTS preference (AWAITING_TTS_PREFERENCE).
+  app.chatTtsConfigured = false;
+  app.ttsTargetMode = null;
+  app.firstViewerPrompt = { active: false };
   app.streamAlerts = new StreamAlerts(app);
   if (!STREAM) {
     config.streamer = false;
@@ -2125,7 +2129,7 @@ api.onTrayClick?.(() => {
     else if (p.type === 'ttsState') app.tts?.reportQueue?.();
     else if (p.type === 'twitchConnect') app.twitch?.connect?.(p.channel);
     else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
-    else if (p.type === 'firstViewerChoice') app.twitch?.firstViewerChoose?.(p.read);
+    else if (p.type === 'firstViewerChoice') app.twitch?.resolveChatTtsChoice?.(p.mode || (p.read ? 'CHAT_ONLY' : 'USER_ONLY'));
     else if (p.type === 'simulate' || p.type === 'testAlert') app.streamAlerts?.push?.(p.event);
     else if (p.type === 'redeem' || p.type === 'reward') {
       app.streamAlerts?.push?.({ type: 'redeem', user: p.user, reward: p.reward || p.name || p.rewardId,

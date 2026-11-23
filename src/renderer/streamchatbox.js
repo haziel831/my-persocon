@@ -101,6 +101,8 @@ export class StreamChatBox {
     const app = this.app;
     const who = app.config?.name || (app.config?.lang === 'en' ? 'You' : 'Você');
     this.push('you', `${who}: ${text}`);
+    // AWAITING_TTS_PREFERENCE: a typed answer resolves the question instead of hitting the AI.
+    if (app.twitch?.resolveChatTtsChoice?.(text)) return;
     const c = app.config || {};
     const fallback = () => {
       const line = personaLine(app, 'hi') || (c.lang === 'en' ? 'Hi! I am listening.' : 'Oi! Estou ouvindo.');

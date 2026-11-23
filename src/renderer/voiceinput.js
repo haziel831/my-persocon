@@ -1,5 +1,6 @@
 // Global Push-to-Talk voice input: transcribes speech and asks the Persocon AI.
 import { personaLine } from './persona.js';
+import { actionPrompt, parseAction, runAction } from './voicecommands.js';
 
 export class VoiceInput {
   constructor(app) {
@@ -28,7 +29,11 @@ export class VoiceInput {
     // There is no host-side "audio ended" event: the TTS line-end callback drives the resume.
     if (this.app.tts) {
       this.app.tts.onOwnerLineEnd = (job) => {
-        if (job?.ownerPriority) this.scheduleRelease();
+        if (!job?.ownerPriority) return;
+        // Hold the big avatar and her balloon for a few seconds after the audio ends.
+        this.app.closeup?.hold?.(9000);
+        this.app.speech?.hold?.(9000);
+        this.scheduleRelease(9000);
       };
     }
   }
@@ -54,9 +59,9 @@ export class VoiceInput {
     clearTimeout(this.releaseTimer);
   }
 
-  // Resume only after the owner's reply audio ends, plus a ~2s cooldown. Re-arming while the
-  // TTS is still generating/playing also covers slow remote voices and the Windows fallback.
-  scheduleRelease(ms = 2000) {
+  // Stay in the focused conversation for ~9s after the owner's reply audio ends. Re-arming
+  // while TTS is still generating/playing also covers slow remote voices and the Windows voice.
+  scheduleRelease(ms = 9000) {
     clearTimeout(this.releaseTimer);
     this.releaseTimer = setTimeout(() => {
       if (this.app.tts?.speaking) { this.scheduleRelease(ms); return; }
@@ -158,6 +163,11 @@ export class VoiceInput {
     if (!said) { this.scheduleRelease(1200); return; }
     // Some browsers only deliver the final transcript on stop: show it then.
     if (!String(this.pushedText || '').trim()) this.say(said);
+    // While awaiting the first-chat TTS preference, the voice answer IS the choice.
+    if (this.app.firstViewerPrompt?.active && this.app.twitch?.resolveChatTtsChoice?.(said)) {
+      this.scheduleRelease(2000);
+      return;
+    }
     const c = this.app.config;
     if (c.aiEnabled === true) {
       const cfg = {
@@ -171,7 +181,8 @@ export class VoiceInput {
       const prompt = c.lang === 'en'
         ? `DIRECT VOICE COMMAND from the creator (highest priority): ${said}`
         : `ORDEM DIRETA POR VOZ do criador (prioridade máxima): ${said}`;
-      window.petAPI?.aiReply?.(prompt, c.aiSystemPrompt || '', cfg)
+      const system = [c.aiSystemPrompt, actionPrompt(c.lang)].filter(Boolean).join('\n');
+      window.petAPI?.aiReply?.(prompt, system, cfg)
         .then((reply) => {
           if (reply?.fallbackNotice) this.app.pushStreamerState?.(true);
           this.answer(String(reply?.text || '').trim());
@@ -183,11 +194,19 @@ export class VoiceInput {
   }
 
   answer(text, fallback = false) {
-    const out = String(text || '').trim().slice(0, 200);
-    if (!out) { this.scheduleRelease(); return; }
-    this.app.chatBox?.push?.('pet', out);
-    this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(out) || 'normal', out);
-    this.app.speech?.say(out, 4, { source: 'owner', ownerPriority: true });
+    let raw = String(text || '').trim().slice(0, 200);
+    if (!raw) { this.scheduleRelease(); return; }
+    const { text: out, name, arg } = parseAction(raw);
+    if (!fallback && name) runAction(name, arg, this.app);
+    const spoken = out || (fallback ? raw : '');
+    if (spoken) {
+      this.app.chatBox?.push?.('pet', spoken);
+      this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(spoken) || 'normal', spoken);
+      // With the big avatar on screen her answer also goes to the close-up balloon, but the
+      // priority TTS always plays (its onended drives the extended hold and the resume).
+      this.app.closeup?.say?.(spoken);
+      this.app.speech?.say(spoken, 4, { source: 'owner', ownerPriority: true });
+    }
     this.scheduleRelease();
   }
 }

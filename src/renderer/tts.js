@@ -228,6 +228,13 @@ export class VoiceTTS {
   }
 
   sourceAllowed(source) {
+    // First-chat preference overrides the legacy respond mode for the rest of the session.
+    if (this.app.chatTtsConfigured && this.app.ttsTargetMode) {
+      const target = this.app.ttsTargetMode;
+      if (target === 'USER_ONLY') return source === 'owner';
+      if (target === 'CHAT_ONLY') return source === 'viewer' || source === 'alert';
+      return true; // ALL
+    }
     const mode = this.app.config.ttsRespondMode || 'mixed';
     if (mode === 'never') return false;
     if (mode === 'always' || mode === 'mixed') return true;
@@ -241,6 +248,8 @@ export class VoiceTTS {
     if (!this.enabled || this.muted) return false;
     // USER_PRIORITY blocks every autonomous/chat line; only the PTT reply (ownerPriority) plays.
     if (this.userPriority && !opts.ownerPriority) return false;
+    // AWAITING_TTS_PREFERENCE: silence automatic chat TTS until the creator chooses.
+    if (this.app.firstViewerPrompt?.active && opts.source === 'viewer' && !opts.ownerPriority) return false;
     if (!opts.ownerPriority && !this.sourceAllowed(opts.source || 'auto')) return false;
     const c = this.app.config;
     if (opts.chat && !this.allowed(opts)) return false;

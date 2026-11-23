@@ -224,6 +224,28 @@ export class Closeup {
     c.t = 0;
   }
 
+  // Keep the avatar on screen longer while the creator is talking to her (PTT hold).
+  hold(ms = 9000) {
+    const c = this.cur;
+    if (!c || c.phase !== 'talk') return false;
+    const base = c.talkFor || (c.kind === 'alarm' ? 150 : 40);
+    c.talkFor = Math.max(base, c.t + ms / 1000);
+    c.onTimeout = null; // never cut the conversation short with a timeout
+    return true;
+  }
+
+  // Show the spoken reply inside the big avatar's balloon instead of the small one.
+  say(text) {
+    const c = this.cur;
+    if (!c || c.phase !== 'talk' || !c.bubble) return false;
+    c.text = String(text || '');
+    c.shown = 0;
+    c.typeT = 0;
+    const p = c.bubble.querySelector('p');
+    if (p) p.textContent = '';
+    return true;
+  }
+
   // Size of the close-up (zoom) and where her feet go (screen px) when fully up.
   // Cap so torso/head stay on screen even at >100% size or tiny monitors (800×600).
   frame() {

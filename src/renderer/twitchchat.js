@@ -223,46 +223,61 @@ export class TwitchChat {
     }
   }
 
-  // One-off welcome scene for the first real viewer of a connection session.
+  // First chat message of the session: ask ONCE which TTS target to use. No timeout — the
+  // question stays up until the creator answers by voice, by text or with the avatar buttons.
   firstViewerScene(user) {
     const app = this.app;
     const en = app.config?.lang === 'en';
     const text = en
-      ? 'Someone just showed up in chat... Do you want me to read the chat out loud, or only answer when they call my name?'
-      : 'Chegou gente no chat... você quer que eu leia o chat para você ou só responda quando chamarem o meu nome?';
-    const read = en ? 'Read the chat' : 'Ler o chat';
-    const named = en ? 'Only when called' : 'Só quando chamarem meu nome';
-    app.firstViewerPrompt = { active: true, user, text, read, named };
+      ? 'Someone just wrote in chat! Should I use TTS only with you, only with the chat, or with both?'
+      : 'Alguém falou no chat! Você quer que eu use o TTS só com você, só com o chat, ou com os dois?';
+    app.chatTtsConfigured = false;
+    app.ttsTargetMode = null;
+    app.firstViewerPrompt = { active: true, awaiting: true, user, text };
     app.pushStreamerState?.(true);
-    if (app.tts?.enabled && app.config.streamTtsSpeak !== false) {
-      app.tts.enqueue(text, { priority: true, source: 'alert' });
-    }
+    // ownerPriority bypasses the awaiting-chat gate below, so the question is always spoken.
+    if (app.tts?.enabled) app.tts.enqueue(text, { priority: true, ownerPriority: true, source: 'alert' });
     app.closeup?.test({
       firstViewer: true,
       tag: en ? 'First viewer' : 'Primeiro viewer',
       text,
-      actions: [[read, () => this.firstViewerChoose(true)], [named, () => this.firstViewerChoose(false)]],
-      talkFor: 25,
-      onTimeout: () => this.firstViewerChoose(null),
+      actions: [
+        [en ? 'Only me' : 'Só comigo', () => this.resolveChatTtsChoice('USER_ONLY')],
+        [en ? 'Only chat' : 'Só com o chat', () => this.resolveChatTtsChoice('CHAT_ONLY')],
+        [en ? 'Both' : 'Os dois', () => this.resolveChatTtsChoice('ALL')],
+      ],
+      talkFor: 1e7, // AWAITING_TTS_PREFERENCE: no timeout, wait indefinitely
     });
   }
 
-  firstViewerChoose(read) {
+  // Single decision point for PTT, the chat-box input and the avatar buttons.
+  // Returns true only when an answer was actually consumed.
+  resolveChatTtsChoice(input) {
     const app = this.app;
-    if (!app.firstViewerPrompt?.active) return;
+    if (!app.firstViewerPrompt?.active) return false;
+    const raw = String(input || '').trim().toUpperCase();
+    const s = String(input || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().trim().replace(/[.!?]+$/, '');
+    let mode = ['ALL', 'USER_ONLY', 'CHAT_ONLY'].includes(raw) ? raw : null;
+    if (!mode && /^(os dois|ambos|todos|tudo|both|all|geral|mixed)$/.test(s)) mode = 'ALL';
+    else if (!mode && /^(so comigo|so voce|so com voce|apenas voce|me|eu|user|only me|me only)$/.test(s)
+      || /^(so|apenas) (comigo|voce)$/.test(s)) mode = 'USER_ONLY';
+    else if (!mode && /^(so com o chat|so o chat|chat|viewers|viewer|only chat|chat only)$/.test(s)) mode = 'CHAT_ONLY';
+    if (!mode) return false;
+    app.ttsTargetMode = mode;
+    app.chatTtsConfigured = true;
+    app.firstViewerPrompt = { active: false, mode };
     const en = app.config?.lang === 'en';
-    if (read === true || read === false) {
-      app.applyConfigPatch?.(read ? { streamTtsSpeak: true } : { streamTtsSpeak: false, aiEnabled: true });
-      const thanks = read
-        ? (en ? 'Got it, I will read the chat for you.' : 'Combinado, vou ler o chat para você.')
-        : (en ? 'Got it, I will wait until you call me.' : 'Combinado, fico só quando chamarem meu nome.');
-      // The confirmation is always spoken when TTS is on; the chat-reading flag must not mute it.
-      if (app.tts?.enabled) app.tts.enqueue(thanks, { priority: true, source: 'alert' });
-      app.speech?.say?.(thanks, 3, { noAutoTts: true, source: 'alert' });
-    }
-    app.firstViewerPrompt = { active: false };
+    const thanks = mode === 'USER_ONLY'
+      ? (en ? 'Got it, only with you.' : 'Combinado, só com você.')
+      : mode === 'CHAT_ONLY'
+        ? (en ? 'Got it, only with the chat.' : 'Combinado, só com o chat.')
+        : (en ? 'Got it, with both of you.' : 'Combinado, com os dois.');
+    if (app.tts?.enabled) app.tts.enqueue(thanks, { priority: true, ownerPriority: true, source: 'alert' });
+    app.speech?.say?.(thanks, 3, { noAutoTts: true, source: 'alert' });
     if (app.closeup?.cur?.firstViewer) app.closeup.leave();
     app.pushStreamerState?.(true);
+    return true;
   }
 
   maybeAi(text, user, deny) {

@@ -430,6 +430,13 @@ export class Speech {
     if (this.app.speechHistory.length > 250) this.app.speechHistory.shift();
   }
 
+  // Extend the visible balloon after a priority voice reply, so it does not vanish mid-talk.
+  hold(ms = 9000) {
+    if (!this.text) return false;
+    this.life = Math.max(this.life || 0, this.t + ms / 1000);
+    return true;
+  }
+
   // Called by DesktopWatch when the real period of the day changes.
   sayPeriod(period) {
     if (this.app.config?.speech === false) return;
