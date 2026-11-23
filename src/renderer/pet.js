@@ -513,6 +513,7 @@ export async function startPet(files, config) {
     };
     if (isTV) {
       // Keep the TV screen full opacity / fixed scale; only furniture-level actions remain.
+      btn(translate('Ajustar área da tela'), () => app.openObjects?.('videogame'));
       btn(translate('Trocar jogo'), () => app.toys?.toggleBag?.());
       btn(translate(app.tvWatch?.on ? 'Parar de assistir' : 'Assistir TV'), () => {
         if (app.tvWatch?.on) app.tvWatch.stop();

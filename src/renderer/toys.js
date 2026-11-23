@@ -1188,8 +1188,10 @@ export class Toys {
     const h = w * ratio;
     const baseY = t.y ?? this.floorY();
     const left = t.x - w / 2;
-    // The sprite scales around its centre, so its top is not simply baseY - h when sc != 1.
-    const top = baseY - (base * ratio * (1 + sc)) / 2;
+    // The sprite scales around its bottom centre: its visible top is baseY - h (h already
+    // includes the skin scale). The old (1 + sc) / 2 formula shifted the overlay whenever
+    // the skin had a scale != 1, which made the game screen sit outside the TV frame.
+    const top = baseY - h;
     const s = this.app.skins?.region('videogame', !!t.up) || FURN.videogame.screen;
     const sx = t.flip ? 1 - s.x - s.w : s.x;
     // Integer CSS pixels only: fractional overlay boxes blur the video and make the frame

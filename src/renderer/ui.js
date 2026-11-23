@@ -3339,7 +3339,7 @@ export class ObjectsDialog extends Dialog {
         stage.addEventListener('pointerup', up);
       });
     }
-    if (id === 'videogame' && d?.src?.length) {
+    if (id === 'videogame' && (d?.src?.length || shown)) {
       // No more "draw the region": it is a real square you move and resize, with a static
       // sample image inside so the preview looks like the final TV screen.
       const initial = this.region || app.skins.region(id, this.upgraded) || FURN.videogame.screen;
@@ -3421,7 +3421,7 @@ export class ObjectsDialog extends Dialog {
       id === 'videogame' ? h('div.obj-banner', {},
         translate('Mova o quadrado sobre a imagem e use a alça no canto para redimensionar. A imagem de exemplo mostra como a tela vai ficar.')) : null,
       stage,
-      id === 'videogame' && d?.src?.length ? h('div.row', {},
+      id === 'videogame' && (d?.src?.length || shown) ? h('div.row', {},
         h('button.act', { onclick: () => {
           this.region = { ...(app.skins.region(id, this.upgraded) || FURN.videogame.screen) };
           this.render();
