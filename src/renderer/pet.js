@@ -25,7 +25,8 @@ import { TwitchChat } from './twitchchat.js';
 import { StreamAlerts } from './streamalerts.js';
 import { StreamChatBox } from './streamchatbox.js';
 import { VoiceInput } from './voiceinput.js';
-import { affinityLine, defaultPersona, getItemAffinity, personaLine, personifyAutoLine, replacePetNames } from './persona.js';
+import { affinityLine, commandReply, defaultPersona, getItemAffinity, personaLine, personifyAutoLine, replacePetNames } from './persona.js';
+import { commandReplyKey, matchNaturalCommand, runAction } from './voicecommands.js';
 import './statusicons.js';
 import { baseId } from './furniture.js';
 import { Ball } from './ball.js';
@@ -255,6 +256,16 @@ export async function startPet(files, config) {
     focus: () => api.focusWindow(),
     openImport: () => importDialog.show(),
     openObjects: (id, preset) => new ObjectsDialog(app).show(id, preset),
+    // One entry point for natural commands from PTT, the direct chat box and Twitch chat.
+    runVoiceCommand(text) {
+      const cmd = matchNaturalCommand(text);
+      if (!cmd) return false;
+      const ok = runAction(cmd.name, cmd.arg, app);
+      const line = commandReply(app, ok ? (cmd.key || commandReplyKey(cmd.name)) : 'fail');
+      app.chatBox?.push?.('pet', line);
+      app.speech?.say(line, 3, { source: 'owner', ownerPriority: true });
+      return true;
+    },
     // Clicks on the pet never close the menu (it can be carried around while the menu stays open).
     overPet: (x, y) => suppressContext || !!press || hitPet(x, y),
     hitPet: (x, y) => hitPet(x, y),

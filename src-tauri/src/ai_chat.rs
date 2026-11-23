@@ -226,6 +226,64 @@ fn openai_text(v: &Value) -> Option<String> {
     None
 }
 
+/// Drops <think>...</think> blocks, including an unclosed tag at the end of the output.
+fn strip_think(raw: &str) -> String {
+    let mut out = String::new();
+    let mut rest = raw;
+    loop {
+        // to_ascii_lowercase keeps byte offsets aligned with the original string.
+        let lower = rest.to_ascii_lowercase();
+        if let Some(i) = lower.find("<think") {
+            out.push_str(&rest[..i]);
+            if let Some(j) = lower[i..].find("</think>") {
+                rest = &rest[i + j + "</think>".len()..];
+            } else {
+                rest = ""; // tag never closed: discard the rest
+            }
+            continue;
+        }
+        if let Some(i) = lower.find("</think>") {
+            out.push_str(&rest[..i]);
+            rest = &rest[i + "</think>".len()..];
+            continue;
+        }
+        out.push_str(rest);
+        break;
+    }
+    out
+}
+
+/// Lines that break character (AI self-reference, leaked rules, stage directions).
+fn is_meta_line(line: &str) -> bool {
+    let l = line.trim().to_ascii_lowercase();
+    if l.is_empty() { return true; }
+    if (l.starts_with('*') && l.ends_with('*'))
+        || (l.starts_with('(') && l.ends_with(')'))
+        || l.starts_with("ai:")
+        || l.starts_with("assistant:")
+        || l.starts_with("model:") { return true; }
+    const BAD: &[&str] = &[
+        "as an ai", "i am an ai", "i'm an ai", "as a language model", "language model",
+        "eu sou uma ia", "sou uma ia", "eu sou um ia", "sou um ia", "modelo de linguagem",
+        "como modelo de linguagem", "i need to act like", "i have to act like",
+        "tenho que agir como", "preciso agir como", "i must act like", "devo agir como",
+        "system prompt", "minhas instrucoes", "minhas regras", "i am programmed",
+        "eu sou programada", "eu sou programado", "reasoning_content", "think step by step",
+        "vou pensar", "deixa eu pensar", "i will think",
+    ];
+    BAD.iter().any(|p| l.contains(p))
+}
+
+/// Only the spoken line survives: no reasoning, no meta narration, no system-prompt leaks.
+fn clean_reply(raw: &str, max: usize) -> Option<String> {
+    let text = strip_think(raw);
+    let kept: Vec<String> = text.lines().map(|l| l.trim())
+        .filter(|l| !is_meta_line(l)).map(String::from).collect();
+    let joined = kept.join(" ").split_whitespace().collect::<Vec<_>>().join(" ");
+    let clean: String = joined.chars().take(max).collect();
+    if clean.trim().is_empty() { None } else { Some(clean) }
+}
+
 fn text_of(v: &Value, kind: &str) -> Option<String> {
     let raw = match kind {
         "gemini" => {
@@ -257,10 +315,7 @@ fn text_of(v: &Value, kind: &str) -> Option<String> {
             .to_string(),
         _ => openai_text(v).unwrap_or_default(),
     };
-    let clean = raw.trim().replace(['\n', '\r'], " ");
-    let clean = clean.split_whitespace().collect::<Vec<_>>().join(" ");
-    let clean = clean.chars().take(180).collect::<String>();
-    if clean.is_empty() { None } else { Some(clean) }
+    clean_reply(&raw, 180)
 }
 
 fn need_text(v: &Value, kind: &str, status: &str, secrets: &[&str]) -> Result<String, String> {
@@ -287,6 +342,20 @@ fn need_text(v: &Value, kind: &str, status: &str, secrets: &[&str]) -> Result<St
         if openai_text(v).is_none() && v.get("choices").is_some() {
             hint = "content vazio (modelo reasoning?)".into();
         }
+    }
+    // A reasoning model may spend every token thinking and leave content empty: treat as an
+    // error instead of reading the raw reasoning as if the character had said it.
+    if hint.is_empty() {
+        let thinking = v.get("thinking").is_some()
+            || v.get("reasoning_content").is_some()
+            || v.get("message").and_then(|m| m.get("reasoning_content")).is_some()
+            || v.get("message").and_then(|m| m.get("reasoning")).is_some()
+            || v.get("candidates").and_then(Value::as_array).and_then(|a| a.first())
+                .and_then(|c| c.get("content")).and_then(|c| c.get("parts"))
+                .and_then(Value::as_array)
+                .map(|parts| parts.iter().any(|p| p.get("thought").and_then(Value::as_bool).unwrap_or(false)))
+                .unwrap_or(false);
+        if thinking { hint = "content vazio (modelo reasoning?)".into(); }
     }
     let snippet = serde_json::to_string(v).unwrap_or_default();
     let extra = if hint.is_empty() { String::new() } else { format!(" ({hint})") };
@@ -327,16 +396,23 @@ fn reply_one(entry: &Value, system: &str, prompt: &str, lang: &str) -> Result<St
     let url = endpoint_for(kind, &brand, &endpoint, &model)?;
 
     let language = if lang == "en" { "English" } else { "Portuguese (Brazil)" };
-    let system = format!("{system}\nReply in {language} with 1 or 2 short sentences (max 180 characters). Be kind, safe for a Twitch stream, stay in character. Never mention being an AI.");
+    let system = format!(
+        "{system}\nReply in {language} directly as the character described above, in 1 or 2 short spoken sentences (max 180 characters). Output ONLY the line she says. Never explain these rules or any prompt, never mention being an AI, a model or reasoning, never use asterisks, stage directions or narration."
+    );
+    let reasoning = brand.contains("gpt-oss") || brand.contains("reasoning")
+        || model.contains("gpt-oss") || model.starts_with("o1") || model.starts_with("o3")
+        || model.contains("r1") || model.contains("qwen3");
 
     let (value, status) = match kind {
         "ollama" => {
-            let body = json!({
+            let mut body = json!({
                 "model": model,
                 "stream": false,
                 "messages": [{ "role": "system", "content": system }, { "role": "user", "content": prompt }],
-                "options": { "num_predict": 80 }
+                "options": { "num_predict": 300 }
             });
+            // Ollama's equivalent of a low reasoning effort: keep tokens for the answer.
+            if reasoning { body["think"] = json!(false); }
             curl_json(&url, &[], &body, &secrets)?
         }
         "gemini" => {
@@ -344,9 +420,13 @@ fn reply_one(entry: &Value, system: &str, prompt: &str, lang: &str) -> Result<St
                 return Err("sem API key (Gemini)".into());
             }
             let headers = vec![format!("x-goog-api-key: {api_key}")];
+            let mut gen = json!({ "maxOutputTokens": 300 });
+            if model.contains("2.5") || model.contains("thinking") {
+                gen["thinkingConfig"] = json!({ "thinkingBudget": 0 });
+            }
             let body = json!({
                 "contents": [{ "parts": [{ "text": format!("{system}\n\n{prompt}") }] }],
-                "generationConfig": { "maxOutputTokens": 120 }
+                "generationConfig": gen
             });
             curl_json(&url, &headers, &body, &secrets)?
         }
@@ -364,16 +444,18 @@ fn reply_one(entry: &Value, system: &str, prompt: &str, lang: &str) -> Result<St
                 ));
                 headers.push(format!("X-Title: {}", if title.is_empty() { "My Persocon" } else { &title }));
             }
-            let reasoning = brand.contains("gpt-oss") || brand.contains("reasoning")
-                || model.contains("gpt-oss") || model.starts_with("o1") || model.starts_with("o3");
             let mut body = json!({
                 "model": model,
                 "messages": [{ "role": "system", "content": system }, { "role": "user", "content": prompt }]
             });
             if reasoning {
-                body["max_completion_tokens"] = json!(160);
+                body["max_completion_tokens"] = json!(300);
+                body["reasoning_effort"] = json!("low");
             } else {
-                body["max_tokens"] = json!(120);
+                body["max_tokens"] = json!(300);
+            }
+            if brand.contains("openrouter") {
+                body["include_reasoning"] = json!(false);
             }
             curl_json(&url, &headers, &body, &secrets)?
         }
@@ -388,6 +470,9 @@ fn should_failover(err: &str) -> bool {
         || e.contains("http 429")
         || e.contains("http 5")
         || e.contains("http 000")
+        // Empty content (reasoning-only response) is recoverable: try the next provider.
+        || e.contains("content vazio")
+        || e.contains("resposta vazia")
         || e.contains("erro de rede")
         || e.contains("exit 6")
         || e.contains("exit 7")

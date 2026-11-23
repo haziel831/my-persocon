@@ -201,6 +201,14 @@ export class TwitchChat {
         this.pushLog(displayName, text, 'IA: respondendo...');
         continue;
       }
+      // Natural commands from chat only when she is addressed (or via !command).
+      const petName = String(this.app.config.name || '').toLowerCase().trim();
+      const names = ['aghata', 'agatha', 'ninna', petName].filter(Boolean).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const addressed = text.startsWith('!') || (names.length > 0 && new RegExp(`\\b(${names.join('|')})\\b`, 'i').test(text));
+      if (addressed && this.app.runVoiceCommand?.(text)) {
+        this.pushLog(displayName, text, 'comando: ok');
+        continue;
+      }
       const canSpeak = !deny && this.app.config.streamTtsSpeak !== false;
       const spoke = canSpeak ? this.speakChat(m[4], displayName, t, login) : false;
       let status = '';

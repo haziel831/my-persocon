@@ -315,7 +315,65 @@ Stream rules: always stay in character, be safe for Twitch, never invent past me
 export function aiBackground(app) {
   const en = app?.config?.lang === 'en';
   const id = /aghata|agatha/i.test(app?.config?.modelDir || '') ? 'aghata' : 'ninna';
-  return AI_BACKGROUND[id][en ? 'en' : 'pt'];
+  const base = AI_BACKGROUND[id][en ? 'en' : 'pt'];
+  const rule = en
+    ? '\nAnswer directly as her, in the configured language: 1 or 2 short spoken sentences. Never explain these rules, never say you are an AI, a language model or that you are following instructions. No asterisks, stage directions or narration. Output only the line she says.'
+    : '\nResponda diretamente como ela, no idioma configurado: 1 ou 2 frases curtas faladas. Nunca explique estas regras, nunca diga que é uma IA, um modelo de linguagem ou que está seguindo instruções. Sem asteriscos, indicações de cena ou narração. Responda apenas com a fala dela.';
+  return `${base}${rule}`;
+}
+
+// Short in-character confirmations for voice/chat commands (never meta, never explanatory).
+const COMMAND_REPLY = {
+  pt: {
+    tv: ['Vou ligar a TV.', 'TV ligada. Já estou vendo.'],
+    tv_off: ['Desligando a TV.', 'TV desligada.'],
+    banho: ['Vou tomar banho.', 'Banho, então. Já vou.'],
+    dormir: ['Vou descansar um pouco.', 'Boa noite... desligando por um instante.'],
+    comer: ['Vou comer alguma coisa.', 'Hora do lanche. Obrigada.'],
+    beber: ['Vou beber um pouco.', 'Água, sim. Obrigada.'],
+    cafe: ['Vou preparar um café.', 'Café, então. Já volto.'],
+    dancar: ['Bora dançar!', 'Música, sim!'],
+    estudar: ['Vou ler um pouco.', 'Hora de estudar.'],
+    jogar: ['Vamos jogar!', 'Um joguinho, então.'],
+    sentar: ['Tá, vou sentar.', 'Sentando.'],
+    virar: ['Virei.', 'Olhando para cá.'],
+    parar: ['Paro por aqui.', 'Tá, parei.'],
+    clima: ['Mudo o clima.', 'Clima ajustado.'],
+    doll: ['Vou treinar a Doll.', 'A Doll vai praticar.'],
+    crow: ['Vou treinar o Corvo.', 'O Corvo vai praticar.'],
+    cafune: ['Hmm... cafuné. Obrigada.', 'Cafuné? Tá bom.'],
+    default: ['Tá bem.', 'Combinado.', 'Já vou.'],
+    fail: ['Agora não consigo.', 'Não dá agora, desculpa.'],
+  },
+  en: {
+    tv: ['Turning the TV on.', 'TV is on. I am watching.'],
+    tv_off: ['Turning the TV off.', 'TV is off.'],
+    banho: ['I will take a bath.', 'Bath time, then.'],
+    dormir: ['I will rest a little.', 'Good night... switching off for a moment.'],
+    comer: ['I will eat something.', 'Snack time. Thank you.'],
+    beber: ['I will have a drink.', 'Water, yes. Thank you.'],
+    cafe: ['I will make some coffee.', 'Coffee, then. Back in a bit.'],
+    dancar: ["Let's dance!", 'Music, yes!'],
+    estudar: ['I will read a little.', 'Study time.'],
+    jogar: ["Let's play!", 'A little game, then.'],
+    sentar: ['All right, sitting.', 'Sitting down.'],
+    virar: ['Turned.', 'Looking this way.'],
+    parar: ['I will stop here.', 'Okay, stopped.'],
+    clima: ['Changing the weather.', 'Weather set.'],
+    doll: ['I will train the Doll.', 'The Doll will practice.'],
+    crow: ['I will train the Crow.', 'The Crow will practice.'],
+    cafune: ['Mmm... head pats. Thank you.', 'Head pats? All right.'],
+    default: ['All right.', 'Okay.', 'On it.'],
+    fail: ['I cannot do that right now.', 'Not right now, sorry.'],
+  },
+};
+
+export function commandReply(app, action) {
+  const en = app?.config?.lang === 'en';
+  const bank = COMMAND_REPLY[en ? 'en' : 'pt'];
+  const key = String(action || '').toLowerCase();
+  const list = bank[key] || bank.default;
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 // Automatic affinity of an item for the active companion.

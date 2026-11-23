@@ -104,6 +104,8 @@ export class StreamChatBox {
     // AWAITING_TTS_PREFERENCE: a typed answer resolves the question instead of hitting the AI.
     if (app.twitch?.resolveChatTtsChoice?.(text)) return;
     const c = app.config || {};
+    // Same PT/EN natural commands as the PTT, answered in character without calling the LLM.
+    if (app.runVoiceCommand?.(text)) return;
     const fallback = () => {
       const line = personaLine(app, 'hi') || (c.lang === 'en' ? 'Hi! I am listening.' : 'Oi! Estou ouvindo.');
       this.push('pet', line);

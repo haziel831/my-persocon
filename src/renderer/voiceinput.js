@@ -130,6 +130,8 @@ export class VoiceInput {
     try {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new SR();
+      // Recognition language follows the game language; the command matcher ignores accents,
+      // so commands spoken in the other language are still understood.
       rec.lang = this.app.config?.lang === 'en' ? 'en-US' : 'pt-BR';
       rec.continuous = false;
       rec.interimResults = true;
@@ -168,6 +170,8 @@ export class VoiceInput {
       this.scheduleRelease(2000);
       return;
     }
+    // Natural PT/EN commands (TV, banho, dormir, jogar, dançar, cafuné...) run right away.
+    if (this.app.runVoiceCommand?.(said)) { this.scheduleRelease(); return; }
     const c = this.app.config;
     if (c.aiEnabled === true) {
       const cfg = {

@@ -143,6 +143,67 @@ const ACTIONS = {
     if (app.melee.active) return !!app.melee.chainAttack?.();
     return !!app.melee.enter?.('fight');
   },
+  banho(app) {
+    if (!app.care || app.pet?.dead) return false;
+    return !!app.care.bath?.();
+  },
+  comer(app) {
+    const g = app.game;
+    const id = g?.herBag?.()?.find((x) => x) || null;
+    if (!id || !g?.useFromBag) return false;
+    return !!g.useFromBag(id);
+  },
+  beber(app) {
+    const g = app.game;
+    const bag = g?.herBag?.() || [];
+    const id = bag.find((x) => /bebida|drink|agua|water|cafe|cha/i.test(String(x))) || bag[0];
+    if (!id || !g?.useFromBag) return false;
+    return !!g.useFromBag(id);
+  },
+  cafe(app) {
+    return !!app.pomodoro?.coffeeBreak?.();
+  },
+  estudar(app, arg) {
+    const id = /livro|book/.test(arg) ? 'livro' : 'manga';
+    const t = app.game?.toys?.[id];
+    if (!t?.placed || t.broken || !app.toys?.here?.(t)) return false;
+    app.toys.play(id, app.pet);
+    return true;
+  },
+  jogar(app, arg) {
+    const wanted = /gacha/.test(arg) ? 'gacha' : /slot|caca|claw/.test(arg) ? 'slot' : 'videogame';
+    const t = app.game?.toys?.[wanted];
+    if (!t?.placed || t.broken || !app.toys?.here?.(t)) return false;
+    app.toys.play(wanted, app.pet, { forced: true });
+    return true;
+  },
+  clima(app, arg) {
+    const kind = /chuva|rain/.test(arg) ? 'chuva' : /neve|snow/.test(arg) ? 'neve'
+      : /vagalum|firefl/.test(arg) ? 'vagalumes' : 'sakura';
+    if (!app.weather) return false;
+    app.weather.start(kind);
+    return true;
+  },
+  treinar_doll(app) {
+    const brain = app.doll?.brain;
+    if (!brain) return false;
+    return !!brain.teachSkill?.(brain.nextSkill?.()) || !!brain.perform?.('yoga');
+  },
+  treinar_corvo(app) {
+    return !!app.crow?.startDuo?.('treinar', true);
+  },
+  cafune(app) {
+    if (!app.pet || app.pet.dead) return false;
+    app.setHand?.('pat');
+    app.pet.react?.('love');
+    return true;
+  },
+  vem_ca(app) {
+    const p = app.pet;
+    if (!p || p.dead) return false;
+    p.anim?.('idle', { facing: 'front' });
+    return !!p.goTo?.((app.world?.width || innerWidth) / 2);
+  },
 };
 
 // Catalog injected into the system prompt so the LLM can pick a real action name.
@@ -174,3 +235,58 @@ export function runAction(name, arg, app) {
 }
 
 export const ACTION_NAMES = Object.keys(ACTIONS);
+
+// Natural-language commands, Portuguese and English. Accents, case, punctuation and polite
+// prefixes ("Aghata, please...", "can you...", "por favor...") are ignored on purpose.
+const NATURAL = [
+  { re: /^(?:(?:watch|turn on|switch on|start|open)\s+)?(?:the\s+)?tv$|^assistir\s+(?:a\s+)?tv$|^ver\s+(?:a\s+)?tv$|^ligar\s+(?:a\s+)?tv$/, name: 'tv_ligar' },
+  { re: /^(?:turn off|switch off|close|stop)\s+(?:the\s+)?tv$|^desligar\s+(?:a\s+)?tv$/, name: 'tv_desligar' },
+  { re: /^(?:take a\s+)?(?:bath|shower|wash)(?:\s+now)?$|^tomar banho$|^banho$/, name: 'banho' },
+  { re: /^(?:go to sleep|go to bed|sleep|nap|rest)(?:\s+now)?$|^dormir$|^descansar$/, name: 'dormir' },
+  { re: /^(?:eat|have food|snack|have a snack)(?:\s+now)?$|^comer$|^lanche$/, name: 'comer' },
+  { re: /^(?:drink|water|have water|have a drink)(?:\s+now)?$|^beber$|^agua$/, name: 'beber' },
+  { re: /^(?:make coffee|coffee|espresso)(?:\s+now)?$|^fazer cafe$|^cafe$/, name: 'cafe' },
+  { re: /^(?:dance|party)(?:\s+now)?$|^dancar$|^danca$/, name: 'dancar' },
+  { re: /^(?:study|read|read manga|manga|book)(?:\s+now)?$|^estudar$|^ler$|^manga$/, name: 'estudar' },
+  { re: /^(?:play games?|play|arcade|gacha|slot|claw machine|claw)(?:\s+now)?$|^jogar$|^gacha$|^caca-niqueis$/, name: 'jogar' },
+  { re: /^(?:sit down|sit)(?:\s+here)?(?:\s+now)?$|^sentar$/, name: 'sentar' },
+  { re: /^come here$|^vem ca$/, name: 'vem_ca' },
+  { re: /^(?:stop|cancel)$|^parar$/, name: 'parar' },
+  { re: /^(?:change the\s+)?weather$|^clima$/, name: 'clima' },
+  { re: /^train\s+(?:the\s+)?doll$|^treinar\s+(?:a\s+)?doll$/, name: 'treinar_doll' },
+  { re: /^train\s+(?:the\s+)?crow$|^treinar\s+(?:o\s+)?corvo$/, name: 'treinar_corvo' },
+  { re: /^(?:head pat|pat me|pet me)$|^cafune$/, name: 'cafune' },
+];
+
+const REPLY_KEY = {
+  tv_ligar: 'tv', tv_desligar: 'tv_off', banho: 'banho', dormir: 'dormir', comer: 'comer', beber: 'beber',
+  cafe: 'cafe', dancar: 'dancar', estudar: 'estudar', jogar: 'jogar', sentar: 'sentar', virar: 'virar',
+  parar: 'parar', clima: 'clima', treinar_doll: 'doll', treinar_corvo: 'crow', cafune: 'cafune', vem_ca: 'sentar',
+};
+
+export function commandReplyKey(name) {
+  return REPLY_KEY[name] || 'default';
+}
+
+export function normalizeCommand(text) {
+  let s = String(text || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[.!?,;:]+/g, ' ')
+    .replace(/\*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  for (let i = 0; i < 2; i++) {
+    s = s.replace(/^(?:ai|aghata|agatha|ninna|persocon|voce|you)\s*[,:]?\s*/, '');
+    s = s.replace(/^(?:please|por favor|can you|could you|would you|will you|voce pode|voce poderia|pode|poderia|me|pra|para)\s+/, '');
+  }
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+export function matchNaturalCommand(text) {
+  const s = normalizeCommand(text);
+  if (!s || s.length > 80) return null;
+  for (const entry of NATURAL) {
+    if (entry.re.test(s)) return { name: entry.name, arg: '', key: REPLY_KEY[entry.name] || 'default' };
+  }
+  return null;
+}
