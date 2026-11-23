@@ -527,7 +527,15 @@ export async function startPet(files, config) {
       btn(config.lang === 'en' ? 'Opacity 30%' : 'Opacidade 30%', () => { screen.el.style.opacity = '0.3'; });
       btn(config.lang === 'en' ? 'Opacity 60%' : 'Opacidade 60%', () => { screen.el.style.opacity = '0.6'; });
       btn(config.lang === 'en' ? 'Opacity 100%' : 'Opacidade 100%', () => { screen.el.style.opacity = '1.0'; });
-      // Handheld screens are no longer movable/resizable: they stay at the default spot.
+      // Size only: the screen stays anchored at the default spot (no dragging).
+      const zoom = (v) => { gbZoom = clamp(v, 0.6, 1.6); app.setOption('gbZoom', gbZoom); };
+      btn(config.lang === 'en' ? 'Small' : 'Pequeno', () => zoom(0.7));
+      btn(config.lang === 'en' ? 'Normal' : 'Normal', () => zoom(1));
+      btn(config.lang === 'en' ? 'Large' : 'Grande', () => zoom(1.4));
+      btn(config.lang === 'en' ? 'Reset position' : 'Restaurar posição', () => {
+        screenOff = null;
+        app.setOption('gbScreenOffset', null);
+      });
     }
     document.body.append(m);
     m.style.left = `${Math.min(e.clientX, innerWidth - m.offsetWidth - 8)}px`;
@@ -934,6 +942,9 @@ export async function startPet(files, config) {
   chainEl.style.backgroundImage = `url(${icon('chain')})`;
   let counting = false;
   let screenAt = null;
+  let screenOff = null;
+  let screenDragging = false;
+  let gbZoom = clamp(Number(config.gbZoom) || 1, 0.6, 1.6);
 
   // Assistir: the player clicks where the video is so the pet sits turned toward it.
   app.markVideo = (done) => {
@@ -1320,15 +1331,20 @@ api.onTrayClick?.(() => {
       el.style.width = el.style.height = el.style.minWidth = el.style.transformOrigin = '';
       const w = el.offsetWidth || 110;
       const h = el.offsetHeight || 110;
-      // Handheld screens are fixed at the default spot: no drag, zoom or saved offset.
-      let y = head.y - h - P * 0.25;
-      if (y < 4) y = head.y + P * 0.6;
-      screenAt = {
-        x: Math.round(Math.min(Math.max(4, head.x - w / 2), innerWidth - w - 4)),
-        y: Math.round(Math.min(Math.max(4, y), innerHeight - h - 4)),
-      };
-      el.classList.remove('behind');
-      el.style.transform = `translate(${screenAt.x}px, ${screenAt.y}px)`;
+      if (!screenOff) {
+        const saved = !tp.versus && config.gbScreenOffset;
+        let y = head.y - h - P * 0.25;
+        if (y < 4) y = head.y + P * 0.6;
+        screenOff = saved ? { dx: saved.dx * P, dy: saved.dy * P } : { dx: head.x - w / 2 - pet.x, dy: y - pet.y };
+        el.classList.toggle('behind', !!saved?.behind);
+      }
+      if (!screenDragging) {
+        screenAt = {
+          x: Math.round(Math.min(Math.max(4, pet.x + screenOff.dx), innerWidth - w - 4)),
+          y: Math.round(Math.min(Math.max(4, pet.y + screenOff.dy), innerHeight - h - 4)),
+        };
+      }
+      el.style.transform = `translate(${screenAt.x}px, ${screenAt.y}px)${gbZoom !== 1 ? ` scale(${gbZoom})` : ''}`;
     } else {
       screenAt = null;
       screen.el.classList.remove('tvback');
@@ -1679,6 +1695,38 @@ api.onTrayClick?.(() => {
     setTimeout(() => el.remove(), 450);
   }
 
+  // Drag the handheld game screen. Pointer capture keeps the grip even on fast moves;
+  // only the final position is saved (integers, on pointerup).
+  function startScreenDrag(e) {
+    if (e.button !== 0 || !screen.game || screen.el.style.display === 'none' || !screenAt) return false;
+    const r = screen.el.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return false;
+    const ox = e.clientX - screenAt.x;
+    const oy = e.clientY - screenAt.y;
+    screenDragging = true;
+    try { document.body.setPointerCapture(e.pointerId); } catch {}
+    const move = (ev) => {
+      screenAt.x = Math.round(ev.clientX - ox);
+      screenAt.y = Math.round(ev.clientY - oy);
+    };
+    const up = () => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      removeEventListener('pointercancel', up);
+      const b = screen.el.getBoundingClientRect();
+      const top = pet.y - pet.P;
+      const over = b.right > pet.x - pet.P * 0.3 && b.left < pet.x + pet.P * 0.3 && b.bottom > top && b.top < pet.y;
+      screen.el.classList.toggle('behind', over);
+      screenDragging = false;
+      screenOff = { dx: screenAt.x - pet.x, dy: screenAt.y - pet.y };
+      app.setOption('gbScreenOffset', { dx: screenOff.dx / pet.P, dy: screenOff.dy / pet.P, behind: over });
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+    return true;
+  }
+
   // A click: cafuné. Double click: Quick Menu.
   let lastClick = null;
   const click = () => {
@@ -1740,6 +1788,7 @@ api.onTrayClick?.(() => {
       suppressContext = true;
       return;
     }
+    if (startScreenDrag(e)) return;
     if (e.target.closest?.('.hitzone')) return;
     // INCONSCIENTE: ela não responde a clique, arraste ou tapa — nem durante a recuperação.
     if (pet.unconscious) return;
