@@ -35,6 +35,24 @@ import { confirmStreamer } from './streamerconfirm.js';
 // Compatibilidade: outros módulos ainda importam estes de ui.js.
 export { DEFAULT_OPTS, PERSONALITY_PRESETS, THEMES };
 
+// Static sample shown inside the TV region while it is being positioned (no video needed).
+let _tvSample = null;
+function tvSampleImage() {
+  if (_tvSample) return _tvSample;
+  try {
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 48;
+    const g = c.getContext('2d');
+    const bars = ['#ff3b5c', '#ffd23f', '#5ef0ff', '#7ee787', '#a855f7', '#f3eefa'];
+    bars.forEach((col, i) => { g.fillStyle = col; g.fillRect(Math.floor(i * 64 / bars.length), 0, Math.ceil(64 / bars.length), 30); });
+    g.fillStyle = '#10101c'; g.fillRect(0, 30, 64, 18);
+    g.fillStyle = '#5ef0ff'; g.font = 'bold 8px PxEmoji, monospace'; g.textAlign = 'center';
+    g.fillText('TV', 32, 43);
+    _tvSample = c.toDataURL();
+  } catch { _tvSample = ''; }
+  return _tvSample;
+}
+
 const DEFAULT_MODEL_DIR = 'models/MyPersocon';
 const AGHATA_MODEL_DIR = 'models/Aghata';
 // O que cada atributo faz (a caixinha que abre quando ela clica no atributo).
@@ -3309,38 +3327,68 @@ export class ObjectsDialog extends Dialog {
       });
     }
     if (id === 'videogame' && d?.src?.length) {
-      const reg = this.drawRegion && this._regionDraft
-        ? this._regionDraft : (this.region || app.skins.region(id, this.upgraded));
-      // No pre-drawn rectangle: the preview starts clean until the player draws one.
-      let box = reg ? h('div.obj-region', { style: { left: `${reg.x * 100}%`, top: `${reg.y * 100}%`, width: `${reg.w * 100}%`, height: `${reg.h * 100}%` } }) : null;
-      if (box) mainSlot.append(box);
-      // The drawing mode is opt-in: no pointer listener at all while the normal editor buttons are used.
-      if (this.drawRegion) {
-        stage.addEventListener('pointerdown', (e) => {
-          if (!mainSlot.contains(e.target)) return;
+      // No more "draw the region": it is a real square you move and resize, with a static
+      // sample image inside so the preview looks like the final TV screen.
+      const initial = this.region || app.skins.region(id, this.upgraded) || FURN.videogame.screen;
+      this.region = { ...initial };
+      const box = h('div.obj-region tv-region-adjust', {
+        style: {
+          left: `${initial.x * 100}%`, top: `${initial.y * 100}%`,
+          width: `${initial.w * 100}%`, height: `${initial.h * 100}%`,
+          backgroundImage: `url("${tvSampleImage()}")`,
+        },
+      });
+      const grip = h('div.obj-region-grip');
+      box.append(grip);
+      mainSlot.append(box);
+      const paint = (g) => Object.assign(box.style, {
+        left: `${g.x * 100}%`, top: `${g.y * 100}%`, width: `${g.w * 100}%`, height: `${g.h * 100}%`,
+      });
+      const bind = (handle, resize) => {
+        handle.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
           e.preventDefault();
           e.stopPropagation();
           const r = img.getBoundingClientRect();
-          const fx = (v) => Math.min(1, Math.max(0, (v - r.left) / r.width));
-          const fy = (v) => Math.min(1, Math.max(0, (v - r.top) / r.height));
-          const x0 = fx(e.clientX);
-          const y0 = fy(e.clientY);
-          if (!box) {
-            box = h('div.obj-region');
-            mainSlot.append(box);
-          }
-          try { stage.setPointerCapture(e.pointerId); } catch {}
+          const start = { x: e.clientX, y: e.clientY, reg: { ...this.region }, moved: false };
+          try { handle.setPointerCapture(e.pointerId); } catch {}
           const move = (ev) => {
-            const x1 = fx(ev.clientX);
-            const y1 = fy(ev.clientY);
-            this._regionDraft = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.max(0.05, Math.abs(x1 - x0)), h: Math.max(0.05, Math.abs(y1 - y0)) };
-            Object.assign(box.style, { left: `${this._regionDraft.x * 100}%`, top: `${this._regionDraft.y * 100}%`, width: `${this._regionDraft.w * 100}%`, height: `${this._regionDraft.h * 100}%` });
+            const dx = (ev.clientX - start.x) / r.width;
+            const dy = (ev.clientY - start.y) / r.height;
+            const s = start.reg;
+            let g;
+            if (resize && !ev.shiftKey) {
+              const ratio = s.w / Math.max(0.01, s.h); // aspect ratio locked by default
+              const w = Math.min(1 - s.x, Math.max(0.05, s.w + dx));
+              g = { x: s.x, y: s.y, w, h: Math.min(1 - s.y, Math.max(0.05, w / ratio)) };
+            } else if (resize) {
+              g = { x: s.x, y: s.y, w: Math.min(1 - s.x, Math.max(0.05, s.w + dx)), h: Math.min(1 - s.y, Math.max(0.05, s.h + dy)) };
+            } else {
+              g = { x: Math.min(1 - s.w, Math.max(0, s.x + dx)), y: Math.min(1 - s.h, Math.max(0, s.y + dy)), w: s.w, h: s.h };
+            }
+            // Whole CSS pixels: no sub-pixel jitter between the preview and the real TV.
+            g.x = Math.round(g.x * r.width) / r.width;
+            g.y = Math.round(g.y * r.height) / r.height;
+            g.w = Math.round(g.w * r.width) / r.width;
+            g.h = Math.round(g.h * r.height) / r.height;
+            if (g.x === this.region.x && g.y === this.region.y && g.w === this.region.w && g.h === this.region.h) return;
+            start.moved = true;
+            this.region = g;
+            paint(g);
           };
-          const up = () => { stage.removeEventListener('pointermove', move); stage.removeEventListener('pointerup', up); };
-          stage.addEventListener('pointermove', move);
-          stage.addEventListener('pointerup', up);
+          const end = () => {
+            handle.removeEventListener('pointermove', move);
+            handle.removeEventListener('pointerup', end);
+            handle.removeEventListener('pointercancel', end);
+            if (start.moved) this.save(); // persist only when released
+          };
+          handle.addEventListener('pointermove', move);
+          handle.addEventListener('pointerup', end);
+          handle.addEventListener('pointercancel', end);
         });
-      }
+      };
+      bind(box, false);
+      bind(grip, true);
     }
     // Opções simples: só o necessário para ajustar a imagem.
     const controls = [];
@@ -3358,24 +3406,13 @@ export class ObjectsDialog extends Dialog {
     }
     const right = h('div.obj-edit', {},
       id === 'videogame' ? h('div.obj-banner', {},
-        translate('✏️ Clique e arraste sobre a imagem para desenhar o quadrado exato onde a tela/animação vai aparecer.')) : null,
+        translate('Mova o quadrado sobre a imagem e use a alça no canto para redimensionar. A imagem de exemplo mostra como a tela vai ficar.')) : null,
       stage,
       id === 'videogame' && d?.src?.length ? h('div.row', {},
-        this.drawRegion
-          ? h('button.act', { onclick: () => {
-              if (this._regionDraft) this.region = this._regionDraft;
-              this.drawRegion = false; this._regionDraft = null;
-              // Persist the normalized rectangle into this skin's store (Base/Upgrade) right away.
-              this.save();
-            } }, translate('Confirmar área'))
-          : h('button.act', { onclick: () => {
-              this.drawRegion = true;
-              this._regionDraft = this.region || app.skins.region(id, this.upgraded) || null;
-              this.render();
-            } }, translate('Selecionar a área de imagem')),
-        this.drawRegion ? h('button.act', { onclick: () => {
-          this.drawRegion = false; this._regionDraft = null; this.render();
-        } }, translate('Cancelar')) : null) : null,
+        h('button.act', { onclick: () => {
+          this.region = { ...(app.skins.region(id, this.upgraded) || FURN.videogame.screen) };
+          this.render();
+        } }, translate('Restaurar área padrão'))) : null,
       controls,
       h('div.row', {}, h('button.link', { onclick: () => this.pick3d() }, translate('Usar modelo 3D (opcional)'))),
       (this.error || app.skins?.error) && h('div.error', {}, this.error || app.skins.error),

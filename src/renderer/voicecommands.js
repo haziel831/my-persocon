@@ -8,13 +8,21 @@ const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,
 const ALIAS = {
   andar: 'andar', walk: 'andar', caminhar: 'andar', ir: 'andar',
   parar: 'parar', stop: 'parar', ficar: 'parar',
-  virar: 'virar', turn: 'virar',
-  sentar: 'sentar', sit: 'sentar', senta: 'sentar',
-  dormir: 'dormir', sleep: 'dormir', descansar: 'dormir',
+  virar: 'virar', turn: 'virar', vira: 'virar', olhar: 'olhar', look: 'olhar',
+  ir_para: 'ir_para', ir: 'ir_para', ir_para_a_tv: 'ir_para', go: 'ir_para', walk_to: 'ir_para', move: 'ir_para',
+  sentar: 'sentar', sit: 'sentar', senta: 'sentar', sit_down: 'sentar', come_here: 'vem_ca',
+  dormir: 'dormir', sleep: 'dormir', descansar: 'dormir', go_to_bed: 'dormir', nap: 'dormir', rest: 'dormir',
   acenar: 'acenar', wave: 'acenar',
-  dancar: 'dancar', dance: 'dancar',
+  dancar: 'dancar', dance: 'dancar', party: 'dancar',
   usar_movel: 'usar_movel', usar: 'usar_movel', moveis: 'usar_movel', furniture: 'usar_movel',
+  banho: 'banho', bath: 'banho', shower: 'banho', wash: 'banho',
+  comer: 'comer', eat: 'comer', snack: 'comer', food: 'comer', lanche: 'comer',
+  beber: 'beber', drink: 'beber', water: 'beber', agua: 'beber',
+  cafe: 'cafe', coffee: 'cafe', make_coffee: 'cafe', espresso: 'cafe',
+  estudar: 'estudar', study: 'estudar', read: 'estudar', manga: 'estudar', book: 'estudar',
+  jogar: 'jogar', play: 'jogar', games: 'jogar', arcade: 'jogar', slot: 'jogar', claw: 'jogar', gacha: 'jogar',
   tv_ligar: 'tv_ligar', ligar_tv: 'tv_ligar', tv_on: 'tv_ligar', ligar_a_tv: 'tv_ligar',
+  tv: 'tv_ligar', watch: 'tv_ligar', watch_tv: 'tv_ligar', turn_on_tv: 'tv_ligar', assistir_tv: 'tv_ligar',
   tv_desligar: 'tv_desligar', desligar_tv: 'tv_desligar', tv_off: 'tv_desligar',
   tv_editar: 'tv_editar', editar_tv: 'tv_editar',
   roupa: 'roupa', skin: 'roupa', trocar_roupa: 'roupa', acessorio: 'roupa', visual: 'roupa',
@@ -23,6 +31,10 @@ const ALIAS = {
   combate_pausar: 'combate_pausar', parar_combate: 'combate_pausar',
   defesa: 'defesa', defender: 'defesa',
   ataque: 'ataque', atacar: 'ataque',
+  clima: 'clima', weather: 'clima',
+  treinar_doll: 'treinar_doll', train_doll: 'treinar_doll',
+  treinar_corvo: 'treinar_corvo', train_crow: 'treinar_corvo',
+  cafune: 'cafune', head_pat: 'cafune', pat: 'cafune', pet: 'cafune',
 };
 
 const FURN_ALIAS = {
@@ -204,6 +216,27 @@ const ACTIONS = {
     p.anim?.('idle', { facing: 'front' });
     return !!p.goTo?.((app.world?.width || innerWidth) / 2);
   },
+  ir_para(app, arg) {
+    const p = app.pet;
+    if (!p || p.dead || p.mode !== 'ground') return false;
+    const W = app.world?.width || innerWidth;
+    let x = W / 2;
+    if (/esquerda|left/.test(arg)) x = p.P * 1.2;
+    else if (/direita|right/.test(arg)) x = W - p.P * 1.2;
+    else if (/tv|televisao|television/.test(arg)) x = app.toys?.tvRect?.()?.ox ?? W / 2;
+    else if (/pc|escrivaninha|computer|desk/.test(arg)) x = app.game?.toys?.escrivaninha?.x ?? W / 2;
+    else if (/cama|bed/.test(arg)) x = app.game?.toys?.cama?.x ?? W / 2;
+    return !!p.goTo?.(Math.min(W - p.P, Math.max(p.P, x)));
+  },
+  olhar(app, arg) {
+    const p = app.pet;
+    if (!p || p.dead) return false;
+    const facing = /tras|back/.test(arg) ? 'back'
+      : /esquerda|left/.test(arg) ? 'left'
+        : /direita|right/.test(arg) ? 'right' : 'front';
+    p.anim?.('idle', { facing, restart: true });
+    return true;
+  },
 };
 
 // Catalog injected into the system prompt so the LLM can pick a real action name.
@@ -262,6 +295,7 @@ const REPLY_KEY = {
   tv_ligar: 'tv', tv_desligar: 'tv_off', banho: 'banho', dormir: 'dormir', comer: 'comer', beber: 'beber',
   cafe: 'cafe', dancar: 'dancar', estudar: 'estudar', jogar: 'jogar', sentar: 'sentar', virar: 'virar',
   parar: 'parar', clima: 'clima', treinar_doll: 'doll', treinar_corvo: 'crow', cafune: 'cafune', vem_ca: 'sentar',
+  ir_para: 'sentar', olhar: 'virar',
 };
 
 export function commandReplyKey(name) {
@@ -282,11 +316,40 @@ export function normalizeCommand(text) {
   return s.replace(/\s+/g, ' ').trim();
 }
 
+// Directions and fuller phrases: an order like "vai até a TV e senta" must be obeyed at once.
+// Ordered from the most specific to the most generic so the right action wins.
+const LOOSE = [
+  { re: /\b(?:train|treinar)\b.*\b(?:doll|bone)\b/, name: 'treinar_doll' },
+  { re: /\b(?:train|treinar)\b.*\b(?:crow|corvo)\b/, name: 'treinar_corvo' },
+  { re: /\b(?:turn off|desligar)\b.*\btv\b/, name: 'tv_desligar' },
+  { re: /\b(?:turn on|watch|ligar|assistir)\b.*\btv\b|^\btv\b/, name: 'tv_ligar' },
+  { re: /\b(?:banho|bath|shower|wash|lavar)\b/, name: 'banho' },
+  { re: /\b(?:dormir|sleep|bed|nap|descansar|rest)\b/, name: 'dormir' },
+  { re: /\b(?:cafe|coffee|espresso)\b/, name: 'cafe' },
+  { re: /\b(?:comer|eat|lanche|snack|food|fome)\b/, name: 'comer' },
+  { re: /\b(?:beber|drink|water|agua|sed)\b/, name: 'beber' },
+  { re: /\b(?:dancar|danca|dance|party|danc)\b/, name: 'dancar' },
+  { re: /\b(?:estudar|ler|manga|study|read|book|livro)\b/, name: 'estudar' },
+  { re: /\b(?:jogar|play|game|arcade|gacha|slot|claw|niqueis)\b/, name: 'jogar' },
+  { re: /\b(?:sentar|sit)\b/, name: 'sentar' },
+  { re: /\b(?:parar|stop|cancel)\b/, name: 'parar' },
+  { re: /\b(?:clima|weather)\b/, name: 'clima' },
+  { re: /\b(?:cafune|head pat|pat me|pet me|carinho)\b/, name: 'cafune' },
+  { re: /\b(?:vem ca|come here|vem aqui)\b/, name: 'vem_ca' },
+  { re: /\b(?:go|walk|move|ir|anda|vai)\b.*\b(?:tv|esquerda|direita|left|right|pc|cama|bed)\b/, name: 'ir_para', arg: true },
+  { re: /\b(?:olhar|look|vira|turn)\b.*\b(?:frente|front|esquerda|left|direita|right|tras|back|camera)\b/, name: 'olhar', arg: true },
+];
+
 export function matchNaturalCommand(text) {
   const s = normalizeCommand(text);
-  if (!s || s.length > 80) return null;
+  if (!s || s.length > 120) return null;
   for (const entry of NATURAL) {
     if (entry.re.test(s)) return { name: entry.name, arg: '', key: REPLY_KEY[entry.name] || 'default' };
+  }
+  for (const entry of LOOSE) {
+    if (entry.re.test(s)) {
+      return { name: entry.name, arg: entry.arg ? s : '', key: REPLY_KEY[entry.name] || 'default' };
+    }
   }
   return null;
 }

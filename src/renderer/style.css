@@ -1464,6 +1464,8 @@ body.app-hidden .bag-dock { opacity: 1; }
 .obj-preview-label { font: 700 11px PxEmoji, system-ui, sans-serif; letter-spacing: 1px; color: var(--accent2); text-transform: uppercase; }
 .obj-slot-actions { justify-content: center; gap: 4px; }
 .obj-region { position: absolute; border: 2px dashed #ff4fd8; background: rgba(255,79,216,0.15); pointer-events: none; }
+.obj-region.tv-region-adjust { border: 2px solid #5ef0ff; background-color: #000; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; pointer-events: auto; cursor: move; box-shadow: 0 0 0 1px rgba(0,0,0,.7), 0 0 12px rgba(94,240,255,.6); }
+.obj-region-grip { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; cursor: nwse-resize; pointer-events: auto; background: linear-gradient(135deg, transparent 52%, #5ef0ff 52%, #5ef0ff 70%, transparent 70%); }
 /* O hitbox marcado: a parte da imagem que responde ao clique. */
 .obj-hitbox { position: absolute; border: 2px dashed #7dff9b; background: rgba(125,255,155,0.14); pointer-events: none; }
 /* O hitbox editável: arrasta a caixa e as 4 alças dos cantos. */
