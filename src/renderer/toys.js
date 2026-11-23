@@ -1194,11 +1194,15 @@ export class Toys {
     const top = baseY - h;
     const s = this.app.skins?.region('videogame', !!t.up) || FURN.videogame.screen;
     const sx = t.flip ? 1 - s.x - s.w : s.x;
-    // Integer CSS pixels only: fractional overlay boxes blur the video and make the frame
-    // drift relative to the sprite when the editor scale changes.
+    // The game picture is always square: fit a square inside the marked area and centre it.
+    // This avoids stretched games and keeps the overlay stable regardless of the skin's ratio.
+    const sw = w * s.w;
+    const sh = h * s.h;
+    const side = Math.max(1, Math.round(Math.min(sw, sh)));
+    const x = left + w * sx + (sw - side) / 2;
+    const y = top + h * s.y + (sh - side) / 2;
     return {
-      x: Math.round(left + w * sx), y: Math.round(top + h * s.y),
-      w: Math.round(w * s.w), h: Math.round(h * s.h),
+      x: Math.round(x), y: Math.round(y), w: side, h: side,
       rot: t.rot || 0, ox: Math.round(t.x), oy: Math.round(baseY),
     };
   }

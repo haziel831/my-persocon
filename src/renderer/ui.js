@@ -3371,9 +3371,10 @@ export class ObjectsDialog extends Dialog {
             const s = start.reg;
             let g;
             if (resize && !ev.shiftKey) {
-              const ratio = s.w / Math.max(0.01, s.h); // aspect ratio locked by default
-              const w = Math.min(1 - s.x, Math.max(0.05, s.w + dx));
-              g = { x: s.x, y: s.y, w, h: Math.min(1 - s.y, Math.max(0.05, w / ratio)) };
+              // Square screen by default (Shift frees the aspect ratio).
+              const maxSide = Math.min(1 - s.x, 1 - s.y);
+              const side = Math.min(maxSide, Math.max(0.05, Math.min(s.w, s.h) + (dx + dy) / 2));
+              g = { x: s.x, y: s.y, w: side, h: side };
             } else if (resize) {
               g = { x: s.x, y: s.y, w: Math.min(1 - s.x, Math.max(0.05, s.w + dx)), h: Math.min(1 - s.y, Math.max(0.05, s.h + dy)) };
             } else {
@@ -3419,7 +3420,7 @@ export class ObjectsDialog extends Dialog {
     }
     const right = h('div.obj-edit', {},
       id === 'videogame' ? h('div.obj-banner', {},
-        translate('Mova o quadrado sobre a imagem e use a alça no canto para redimensionar. A imagem de exemplo mostra como a tela vai ficar.')) : null,
+        translate('Mova o quadrado e use a alça do canto para redimensionar. A tela é quadrada por padrão (Shift libera).')) : null,
       stage,
       id === 'videogame' && (d?.src?.length || shown) ? h('div.row', {},
         h('button.act', { onclick: () => {
