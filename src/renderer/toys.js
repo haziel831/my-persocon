@@ -10,6 +10,7 @@ import { GACHA_PRICE, CLAW_PRICE, STYLES, pickStyle, figureById } from './casino
 import { FunToys, FUN_SIZE } from './funtoys.js';
 import { isFocus } from './focusmode.js';
 import { UPGRADES, upgradeCost, upSize, upRatio, upIcon } from './upgrades.js';
+import { PLUSHIES } from './plushies.js';
 import { upgradeFx } from './upgradefx.js';
 import { skillPick, skillGain, skillLevel } from './skills.js';
 import { dayPeriod } from './watch.js';
@@ -646,6 +647,10 @@ export class Toys {
     }
     if (baseId(id) === 'estante' && t) btn('📚 Ver conteúdo da estante', () => this.showShelfContents(id));
     if (baseId(id) === 'estante_cartuchos' && t) btn('🕹 Ver conteúdo da Gaming Shelf', () => this.showShelfContents(id));
+    if (baseId(id) === 'prateleira_pelucias' && t) {
+      btn('🧸 Ver coleção de pelúcias', () => this.showPlushCollection(id));
+      if (!t.broken) btn('✨ Admirar a coleção', () => this.callFurn(id));
+    }
     if (baseId(id) === 'estante' && t && !t.broken) {
       const list = this.furn.shelves().get(id) || [];
       if (list.some((e) => e.manga)) btn('📖 Chamar para ler mangá', () => this.callFurn(id, 'manga'));
@@ -2641,6 +2646,7 @@ export class Toys {
         if (!game.toys[id]) return;
         const sb = baseId(id);
         if (sb === 'estante' || sb === 'estante_cartuchos') return this.showShelfContents(id);
+        if (sb === 'prateleira_pelucias') return this.showPlushCollection(id);
         if (id === 'alvo' && !game.toys[id].broken) return this.furn.startTargetGame();
         if (this.casino.owns(id) && !game.toys[id].broken) return this.casino.click(id, ev.clientX, ev.clientY);
         if (id === 'banheira' && !game.toys[id].broken) {
@@ -2812,6 +2818,50 @@ export class Toys {
       }
       this.closeShelf();
     };
+    this.shelfOff = onDown;
+    setTimeout(() => { if (this.shelfPopup === el) window.addEventListener('pointerdown', onDown, true); }, 0);
+    this.app.uiChanged();
+  }
+
+  // Collection view for the plushie shelf: one row per plush, owned ones with their icon.
+  showPlushCollection(id) {
+    this.closeShelf();
+    const { game, sound } = this.app;
+    const en = this.app.config.lang === 'en';
+    const el = document.createElement('div');
+    el.className = 'shelf-pop hitzone';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = translate('Prateleira de Pelúcias');
+    const info = document.createElement('div');
+    info.className = 'shelf-info';
+    const owned = game.plushies || {};
+    const total = Object.values(owned).reduce((a, n) => a + (n || 0), 0);
+    info.textContent = `${en ? 'Collected' : 'Colecionadas'}: ${Math.min(15, total)}/15 · ${en ? 'click anywhere to close' : 'clique em qualquer lugar para fechar'}`;
+    const list = document.createElement('div');
+    list.className = 'shelf-rows';
+    for (const p of PLUSHIES) {
+      const n = owned[p.id] || 0;
+      const row = document.createElement('div');
+      row.className = `shelf-row ${n ? 'owned' : 'unknown'}`;
+      const art = document.createElement('span');
+      art.className = 'item-icon';
+      const im = document.createElement('img');
+      im.src = p.img;
+      im.draggable = false;
+      im.alt = '';
+      if (!n) im.classList.add('plush-locked'); // dark silhouette for the missing ones
+      art.append(im);
+      const label = document.createElement('span');
+      label.textContent = n ? `${translate(p.name)}${n > 1 ? ` ×${n}` : ''}` : '?';
+      row.append(art, label);
+      list.append(row);
+    }
+    el.append(title, info, list);
+    document.body.append(el);
+    this.shelfPopup = el;
+    sound.play('blip', { volume: 0.45 });
+    const onDown = () => this.closeShelf();
     this.shelfOff = onDown;
     setTimeout(() => { if (this.shelfPopup === el) window.addEventListener('pointerdown', onDown, true); }, 0);
     this.app.uiChanged();

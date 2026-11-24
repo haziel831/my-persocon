@@ -8,6 +8,7 @@ import { FUN_ITEMS } from './funtoys.js';
 import { LOOT_ITEMS, RARITIES } from './lootitems.js';
 import { FOOD_ITEMS } from './consumables.js';
 import { MED_ITEMS } from './meditems.js';
+import { PLUSH_MIGRATION, plushById } from './plushies.js';
 import './medicons.js';
 import { DEMO } from './edition.js';
 import { BAG_ITEMS as BAGGABLE } from './skills.js';
@@ -342,6 +343,7 @@ export class Game {
     this.plushies = Array.isArray(save?.plushies)
       ? Object.fromEntries(save.plushies.map((id) => [id, 1]))
       : (save?.plushies || {});
+    this.migratePlushies();
     this.dollSkin = save?.dollSkin || null;
     this.dollScale = Math.min(2.5, Math.max(0.5, save?.dollScale || 1));
     // Doll YSM import removed from UI — ignore leftover save field.
@@ -438,7 +440,20 @@ export class Game {
   // Claw Machine collection: counts by plush id (duplicates still counted).
   addPlushie(id) {
     (this.plushies ||= {})[id] = (this.plushies[id] || 0) + 1;
+    // Redraw the shelf right away: its cache signature includes the collection.
+    this.app?.toys?.furn?.plushShelfArt?.clear();
     this.changed();
+  }
+
+  // Placeholder ids from the first Claw build become the real plush ids; unknown ones are dropped.
+  migratePlushies() {
+    const out = {};
+    for (const [id, n] of Object.entries(this.plushies || {})) {
+      const key = PLUSH_MIGRATION[id] || id;
+      if (!plushById(key)) continue;
+      out[key] = (out[key] || 0) + Math.max(0, n || 0);
+    }
+    this.plushies = out;
   }
 
   // Whether the item is listed in the shop right now.

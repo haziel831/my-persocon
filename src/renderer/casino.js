@@ -545,12 +545,48 @@ export class Casino {
       return;
     }
     const p = c.roll.plush;
+    const before = this.app.game.plushies?.[p.id] || 0;
     this.app.game.addPlushie(p.id);
-    const label = `${translate('Pelúcia ganha')}: ${translate(p.name)}`;
+    const count = before + 1;
+    const dupe = before > 0;
+    const rarity = { comum: 'Comum', rara: 'Rara', epica: 'Épica' }[p.rarity] || p.rarity;
+    const label = `${translate('Pelúcia ganha')}: ${translate(p.name)}${dupe ? ` ×${count}` : ''}`;
     this.float('claw', { x: 0.5, y: 0.42 }, translate(p.name), 40);
-    this.app.gains?.show(label, 'item', name, p.img);
+    this.app.gains?.show(label, 'item', `${name} · ${translate(rarity)}`, p.img);
+    this.plushPrizePopup(p, count, dupe);
+    if (dupe) {
+      // Sem moedas novas (regra do projeto): a repetida vale bônus de Humor.
+      pet.adjust({ mood: 4 });
+      this.float('claw', { x: 0.5, y: 0.55 }, translate('Repetida: +Humor'), 24);
+    } else if (p.favorite) {
+      pet.adjust({ mood: 8, affection: 2 });
+      this.float('claw', { x: 0.5, y: 0.55 }, translate('Favorita da Aghata!'), 24);
+    }
     this.reactClaw(true, pet);
-    pet.emit('clawPrize', { id: p.id, rarity: p.rarity, name: p.name });
+    pet.emit('clawPrize', { id: p.id, rarity: p.rarity, name: p.name, count, dupe, favorite: !!p.favorite });
+  }
+
+  // Big, readable prize popup with the real PNG, name and rarity (deduplicated count ×N).
+  plushPrizePopup(p, count, dupe) {
+    const el = document.createElement('div');
+    el.className = `claw-prize-pop r-${p.rarity}`;
+    const img = document.createElement('img');
+    img.src = p.img;
+    img.alt = '';
+    img.draggable = false;
+    const info = document.createElement('div');
+    info.className = 'claw-prize-info';
+    const title = document.createElement('div');
+    title.className = 'claw-prize-name';
+    title.textContent = translate(p.name) + (dupe ? ` ×${count}` : '');
+    const sub = document.createElement('div');
+    sub.className = 'claw-prize-sub';
+    const rarity = { comum: 'Comum', rara: 'Rara', epica: 'Épica' }[p.rarity] || p.rarity;
+    sub.textContent = `${translate(rarity)}${dupe ? ` · ${translate('Repetida')}` : ''}`;
+    info.append(title, sub);
+    el.append(img, info);
+    document.body.append(el);
+    setTimeout(() => el.remove(), 3200);
   }
 
   reactClaw(good, pet) {

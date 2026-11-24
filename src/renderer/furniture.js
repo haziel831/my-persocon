@@ -12,6 +12,7 @@ const tvActive = (app, pet) => !!app.tvWatch?.on
   || baseId(String(pet.toyPlay?.id || '')) === 'videogame';
 import { RARITIES } from './lootitems.js';
 import { dollBonus, dollWave, dollHasSkill } from './dollskills.js';
+import { PLUSHIES, plushById } from './plushies.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -257,6 +258,8 @@ export const FURN = {
   slot: { size: 0.62, ratio: 40 / 28, back: true },
   // Claw Machine: native art is 53×92 (56×92 upgraded) — ~92px tall at Scale2x, like the arcade.
   claw: { size: 0.59, ratio: 92 / 53, back: true },
+  // Plushie shelf: same vertical scale as the book shelves, aspect kept (83×92 / 82×92).
+  prateleira_pelucias: { size: 0.6, ratio: 92 / 83, back: true },
   venda_comida: { size: 0.72, ratio: 52 / 32, back: true },
   venda_bebida: { size: 0.72, ratio: 52 / 32, back: true },
   // Width ≈ half her height so drawn height (size×ratio) ≈ 1.3× pet height — a clearly
@@ -278,6 +281,17 @@ const FIG_H = 20;        // collectible figure: the 14x20 sprite
 const FIG_W = 14;
 const CART_H = 19;       // cartridge, front view
 const CART_W = 7;
+// Plushie shelf: native art 83×92 (82×92 upgraded), 3 boards × 5 slots. The miniatures are
+// drawn from the placeholder icons in plushies.js; swap them for PNGs there when ready.
+const PLUSH_MINI = 14;
+const PLUSH_FLOOR = [27, 60, 86];   // top of each wooden/neon board
+const PLUSH_X = (c) => 7 + c * 14;
+const PLUSH_SHELF_ART = {
+  base: new URL('./assets/furniture/prateleira_pelucias_base.png', import.meta.url).href,
+  up: new URL('./assets/furniture/prateleira_pelucias_upgrade_synthwave.png', import.meta.url).href,
+};
+const plushShelfImgs = {};
+const plushMinis = new Map();
 // The three handhelds stand on the ROOF of the Gaming Shelf, outside the internal rows:
 // each one has its own slot (left, center, right) and they shrink to fit side by side.
 export const CONSOLE_SLOTS = [
@@ -344,6 +358,10 @@ export const FURN_ITEMS = [
   item('balcao_cafeteria', 'mobilia', 'Balcão de Cafeteria', 380, 'balcao_base_2_cafeteria', {
     furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/balcao_base_2_cafeteria.png',
     note: 'Balcão de café com tampo plano: apoie a máquina de espresso, a cafeteira, portáteis ou a mochila · várias coisas lado a lado · upgrade Synthwave Cyber',
+  }),
+  item('prateleira_pelucias', 'mobilia', 'Prateleira de Pelúcias', 300, 'prateleira_pelucias_base', {
+    furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/prateleira_pelucias_base.png',
+    note: 'Exibe até 15 pelúcias ganhas na Máquina de Garra · clique para ver a coleção · upgrade Synthwave neon',
   }),
   item('boneco_treino', 'mobilia', 'Boneco de treino', 200, 'dummy', {
     furn: true, noWear: true, gain: { mood: 0.25, energy: -0.08, thirst: -0.06 },
@@ -651,6 +669,7 @@ export class Furniture {
     }
     if (id === 'cafeteira') return this.app.casino?.vend?.art?.(id) || icon('cafeteira');
     if (id === 'estante' || id === 'estante_cartuchos') return this.shelfImage(key);
+    if (baseId(id) === 'prateleira_pelucias') return this.plushShelfImage(key);
     if (this.toys.casino?.owns(id)) return this.toys.casino.art(id);
     return upIcon(id, this.app.game.toys[key]) || (this.toys.fun?.owns(id) ? this.toys.fun.art(id) : null);
   }
@@ -867,6 +886,66 @@ export class Furniture {
     return url;
   }
 
+  // Plushies from save.plushies, duplicated counts included, filled row by row (5 × 3).
+  plushShelfList() {
+    const out = [];
+    for (const [id, n] of Object.entries(this.app.game.plushies || {})) {
+      if (!plushById(id)) continue;
+      for (let i = 0; i < (n || 0) && out.length < 15; i++) {
+        out.push({ plush: id, row: Math.floor(out.length / 5), col: out.length % 5 });
+      }
+    }
+    return out;
+  }
+
+  // Placeholder icon for a plush id; cached like the manga covers (ready state is in the signature).
+  plushMini(id) {
+    if (!id) return null;
+    if (plushMinis.has(id)) return plushMinis.get(id);
+    const url = plushById(id)?.img;
+    if (!url) return null;
+    const im = new Image();
+    im.onload = () => plushMinis.set(id, im);
+    im.src = url;
+    plushMinis.set(id, im);
+    return im;
+  }
+
+  // Same composition/cache pattern as shelfImage: native shelf art + one miniature per slot.
+  plushShelfImage(key) {
+    const up = !!this.app.game.toys[key]?.up;
+    const url = PLUSH_SHELF_ART[up ? 'up' : 'base'];
+    if (typeof document === 'undefined') return url;
+    const tier = up ? 'up' : 'base';
+    let base = plushShelfImgs[tier];
+    if (!base) {
+      base = plushShelfImgs[tier] = new Image();
+      base.src = url;
+    }
+    const ready = (im) => !!(im?.complete && im.naturalWidth);
+    const minis = this.plushShelfList().map((e) => ({ ...e, im: this.plushMini(e.plush) }));
+    const sig = `${up ? 'up' : 'base'}|${ready(base) ? 1 : 0}|${minis.map((e) => `${e.plush}.${ready(e.im) ? 1 : 0}`).join(',')}`;
+    this.plushShelfArt ||= new Map();
+    const cached = this.plushShelfArt.get(key);
+    if (cached?.sig === sig) return cached.url;
+    const W = up ? 82 : 83;
+    const H = 92;
+    const name = `plush_shelf_${up ? 'up' : 'base'}_${String(key).replace(/[^a-z0-9]/gi, '')}`;
+    // Preparado para as PNGs definitivas: troque plushMini() em plushies.js e nada muda aqui.
+    defineIcons({ [name]: (sprite) => sprite(W, H, (p) => {
+      if (ready(base)) p.image(base, 0, 0, base.naturalWidth, base.naturalHeight, 0, 0, W, H);
+      for (const e of minis) {
+        if (!ready(e.im)) continue;
+        const x = PLUSH_X(e.col);
+        const floor = PLUSH_FLOOR[e.row];
+        p.image(e.im, 0, 0, e.im.naturalWidth, e.im.naturalHeight, x, floor - PLUSH_MINI, PLUSH_MINI, PLUSH_MINI);
+      }
+    }, undefined, false) });
+    const out = refreshIcon(name);
+    this.plushShelfArt.set(key, { sig, url: out });
+    return out;
+  }
+
   // The reserved slot of a handheld on the roof of the Gaming Shelf (left, center, right).
   roofSlot(id) {
     const slot = CONSOLE_SLOTS.find((s) => s.id === id);
@@ -933,6 +1012,18 @@ export class Furniture {
       const lie = Math.random() < 0.4;
       pet.playToy({ id, dur: rand(12, 28), gain: this.gainOf(id, it), scale, anim: lie ? 'sleep' : 'sit', pose: lie ? 'lie' : 'sit', facing: lie ? (pet.dir > 0 ? 'right' : 'left') : 'front', onEnd: end,
         tick: (dt, tp) => { tp.next = (tp.next ?? 4) - dt; if (tp.next <= 0) { tp.next = rand(4, 8); pet.emit('emote'); } } });
+      return true;
+    }
+    // Plushie shelf: she stands in front and admires the collection now and then.
+    if (baseId(id) === 'prateleira_pelucias') {
+      pet.playToy({
+        id, dur: rand(6, 12), gain: this.gainOf(id, it), scale, anim: 'idle', facing: 'front',
+        onEnd: end,
+        tick: (dt, tp) => {
+          tp.next = (tp.next ?? 3) - dt;
+          if (tp.next <= 0) { tp.next = rand(3, 7); this.app.emoticons?.show?.('happy', true); }
+        },
+      });
       return true;
     }
     if (id === 'banheira') {

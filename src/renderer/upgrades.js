@@ -39,6 +39,10 @@ export const UPGRADES = {
     note: 'Visual neon, GIFs próprios e mais chance de pegar pelúcia (com mais raras e épicas)',
     imgAsset: './assets/claw/claw_synthwave_static.png', size: 56 / 53, ratio: 92 / 56,
   },
+  prateleira_pelucias: {
+    name: 'Prateleira Synthwave', note: 'Visual neon com as mesmas 15 posições para as pelúcias',
+    imgAsset: './assets/furniture/prateleira_pelucias_upgrade_synthwave.png', ratio: 92 / 82,
+  },
   pula_pula: { price: 570, name: 'Pula-pula Synthwave', note: 'Visual synthwave, pulos mais altos e XP de Agilidade x1,5 no pula-pula', pix: 'pula_pula_up' },
 };
 

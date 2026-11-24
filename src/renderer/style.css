@@ -579,6 +579,20 @@ body.tv-adjusting #pet { pointer-events: none !important; }
 .shelf-pop .shelf-row[data-cart]:hover { background: var(--panel-hover); }
 .shelf-pop .shelf-row.active { border: 1px solid var(--accent); }
 .shelf-pop .shelf-sub { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 6px 2px 2px; }
+.shelf-pop .shelf-row .item-icon { width: 26px; height: 26px; flex: 0 0 auto; }
+.shelf-pop .shelf-row .item-icon img { width: 26px; height: 26px; }
+.shelf-pop .shelf-row img.plush-locked { filter: brightness(0) opacity(0.32); }
+
+/* Prêmio da Máquina de Garra: sprite real, nome e raridade. */
+.claw-prize-pop { position: fixed; left: 50%; top: 18%; z-index: 900; transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px 10px 12px; border-radius: 12px; border: 2px solid #9ff6ff; background: rgba(18, 10, 32, 0.94);
+  box-shadow: 0 0 22px rgba(159, 246, 255, 0.45), 0 12px 36px rgba(0, 0, 0, 0.6); color: #fff;
+  font: 700 13px PxEmoji, system-ui, sans-serif; pointer-events: none; animation: fade 0.25s; }
+.claw-prize-pop.r-rara { border-color: #ffb3e6; box-shadow: 0 0 24px rgba(255, 79, 216, 0.5); }
+.claw-prize-pop.r-epica { border-color: #ffd23f; box-shadow: 0 0 28px rgba(255, 210, 63, 0.6); }
+.claw-prize-pop img { width: 56px; height: 56px; image-rendering: pixelated; object-fit: contain; }
+.claw-prize-name { font-size: 15px; }
+.claw-prize-sub { font-size: 11px; color: rgba(232, 216, 255, 0.75); letter-spacing: 1px; }
 body[data-theme] .shelf-pop { color: var(--fg, #eef0f6); }
 body[data-theme="pixel"] .shelf-pop { border: 3px solid var(--line); border-radius: 0; box-shadow: 4px 4px 0 rgba(0,0,0,0.5); }
 .held-food .straw-tube { display: none; position: absolute; left: 58%; top: -38%; width: 9%; height: 70%; background: repeating-linear-gradient(0deg, #ff5d7a 0 4px, #fff 4px 8px); transform: rotate(-14deg); border-radius: 2px; }
