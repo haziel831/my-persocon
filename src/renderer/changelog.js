@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['2.1', [
+    ['Push-to-Talk com prioridade absoluta, comandos naturais em inglês e português e resposta direta sem precisar dizer o nome dela', 'Push-to-Talk with absolute priority, natural commands in English and Portuguese, and direct replies without saying her name'],
+    ['TV com tela 4:3 pixel-perfect, quadrado de exemplo para ajustar a área e correção do travamento em ação de minigame', '4:3 pixel-perfect TV screen, sample square to adjust the area, and fix for the stuck minigame action'],
+    ['12 emotes uniformes da Aghata, nova música cyberpunk, bolsa única "Inventário" e auto-save no editor de skins', '12 uniform Aghata emotes, new cyberpunk music, single "Inventory" bag and auto-save in the skin editor'],
+  ]],
   ['2.0', [
     ['Duas edições: My Persocon 2.0 (jogo puro, sem Modo Streamer/Twitch/IA) e My Persocon 2.0 BETA (com todos os recursos de live)', 'Two editions: My Persocon 2.0 (pure game, no Streamer Mode/Twitch/AI) and My Persocon 2.0 BETA (with all streaming features)'],
     ['Skins com menus guiados, Base vs Upgrade, Idle vs Em uso e GIFs com todos os frames', 'Guided skin menus, Base vs Upgrade, Idle vs In use, and GIFs with every frame'],
