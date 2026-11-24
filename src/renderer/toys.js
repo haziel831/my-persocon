@@ -6,7 +6,7 @@ import { icon, cartridge, cartSheetStyle } from './pixel.js';
 import { GAMES } from './games.js';
 import { FURN, BALLS, CONSOLES, CONSOLE_SLOTS, Furniture, baseId, PRINT_AREA, MANGAS, MANGA_GENRES } from './furniture.js';
 import { Casino } from './casino.js';
-import { GACHA_PRICE, STYLES, pickStyle, figureById } from './casinoitems.js';
+import { GACHA_PRICE, CLAW_PRICE, STYLES, pickStyle, figureById } from './casinoitems.js';
 import { FunToys, FUN_SIZE } from './funtoys.js';
 import { isFocus } from './focusmode.js';
 import { UPGRADES, upgradeCost, upSize, upRatio, upIcon } from './upgrades.js';
@@ -31,7 +31,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 const SUPPLY_STAT = { medicina: 'health', bebidas: 'thirst', comidas: 'hunger' };
 // Small furniture that can rest on top of the Desk/Counter like the cartridge bag does.
-const PERCHABLE_FURN = new Set(['cafeteira', 'vitrine_doces', 'mesa_cafe', 'videogame']);
+const PERCHABLE_FURN = new Set(['cafeteira', 'espresso_barista', 'vitrine_doces', 'mesa_cafe', 'videogame']);
 // Springy furniture: hop heights (in pet heights) for things dropped on it, chance to fly off per
 // bounce, and for the pet / Doll thrown on it: restitution and the highest bounce.
 export const BOUNCY = {
@@ -675,7 +675,8 @@ export class Toys {
     }
     if (id === 'gacha' && !t?.broken) btn(`🎰 Girar a Gacha (¥ ${GACHA_PRICE}, você paga)`, () => this.casino.click(id, x, y));
     if (id === 'slot' && !t?.broken) btn(`🎰 Pedir para ela jogar (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
-    if (this.casino.vend.owns(id) && !t?.broken) btn(`${id === 'cafeteira' ? 'Pedir chá ou café' : id === 'venda_bebida' ? '🥤' : '🍙'} (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
+    if (id === 'claw' && !t?.broken) btn(`${translate('Jogar')} (¥ ${CLAW_PRICE}, ${translate('você paga')})`, () => this.casino.click(id, x, y));
+    if (this.casino.vend.owns(id) && !t?.broken) btn(`${id === 'cafeteira' ? 'Pedir chá ou café' : id === 'espresso_barista' || id === 'vitrine_doces' ? 'Pedir café' : id === 'venda_bebida' ? '🥤' : '🍙'} (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
     // Call her to play with the toy (her personal bag / "Dar a ela" is paused).
     if (t && !t.broken && !['bag', 'food', 'corvo'].includes(id)) {
       const bid = baseId(id);
@@ -2970,7 +2971,7 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       const outId = baseId(String(casino?.out?.s?.id || casino?.out?.id || ''));
       const vendCur = casino?.vend?.cur || casino?.vend?.out?.v;
       const vendId = baseId(String(vendCur?.id || ''));
-      const isVend = b === 'venda_comida' || b === 'venda_bebida' || b === 'cafeteira';
+      const isVend = b === 'venda_comida' || b === 'venda_bebida' || b === 'cafeteira' || b === 'espresso_barista' || b === 'vitrine_doces';
       const activeVend = isVend && vendId === b;
       const skinUp = up || (activeGacha && !!cur.up) || (activeVend && !!vendCur?.up);
       // Base and Upgrade use separate skin stores; old single-file skins keep working on Base.
@@ -2984,7 +2985,7 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       else if (b === 'videogame') artActive = tvActive(this.app, pet);
       else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');
       else if (b === 'escrivaninha') artActive = !!this.app.pomodoro?.active;
-      else if (b === 'boneco_treino') artActive = skins?.isInUse?.(b) || false;
+      else if (b === 'boneco_treino' || b === 'claw') artActive = skins?.isInUse?.(b) || false;
       const src = (custom ? skins?.art(b, base, artActive, skinUp) : null) || deskArt || (up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive, skinUp) || base;
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');

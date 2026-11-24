@@ -6,8 +6,10 @@ import { GAMES } from './games.js';
 import { icon } from './pixel.js';
 import { RARITIES } from './lootitems.js';
 import { dollReact } from './watch.js';
+import { translate } from './i18n.js';
+import { rollPlush } from './plushies.js';
 import {
-  GACHA_PRICE, GACHA_ORDER, rollGacha, luckOf, FIGURES, figureById, SLOT_SYMBOLS, SLOT_STRIPS, rollSlot, slotPayout,
+  GACHA_PRICE, CLAW_PRICE, GACHA_ORDER, rollGacha, luckOf, FIGURES, figureById, SLOT_SYMBOLS, SLOT_STRIPS, rollSlot, slotPayout,
   capsuleIcon, SLOT_WINDOW, SLOT_TRAY, SLOT_COIN, GACHA_CHUTE, STYLES, pickStyle,
 } from './casinoitems.js';
 import { Vending } from './vending.js';
@@ -68,6 +70,8 @@ export class Casino {
     this.cur = null;
     this.order = null;
     this.caps = [];
+    // The native "used" GIF is 12 frames × 90 ms = 1080 ms. Keep it playing for a whole cycle.
+    this.clawUntil = 0;
     this.m = {
       gacha: { knob: 0, shake: 0, lit: 0, litT: 0, glow: '', chute: '', jolt: 0 },
       slot: { lever: 0, lit: 0, litT: 0, mode: 'idle', jolt: 0, line: 0, reels: [0, 1, 2].map(() => ({ pos: randInt(0, 40), target: null, done: true })) },
@@ -87,8 +91,13 @@ export class Casino {
     this.app.game.profile.wallet = Math.max(0, Math.round(v));
   }
 
+  // True while the Claw "used" GIF must be shown (a full cycle from frame 0).
+  get clawActive() {
+    return this.cur?.id === 'claw' || performance.now() < this.clawUntil;
+  }
+
   owns(id) {
-    return id === 'gacha' || id === 'slot' || this.vend.owns(id);
+    return id === 'gacha' || id === 'slot' || id === 'claw' || this.vend.owns(id);
   }
 
   // Food and drinks were removed in 1.9.4: nothing to reserve for the vending machines.
@@ -103,10 +112,11 @@ export class Casino {
   // Plays on her own only with spare money, some mood and not too often.
   usable(id) {
     if (this.vend.owns(id)) return this.vend.usable(id);
-    if (this.cur || this.order || this.out) return false;
+    if (this.cur || this.order || this.out || this.clawActive) return false;
     const { mood } = this.app.pet.stats;
     const now = Date.now();
     if (id === 'gacha') return this.spare() >= GACHA_PRICE + 10 && mood > 15 && now >= (this.gachaAt || 0);
+    if (id === 'claw') return this.spare() >= CLAW_PRICE + 10 && mood > 15 && now >= (this.clawAt || 0);
     return this.spare() >= 20 && mood > 20 && now >= (this.slotAt || 0);
   }
 
@@ -119,6 +129,12 @@ export class Casino {
 
   // As máquinas usam o pixel art novo (alts/): PNG parado, GIF animado enquanto ela opera.
   art(id) {
+    if (id === 'claw') {
+      // Native GIFs: static PNG for idle, animated GIF for the whole "used" cycle.
+      // A custom skin imported in Change Look takes priority (see Furniture.art).
+      const up = !!this.app.game.toys.claw?.up;
+      return `assets/claw/${up ? 'claw_synthwave' : 'claw_classica'}_${this.clawActive ? 'used.gif' : 'idle.gif'}`;
+    }
     if (this.vend.owns(id)) return this.vend.art(id);
     const up = !!this.app.game.toys[id]?.up;
     const working = this.cur?.id === id;
@@ -152,7 +168,7 @@ export class Casino {
     };
     if (pet.dead) return no();
     if (this.vend.owns(id)) return this.vend.click(id, x, y, no, say);
-    if (this.cur || this.order) return no('Ela já está jogando!');
+    if (this.cur || this.order || this.clawActive) return no('Ela já está jogando!');
     if (id === 'gacha') {
       if (!game.canBuy({ price: GACHA_PRICE })) return no(`Precisa de ¥ ${GACHA_PRICE}`);
       if (!this.send(id, 'player')) return no('Ela está ocupada agora');
@@ -161,6 +177,15 @@ export class Casino {
       sound.play('ok', { volume: 0.4 });
       this.app.gains?.show(`−¥ ${GACHA_PRICE}`, 'spend', 'Gacha');
       return say(`¥ −${GACHA_PRICE}`);
+    }
+    if (id === 'claw') {
+      if (!game.canBuy({ price: CLAW_PRICE })) return no(`Precisa de ¥ ${CLAW_PRICE}`);
+      if (!this.send(id, 'player')) return no('Ela está ocupada agora');
+      game.pay(CLAW_PRICE, 'Máquina de Garra');
+      game.changed();
+      sound.play('ok', { volume: 0.4 });
+      this.app.gains?.show(`−¥ ${CLAW_PRICE}`, 'spend', translate('Máquina de Garra'));
+      return say(`¥ −${CLAW_PRICE}`);
     }
     if (this.wallet < 5) return no('Carteira dela vazia · Ações → Carteira');
     if (!this.send(id, 'ask')) return no('Ela está ocupada agora');
@@ -185,17 +210,20 @@ export class Casino {
     this.order = null;
     if (o?.by !== 'player') return;
     const { game } = this.app;
-    game.coins += GACHA_PRICE;
+    const price = o.id === 'claw' ? CLAW_PRICE : GACHA_PRICE;
+    game.coins += price;
     game.changed();
-    this.float('gacha', GACHA_CHUTE, `¥ +${GACHA_PRICE} (devolvido)`, 40);
-    this.app.gains?.show(`+¥ ${GACHA_PRICE}`, 'gain', 'Gacha (devolvido)');
+    if (o.id === 'claw') this.float('claw', { x: 0.5, y: 0.35 }, `¥ +${price}`, 40);
+    else this.float('gacha', GACHA_CHUTE, `¥ +${price} (devolvido)`, 40);
+    this.app.gains?.show(`+¥ ${price}`, 'gain', `${o.id === 'claw' ? translate('Máquina de Garra') : 'Gacha'} (devolvido)`);
   }
 
   play(id, pet, end) {
     if (this.vend.owns(id)) return this.vend.play(id, pet, end);
     const order = this.order?.id === id ? this.order : null;
     this.order = null;
-    const ok = id === 'gacha' ? this.gacha(pet, end, order?.by || 'wallet') : this.slot(pet, end, !!order);
+    const ok = id === 'claw' ? this.claw(pet, end, order?.by || 'wallet')
+      : id === 'gacha' ? this.gacha(pet, end, order?.by || 'wallet') : this.slot(pet, end, !!order);
     if (!ok) {
       if (order) {
         this.order = order;
@@ -465,6 +493,72 @@ export class Casino {
     }
     if (this.cur === g) this.cur = null;
     if (!interrupted && g.tier >= 1) setTimeout(() => this.app.antics?.tryStart(g.tier >= 3 ? 'twirl' : 'hops'), 0);
+  }
+
+  // ---------- claw machine ----------
+
+  // One pull: the machine plays its whole "used" GIF (12 frames × 90 ms) from frame 0 while
+  // she operates it, then the prize (or the near-miss) is revealed. Custom skins use the same
+  // active flag through Skins.isInUse('claw').
+  claw(pet, end, by) {
+    const { game, sound } = this.app;
+    const t = game.toys.claw;
+    if (!t?.placed || t.broken) return false;
+    if (by !== 'player') {
+      if (this.wallet < CLAW_PRICE) return false;
+      if (by === 'wallet') this.clawAt = Date.now() + 10 * 60000;
+      this.wallet -= CLAW_PRICE;
+      this.float('claw', { x: 0.7, y: 0.66 }, `−${CLAW_PRICE}`);
+      this.app.gains?.show(`−¥ ${CLAW_PRICE}`, 'spend', translate('Máquina de Garra'));
+    }
+    const c = { id: 'claw', up: !!t.up, by, roll: rollPlush(!!t.up), granted: false };
+    this.cur = c;
+    this.clawUntil = performance.now() + 1080;
+    game.profile.clawPulls = (game.profile.clawPulls || 0) + 1;
+    game.changed();
+    pet.dir = t.x < pet.x ? -1 : 1;
+    sound.tone8(900, 1400, 0.08, 'square', 0.05);
+    pet.playToy({
+      id: 'claw', dur: 1.2, holdSize: 0.11,
+      anim: pet.pickClip(['pegar'], ['use_mainhand', 'swing_hand', 'idle']), facing: pet.side(),
+      onEnd: (interrupted) => {
+        this.endClaw(c, interrupted, pet);
+        end(interrupted);
+      },
+      tick: () => {},
+    });
+    pet.emit('clawStart', { by });
+    return true;
+  }
+
+  endClaw(c, interrupted, pet) {
+    // `clawUntil` stays set so the used GIF finishes its full cycle before returning to idle.
+    if (this.cur === c) this.cur = null;
+    if (interrupted || c.granted) return;
+    c.granted = true;
+    const name = translate('Máquina de Garra');
+    if (!c.roll.ok) {
+      this.float('claw', { x: 0.5, y: 0.42 }, translate('Quase pegou!'));
+      this.app.gains?.show(translate('Quase pegou!'), 'info', name);
+      this.reactClaw(false, pet);
+      pet.emit('clawMiss');
+      return;
+    }
+    const p = c.roll.plush;
+    this.app.game.addPlushie(p.id);
+    const label = `${translate('Pelúcia ganha')}: ${translate(p.name)}`;
+    this.float('claw', { x: 0.5, y: 0.42 }, translate(p.name), 40);
+    this.app.gains?.show(label, 'item', name, p.img);
+    this.reactClaw(true, pet);
+    pet.emit('clawPrize', { id: p.id, rarity: p.rarity, name: p.name });
+  }
+
+  reactClaw(good, pet) {
+    if (pet.mode !== 'ground' || pet.dead) return;
+    pet.anim(good ? pet.pickClip(['starry_eyed', 'laughing', 'emote_pos', 'emote'], ['idle'])
+      : pet.pickClip(['pouting', 'sad', 'emote_neg'], ['idle']), { facing: 'front', restart: true });
+    pet.timer = 1.6;
+    this.app.emoticons?.show?.(good ? 'laugh' : 'sad', true);
   }
 
   dropCap(c) {

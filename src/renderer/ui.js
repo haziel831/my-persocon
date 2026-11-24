@@ -2749,7 +2749,7 @@ const OBJ_EXTRA = [
   ['claw', 'Máquina de garra', clawIcon()],
 ];
 // Itens que realmente têm um visual "em uso" no palco.
-const USABLE_IDS = new Set(['gacha', 'slot', 'cafeteira', 'venda_comida', 'venda_bebida', 'impressora', 'videogame', 'banheira', 'escrivaninha', 'alvo', 'boneco_treino']);
+const USABLE_IDS = new Set(['gacha', 'slot', 'cafeteira', 'espresso_barista', 'vitrine_doces', 'venda_comida', 'venda_bebida', 'impressora', 'videogame', 'banheira', 'escrivaninha', 'alvo', 'boneco_treino', 'claw']);
 
 // '#rrggbb' (ou #rgb) em [r, g, b].
 function hexToRgb(hex) {

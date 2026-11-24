@@ -12,6 +12,10 @@ const food = (id, cat, name, price, file, effects) => ({
   effects,
 });
 
+// Coffee/espresso drinks stay in the catalog (old saves keep them) but are no longer sold
+// in the Shop — only the espresso machines can prepare them.
+const machineFood = (...args) => ({ ...food(...args), machineOnly: true });
+
 const dish = (id, cat, name, price, file, effects) => ({
   id, cat, name, price,
   img: art32(file),
@@ -69,9 +73,9 @@ export const FOOD_ITEMS = [
   // ---------- Bebidas ----------
   // thirst é o nível de hidratação (cai com o tempo): valor alto = sede matada.
   // Energéticos dão muita energia e matam menos a sede; chá e leite de soja só hidratam.
-  food('bv_espresso', 'bebidas', 'Espresso', 15, 'coffee_espresso.png', { energy: 35, thirst: 10 }),
-  food('bv_mocha', 'bebidas', 'Mocha', 20, 'coffee_mocha.png', { thirst: 30 }),
-  food('bv_cappuccino', 'bebidas', 'Cappuccino', 20, 'coffee_foam.png', { energy: 18, thirst: 26 }),
+  machineFood('bv_espresso', 'bebidas', 'Espresso', 15, 'coffee_espresso.png', { energy: 35, thirst: 10 }),
+  machineFood('bv_mocha', 'bebidas', 'Mocha', 20, 'coffee_mocha.png', { thirst: 30 }),
+  machineFood('bv_cappuccino', 'bebidas', 'Cappuccino', 20, 'coffee_foam.png', { energy: 18, thirst: 26 }),
   food('bv_green_tea', 'bebidas', 'Green Tea', 15, 'coffee_greentea.png', { thirst: 30 }),
   food('bv_tea', 'bebidas', 'Tea', 15, 'coffee_tea.png', { thirst: 26 }),
   food('bv_cola', 'bebidas', 'Zap Cola', 12, 'soda_coke.png', { energy: 8, thirst: 30 }),
@@ -81,7 +85,7 @@ export const FOOD_ITEMS = [
   food('bv_soy_choco', 'bebidas', 'Chocolate Soymilk', 18, 'soymilk_choco.png', { thirst: 26, hunger: 6 }),
   food('bv_soy_strawberry', 'bebidas', 'Strawberry Soymilk', 18, 'soymilk_strawberry.png', { thirst: 26, mood: 8 }),
   food('bv_soy_matcha', 'bebidas', 'Matcha Soymilk', 20, 'soymilk_match.png', { thirst: 30 }),
-  food('bv_soy_coffee', 'bebidas', 'Coffee Soymilk', 20, 'soymilk_coffee.png', { energy: 22, thirst: 24 }),
+  machineFood('bv_soy_coffee', 'bebidas', 'Coffee Soymilk', 20, 'soymilk_coffee.png', { energy: 22, thirst: 24 }),
   // Energético: muita energia, mas deixa ela com sede (a hidratação cai).
   food('bv_energy', 'bebidas', 'Energy Drink', 22, 'energy_drink.png', { energy: 45, thirst: -12 }),
 

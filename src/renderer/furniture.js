@@ -238,7 +238,10 @@ export const FURN = {
   // i.e. waist height like the desk, with a broad flat top for several resting objects.
   balcao_madeira: { size: 1.5, ratio: 1 / 2.3, back: true },
   balcao_cafeteria: { size: 1.5, ratio: 1 / 2.3, back: true },
-  cafeteira: { size: 0.88, ratio: 42 / 32, back: true },
+  // Countertop espresso machines: compact, near-square art (~0.94:1), waist-high when
+  // resting on a counter and small enough to perch on a desk.
+  cafeteira: { size: 0.5, ratio: 1 / 0.94, back: true },
+  espresso_barista: { size: 0.5, ratio: 1 / 0.94, back: true },
   vitrine_doces: { size: 0.62, ratio: 25 / 20, back: true },
   mesa_cafe: { size: 0.58, ratio: 28 / 19, back: true },
   mural: { size: 0.7, ratio: 22 / 30, back: true },
@@ -252,6 +255,8 @@ export const FURN = {
   impressora: { size: 0.52, ratio: 1, back: true },
   gacha: { size: 0.5, ratio: 44 / 26, back: true },
   slot: { size: 0.62, ratio: 40 / 28, back: true },
+  // Claw Machine: native art is 53×92 (56×92 upgraded) — ~92px tall at Scale2x, like the arcade.
+  claw: { size: 0.59, ratio: 92 / 53, back: true },
   venda_comida: { size: 0.72, ratio: 52 / 32, back: true },
   venda_bebida: { size: 0.72, ratio: 52 / 32, back: true },
   // Width ≈ half her height so drawn height (size×ratio) ≈ 1.3× pet height — a clearly
@@ -303,14 +308,22 @@ export const FURN_ITEMS = [
   item('estante_cartuchos', 'mobilia', 'Gaming Shelf', 250, 'estante_cart_icon', { furn: true, decor: true, noWear: true, note: 'Guarda cartuchos e os portáteis no topo · aceita só cartuchos · com ela a bolsa de cartuchos some · clique para ver a lista' }),
   item('gacha', 'mobilia', 'Gacha-Machine', 600, 'gacha_icon', { furn: true, noWear: true, note: `Clique para girar (¥ ${GACHA_PRICE}, você paga) · ela também gira sozinha com a carteira dela · cápsulas Comum, Incomum, Rara e Épica: moedas (para você), comidas, bebidas e bonecos colecionáveis` }),
   item('slot', 'mobilia', 'Slot-Machine', 800, 'slot_icon', { furn: true, noWear: true, note: 'Ela aposta as moedas da carteira dela · os ganhos vão para você · clique para pedir uma rodada · a sorte vem da Afeição' }),
+  item('claw', 'mobilia', 'Máquina de Garra', 700, 'claw_classica_static', {
+    furn: true, noWear: true, imgAsset: './assets/claw/claw_classica_static.png',
+    note: `Clique para jogar (¥ ${GACHA_PRICE}, você paga) · ela também joga sozinha com a carteira dela · prêmios: pelúcias colecionáveis · upgrade Synthwave com mais chance e raridade melhor`,
+  }),
   item('alvo', 'mobilia', 'Alvo', 160, 'alvo', { furn: true, gain: { mood: 0.35 }, note: 'Clique para um minigame de 3 minutos com recorde · a Persocon também joga dardos' }),
   item('mural', 'mobilia', 'Mural de Recados e Fotos', 220, 'mural', {
     furn: true, decor: true, noWear: true,
     note: 'Mostra as últimas fotos do álbum da câmera e um post-it curto que você pode editar',
   }),
   item('cafeteira', 'mobilia', 'Cafeteira / Estação de Chá', 300, 'cafeteira', {
-    furn: true, noWear: true, gain: { mood: 0.08, energy: 0.03 },
-    note: 'Chá e Café pela carteira dela · nunca dá reação ruim · com upgrade vira a Estação Energy Neon',
+    furn: true, noWear: true, gain: { mood: 0.08, energy: 0.03 }, imgAsset: './assets/cafe/espresso_base_1_bege.png',
+    note: 'Máquina de espresso clássica: chá e café pela carteira dela · nunca dá reação ruim · cabe no balcão ou na escrivaninha · com upgrade vira a Estação Energy Neon',
+  }),
+  item('espresso_barista', 'mobilia', 'Máquina de Espresso Barista', 280, 'espresso_base_2_madeira', {
+    furn: true, noWear: true, gain: { mood: 0.1, energy: 0.04 }, imgAsset: './assets/cafe/espresso_base_2_madeira.png',
+    note: 'Máquina de espresso barista com cafés exclusivos · apoie no balcão, na escrivaninha ou no chão · upgrade Synthwave Cyber',
   }),
   item('vitrine_doces', 'mobilia', 'Máquina de Espresso', 260, 'cafe_espresso', {
     furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
@@ -626,13 +639,13 @@ export class Furniture {
       if (b === 'gacha' || b === 'slot') {
         active = (!!cur && baseId(String(cur.id || '')) === b)
           || baseId(String(casino?.out?.s?.id || '')) === b;
-      } else if (b === 'cafeteira' || b === 'venda_comida' || b === 'venda_bebida') {
+      } else if (b === 'cafeteira' || b === 'espresso_barista' || b === 'venda_comida' || b === 'venda_bebida') {
         active = baseId(String(vend?.id || '')) === b;
       } else if (b === 'impressora') active = !!(this.toys.unpacking || this.app.game.deliveries?.length);
       else if (b === 'videogame') active = tvActive(this.app, this.app.pet);
       else if (b === 'banheira') active = /bath|banho/.test(this.app.pet.action || '');
       else if (b === 'escrivaninha') active = !!this.app.pomodoro?.active;
-      else if (b === 'boneco_treino') active = skins.isInUse(b);
+      else if (b === 'boneco_treino' || b === 'claw') active = skins.isInUse(b);
       const custom = skins.art(b, null, active, up);
       if (custom) return custom;
     }

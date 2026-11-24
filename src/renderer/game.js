@@ -338,6 +338,10 @@ export class Game {
     this.setups = Array.isArray(save?.setups) ? save.setups : [];
     // Collectible figures from the Gacha (kept on the shelves).
     this.figures = save?.figures || [];
+    // Plushies from the Claw Machine. Old saves had no field; an array is upgraded to counts.
+    this.plushies = Array.isArray(save?.plushies)
+      ? Object.fromEntries(save.plushies.map((id) => [id, 1]))
+      : (save?.plushies || {});
     this.dollSkin = save?.dollSkin || null;
     this.dollScale = Math.min(2.5, Math.max(0.5, save?.dollScale || 1));
     // Doll YSM import removed from UI — ignore leftover save field.
@@ -431,9 +435,15 @@ export class Game {
       .filter((e) => e.item && filter(e.item));
   }
 
+  // Claw Machine collection: counts by plush id (duplicates still counted).
+  addPlushie(id) {
+    (this.plushies ||= {})[id] = (this.plushies[id] || 0) + 1;
+    this.changed();
+  }
+
   // Whether the item is listed in the shop right now.
   available(item) {
-    if (item.legacy || item.fixed || item.loot) return false;
+    if (item.legacy || item.fixed || item.loot || item.machineOnly) return false;
     if ((item.cart || item.manga || item.gear || (item.toy && !item.decor)) && this.pending(item.id)) return false;
     if (item.cart) {
       // O cartucho preto some da loja para sempre depois de comprado.
@@ -1216,7 +1226,7 @@ export class Game {
     return window.petAPI.storeSave({
       version: SAVE_VERSION, edition: EDITION, wishes: this.wishes, promos: this.promos, stats, inventory: this.inventory, coins: this.coins, profile: this.profile, toys: this.toys,
       cartridges: this.cartridges, cartridge: this.cartridge, bag: this.bag, bagX: this.bagX, buffs: this.pet.buffs, savedAt: Date.now(),
-      affection: this.pet.affection, gear: this.gear, foodBagX: this.foodBagX, perch: this.perch, mangas: this.mangas, figures: this.figures, dollSkin: this.dollSkin, dollScale: this.dollScale, dollModel: this.dollModel, dollAwake: this.dollAwake,
+      affection: this.pet.affection, gear: this.gear, foodBagX: this.foodBagX, perch: this.perch, mangas: this.mangas, figures: this.figures, plushies: this.plushies, dollSkin: this.dollSkin, dollScale: this.dollScale, dollModel: this.dollModel, dollAwake: this.dollAwake,
       deliveries: this.deliveries, queue: this.queue, disco: this.disco, setups: this.setups,
     }).catch(() => {});
   }

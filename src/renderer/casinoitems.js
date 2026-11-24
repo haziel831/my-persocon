@@ -3,6 +3,8 @@
 import { icon, defineIcons } from './pixel.js';
 
 export const GACHA_PRICE = 30;
+// Small fee for the Claw Machine, same ballpark as the Gacha.
+export const CLAW_PRICE = 30;
 
 // Animation variants of each machine (and of playing video games): chosen at random, never the same
 // twice in a row, unless one is fixed in the machine's right-click menu (toys[id].anim).

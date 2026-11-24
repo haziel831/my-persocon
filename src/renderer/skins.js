@@ -547,6 +547,7 @@ export class Skins {
   // art() below holds the used GIF for at least one full cycle after this turns false.
   isInUse(id) {
     const b = String(id).split('#')[0];
+    if (b === 'claw') return !!this.app?.casino?.clawActive;
     if (b !== 'boneco_treino') return false;
     const app = this.app;
     const m = app?.melee;

@@ -5,7 +5,6 @@
 import { ITEMS, TASTE_RANK } from './game.js';
 import { STYLES, pickStyle, vendFrame, vendCell, VEND_COIN, VEND_TRAY, VEND_TRAY_COLORS } from './casinoitems.js';
 import { dollReact } from './watch.js';
-import { icon } from './pixel.js';
 
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -13,7 +12,16 @@ const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 export const VEND_MARKUP = 1.2;
 // The neon machine never jams (teleport) and always takes the card.
 const st0 = (s) => (s === 'stuck' || s === 'classic' ? 'card' : s);
-const KINDS = { venda_comida: 'comidas', venda_bebida: 'bebidas', cafeteira: 'bebidas' };
+const KINDS = {
+  venda_comida: 'comidas', venda_bebida: 'bebidas',
+  cafeteira: 'bebidas', espresso_barista: 'bebidas',
+};
+// Coffee drinks are no longer sold in the Shop: only these machines prepare them.
+const ESPRESSO_IDS = new Set(['cafeteira', 'espresso_barista']);
+const ESPRESSO_ART = {
+  cafeteira: ['./assets/cafe/espresso_base_1_bege.png', './assets/cafe/espresso_upgrade_1_synthwave.png'],
+  espresso_barista: ['./assets/cafe/espresso_base_2_madeira.png', './assets/cafe/espresso_upgrade_2_synthwave_cyber.png'],
+};
 const STAT = { comidas: 'hunger', bebidas: 'thirst' };
 
 export class Vending {
@@ -40,12 +48,10 @@ export class Vending {
   }
 
   art(id) {
-    if (id === 'cafeteira') {
-      const up = !!this.app.game.toys.cafeteira?.up;
-      const brewing = this.cur?.id === id || this.out?.v?.id === id;
-      const puff = brewing && Math.floor(performance.now() / 220) % 2 === 0;
-      const name = up ? (puff ? 'cafeteira_up_brew' : 'cafeteira_up') : (puff ? 'cafeteira_brew' : 'cafeteira');
-      return icon(name);
+    if (ESPRESSO_ART[id]) {
+      const up = !!this.app.game.toys[id]?.up;
+      const asset = ESPRESSO_ART[id][up ? 1 : 0];
+      return new URL(asset, import.meta.url).href;
     }
     const m = this.state(id);
     return vendFrame(id === 'venda_comida' ? 'comida' : 'bebida', m.lit % 3, m.sel, m.sel >= 0 ? m.blink % 2 : 0, m.led, m.ic, m.tray, m.empty, !!this.app.game.toys[id]?.up);
@@ -68,10 +74,11 @@ export class Vending {
   // she never tasted. Never what she dislikes or hates.
   choose(cat, wallet, up = this.isUp(cat), id = null) {
     const game = this.app.game;
-    if (id === 'cafeteira') {
-      // Her own drinks: never a bad taste, never the shared market or the vending machines.
+    if (ESPRESSO_IDS.has(id)) {
+      // Espresso machines only: their own menu plus the coffee drinks removed from the Shop.
+      // Never a bad taste, never the shared market or the other vending machines.
       // Energy Drinks only exist on the upgraded machine.
-      const all = ITEMS.filter((i) => i.coffee && (!i.energyDrink || up));
+      const all = ITEMS.filter((i) => (i.coffee || i.machineOnly) && (!i.energyDrink || up));
       const ok = all.filter((e) => this.priceOf(e) <= wallet);
       if (!ok.length) return { broke: all.length > 0 };
       const w = ok.map((e) => (e.energyDrink ? 2 : 1) * this.thrift(e, wallet));
@@ -80,7 +87,7 @@ export class Vending {
       return { item: ok[0] };
     }
     if (up) return this.chooseUp(cat, wallet);
-    const all = ITEMS.filter((i) => i.cat === cat && (i.vend || (!i.legacy && !i.watchOnly && !i.loot && !i.buff && i.price > 0)))
+    const all = ITEMS.filter((i) => !i.machineOnly && i.cat === cat && (i.vend || (!i.legacy && !i.watchOnly && !i.loot && !i.buff && i.price > 0)))
       .map((item) => ({ item, rank: TASTE_RANK[game.tasteOf(item.id)] ?? -1 }));
     const known = all.filter((e) => e.rank >= TASTE_RANK.ok);
     const list = known.length ? known : all.filter((e) => e.rank === -1);
@@ -101,7 +108,7 @@ export class Vending {
   // thin wallet she still gets the cheapest ones. Never what she dislikes.
   chooseUp(cat, wallet) {
     const game = this.app.game;
-    const all = ITEMS.filter((i) => (i.vendUp || i.vend) && i.cat === cat).map((item) => ({ item, rank: TASTE_RANK[game.tasteOf(item.id)] ?? -1 }))
+    const all = ITEMS.filter((i) => !i.machineOnly && (i.vendUp || i.vend) && i.cat === cat).map((item) => ({ item, rank: TASTE_RANK[game.tasteOf(item.id)] ?? -1 }))
       .filter((e) => e.rank === -1 || e.rank >= TASTE_RANK.ok);
     const ok = all.filter((e) => this.priceOf(e.item) <= wallet);
     if (!ok.length) return { broke: all.length > 0 };
@@ -120,12 +127,12 @@ export class Vending {
   // Cheapest thing she would buy in that category (the money she keeps aside for it).
   cheapest(cat) {
     const up = this.isUp(cat);
-    const list = ITEMS.filter((i) => i.cat === cat && (i.vend || (up ? i.vendUp : !i.legacy && !i.watchOnly && !i.loot && !i.buff && i.price > 0)));
+    const list = ITEMS.filter((i) => !i.machineOnly && i.cat === cat && (i.vend || (up ? i.vendUp : !i.legacy && !i.watchOnly && !i.loot && !i.buff && i.price > 0)));
     return list.length ? Math.min(...list.map((i) => this.priceOf(i))) : 0;
   }
 
   machine(cat) {
-    const keys = cat === 'bebidas' ? ['cafeteira', 'venda_bebida'] : cat === 'comidas' ? ['venda_comida'] : [];
+    const keys = cat === 'bebidas' ? ['cafeteira', 'espresso_barista', 'venda_bebida'] : cat === 'comidas' ? ['venda_comida'] : [];
     for (const key of keys) {
       const t = this.app.game.toys[key];
       if (t?.placed && !t.broken && this.toys.reach(t)) return key;
