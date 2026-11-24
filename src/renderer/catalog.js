@@ -1,6 +1,6 @@
 // Catálogo: opções/presets padrão, temas e utilitários de busca da Loja/Inventário.
 // Extraído de ui.js para manter o painel menor e o catálogo fácil de estender.
-import { isEdible } from './game.js';
+
 
 // Defaults for options that changed after release (applied once to old configs, and by
 // "Restaurar padrões").
@@ -72,7 +72,9 @@ export const normText = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300
 // Flags used by the quick-filter chips on both Shop and Inventory rows.
 export function itemFlags(game, item) {
   const flags = [item.cat];
-  if (isEdible(item) || ['comidas', 'bebidas', 'sobremesas', 'medicina'].includes(item.cat)) flags.push('comidas');
+  // Só comida de verdade e sobremesas entram no chip "Comidas". Bebidas (cafés, refrigerantes,
+  // energéticos) e Medicamentos mantêm o próprio cat: um drink nunca é rotulado como remédio.
+  if (item.cat === 'comidas' || item.cat === 'sobremesas') flags.push('comidas');
   if (item.toy || item.cat === 'fun') flags.push('brinquedos');
   if (item.cat === 'mobilia') flags.push('moveis');
   const taste = game.tasteOf?.(item.id);

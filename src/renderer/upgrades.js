@@ -25,13 +25,26 @@ export const UPGRADES = {
   venda_bebida: { name: 'Máquina de Bebida Neon', note: 'Visual synthwave, compras com holograma e teleporte e bebidas exclusivas com buff' },
   alvo: { name: 'Arcade de Tiro', note: 'Vira uma máquina de arcade de tiro (maior): ela joga com a pistola de luz', pix: 'arcade_up', size: 1.45, ratio: 46 / 26 },
   boneco_treino: { price: 1200, name: 'Boneco Sucataoxidado', note: 'Robusto: chapas de metal enferrujado, engrenagens e juntas mecânicas · libera o Treino Pesado (luta de verdade)', pix: 'dummy_scrap' },
+  balcao_madeira: {
+    name: 'Balcão Synthwave', note: 'Visual neon synthwave com a mesma medida e o mesmo tampo de apoio',
+    imgAsset: './assets/furniture/balcao_upgrade_1_synthwave.png',
+  },
+  balcao_cafeteria: {
+    name: 'Balcão Cyber', note: 'Visual synthwave cyber com a mesma medida e o mesmo tampo de apoio',
+    imgAsset: './assets/furniture/balcao_upgrade_2_synthwave_cyber.png',
+  },
   pula_pula: { price: 570, name: 'Pula-pula Synthwave', note: 'Visual synthwave, pulos mais altos e XP de Agilidade x1,5 no pula-pula', pix: 'pula_pula_up' },
 };
 
 export const upgradeCost = (id, item) => UPGRADES[id]?.price ?? Math.ceil((item?.price || 0) * 1.5);
 export const upSize = (id, t) => (t?.up && UPGRADES[id]?.size) || 1;
 export const upRatio = (id, t) => (t?.up && UPGRADES[id]?.ratio) || null;
-export const upIcon = (id, t) => (t?.up && UPGRADES[id]?.pix ? icon(UPGRADES[id].pix) : null);
+export const upIcon = (id, t) => {
+  const u = t?.up && UPGRADES[id];
+  if (!u) return null;
+  if (u.imgAsset) return new URL(u.imgAsset, import.meta.url).href;
+  return u.pix ? icon(u.pix) : null;
+};
 // Arcade screen inside arcade_up (fractions of the 26×46 picture). Live canvas sits only here.
 export const ARCADE_SCREEN = { x: 4 / 26, y: 10 / 46, w: 18 / 26, h: 13 / 46 };
 

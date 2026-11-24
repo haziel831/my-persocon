@@ -8,6 +8,7 @@ export class TrainingDummy {
     this.flash = 0;
     this.flashI = 0;
     this.punch = 0;
+    this.usedUntil = 0; // keeps the "in use" skin alive while a hit is landing
   }
 
   get P() {
@@ -21,6 +22,12 @@ export class TrainingDummy {
   get active() {
     const t = this.rec;
     return !!(t?.placed && !t.broken && this.app.toys.here?.(t));
+  }
+
+  // True for a moment after every hit. skins.art() then plays the "used" GIF for at
+  // least one complete cycle, even when this flag already cleared.
+  get inUse() {
+    return performance.now() < this.usedUntil;
   }
 
   get x() {
@@ -39,6 +46,7 @@ export class TrainingDummy {
     this.flash = 0.32;
     this.flashI = Math.min(1, Math.max(0.25, dmg / 20));
     this.punch = Math.min(1, (this.punch || 0) + 0.55 + dmg * 0.03);
+    this.usedUntil = performance.now() + 500;
     this.app.sound?.tone8?.(160 + dmg * 8, 50, 0.07, 'triangle', 0.12);
     this.app.sound?.tone8?.(90, 40, 0.05, 'square', 0.06);
   }

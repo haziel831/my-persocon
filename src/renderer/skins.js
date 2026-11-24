@@ -542,6 +542,19 @@ export class Skins {
     this.applyRp();
   }
 
+  // Shared "in use" test for dual-state objects. Kept here so the stage renderer, the
+  // furniture fallback and the editor agree on the same states and on the same tier.
+  // art() below holds the used GIF for at least one full cycle after this turns false.
+  isInUse(id) {
+    const b = String(id).split('#')[0];
+    if (b !== 'boneco_treino') return false;
+    const app = this.app;
+    const m = app?.melee;
+    const training = !!m?.active && !!(m.opp?.dummy || m.opp?.scrap);
+    // The dummy also takes stray hits (e.g. a thrown dodgeball) outside a training session.
+    return training || !!app?.dummy?.inUse;
+  }
+
   // Current image of an object (animated objects cycle through their frames).
   // `active` asks for the "working" art of dual-state machines; live edits take priority.
   art(id, fallback, active = false, upgraded = false) {

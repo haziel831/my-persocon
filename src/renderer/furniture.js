@@ -216,7 +216,12 @@ function loadShelfArt() {
 // ---------- catalog ----------
 const item = (id, cat, name, price, pixName, extra = {}) => ({
   id, cat, name, price, pix: pixName, effects: {}, toy: true, ...extra,
-  get img() { return typeof document === 'undefined' ? '' : icon(this.pix); },
+  get img() {
+    if (typeof document === 'undefined') return '';
+    // Artwork supplied as a PNG asset (wide counters) instead of a generated pixel icon.
+    if (extra?.imgAsset) return new URL(extra.imgAsset, import.meta.url).href;
+    return icon(this.pix);
+  },
 });
 // size/ratio: width in pet heights and height/width; back: drawn behind the pet.
 export const FURN = {
@@ -229,6 +234,10 @@ export const FURN = {
   estante_cartuchos: { size: 0.6, ratio: 118 / 97, back: true },
   alvo: { size: 0.4, ratio: 26 / 22, back: true },
   escrivaninha: { size: 0.8, ratio: 36 / 48, back: true },
+  // Wide counters: ~2.3:1 art kept intact. At the default pet height this is ~135×59px,
+  // i.e. waist height like the desk, with a broad flat top for several resting objects.
+  balcao_madeira: { size: 1.5, ratio: 1 / 2.3, back: true },
+  balcao_cafeteria: { size: 1.5, ratio: 1 / 2.3, back: true },
   cafeteira: { size: 0.88, ratio: 42 / 32, back: true },
   vitrine_doces: { size: 0.62, ratio: 25 / 20, back: true },
   mesa_cafe: { size: 0.58, ratio: 28 / 19, back: true },
@@ -245,8 +254,9 @@ export const FURN = {
   slot: { size: 0.62, ratio: 40 / 28, back: true },
   venda_comida: { size: 0.72, ratio: 52 / 32, back: true },
   venda_bebida: { size: 0.72, ratio: 52 / 32, back: true },
-  // Width ≈ half her height so drawn height (size×ratio) ≈ 1× pet height.
-  boneco_treino: { size: 0.48, ratio: 28 / 16, back: true },
+  // Width ≈ half her height so drawn height (size×ratio) ≈ 1.3× pet height — a clearly
+  // readable sparring partner. Bottom stays on the floor; the hitbox is fractional.
+  boneco_treino: { size: 0.62, ratio: 28 / 16, back: true },
 };
 // Each shelf has 5 rows of 13 slots: a mangá takes one, a figure two.
 const SHELF_ROWS = 5;
@@ -313,6 +323,14 @@ export const FURN_ITEMS = [
   item('escrivaninha', 'mobilia', 'Escrivaninha com Abajur', 260, 'escrivaninha', {
     furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
     note: 'Estuda e lê com a luz do abajur · treina Inteligência em sessões de foco · o abajur acende sozinho à noite',
+  }),
+  item('balcao_madeira', 'mobilia', 'Balcão de Madeira', 340, 'balcao_base_1_madeira', {
+    furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/balcao_base_1_madeira.png',
+    note: 'Balcão largo com tampo plano: apoie cafeteira, portáteis, pelúcia, mochila ou a TV em cima · várias coisas lado a lado · upgrade Synthwave',
+  }),
+  item('balcao_cafeteria', 'mobilia', 'Balcão de Cafeteria', 380, 'balcao_base_2_cafeteria', {
+    furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/balcao_base_2_cafeteria.png',
+    note: 'Balcão de café com tampo plano: apoie a máquina de espresso, a cafeteira, portáteis ou a mochila · várias coisas lado a lado · upgrade Synthwave Cyber',
   }),
   item('boneco_treino', 'mobilia', 'Boneco de treino', 200, 'dummy', {
     furn: true, noWear: true, gain: { mood: 0.25, energy: -0.08, thirst: -0.06 },
@@ -614,6 +632,7 @@ export class Furniture {
       else if (b === 'videogame') active = tvActive(this.app, this.app.pet);
       else if (b === 'banheira') active = /bath|banho/.test(this.app.pet.action || '');
       else if (b === 'escrivaninha') active = !!this.app.pomodoro?.active;
+      else if (b === 'boneco_treino') active = skins.isInUse(b);
       const custom = skins.art(b, null, active, up);
       if (custom) return custom;
     }
@@ -851,7 +870,10 @@ export class Furniture {
   // Half-width (as a fraction of the sprite) of the flat top that can hold small objects.
   // The Desk/Counter has a wider top than the average piece of furniture.
   surfaceSpan(id) {
-    return baseId(id) === 'escrivaninha' ? 0.46 : 0.42;
+    const b = baseId(id);
+    // The counters have a broad top: objects can rest side by side across almost all of it.
+    if (b === 'balcao_madeira' || b === 'balcao_cafeteria') return 0.46;
+    return b === 'escrivaninha' ? 0.46 : 0.42;
   }
 
   // One reserved slot: a small dock with the handheld standing on it (empty when not owned).

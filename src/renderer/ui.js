@@ -2749,7 +2749,7 @@ const OBJ_EXTRA = [
   ['claw', 'Máquina de garra', clawIcon()],
 ];
 // Itens que realmente têm um visual "em uso" no palco.
-const USABLE_IDS = new Set(['gacha', 'slot', 'cafeteira', 'venda_comida', 'venda_bebida', 'impressora', 'videogame', 'banheira', 'escrivaninha', 'alvo']);
+const USABLE_IDS = new Set(['gacha', 'slot', 'cafeteira', 'venda_comida', 'venda_bebida', 'impressora', 'videogame', 'banheira', 'escrivaninha', 'alvo', 'boneco_treino']);
 
 // '#rrggbb' (ou #rgb) em [r, g, b].
 function hexToRgb(hex) {
@@ -2906,7 +2906,9 @@ export class ObjectsDialog extends Dialog {
     const b = baseId(id);
     const up = this.upgraded && !!UPGRADES[b];
     const base = row?.[2] || (id === 'pelucia' ? this.app.doll?.snapshot() : null) || this.app.toys?.furn?.art(id);
-    const fallback = up ? (UPGRADES[b].pix ? icon(UPGRADES[b].pix) : base) : base;
+    const upDef = up ? UPGRADES[b] : null;
+    const upArt = upDef?.imgAsset ? new URL(upDef.imgAsset, import.meta.url).href : (upDef?.pix ? icon(upDef.pix) : null);
+    const fallback = up ? (upArt || base) : base;
     return this.app.skins?.art(b, fallback, false, up) || fallback;
   }
 

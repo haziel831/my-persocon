@@ -31,7 +31,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 const SUPPLY_STAT = { medicina: 'health', bebidas: 'thirst', comidas: 'hunger' };
 // Small furniture that can rest on top of the Desk/Counter like the cartridge bag does.
-const PERCHABLE_FURN = new Set(['cafeteira', 'vitrine_doces', 'mesa_cafe']);
+const PERCHABLE_FURN = new Set(['cafeteira', 'vitrine_doces', 'mesa_cafe', 'videogame']);
 // Springy furniture: hop heights (in pet heights) for things dropped on it, chance to fly off per
 // bounce, and for the pet / Doll thrown on it: restitution and the highest bounce.
 export const BOUNCY = {
@@ -2984,6 +2984,7 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       else if (b === 'videogame') artActive = tvActive(this.app, pet);
       else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');
       else if (b === 'escrivaninha') artActive = !!this.app.pomodoro?.active;
+      else if (b === 'boneco_treino') artActive = skins?.isInUse?.(b) || false;
       const src = (custom ? skins?.art(b, base, artActive, skinUp) : null) || deskArt || (up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive, skinUp) || base;
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');
