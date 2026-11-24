@@ -87,39 +87,14 @@ export class Care {
     if (pet.activity) pet.stopActivity?.();
     pet.playToy({
       id: 'banho', dur: 7, anim: 'idle', facing: 'front', gain: { hygiene: 15, mood: 0.6 },
-      tick: (dt, tp) => this.bathTick(dt, tp, false),
+      tick: (dt, tp) => this.bathTick(dt, tp, false, null),
       onEnd: (interrupted) => this.bathEnd(interrupted),
     });
     pet.emit('bath');
     return true;
   }
 
-  // Upgraded tub: a translucent synthwave curtain rises over the stall while she bathes.
-  bathCurtain(stall) {
-    if (this.curtain) return;
-    const el = document.createElement('div');
-    el.className = 'synth-curtain';
-    el.innerHTML = '<div class="synth-silhouette"><i class="synth-head"></i><i class="synth-arm left"></i><i class="synth-arm right"></i><i class="synth-body"></i></div><div class="synth-sheen"></div>';
-    document.body.append(el);
-    this.curtain = el;
-    requestAnimationFrame(() => el.classList.add('up'));
-    this.placeBathCurtain(stall);
-  }
-
-  placeBathCurtain(stall) {
-    if (!this.curtain || !stall) return;
-    const r = stall.getBoundingClientRect();
-    Object.assign(this.curtain.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
-  }
-
-  closeBathCurtain() {
-    const el = this.curtain;
-    if (!el) return;
-    this.curtain = null;
-    el.classList.remove('up');
-    el.classList.add('down');
-    setTimeout(() => el.remove(), 650);
-  }
+  // No translucent curtain/silhouette overlay: both tub tiers show only their own sprite/GIF.
 
   steam(n, r) {
     for (let i = 0; i < n; i++) {
@@ -129,38 +104,38 @@ export class Care {
     }
   }
 
-  // Sits the Persocon down into the tub: smooth vertical sink + a cut below the foam line so
-  // legs/feet never show under the front sprite. Applies to BOTH the normal and upgraded tub.
+  // Only an actual placed bathtub may lift/clip her body (head/face/shoulders above the foam,
+  // lower body hidden behind the front sprite). A quick sponge bath with no tub must leave the
+  // whole sprite untouched and fully visible.
   bathPose(dt, tubEl, P) {
     const pet = this.app.pet;
-    const target = P * 0.26;
-    pet.bodyY = (pet.bodyY || 0) + (target - (pet.bodyY || 0)) * Math.min(1, dt * 6);
-    let cutY;
-    if (tubEl) {
-      const r = tubEl.getBoundingClientRect();
-      cutY = r.top + r.height * 0.42; // foam/rim line of the tub sprite
-    } else {
-      const waist = this.app.view?.waistPoint?.();
-      cutY = pet.y - (waist?.y ?? P * 0.55);
+    if (!tubEl) {
+      pet.hideRect = null;
+      pet.bodyY = (pet.bodyY || 0) * Math.max(0, 1 - dt * 8);
+      return;
     }
+    const target = -P * 0.12; // lift the upper body above the rim instead of sinking it
+    pet.bodyY = (pet.bodyY || 0) + (target - (pet.bodyY || 0)) * Math.min(1, dt * 6);
+    const r = tubEl.getBoundingClientRect();
+    const cutY = r.top + r.height * 0.55; // front sprite covers only below this line
     pet.hideRect = { x: 0, y: cutY, w: innerWidth, h: Math.max(1, innerHeight - cutY + 20) };
   }
 
-  // stall: the element of the upgraded tub. No more cyan laser belt — curtain + silhouette instead.
-  bathTick(dt, tp, tub, stall = null) {
+  // tubEl: the bathtub sprite element (normal or upgraded). Only bubbles/steam are layered now.
+  bathTick(dt, tp, tub, tubEl = null) {
     const { pet, sound } = this.app;
     const P = this.P;
-    const tubEl = stall || this.app.toys?.els?.get('banheira');
-    this.bathPose(dt, tubEl, P);
-    if (stall) {
-      if (!this.curtain) this.bathCurtain(stall);
-      this.placeBathCurtain(stall);
+    const el = tub ? (tubEl || this.app.toys?.els?.get('banheira')) : null;
+    this.bathPose(dt, el, P);
+    if (tub) {
       tp.bub = (tp.bub ?? 0) - dt;
       if (tp.bub <= 0) {
         tp.bub = 0.16;
-        const r = stall.getBoundingClientRect();
-        this.bubbles(2, r.left + r.width * 0.15, r.left + r.width * 0.85, r.top + r.height * 0.32, r.top + r.height * 0.55);
-        this.steam(1, r);
+        const r = el?.getBoundingClientRect();
+        if (r) {
+          this.bubbles(2, r.left + r.width * 0.15, r.left + r.width * 0.85, r.top + r.height * 0.32, r.top + r.height * 0.55);
+          this.steam(1, r);
+        }
         if (Math.random() < 0.3) sound.tone8(900 + Math.random() * 500, 1500, 0.04, 'triangle', 0.018);
       }
       pet.exertion = Math.max(0, pet.exertion - 6 * dt);
@@ -169,8 +144,7 @@ export class Care {
     tp.bub = (tp.bub ?? 0) - dt;
     if (tp.bub <= 0) {
       tp.bub = 0.09;
-      if (tub) this.bubbles(2, pet.x - P * 0.35, pet.x + P * 0.35, pet.y - P * 0.42, pet.y - P * 0.3);
-      else this.bubbles(2, pet.x - P * 0.28, pet.x + P * 0.28, pet.y - P * 0.95, pet.y - P * 0.1);
+      this.bubbles(2, pet.x - P * 0.28, pet.x + P * 0.28, pet.y - P * 0.95, pet.y - P * 0.1);
       if (Math.random() < 0.25) sound.tone8(1200 + Math.random() * 600, 1800, 0.04, 'triangle', 0.025);
     }
     if (!tub) {
@@ -197,15 +171,14 @@ export class Care {
     requestAnimationFrame(step);
   }
 
-  bathEnd(interrupted, laser = false) {
+  bathEnd(interrupted, upgraded = false) {
     const { pet, sound } = this.app;
     pet.squash = null;
     this.releaseBathPose();
-    if (laser) this.closeBathCurtain();
     if (interrupted) return;
-    sound.tone8(700, 1400, 0.15, laser ? 'square' : 'triangle', 0.05);
+    sound.tone8(700, 1400, 0.15, 'triangle', 0.05);
     const h = this.app.head;
-    if (h && !laser) this.bubbles(8, h.x - this.P * 0.4, h.x + this.P * 0.4, h.y, h.y + this.P * 0.4);
+    if (h) this.bubbles(8, h.x - this.P * 0.4, h.x + this.P * 0.4, h.y, h.y + this.P * 0.4);
     pet.emit('bathEnd');
   }
 

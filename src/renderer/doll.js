@@ -230,12 +230,35 @@ export class Doll {
     add('div', 'title', dollName(app)).prepend(Object.assign(document.createElement('img'), {
       src: icon('doll'), className: 'crow-ico', draggable: false, alt: '',
     }));
-    const totalSkills = Object.keys(DOLL_SKILLS).length + Object.keys(DOLL_COMBAT_SKILLS).length;
-    const learnedCount = Object.keys({ ...DOLL_SKILLS, ...DOLL_COMBAT_SKILLS }).filter((id) => dollHasSkill(app, id)).length;
-    add('div', 'crow-stats', `${translate('Treinos')}: ${d.trains || 0} · ${translate('Skills')}: ${learnedCount}/${totalSkills}`);
-    const wake = add('button', '', translate(this.alive
-      ? '😴 Fazer o Doll dormir (parar de se mexer)' : '✨ Acordar o Doll'));
-    wake.onclick = () => { this.setAwake(!this.alive); this.menu(x, y); };
+    // Progression: Cristal Mágico (gear.cristal) unlocks waking; the Doll must be awake
+    // (dollAwake) before training and the skill list make sense.
+    const hasCristal = !!app.game.gear?.cristal;
+    const awake = !!app.game.dollAwake;
+    if (awake) {
+      const totalSkills = Object.keys(DOLL_SKILLS).length + Object.keys(DOLL_COMBAT_SKILLS).length;
+      const learnedCount = Object.keys({ ...DOLL_SKILLS, ...DOLL_COMBAT_SKILLS }).filter((id) => dollHasSkill(app, id)).length;
+      add('div', 'crow-stats', `${translate('Treinos')}: ${d.trains || 0} · ${translate('Skills')}: ${learnedCount}/${totalSkills}`);
+    }
+    // "Acordar o Doll" only appears once the Cristal Mágico has been bought.
+    if (hasCristal) {
+      const wake = add('button', '', translate(awake
+        ? '😴 Fazer o Doll dormir (parar de se mexer)' : '✨ Acordar o Doll'));
+      wake.onclick = () => { this.setAwake(!awake); this.menu(x, y); };
+    }
+    if (!awake) {
+      // Still sleeping: only identity/customisation options (plus Wake when the crystal exists).
+      const rename0 = add('button', '', translate('✏️ Renomear'));
+      rename0.onclick = () => renameDialog(app.game.profile.dollName, (v) => {
+        app.game.profile.dollName = String(v || '').slice(0, 24);
+        app.game.changed();
+      }, translate('Nome do Doll'));
+      const skin0 = add('button', '', translate('🧱 Mudar skin'));
+      skin0.onclick = () => this.importBlockSkin();
+      const restore0 = add('button', '', translate('🔁 Restaurar padrão'));
+      restore0.onclick = () => { this.setSkin(null); app.game.dollModel = null; app.game.changed(); };
+      app.toys.openMenu(el, x, y);
+      return;
+    }
     const cols = add('div', 'crow-cols');
     const mkCol = (title, combat) => {
       const col = document.createElement('div');

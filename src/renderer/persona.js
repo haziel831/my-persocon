@@ -368,6 +368,41 @@ const COMMAND_REPLY = {
   },
 };
 
+// Rare, session-once comments for three quiet hours of the day.
+const TIME_COMMENT_LINES = {
+  estoica: {
+    pt: {
+      madrugada: ['Ainda acordada... o silêncio é bom.', 'Madrugada. Até o corvo dormiu.', 'Não durmo, só fico quieta.'],
+      manha: ['O dia começa devagar. Gosto disso.', 'Luz nova... bom.', 'Café ajuda. Talvez.'],
+      noite: ['A noite chegou. Faz tudo parecer mais calmo.', 'Luzes baixas... melhor assim.', 'Fico por aqui um pouco mais.'],
+    },
+    en: {
+      madrugada: ['Still awake... the quiet is nice.', 'Past midnight. Even the crow is asleep.', 'I do not sleep; I just stay still.'],
+      manha: ['The day starts slowly. I like that.', 'New light... good.', 'Coffee helps. Maybe.'],
+      noite: ['Night came. Everything feels calmer.', 'Low lights... better this way.', 'I will stay here a little longer.'],
+    },
+  },
+  genki: {
+    pt: {
+      madrugada: ['Nossa, ainda tá madrugada!', 'Tô com soninho... mas fico com você!', 'O silêncio tá quase me fazendo bocejar!'],
+      manha: ['Bom dia! Que dia novo!', 'Acordei com vontade de brincar!', 'O sol chegou, bora começar!'],
+      noite: ['Oba, a noite chegou!', 'Que tal um filme ou um jogo?', 'Tô animada ainda, viu?'],
+    },
+    en: {
+      madrugada: ['Wow, it is still the middle of the night!', 'I am sleepy... but I will stay with you!', 'The quiet is almost making me yawn!'],
+      manha: ['Good morning! A brand new day!', 'I woke up wanting to play!', 'The sun is here, let us start!'],
+      noite: ['Yay, nighttime is here!', 'How about a movie or a game?', 'I am still pumped, okay?'],
+    },
+  },
+};
+
+export function timeComment(app, band) {
+  const en = app?.config?.lang === 'en';
+  const id = getPersona(app);
+  const list = TIME_COMMENT_LINES[id]?.[en ? 'en' : 'pt']?.[band] || [];
+  return list.length ? list[Math.floor(Math.random() * list.length)] : '';
+}
+
 export function commandReply(app, action) {
   const en = app?.config?.lang === 'en';
   const bank = COMMAND_REPLY[en ? 'en' : 'pt'];

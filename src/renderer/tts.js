@@ -475,6 +475,12 @@ export class VoiceTTS {
     this.next();
   }
 
+  // Drops pending lines only; whatever is already playing finishes uninterrupted.
+  clearQueue() {
+    this.queue.length = 0;
+    this.reportQueue();
+  }
+
   clear() {
     this.queue.length = 0;
     this.stopCurrent();

@@ -79,7 +79,9 @@
     <span>Moedas: <b id="st-coins">—</b></span>
     <span>Afeição: <b id="st-affection">—</b></span>
     <span>Twitch: <b id="st-twitch">—</b></span>
-    <span>Fila TTS: <b id="st-queue">—</b></span>
+    <span><span data-lang="pt">IA</span><span data-lang="en" hidden>AI</span>: <b id="st-ai">—</b></span>
+    <span><span data-lang="pt">Fila</span><span data-lang="en" hidden>Queue</span>: <b id="st-queue">—</b></span>
+    <button type="button" class="act" id="clear-queue-header"><span data-lang="pt">Limpar fila</span><span data-lang="en" hidden>Clear queue</span></button>
     <span>BRB: <b id="st-brb">—</b></span>
   </div>
   <div class="row"><span>Quando responder com TTS</span><select data-key="ttsRespondMode" data-type="text" style="max-width:280px">
@@ -254,7 +256,8 @@
     <div class="row"><input type="text" id="endpoint" readonly><button class="act" id="copy">Copiar</button></div>
     <label class="toggle"><input type="checkbox" id="bridge-on"> Servidor do painel ativo</label>
     <label class="toggle"><input type="checkbox" data-key="reactionEmote" data-type="bool" data-default="true" checked> Mostrar emote pop-up ao reagir</label>
-    <div class="row"><button class="act" id="test-emote">Testar emote</button></div>
+    <label class="toggle"><input type="checkbox" data-key="emotesWithMe" data-type="bool" data-default="true" checked> <span data-lang="pt">Emotes comigo</span><span data-lang="en" hidden>Emotes with me</span></label>
+    <div class="row"><button class="act" id="test-emote">Testar emote</button><button class="act" id="test-first-viewer"><span data-lang="pt">Testar Primeiro Viewer</span><span data-lang="en" hidden>Test First Viewer</span></button></div>
     <div class="note">PNG em <code>src/renderer/assets/emotes/aghata/</code> (normal, shy, sad, anxious, confused, happy_512).</div>
     <label class="toggle"><input type="checkbox" data-key="followPins" data-type="bool" data-default="true" checked> Pendurar nomes de Follow no palco</label>
     <label class="toggle"><input type="checkbox" data-key="streamRandomAlerts" data-type="bool" data-default="true" checked> Frases aleatórias de agradecimento e efeitos</label>
@@ -286,10 +289,6 @@
   <h2>🤖 Resposta por IA</h2>
   <div class="card">
     <label class="toggle"><input type="checkbox" data-key="aiEnabled" data-type="bool"> Responder com IA quando chamarem o nome dela no chat</label>
-    <label class="field wide"><span>Provedor</span><select data-key="aiProvider" data-type="text">
-      <option value="ollama">Ollama local</option><option value="gemini">Gemini</option><option value="openai">OpenAI compatível</option></select></label>
-    <label class="field wide"><span>Modelo / URL</span><input type="text" data-key="aiModel" data-type="text" placeholder="llama3.2 · gemini-2.0-flash · https://..."></label>
-    <label class="field wide"><span>API Key</span><input type="password" data-key="aiApiKey" data-type="text" placeholder="apenas local"></label>
     <label class="field"><span>Cooldown da IA (s)</span><input type="range" data-key="aiCooldown" data-type="range" min="5" max="120" step="5"><span class="val"></span></label>
     <label class="toggle"><input type="checkbox" data-key="aiAllNames" data-type="bool"> Responder a Aghata, Agatha e Ninna (qualquer nome)</label>
     <label class="field wide"><span>Background / Personalidade</span><textarea id="ai-system" data-key="aiSystemPrompt" data-type="text" rows="4">Você é a Persocon, uma companheira anime gentil que vive na área de trabalho de um streamer. Fique no personagem, responda em 1 ou 2 frases curtas, amigáveis e seguras para uma live na Twitch. Evite tópicos proibidos, respostas estranhas e nunca mencione que é uma IA.</textarea></label>
@@ -346,7 +345,10 @@ let muted = false;
 const TIPS = {
   'mute': ['Silencia só a voz do TTS; balões e alertas continuam.', 'Mutes only the TTS voice; balloons and alerts keep working.'],
   'skip': ['Corta a fala atual e passa para a próxima da fila.', 'Stops the current line and moves to the next queued line.'],
-  'clear': ['Apaga a fila de falas e interrompe a voz atual.', 'Clears the speech queue and stops the current line.'],
+  'clear': ['Apaga só as falas pendentes; a fala atual termina normalmente.', 'Drops only pending lines; the current line finishes normally.'],
+  'clear-queue-header': ['Apaga as falas pendentes sem cortar o áudio atual.', 'Drops pending lines without stopping the current audio.'],
+  'test-first-viewer': ['Dispara a cena do primeiro viewer para escolher o TTS do chat.', 'Triggers the first-viewer scene to choose chat TTS.'],
+  'st-ai': ['Último provedor de IA que respondeu.', 'Last AI provider that replied.'],
   'exit': ['Desliga o Modo Streamer e volta ao jogo normal.', 'Turns off Streamer Mode and returns to the normal game.'],
   'collapse-all': ['Recolhe todas as seções deste painel.', 'Collapses every section of this panel.'],
   'expand-all': ['Expande todas as seções deste painel.', 'Expands every section of this panel.'],
@@ -407,6 +409,7 @@ const TIPS = {
   'bridge-on': ['Servidor local do painel (sempre ativo no Streamer).', 'Local panel server (always on in Streamer Mode).'],
   'clear-pins': ['Remove os cartões de follow pendurados no palco.', 'Removes follow cards hanging on the stage.'],
   'reactionEmote': ['Mostra o emote da Persocon ao reagir no palco.', 'Shows the Persocon emote when reacting on stage.'],
+  'emotesWithMe': ['Mostra emotes de rosto quando ela fala diretamente com você (PTT/chat direto).', 'Shows face emotes when she talks directly to you (PTT/direct chat).'],
   'test-emote': ['Testa a animação do emote pop-up.', 'Tests the pop-up emote animation.'],
   'redeems-save': ['Salva os resgates e atualiza o seletor de teste.', 'Saves redeems and refreshes the test selector.'],
   'redeems-presets': ['Preenche exemplos prontos de resgates.', 'Fills in ready-made redeem examples.'],
@@ -420,9 +423,6 @@ const TIPS = {
   'pttEnabled': ['Ativa o microfone por tecla, mesmo em outros jogos.', 'Enables hold-to-talk even while other games have focus.'],
   'pttKey': ['Tecla global para falar com a Persocon.', 'Global key for talking to the Persocon.'],
   'aiEnabled': ['Responde com IA quando o chat chamar o nome dela.', 'Replies with AI when chat calls her name.'],
-  'aiProvider': ['Provedor: Ollama local, Gemini ou OpenAI compatível.', 'Provider: local Ollama, Gemini or OpenAI-compatible.'],
-  'aiModel': ['Nome do modelo ou URL do endpoint compatível.', 'Model name or compatible endpoint URL.'],
-  'aiApiKey': ['Chave da API, salva apenas neste computador.', 'API key, stored only on this computer.'],
   'aiCooldown': ['Intervalo mínimo entre respostas da IA.', 'Minimum interval between AI replies.'],
   'aiAllNames': ['Responde a qualquer nome, não só o da Persocon ativa.', 'Replies to any name, not only the active Persocon.'],
   'aiSystemPrompt': ['Instruções de personalidade e limites da resposta.', 'Personality instructions and reply guardrails.'],
@@ -860,7 +860,9 @@ function connectTwitch() {
 $('#chroma').onclick = (e) => { const b=e.target.closest('[data-bg]'); if (b) rpc({cmd:'setOption',key:'streamerBg',value:b.dataset.bg}); };
 $('#mute').onclick = () => { muted=!muted; rpc({cmd:'ttsMute'}); $('#mute').classList.toggle('primary',muted); $('#mute').textContent = muted ? '🔇 Mudo (ligado)' : '🔇 Mudo rápido'; };
 $('#skip').onclick = () => rpc({cmd:'ttsSkip'});
-$('#clear').onclick = () => rpc({cmd:'ttsClear'});
+$('#clear').onclick = () => rpc({cmd:'ttsClearQueue'});
+$('#clear-queue-header').onclick = () => rpc({cmd:'ttsClearQueue'});
+$('#test-first-viewer').onclick = () => rpc({cmd:'firstViewerTest'});
 $('#exit').onclick = () => rpc({cmd:'exitStreamer'});
 function setPanelMinimized(on) {
   document.body.classList.toggle('sc-minimized', on);
@@ -1081,6 +1083,7 @@ function render() {
   $('#st-coins').textContent = state.coins ?? '—';
   $('#st-affection').textContent = state.affection ?? '—';
   $('#st-twitch').textContent = state.twitch ? 'Conectado' : 'Desconectado';
+  $('#st-ai').textContent = state.aiActiveProvider || '—';
   $('#st-queue').textContent = state.tts?.queue ?? 0;
   $('#st-brb').textContent = state.brb ? 'Ligado' : 'Desligado';
   $('#queue').textContent = 'Fila: ' + (state.tts?.queue ?? 0);

@@ -462,6 +462,7 @@ export class DollBrain {
       this.wake(true);
     }
     if (this.waking != null) {
+      if (this.duo) this.endDuo(true); // skip of duoTick() must not strand action='mini'
       this.wakeTick(dt);
       d.pose = this.pose('wake');
       this.place(hidden);

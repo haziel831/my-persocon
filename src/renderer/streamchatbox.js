@@ -119,6 +119,11 @@ export class StreamChatBox {
       aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
       aiApiKey: c.aiApiKey || '', aiEndpoint: c.aiEndpoint || '',
     };
+    // Direct chat box: no name mention needed, bypass the Twitch viewer mention filter.
+    if (app.twitch?.aiBusy === false && c.aiEnabled === true) {
+      const ok = app.twitch.maybeAi(text, who, false, true);
+      if (ok) return;
+    }
     const prompt = `${c.lang === 'en' ? 'The streamer said' : 'O dono do canal disse'}: ${text}`;
     window.petAPI?.aiReply?.(prompt, c.aiSystemPrompt || aiBackground(app), cfg)
       .then((reply) => {

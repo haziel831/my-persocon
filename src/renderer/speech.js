@@ -1,6 +1,7 @@
 // Speech bubble typed letter by letter (a blip per key), lines in Portuguese or English.
 import { emojiOnly } from './pixel.js';
 import { translate } from './i18n.js';
+import { timeComment } from './persona.js';
 import { isFocus } from './focusmode.js';
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -293,6 +294,13 @@ CHATTER[1].push('Ever noticed how cute the mouse is?', 'If I were an icon, which
 CHATTER[0].push('{name}, você sabia que eu fico contando os seus cliques?', 'Ei, {name}! Só passei pra dizer oi.', '{name}, me conta uma coisa legal do seu dia?', 'Eu gosto quando você fica por perto, {name}.', '{name}, tá tudo bem aí?', 'Psiu, {name}! Pisca os olhos um pouquinho.', 'Já se espreguiçou hoje, {name}?', '{name}, ombros relaxados! Isso!', 'Se precisar de um intervalo, eu tô aqui, {name}.', 'Vou guardar esse momento na memória, {name}.', '{name}, você é melhor que qualquer brinquedo.', 'Quer que eu cante uma musiquinha, {name}?', 'Tô aprendendo um monte com você, {name}!', '{name}! {name}! ...nada, só gosto do seu nome.', 'Um copo d\'água agora ia te fazer bem, {name}.', 'Sabe o que combina com hoje, {name}? Um minijogo!', '{name}, se cansar, vai dar uma volta lá fora.', 'Eu tava pensando em você, {name}.', 'Sua tela é a minha favorita, {name}.', 'Ei, {name}, olha eu aqui embaixo!', 'Um cafuné seu vale mais que mil moedas, {name}.', 'Quando você sai, eu fico esperando, {name}.', 'Se eu tivesse um mouse, eu clicava em você, {name}.', 'Missão de hoje: fazer {name} sorrir!', '{name}, já conferiu as missões do dia?');
 CHATTER[1].push("{name}, did you know I count your clicks?", 'Hey, {name}! Just came by to say hi.', '{name}, tell me something nice about your day?', 'I like it when you stay close, {name}.', '{name}, everything okay over there?', 'Psst, {name}! Blink your eyes a little.', 'Have you stretched today, {name}?', '{name}, relax those shoulders! There you go!', "If you need a break, I'm here, {name}.", "I'll keep this moment in my memory, {name}.", "{name}, you're better than any toy.", 'Want me to sing a little song, {name}?', "I'm learning so much from you, {name}!", "{name}! {name}! ...nothing, I just like your name.", 'A glass of water would do you good now, {name}.', "You know what fits today, {name}? A minigame!", '{name}, if you get tired, take a walk outside.', 'I was thinking about you, {name}.', "You own my favorite screen, {name}.", "Hey, {name}, I'm down here!", "A pat from {name} is worth more than a thousand coins.", "When you leave, I wait for you, {name}.", "If I had a mouse, I'd click on you, {name}.", "Today's mission: make {name} smile!", '{name}, checked the daily missions yet?');
 
+// Rare, once-per-band session comments (quiet hours only).
+const COMMENT_BANDS = [
+  { id: 'madrugada', from: 0, to: 6 },
+  { id: 'manha', from: 6, to: 9 },
+  { id: 'noite', from: 19, to: 22 },
+];
+
 // Chatter about what is really going on in the game: her things, her wallet, the Doll, the Crow, her needs.
 function contextLines(app, en) {
   const { pet, game, toys } = app;
@@ -382,6 +390,8 @@ export class Speech {
     this.cool = 0;
     this.chatter = 40;
     this.userPriority = false;
+    this.timeComments = new Set();
+    this.timeCommentAt = 90;
     app.pet.on((type, data) => this.react(type, data));
   }
 
@@ -463,8 +473,22 @@ export class Speech {
     this.say(pick(ctx.length ? ctx : time && Math.random() < 0.25 ? time[this.en ? 2 : 1] : CHATTER[this.en ? 1 : 0]));
   }
 
+  checkTimeComment(dt) {
+    if (this.app.config.speech === false || this.userPriority || this.app.dndActive || this.app.pauseMute) return;
+    if (this.app.melee?.active || this.app.pet?.combatMode || this.text) return;
+    if ((this.timeCommentAt -= dt) > 0) return;
+    this.timeCommentAt = 60; // check at most once a minute
+    const hour = new Date().getHours();
+    const band = COMMENT_BANDS.find((b) => hour >= b.from && hour < b.to);
+    if (!band || this.timeComments.has(band.id)) return;
+    this.timeComments.add(band.id);
+    const line = timeComment(this.app, band.id);
+    if (line) this.say(line, 3.4);
+  }
+
   update(dt, head, hidden) {
     this.cool -= dt;
+    this.checkTimeComment(dt);
     this.idle(dt);
     if (!this.text) {
       this.el.style.display = 'none';

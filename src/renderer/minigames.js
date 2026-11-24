@@ -252,7 +252,7 @@ export class Minigames {
     }
     if (pet.mode === 'ground' && !pet.dead) {
       if (opts.quit) pet.chooseNext();
-      else this.react(opts.win ? 'happy' : 'sad');
+      else this.react(opts.win ? 'smug' : 'pouting');
     }
     this.app.uiChanged();
   }
@@ -346,8 +346,8 @@ export class Minigames {
     const facing = this.s.facing || 'front';
     if (kind === 'dance') pet.anim((this.s.danceClip ||= pet.pickClip(['danca'], [...pet.emotes, 'idle'])), { facing, restart: true, speed: pet.danceSpeed || 1 });
     else if (kind === 'freeze') pet.anim(this.s.danceClip || 'idle', { facing, speed: 0 });
-    else if (kind === 'happy') pet.anim(pet.pickClip(['emote_pos', 'emote'], ['idle']), { facing, restart: true });
-    else if (kind === 'sad') pet.anim(pet.pickClip(['emote_neg'], ['idle']), { facing, restart: true });
+    else if (kind === 'happy' || kind === 'smug' || kind === 'laughing') pet.anim(pet.pickClip(['emote_pos', 'emote'], ['idle']), { facing, restart: true });
+    else if (kind === 'sad' || kind === 'pouting') pet.anim(pet.pickClip(['emote_neg'], ['idle']), { facing, restart: true });
     else pet.anim('idle', { facing });
   }
 
@@ -507,7 +507,8 @@ export class Minigames {
       if (playerLost) this.say(pick(['Hahaha! Explodiu com você!', 'Queimou! 🔥']));
       else this.say(pick(['Aaai! Explodiu comigo!', 'Nããão! 💥']));
       this.react(playerLost ? 'happy' : 'sad');
-      this.later(1.6, () => this.finish(s.passes, { win: !playerLost, text: playerLost ? 'A batata explodiu com você' : 'A batata explodiu com ela!' }));
+      // `win` is from the Persocon's perspective: she wins when the PLAYER got burned.
+      this.later(1.6, () => this.finish(s.passes, { win: playerLost, text: playerLost ? 'A batata explodiu com você' : 'A batata explodiu com ela!' }));
     };
     s.click = (x, y) => {
       if (s.holder === 'player' && !s.over && this.onPet(x, y)) {
@@ -1547,7 +1548,7 @@ export class Minigames {
     Object.assign(s, { you: 0, her: 0, busy: false, history: [] });
     const refresh = () => {
       score.textContent = `Você ${s.you} × ${s.her} Persocon`;
-      total.textContent = `Placar geral: ${stats.w} vitórias · ${stats.l} derrotas · ${stats.d} empates`;
+      total.textContent = `Placar geral: ${stats.w} derrotas · ${stats.l} vitórias da Persocon · ${stats.d} empates`;
       this.info(`Primeiro a 3 vence · ${s.you} × ${s.her}`);
     };
     const play = (mine) => {
@@ -1571,16 +1572,20 @@ export class Minigames {
         her.textContent = HANDS[hers];
         const r = (mine - hers + 3) % 3;
         if (r === 1) {
+          // Player won: the Persocon is disappointed (sad/pouting).
           s.you++;
           stats.w++;
           msg.textContent = `${NAMES[mine]} vence ${NAMES[hers].toLowerCase()}! Ponto seu.`;
           this.pose('sad', 1.2);
+          this.app.streamAlerts?.showReactionEmote?.('pouting');
         } else if (r === 2) {
+          // Persocon won: celebrate (happy/smug/laughing).
           s.her++;
           stats.l++;
           msg.textContent = `${NAMES[hers]} vence ${NAMES[mine].toLowerCase()}! Ponto dela.`;
-          this.pose('happy', 1.2);
+          this.pose('smug', 1.2);
           this.say(pick(['Hehe!', 'Te li!', 'Essa foi minha!']));
+          this.app.streamAlerts?.showReactionEmote?.('smug');
         } else {
           stats.d++;
           msg.textContent = 'Empate!';
@@ -1588,7 +1593,8 @@ export class Minigames {
         this.app.sound.play(r === 1 ? 'ok' : r === 2 ? 'cancel' : 'blip', { volume: 0.5 });
         refresh();
         this.app.game.changed();
-        if (s.you >= 3 || s.her >= 3) return this.later(1.4, () => this.finish(s.you * 3, { win: s.you >= 3, coinRate: 1, text: `Você ${s.you} × ${s.her} Persocon` }));
+        // `win` must be from the Persocon's perspective (she reached 3 first).
+        if (s.you >= 3 || s.her >= 3) return this.later(1.4, () => this.finish(s.her * 3, { win: s.her >= 3, coinRate: 1, text: `Você ${s.you} × ${s.her} Persocon` }));
         s.busy = false;
       });
     };

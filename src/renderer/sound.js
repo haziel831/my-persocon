@@ -112,9 +112,15 @@ export class Sound {
     else if (!this.dnd) this.applyVolume();
   }
 
+  // Tray "Pause & Mute": master mute without touching the saved volume.
+  setPauseMute(on) {
+    this.pauseMuted = !!on;
+    this.applyVolume();
+  }
+
   applyVolume() {
     if (!this.master) return;
-    if (this.dnd) { this.master.gain.value = 0; return; }
+    if (this.dnd || this.pauseMuted) { this.master.gain.value = 0; return; }
     const vol = Math.max(0, Math.min(1, this.cfg.volume ?? 0.3));
     this.master.gain.value = this.ducked ? vol * 0.35 : vol;
   }

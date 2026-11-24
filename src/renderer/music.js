@@ -1,7 +1,8 @@
-// Title music: "Cyberpunk Drive" — procedural Web Audio, no audio files.
-// Dark A minor at 112 BPM: pulsing electronic/industrial bass, marked synthetic drums,
-// metallic dark arpeggios and a smooth cyber lead. Scheduled ahead of time with
-// attack/release envelopes so the loop never clicks.
+// Title music: "Chrome Requiem" — procedural Web Audio, no audio files.
+// Darksynth / industrial cyberpunk at 116 BPM: heavy pulsing sub bass in a dark minor key,
+// hard electronic drums (kick + noise snare + hats), a fast metallic arpeggio and a futuristic
+// saw-lead with a neon echo. Scheduled ahead with attack/release envelopes: no clicks, clean loop.
+// All sound goes through sound.musicBus (or master), so the game's volume/mute controls apply.
 
 const NOTE = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
 const freq = (n) => {
@@ -10,23 +11,27 @@ const freq = (n) => {
   return 440 * 2 ** ((NOTE[m[1]] + (+m[2] + 1) * 12 - 69) / 12);
 };
 
-const BPM = 112;
-const LOOP = 128; // 8 bars of 16ths (~17s)
-const ROOTS = ['A1', 'F1', 'C2', 'G1', 'D2', 'E2', 'A1', 'E2'];
+const BPM = 116;
+const LOOP = 128; // 8 bars of 16ths (~16.5s), loops seamlessly
+// Dark minor progression: Am → F → Dm → E (harmonic-minor pull back to Am).
+const ROOTS = ['A1', 'F1', 'D2', 'E2', 'A1', 'F1', 'D2', 'E2'];
 const CHORD = [
-  ['A3', 'C4', 'E4', 'G4'], // Am7
-  ['F3', 'A3', 'C4', 'E4'], // Fmaj7
-  ['C3', 'E3', 'G3', 'B3'], // Cmaj7
-  ['G2', 'B2', 'D3', 'F3'], // G7
-  ['D3', 'F3', 'A3', 'C4'], // Dm7
-  ['E2', 'G#2', 'B2', 'D3'], // E7
-  ['A3', 'C4', 'E4', 'G4'], // Am7
-  ['E2', 'G#2', 'B2', 'D3'], // E7 — pulls back to Am
+  ['A3', 'C4', 'E4'], // Am
+  ['F3', 'A3', 'C4'], // F
+  ['D3', 'F3', 'A3'], // Dm
+  ['E3', 'G#3', 'B3'], // E major (dark harmonic-minor tension)
+  ['A3', 'C4', 'E4'], // Am
+  ['F3', 'A3', 'C4'], // F
+  ['D3', 'F3', 'A3'], // Dm
+  ['E3', 'G#3', 'B3'], // E — pulls hard back to Am
 ];
-const ARP = [0, 7, 12, 7, 0, 3, 10, 7];
+// Fast metallic 16th arpeggio (minor 7th colour for the cyber edge).
+const ARP = [0, 3, 7, 10, 12, 10, 7, 3];
+// Futurist lead stabs, a minor-key motif that answers the arp.
 const LEAD = [
-  [4, 'E5', 14], [22, 'C5', 12], [38, 'D5', 10], [54, 'A4', 16],
-  [74, 'G4', 12], [90, 'E5', 14], [108, 'C5', 12], [120, 'B4', 8],
+  [0, 'A5', 10], [14, 'C6', 8], [28, 'E5', 12], [44, 'G5', 8],
+  [56, 'A5', 14], [72, 'F5', 12], [88, 'E5', 10], [100, 'G#5', 8],
+  [112, 'A5', 12], [122, 'E5', 6],
 ];
 
 export class Music {
@@ -52,13 +57,23 @@ export class Music {
     this.masterLp.Q.value = 0.5;
 
     this.out = c.createGain();
+    const peak = Math.min(0.9, Math.max(0.0002, volume)); // headroom: no clipping
     this.out.gain.setValueAtTime(0.0001, c.currentTime);
-    this.out.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), c.currentTime + 1.6);
+    this.out.gain.exponentialRampToValueAtTime(peak, c.currentTime + 1.6);
     this.masterLp.connect(this.out);
     this.out.connect(this.sound.musicBus || this.sound.master);
 
+    // Gentle bus limiting keeps stacked drums/bass/lead from clipping.
+    this.comp = c.createDynamicsCompressor();
+    this.comp.threshold.value = -14;
+    this.comp.knee.value = 12;
+    this.comp.ratio.value = 4;
+    this.comp.attack.value = 0.004;
+    this.comp.release.value = 0.2;
     this.bus = c.createGain();
-    this.bus.gain.value = 0.85;
+    this.bus.gain.value = 0.95;
+    this.bus.connect(this.comp);
+    this.comp.connect(this.masterLp);
     this.bus.connect(this.masterLp);
 
     // Slightly detuned chorus for the wide cyber pad.
@@ -119,7 +134,7 @@ export class Music {
   }
 
   setVolume(v) {
-    if (this.out && this.ctx) this.out.gain.setTargetAtTime(Math.max(0.0002, v), this.ctx.currentTime, 0.4);
+    if (this.out && this.ctx) this.out.gain.setTargetAtTime(Math.min(0.9, Math.max(0.0002, v)), this.ctx.currentTime, 0.4);
   }
 
   stop(fade = 1.0) {
@@ -133,6 +148,7 @@ export class Music {
     out.gain.exponentialRampToValueAtTime(0.0001, t + fade);
     setTimeout(() => {
       out.disconnect();
+      this.comp?.disconnect();
       this.masterLp?.disconnect();
       this.delay?.disconnect();
       this.chorusLfos?.forEach((l) => { try { l.stop(); } catch (e) { /* ja parado */ } });
@@ -156,31 +172,38 @@ export class Music {
     const chord = CHORD[bar];
     const root = ROOTS[bar];
 
-    if (beat === 0) this.sub(root, t, s16 * 10);
-    if (beat === 8) this.sub(root, t, s16 * 8);
+    // Deep sub foundation on the downbeats.
+    if (beat === 0) this.sub(root, t, s16 * 9);
+    if (beat === 8) this.sub(root, t, s16 * 7);
 
-    // Industrial 8th-note bass, acidic filter sweep.
+    // Heavy darksynth bass: driving 8ths with an acidic filter sweep and a 5th-on-off beat.
     if (beat % 2 === 0) {
       const off = ARP[(beat / 2) % ARP.length];
-      this.voice(freq(root) * 2 ** (off / 12), t, s16 * 1.7, 0.052, {
-        wave: 'saw', cutoff: 320, cutoffEnd: 1100, attack: 0.006, release: 0.14, send: 0.05,
+      const f = freq(root) * 2 ** (off / 12);
+      this.voice(f, t, s16 * 1.8, 0.062, {
+        wave: 'saw', cutoff: beat % 8 === 6 ? 1650 : 420, cutoffEnd: 240,
+        attack: 0.004, release: 0.12, send: 0.05,
+      });
+      // second detuned layer makes it thicker/pulsing
+      this.voice(f, t, s16 * 1.8, 0.028, {
+        wave: 'saw', cutoff: 700, attack: 0.004, release: 0.12, detune: -11,
       });
     }
 
-    if (beat === 0) this.pad(chord, t, s16 * 16.6);
+    if (beat === 0) this.pad(chord, t, s16 * 15.6);
 
-    // Synthetic 4-on-the-floor kick, backbeat clap and hats.
-    if (beat % 4 === 0) this.kick(t, beat === 0 ? 0.24 : 0.18);
-    if (beat === 4 || beat === 12) this.clap(t);
-    if (beat % 2 === 1) this.hat(t, beat % 4 === 3 ? 0.009 : 0.005);
+    // Hard electronic kit: 4-on-the-floor kick, synthetic snare on 2 & 4, driving hats.
+    if (beat % 4 === 0) this.kick(t, beat === 0 ? 0.3 : 0.24);
+    if (beat === 4 || beat === 12) this.snare(t);
+    if (beat % 2 === 1) this.hat(t, beat % 4 === 3 ? 0.011 : 0.007);
+    // 16th ghost hats keep the industrial drive forward
+    if (beat % 4 === 2) this.hat(t + s16 * 0.5, 0.004);
 
-    // Metallic dark arpeggio.
-    if (beat === 2 || beat === 6 || beat === 10 || beat === 14) {
-      const n = chord[(beat / 4) % chord.length | 0];
-      this.voice(freq(n) * 2, t, s16 * 2.4, 0.006, {
-        wave: 'glass', cutoff: 3400, attack: 0.005, release: 0.5, send: 0.4,
-      });
-    }
+    // Fast metallic arpeggio on every 16th, bright and cutting.
+    const arpNote = chord[step % chord.length];
+    this.voice(freq(arpNote) * 2, t, s16 * 1.1, 0.009, {
+      wave: 'glass', cutoff: 4200, attack: 0.003, release: 0.18, send: 0.35,
+    });
 
     const hit = LEAD.find(([p]) => p === pos);
     if (hit) this.lead(hit[1], t, hit[2] * s16);
@@ -301,11 +324,17 @@ export class Music {
   }
 
   lead(n, t, dur) {
-    this.voice(freq(n), t, dur, 0.027, {
-      wave: 'bell', cutoff: 3200, attack: 0.02, release: Math.max(0.4, dur * 0.8), slide: 18, send: 0.55,
+    const f = freq(n);
+    // Futurist detuned saw lead through the neon echo.
+    this.voice(f, t, dur, 0.03, {
+      wave: 'saw', cutoff: 2600, cutoffEnd: 1400, attack: 0.012,
+      release: Math.max(0.3, dur * 0.6), slide: 22, send: 0.6, vibrato: 3,
     });
-    this.voice(freq(n) / 2, t, dur, 0.011, {
-      wave: 'saw', cutoff: 800, attack: 0.04, release: Math.max(0.4, dur * 0.7), detune: -7, send: 0.2,
+    this.voice(f, t, dur, 0.022, {
+      wave: 'saw', cutoff: 2200, attack: 0.012, release: Math.max(0.3, dur * 0.6), detune: 12, send: 0.5,
+    });
+    this.voice(f / 2, t, dur, 0.012, {
+      wave: 'square', cutoff: 900, attack: 0.03, release: Math.max(0.3, dur * 0.6), detune: -7, send: 0.2,
     });
   }
 
@@ -322,6 +351,36 @@ export class Music {
     g.connect(this.bus);
     o.start(t);
     o.stop(t + 0.4);
+  }
+
+  // Synthetic industrial snare (noise burst + short tonal body).
+  snare(t) {
+    const c = this.ctx;
+    const src = c.createBufferSource();
+    src.buffer = this.noiseBuffer();
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1500;
+    bp.Q.value = 0.7;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.075, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(this.bus);
+    src.start(t);
+    src.stop(t + 0.22);
+    const o = c.createOscillator();
+    const og = c.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(140, t + 0.1);
+    og.gain.setValueAtTime(0.05, t);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+    o.connect(og);
+    og.connect(this.bus);
+    o.start(t);
+    o.stop(t + 0.16);
   }
 
   clap(t) {

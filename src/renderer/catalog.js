@@ -7,6 +7,7 @@ import { isEdible } from './game.js';
 export const DEFAULT_OPTS = {
   emoticonScale: 0.75, emoticonOffsetX: -26, emoticonOffsetY: 10,
   volume: 0.3, gbVolume: 0.7, footsteps: false, dayRoutine: true, weather: 'auto', dndEnabled: true, dndApps: '',
+  emotesWithMe: true, // face reaction emotes during direct PTT/chat-box conversations
 };
 
 // Personality presets. `approach`/`screenHit`/`noAttention` are kept as requested aliases; the

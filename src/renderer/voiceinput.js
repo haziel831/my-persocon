@@ -182,13 +182,15 @@ export class VoiceInput {
         aiApiKey: c.aiApiKey || '', aiEndpoint: c.aiEndpoint || '',
         userPriority: true, // tells the host to wrap the system prompt as a max-priority order
       };
+      // PTT is always a direct address: no name mention required (unlike Twitch viewers).
       const prompt = c.lang === 'en'
-        ? `DIRECT VOICE COMMAND from the creator (highest priority): ${said}`
-        : `ORDEM DIRETA POR VOZ do criador (prioridade máxima): ${said}`;
+        ? `The creator is speaking directly to you right now (highest priority — no name needed). Answer them in character: ${said}`
+        : `O criador está falando diretamente com você agora (prioridade máxima — não precisa citar seu nome). Responda no personagem: ${said}`;
       const system = [c.aiSystemPrompt, actionPrompt(c.lang)].filter(Boolean).join('\n');
       window.petAPI?.aiReply?.(prompt, system, cfg)
         .then((reply) => {
-          if (reply?.fallbackNotice) this.app.pushStreamerState?.(true);
+          this.app.aiStatus = { active: reply?.usedProvider || '', notice: reply?.fallbackNotice || '' };
+          this.app.pushStreamerState?.(true);
           this.answer(String(reply?.text || '').trim());
         })
         .catch(() => this.answer(personaLine(this.app, 'hi'), true));
@@ -205,7 +207,7 @@ export class VoiceInput {
     const spoken = out || (fallback ? raw : '');
     if (spoken) {
       this.app.chatBox?.push?.('pet', spoken);
-      this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(spoken) || 'normal', spoken);
+      this.app.streamAlerts?.showReactionEmote?.(this.app.streamAlerts?.reactionForText?.(spoken) || 'normal', spoken, 'owner');
       // With the big avatar on screen her answer also goes to the close-up balloon, but the
       // priority TTS always plays (its onended drives the extended hold and the resume).
       this.app.closeup?.say?.(spoken);

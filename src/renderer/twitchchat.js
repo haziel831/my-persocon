@@ -288,7 +288,7 @@ export class TwitchChat {
     return true;
   }
 
-  maybeAi(text, user, deny) {
+  maybeAi(text, user, deny, direct = false) {
     const c = this.app.config;
     // `deny` only mutes the audio; the balloon/chat reply must still happen.
     if (this.userPriority || c.aiEnabled !== true || this.aiBusy) return false;
@@ -296,16 +296,22 @@ export class TwitchChat {
       this.pushLog(user, 'aiReply indisponível', 'IA: erro');
       return false;
     }
-    const active = String(c.name || '').toLowerCase().trim();
-    const names = ['aghata', 'agatha', 'ninna'];
-    if (active) names.push(active);
-    const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const match = new RegExp(`\\b(${escaped.join('|')})\\b`, 'i').exec(text);
-    if (!match) return false;
-    const called = match[1].toLowerCase();
-    if (c.aiAllNames !== true && !active.includes(called)) return false;
+    let called = '';
+    if (!direct) {
+      // Twitch viewers must mention her name. Direct chat / PTT bypass this filter.
+      const active = String(c.name || '').toLowerCase().trim();
+      const names = ['aghata', 'agatha', 'ninna'];
+      if (active) names.push(active);
+      const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const match = new RegExp(`\\b(${escaped.join('|')})\\b`, 'i').exec(text);
+      if (!match) return false;
+      called = match[1].toLowerCase();
+    }
+    if (!direct && c.aiAllNames !== true && called && !String(c.name || '').toLowerCase().includes(called)) return false;
     const now = Date.now();
-    if (now - this.lastAi < (Number(c.aiCooldown ?? 20) * 1000)) return false;
+    // AI calls cost tokens: keep a dedicated 15–20s cooldown, independent of fast commands.
+    const aiGap = Math.min(20, Math.max(15, Number(c.aiCooldown ?? 20))) * 1000;
+    if (now - this.lastAi < aiGap) return false;
     this.lastAi = now;
     this.aiBusy = true;
     this.app.chatBox?.push?.('chat', `${user}: ${text}`);
@@ -315,8 +321,12 @@ export class TwitchChat {
       aiAutoFallback: c.aiAutoFallback !== false,
       aiProvider: c.aiProvider || 'ollama', aiModel: c.aiModel || '',
       aiApiKey: c.aiApiKey || '', aiEndpoint: c.aiEndpoint || '',
+      userPriority: direct,
     };
-    window.petAPI?.aiReply?.(text, c.aiSystemPrompt || '', cfg).then((reply) => {
+    const prompt = direct
+      ? (c.lang === 'en' ? `Direct message from the creator: ${text}` : `Mensagem direta do criador: ${text}`)
+      : text;
+    window.petAPI?.aiReply?.(prompt, c.aiSystemPrompt || '', cfg).then((reply) => {
       const out = String(reply?.text || '').trim();
       this.app.aiStatus = { active: reply?.usedProvider || '', notice: reply?.fallbackNotice || '' };
       if (!out) throw new Error('empty');
@@ -354,7 +364,8 @@ export class TwitchChat {
         : t.includes(w))));
     if (!hit) return '';
     const now = Date.now();
-    const cool = (app.config.streamReactCooldown || 30) * 1000;
+    // Light antispam only (2–3s): keyword reactions never spend AI tokens.
+    const cool = Math.min(3, Math.max(2, Number(app.config.streamReactCooldown ?? 3))) * 1000;
     if (now - this.lastReact < cool) return '';
     this.lastReact = now;
     const action = hit.action || 'say';
@@ -375,7 +386,8 @@ export class TwitchChat {
     const app = this.app;
     const [cmd, ...rest] = text.toLowerCase().split(/\s+/);
     const now = Date.now();
-    if (now - (this.cmdAt[cmd] || 0) < 15000) return 'ignorado: cooldown';
+    // Fast commands use a light 2.5s antispam, never the AI cooldown.
+    if (now - (this.cmdAt[cmd] || 0) < 2500) return 'ignorado: cooldown';
     if (['!oi', '!hi'].includes(cmd)) { this.cmdAt[cmd] = now; this.replyLine('hi', { user }, 3); return `comando ${cmd}`; }
     if (['!cafune', '!pat'].includes(cmd)) { this.cmdAt[cmd] = now; app.setHand?.('pat'); this.replyLine('pat', { user }, 3); return `comando ${cmd}`; }
     if (['!dancar', '!dance'].includes(cmd)) { this.cmdAt[cmd] = now; app.startMode?.('jam'); this.replyLine('dance', {}, 3); return `comando ${cmd}`; }

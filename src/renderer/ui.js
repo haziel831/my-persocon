@@ -481,7 +481,7 @@ export class Menu {
         }
       })()),
       h('div.menu-foot', {},
-        h('span.hint', {}, 'Botão direito: arrastar o menu ou a Persocon'),
+        h('span.hint', {}, translate('Botão direito: abrir o menu')),
         h('button.link', { onclick: () => app.quit() }, 'Sair')),
     );
     this.fold(this.el.querySelector('.panel'));
@@ -492,6 +492,11 @@ export class Menu {
     if (this.anchor) this.place();
     this.applyFlash();
     this.filterCatalog();
+    // filterCatalog() may rebuild the list again: restore scroll one last time.
+    if (scrolls.length) {
+      const finalNodes = [...this.el.querySelectorAll('.panel, .panel *')];
+      for (const [i, top] of scrolls) if (finalNodes[i]) finalNodes[i].scrollTop = top;
+    }
   }
 
   // Catálogo: a construção e a filtragem vivem em catalog.js; aqui só ligamos ao estado do menu.
@@ -1471,6 +1476,7 @@ export class Menu {
       })(),
       ...(STREAM ? [
         h('div.group', {}, '🔑 IAs & Chaves API'),
+        toggle({ label: translate('Usar IA'), value: c.aiEnabled === true, onchange: (v) => app.setOption('aiEnabled', v) }),
         toggle({ label: 'Trocar automaticamente para a próxima IA quando os tokens acabarem', value: c.aiAutoFallback !== false, onchange: (v) => app.setOption('aiAutoFallback', v) }),
         ...(c.aiProviders || []).map((p, i) => h('div.row', {},
           h('span.label', {}, p.name || translate(`IA ${i + 1}`)),
@@ -1693,7 +1699,8 @@ export class Menu {
         } }, '🐞 Gerar relatório de erro')),
       h('div.note', {}, 'Cria um .zip com versão, configurações, save e logs recentes para enviar ao desenvolvedor.'),
       this.promoRow(),
-      app.version ? h('div.note', { 'data-no-i18n': '' }, `My Persocon v${app.version} · ${editionLabel()}`) : null,
+      app.version ? h('div.note.build-stamp', { 'data-no-i18n': '' },
+        `My Persocon v${app.version} · ${editionLabel()} · ${translate('Carregado em')} ${app.loadedAt?.toLocaleString() || ''}`) : null,
       this.debugRows(),
     );
   }
@@ -2737,8 +2744,7 @@ function clawIcon() {
   } catch { return icon('gacha_icon'); }
 }
 const OBJ_EXTRA = [
-  ['bag', 'Bolsa de inventário', icon('bag')],
-  ['food', 'Bolsa de comida', icon('backpack')],
+  ['food', translate('Inventário'), icon('backpack')], // single unified bag
   ['delivery', 'Caixa de entrega', DELIVERY_IMG],
   ['claw', 'Máquina de garra', clawIcon()],
 ];
@@ -2779,6 +2785,20 @@ export async function bake(frames, rot, flip, transparent = null) {
     out.push(c.toDataURL('image/png'));
   }
   return out;
+}
+
+// Exact box where an <img> with object-fit:contain draws its pixels inside its element.
+// The Change Look preview uses contain, so normalizing against the element box would include
+// empty letterbox bands and make screenRect come out smaller than the visible sprite.
+function drawnImageRect(img) {
+  const r = img.getBoundingClientRect();
+  const nw = img.naturalWidth || r.width;
+  const nh = img.naturalHeight || r.height;
+  if (!nw || !nh || !r.width || !r.height) return r;
+  const scale = Math.min(r.width / nw, r.height / nh);
+  const w = nw * scale;
+  const h = nh * scale;
+  return { left: r.left + (r.width - w) / 2, top: r.top + (r.height - h) / 2, width: w, height: h };
 }
 
 export class ObjectsDialog extends Dialog {
@@ -2840,8 +2860,9 @@ export class ObjectsDialog extends Dialog {
     this.syncLive();
   }
 
-  async show(focus, preset) {
+  async show(focus, preset, variant) {
     this.open('Visual dos objetos');
+    this.focusItem = !!focus;
     // Clearer names for a few ids whose internal name is technical.
     const lookName = (id, name) => ({
       videogame: 'TV / Videogame', alvo: 'Arcade / Alvo', estante_cartuchos: 'Gaming Shelf',
@@ -2852,7 +2873,9 @@ export class ObjectsDialog extends Dialog {
       ...OBJ_EXTRA.map(([id, name, img]) => [id, name, img, null]),
     ];
     this.sel = focus || this.list[0][0];
-    this.variant = 'base';
+    // Opening from a placed object lands on its real variant (Upgrade when already upgraded).
+    const ownedUp = !!(focus && this.app.game?.toys?.[baseId(focus)]?.up);
+    this.variant = variant || (ownedUp ? 'upgrade' : 'base');
     this.variants = {};
     this.draft = null;
     this.snapshot = null;
@@ -2893,6 +2916,7 @@ export class ObjectsDialog extends Dialog {
       this.captureSnapshot();
       this.render();
       this.syncLive();
+      this.flashSaved();
       return;
     }
     if (key === 'active') {
@@ -2909,6 +2933,7 @@ export class ObjectsDialog extends Dialog {
     this.bakeKey = '';
     this.render();
     this.refreshBake();
+    this.autoSave(); // "Usar padrão" also saves right away
   }
 
   async pickImage(working = false) {
@@ -2955,6 +2980,7 @@ export class ObjectsDialog extends Dialog {
       this.baked = null;
       this.bakeKey = '';
       this.refreshBake();
+      this.autoSave(); // import in Normal/Upgrade, Idle/In use — saved immediately
     } catch (e) {
       this.error = translate(`Não foi possível abrir a imagem: ${e?.message || e}`);
       console.error('[skins] import', e);
@@ -2996,6 +3022,44 @@ export class ObjectsDialog extends Dialog {
     this.render();
   }
 
+  exportSkins() {
+    try {
+      const pack = this.app.skins.exportPack();
+      const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'persocon-skins.json';
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      this.app.sound?.play('ok', { volume: 0.4 });
+    } catch {
+      this.app.sound?.play('cancel', { volume: 0.4 });
+    }
+  }
+
+  async importSkins() {
+    const path = await window.petAPI?.pickFile?.(translate('Importar skins'), translate('Arquivo JSON'), ['json']);
+    if (!path) return;
+    try {
+      const data = await window.petAPI.readFileData(path);
+      const pack = JSON.parse(await (await fetch(data)).text());
+      await this.app.skins.importPack(pack);
+      this.draft = null;
+      this.region = null;
+      this.error = null;
+      this.render();
+      this.syncLive();
+      this.app.sound?.play('ok', { volume: 0.4 });
+    } catch {
+      this.error = translate('Falha ao importar skins');
+      this.render();
+      this.app.sound?.play('cancel', { volume: 0.4 });
+    }
+  }
+
   // Persists only the TV screen rectangle. Unlike save(), it keeps the image draft alive so
   // the movable sample square does not vanish when the user releases the resize/move handle.
   async saveRegion() {
@@ -3007,10 +3071,12 @@ export class ObjectsDialog extends Dialog {
     await this.app.skins.setObject(id, { ...old, region: this.region }, up);
     this.snapshot = null;
     this.syncLive();
+    this.flashSaved();
   }
 
-  async save() {
-    if (this.busy) { this.error = translate('Aguarde o carregamento da imagem antes de salvar.'); this.render(); return; }
+  // Builds the skin record from the current draft and persists it. Used by both the manual
+  // Save button and the automatic save after every edit (import/greenscreen/area/default).
+  async persistDraft({ keepDraft = false } = {}) {
     const d = this.draft;
     const id = this.sel;
     const up = this.upgraded;
@@ -3019,15 +3085,12 @@ export class ObjectsDialog extends Dialog {
     const region = this.region || old.region;
     if (!d) {
       if (region) { await this.app.skins.setObject(id, { ...old, region }, up); this.snapshot = null; }
-      return this.close();
+      return;
     }
-    // A prévia usa os quadros assados (rotação + transparência); o tamanho é o do objeto real.
     const frames = d.kind === '3d' ? d.src
       : (this.baked?.frames?.length ? this.baked.frames : await bake(d.src, d.rot, d.flip, d.transparent));
     const first = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = frames[0]; });
     const hitbox = d.hitbox || old.hitbox || null;
-    // O hitbox também vai em pixels do primeiro quadro (hitboxOffsetX/Y/Width/Height),
-    // ao lado das frações 0..1 usadas no clique do objeto.
     const hbPx = hitbox
       ? {
         hitboxOffsetX: Math.round(hitbox.x * (first.naturalWidth || first.width || 1)),
@@ -3043,7 +3106,7 @@ export class ObjectsDialog extends Dialog {
       delays: this.baked?.activeDelays || d.active.delays || [100],
       speed,
     } : null;
-    this.snapshot = null; // aplicado: o objeto na área de trabalho já é o salvo
+    this.snapshot = null;
     await this.app.skins.setObject(id, {
       kind: d.kind, mode: activeSet ? 'dual' : (d.mode || 'single'),
       frames, delays: d.delays, speed,
@@ -3052,13 +3115,39 @@ export class ObjectsDialog extends Dialog {
       ...(activeSet ? { active: activeSet } : {}),
     }, up);
     if (id === 'pelucia') this.app.doll && (this.app.doll.snap = null);
-    this.draft = null;
-    this.variants = null;
-    this.baked = null;
-    this.bakeKey = '';
-    this.hitboxDraft = null;
+    if (!keepDraft) {
+      this.draft = null;
+      this.variants = null;
+      this.baked = null;
+      this.bakeKey = '';
+      this.hitboxDraft = null;
+    }
+    this.autoSaved = true;
     this.render();
     this.syncLive();
+  }
+
+  // Discreet "Saved" indicator after an automatic save (fades via CSS timer).
+  flashSaved() {
+    this.autoSaved = true;
+    clearTimeout(this._savedTimer);
+    this._savedTimer = setTimeout(() => { this.autoSaved = false; this.render(); }, 1800);
+    this.render();
+  }
+
+  // Automatic save after an edit: keeps the draft alive so the user can keep editing/switch tabs.
+  autoSave() {
+    clearTimeout(this._autoSaveTimer);
+    this._autoSaveTimer = setTimeout(async () => {
+      try { await this.persistDraft({ keepDraft: true }); this.flashSaved(); }
+      catch (e) { console.error('[skins] auto-save', e); }
+    }, 60);
+  }
+
+  async save() {
+    if (this.busy) { this.error = translate('Aguarde o carregamento da imagem antes de salvar.'); this.render(); return; }
+    await this.persistDraft();
+    this.close();
   }
 
   // Atualiza só a prévia (sem redesenhar o diálogo inteiro).
@@ -3258,17 +3347,21 @@ export class ObjectsDialog extends Dialog {
     const app = this.app;
     const id = this.sel;
     const d = this.draft;
-    // Passo 1 — escolha do item.
-    const list = h('div.obj-list', {}, this.list.map(([oid, name]) => h(`button.obj${oid === id ? '.active' : ''}`, {
-      onclick: () => { this.sel = oid; this.variant = 'base'; this.variants = null; this.draft = null; this.region = null; this.error = null; this.baked = null; this.bakeKey = ''; this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = ''; this.drawRegion = false; this._regionDraft = null; this.captureSnapshot(); this.render(); this.syncLive(); },
-    }, h('img', { src: this.current(oid) || '', draggable: false }), h('span.obj-name', {}, translate(name)), h('span.obj-badges', {}, (() => {
-         const info = app.skins?.customInfo?.(oid) || { base: false, up: false, frames: 0 };
-         const out = [];
-         if (info.base) out.push(h('i.obj-badge', {}, translate('Custom')));
-         if (info.up) out.push(h('i.obj-badge.up', {}, translate('Upgrade')));
-         if (info.frames > 1) out.push(h('i.obj-badge.gif', {}, 'GIF'));
-         return out;
-       })()))));
+    // Pick item: a compact dropdown when opened from the general menu (no preselected item);
+    // when editing a specific object, no selector at all — just its editor.
+    const selectItem = (oid) => {
+      if (oid === this.sel) return;
+      this.sel = oid; this.variant = 'base'; this.variants = null; this.draft = null;
+      this.region = null; this.error = null; this.baked = null; this.bakeKey = '';
+      this.hitboxDraft = null; this.liveRatio = null; this.liveSeq = 0; this.ratioKey = '';
+      this.drawRegion = false; this._regionDraft = null;
+      this.captureSnapshot(); this.render(); this.syncLive();
+    };
+    const focusItem = this.focusItem; // set true when opened for a specific object
+    const list = focusItem ? null : h('div.obj-picker', {},
+      h('span.label', {}, translate('Item')),
+      h('select', { onchange: (e) => selectItem(e.target.value) },
+        this.list.map(([oid, name]) => h('option', { value: oid, selected: oid === id ? 'selected' : null }, translate(name)))));
     const base = baseId(id);
     const hasUpgrade = !!UPGRADES[base];
     const showActive = USABLE_IDS.has(base);
@@ -3406,7 +3499,7 @@ export class ObjectsDialog extends Dialog {
           if (e.button !== 0) return;
           e.preventDefault();
           e.stopPropagation();
-          const r = img.getBoundingClientRect();
+          const r = drawnImageRect(img);
           const start = { x: e.clientX, y: e.clientY, reg: { ...this.region }, moved: false };
           try { handle.setPointerCapture(e.pointerId); } catch {}
           const move = (ev) => {
@@ -3456,11 +3549,11 @@ export class ObjectsDialog extends Dialog {
       tr.edgeOnly = true;
       controls.push(h('div.obj-simple-options', {},
         h('label.row.toggle', {},
-          h('input', { type: 'checkbox', checked: !!tr.on, onchange: (e) => { tr.on = e.target.checked; this.render(); this.refreshBake(); } }),
+          h('input', { type: 'checkbox', checked: !!tr.on, onchange: (e) => { tr.on = e.target.checked; this.render(); this.refreshBake(); this.autoSave(); } }),
           h('span', {}, translate('Remover fundo verde (greenscreen)'))),
         tr.on ? slider({ label: translate('Sensibilidade'), min: 0, max: 100, step: 1,
           value: tr.tolerance ?? 24, format: (v) => `${v}`,
-          oninput: (v) => { tr.tolerance = v; this.refreshBake(); } }) : null));
+          oninput: (v) => { tr.tolerance = v; this.refreshBake(); this.autoSave(); } }) : null));
     }
     const right = h('div.obj-edit', {},
       id === 'videogame' ? h('div.obj-banner', {},
@@ -3485,7 +3578,10 @@ export class ObjectsDialog extends Dialog {
     this.syncLive();
     const hasRegion = !!(this.region || app.skins.region(id, this.upgraded));
     const saveDisabled = this.busy > 0 || (!d && !this.region) || (id === 'videogame' && !!d && !hasRegion);
-    this.frame(h('div.objects', {}, list, right), [
+    this.frame(h(`div.objects${focusItem ? '.single' : ''}`, {}, list, right), [
+      h('button', { onclick: () => this.importSkins() }, translate('Importar skins')),
+      h('button', { onclick: () => this.exportSkins() }, translate('Exportar skins')),
+      this.autoSaved ? h('span.obj-saved', {}, translate('Salvo')) : null,
       h('span.grow'),
       h('button', { onclick: () => this.close() }, translate('Fechar')),
       h('button.primary', { onclick: () => this.save(), disabled: saveDisabled },

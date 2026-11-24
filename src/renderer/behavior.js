@@ -2792,6 +2792,8 @@ export class Pet {
   updateStats(dt) {
     if (this.dead) return;
     const d = DIFFICULTIES[this.cfg.difficulty] ?? 1;
+    // Tray "Pause & Mute": freeze hunger/thirst/energy/hygiene decay while in a call.
+    const decay = this.app?.pauseMute ? 0 : 1;
     const s = this.stats;
     const sleeping = this.mode === 'ground' && this.action === 'sleep';
     // INCONSCIENTE (pós-derrota): deitada, regen passiva, sem punição e sem drain — acorda no fim do tempo.
@@ -2827,13 +2829,13 @@ export class Pet {
       const up = !!this.furnUp?.(this.onBed ? 'cama' : this.onCushion ? 'almofada' : '');
       s.energy += RATES.energySleep * (this.onBed ? (up ? 3 : 2) : this.onCushion ? (up ? 2.1 : 1.4) : 0.6) * dt;
       if (up) s.mood += this.moodGain((this.onBed ? 0.02 : 0.03) * dt);
-      if (!noHunger && !(this.onBed && (up || s.hunger <= 50))) s.hunger -= RATES.hungerSleep * d * dt;
+      if (!noHunger && !(this.onBed && (up || s.hunger <= 50))) s.hunger -= RATES.hungerSleep * d * decay * dt;
     } else {
-      if (!noTired) s.energy -= (e > 1 ? RATES.energy + RATES.energyActive * (e - 1) : RATES.energy * e) * d * dt;
-      if (!noHunger) s.hunger -= RATES.hunger * d * (1 + (e - 1) * 0.6) * dt;
+      if (!noTired) s.energy -= (e > 1 ? RATES.energy + RATES.energyActive * (e - 1) : RATES.energy * e) * d * decay * dt;
+      if (!noHunger) s.hunger -= RATES.hunger * d * decay * (1 + (e - 1) * 0.6) * dt;
     }
-    if (!(sleeping && this.onBed && this.furnUp?.('cama'))) s.thirst -= RATES.thirst * d * (sleeping ? 0.5 : Math.max(0.5, e)) * dt;
-    s.hygiene = Math.max(0, s.hygiene - RATES.hygiene * d * (sleeping ? 0.3 : Math.max(0.3, 1 + (e - 1) * 4)) * dt);
+    if (!(sleeping && this.onBed && this.furnUp?.('cama'))) s.thirst -= RATES.thirst * d * decay * (sleeping ? 0.5 : Math.max(0.5, e)) * dt;
+    s.hygiene = Math.max(0, s.hygiene - RATES.hygiene * d * decay * (sleeping ? 0.3 : Math.max(0.3, 1 + (e - 1) * 4)) * dt);
     this.exertion = clamp(this.exertion + ((e >= 1.8 ? 2 * (e - 1) : 0) - 1.2) * dt, 0, 100);
     // Jam / Assistir: fun but tiring and makes the pet hungry.
     const act = this.activity;

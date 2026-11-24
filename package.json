@@ -12,7 +12,7 @@
     "demo": "node scripts/demo.mjs",
     "preview": "node scripts/package.mjs --preview",
     "sim": "node test/sim.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs && node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.5.5",

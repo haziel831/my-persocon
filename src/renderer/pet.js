@@ -237,7 +237,9 @@ export async function startPet(files, config) {
 
   const app = {
     config,
+    loadedAt: new Date(), // discreet build/load stamp in the Options footer
     dndActive: false,
+    pauseMute: false,      // tray "Pause & Mute"
     version: '',
     pet,
     game,
@@ -255,7 +257,7 @@ export async function startPet(files, config) {
     quit: () => flushLog().finally(() => api.quit()),
     focus: () => api.focusWindow(),
     openImport: () => importDialog.show(),
-    openObjects: (id, preset) => new ObjectsDialog(app).show(id, preset),
+    openObjects: (id, preset, variant) => new ObjectsDialog(app).show(id, preset, variant),
     // One entry point for natural commands from PTT, the direct chat box and Twitch chat.
     runVoiceCommand(text) {
       const cmd = matchNaturalCommand(text);
@@ -558,9 +560,9 @@ export async function startPet(files, config) {
   const speechSay = speech.say.bind(speech);
   speech.say = (text, life, ttsOpts) => {
     const spoken = replacePetNames(app, personifyAutoLine(app, text));
-    if (!window.__PET_STREAMER__ && config.emotesOutsideStreamer === true
+    if ((window.__PET_STREAMER__ || config.emotesOutsideStreamer === true)
         && ['owner', 'viewer'].includes(ttsOpts?.source)) {
-      app.streamAlerts?.showReactionEmote?.(app.streamAlerts?.reactionForText?.(spoken) || 'normal', spoken);
+      app.streamAlerts?.showReactionEmote?.(app.streamAlerts?.reactionForText?.(spoken) || 'normal', spoken, ttsOpts?.source);
     }
     app.chatBox?.push?.('pet', spoken);
     const r = speechSay(spoken, life);
@@ -1120,6 +1122,26 @@ api.onTrayClick?.(() => {
     app.uiChanged();
   });
 
+// Tray toggle: silence audio and stop need decay until toggled back (restores previous mute).
+app.setPauseMute = (on) => {
+  on = !!on;
+  if (on === !!app.pauseMute) return;
+  app.pauseMute = on;
+  if (on) {
+    app._ttsMutedBeforePause = !!app.tts?.muted;
+    app.tts?.stopCurrent?.();
+    app.tts?.setMuted?.(true);
+    sound.setPauseMute?.(true);
+    try { window.speechSynthesis?.cancel?.(); } catch {}
+    app.tts?.clear?.();
+  } else {
+    sound.setPauseMute?.(false);
+    if (!app._ttsMutedBeforePause) app.tts?.setMuted?.(false);
+  }
+  app.pushStreamerState?.(true);
+};
+api.onTrayPauseMute?.((on) => app.setPauseMute(on));
+
   function dragBagDock(e) {
     const r = bagDockEl.getBoundingClientRect();
     const ox = e.clientX - r.left;
@@ -1632,9 +1654,9 @@ api.onTrayClick?.(() => {
   document.documentElement.addEventListener('mouseleave', releaseMouse);
 
   const startGrab = () => {
-    if (!press || press.grabbing || app.intro?.busy) return;
+    // Only the left button may drag the Persocon; right button is menu-only.
+    if (!press || press.button !== 0 || press.grabbing || app.intro?.busy) return;
     press.grabbing = true;
-    if (press.button === 2) suppressContext = true;
     pet.grab(press.x, press.y);
     pet.drag(press.lx, press.ly);
     document.body.classList.add('grabbing');
@@ -1821,7 +1843,7 @@ api.onTrayClick?.(() => {
     if (!press) return;
     press.lx = e.clientX;
     press.ly = e.clientY;
-    if (!press.grabbing && Math.hypot(press.lx - press.x, press.ly - press.y) > 5) startGrab();
+    if (press.button === 0 && !press.grabbing && Math.hypot(press.lx - press.x, press.ly - press.y) > 5) startGrab();
     if (press.grabbing) {
       pet.drag(press.lx, press.ly);
       // Carried past the edge of this monitor onto another allowed one.
@@ -2066,6 +2088,7 @@ api.onTrayClick?.(() => {
     else if (p.type === 'say') speech.say(p.text, 3.5);
     else if (p.type === 'skipTts' || p.type === 'ttsSkip') app.tts?.skip?.();
     else if (p.type === 'clearTts' || p.type === 'ttsClear') app.tts?.clear?.();
+    else if (p.type === 'ttsClearQueue') app.tts?.clearQueue?.();
     else if (p.type === 'clearPins') app.streamAlerts?.clearPins?.();
     else if (p.type === 'chatBoxVisible') app.chatBox?.setVisible?.(!!p.value);
     else if (p.type === 'chatBoxReset') app.chatBox?.reset?.();
@@ -2149,6 +2172,7 @@ api.onTrayClick?.(() => {
     else if (p.type === 'twitchConnect') app.twitch?.connect?.(p.channel);
     else if (p.type === 'twitchDisconnect') app.twitch?.disconnect?.();
     else if (p.type === 'firstViewerChoice') app.twitch?.resolveChatTtsChoice?.(p.mode || (p.read ? 'CHAT_ONLY' : 'USER_ONLY'));
+    else if (p.type === 'firstViewerTest') app.twitch?.firstViewerScene?.(p.user || (config.lang === 'en' ? 'Test viewer' : 'Viewer de teste'));
     else if (p.type === 'simulate' || p.type === 'testAlert') app.streamAlerts?.push?.(p.event);
     else if (p.type === 'redeem' || p.type === 'reward') {
       app.streamAlerts?.push?.({ type: 'redeem', user: p.user, reward: p.reward || p.name || p.rewardId,
@@ -2521,7 +2545,23 @@ api.onTrayClick?.(() => {
   // Safety net: an action whose owner is gone (or a broken timer) would leave the pet standing
   // still forever; after 2 s it just picks something new.
   let stuckT = 0;
+  let lastDuoT = -1;
+  let duoStallT = 0;
   const watchdog = (dt) => {
+    // A duo/minigame "owns" action='mini', but its tick can die (crow away, combat, Doll
+    // re-waking) while the flag stays set. duo.t advances every frame only while the tick runs:
+    // if it stops for 4 s, cancel the duo so the normal 'mini' orphan rule can free the pet.
+    const duo = crow.duo || doll.brain?.duo;
+    if (duo) {
+      if (duo.t === lastDuoT) duoStallT += dt;
+      else { lastDuoT = duo.t; duoStallT = 0; }
+      if (duoStallT > 4) {
+        logWarn('watchdog', `duo parado (t=${duo.t}) — cancelando para destravar a Persocon`);
+        crow.endDuo?.(true);
+        doll.brain?.endDuo?.(true);
+        duoStallT = 0;
+      }
+    } else { lastDuoT = -1; duoStallT = 0; }
     if (pet.x !== null && (!Number.isFinite(pet.x) || !Number.isFinite(pet.y))) {
       logWarn('watchdog', `posição inválida (${pet.x}, ${pet.y}) em "${pet.action}"`);
       const floor = pet.world.surfaces.find((s) => s.id === 'floor') || pet.world.surfaces[0];

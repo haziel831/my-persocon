@@ -53,6 +53,7 @@ window.petAPI = {
   onStreamer: (cb) => streamListen('streamer', (e) => cb(!!e.payload)),
   onClickThrough: (cb) => listen('click-through', () => cb()),
   onTrayClick: (cb) => listen('tray_click', () => cb()),
+  onTrayPauseMute: (cb) => listen('tray-pause-mute', (e) => cb(!!e.payload)),
   desktopIcons: () => invoke('desktop_icons'),
   openDesktopItem: (path) => invoke('open_desktop_item', { path }),
   desktopAll: () => invoke('desktop_all'),

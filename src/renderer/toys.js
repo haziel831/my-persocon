@@ -30,6 +30,8 @@ const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
 const SUPPLY_STAT = { medicina: 'health', bebidas: 'thirst', comidas: 'hunger' };
+// Small furniture that can rest on top of the Desk/Counter like the cartridge bag does.
+const PERCHABLE_FURN = new Set(['cafeteira', 'vitrine_doces', 'mesa_cafe']);
 // Springy furniture: hop heights (in pet heights) for things dropped on it, chance to fly off per
 // bounce, and for the pet / Doll thrown on it: restitution and the highest bounce.
 export const BOUNCY = {
@@ -695,7 +697,7 @@ export class Toys {
       }
     }
     if (t && itemById(baseId(id))?.furn) btn('✏️ Editar esta mobília', () => this.editOne(id));
-    btn('🎨 Mudar visual / importar…', () => this.app.openObjects?.(baseId(id)));
+    btn(translate('Mudar aparência'), () => this.app.openObjects?.(baseId(id), null, t?.up ? 'upgrade' : 'base'));
     if (id === 'impressora') this.printerInfo(el);
     if (t && !t.broken && this.fun.owns(id)) this.fun.menu(baseId(id), btn, el);
     if (t && !itemById(baseId(id))?.fixed && baseId(id) !== 'gameboy_verde') btn('📦 Guardar no inventário', () => game.pickUpToy(id));
@@ -827,7 +829,9 @@ export class Toys {
     const b = baseId(id);
     // Handheld consoles (GameGlow, PlayPocket…) sit on furniture like the GameBuddy.
     if (FURN[b]?.console) return !!this.app.game.toys[id];
-    return !!this.app.game.toys[id] && !FURN[b] && !BALLS[id] && b !== 'pelucia' && b !== 'robo';
+    // Coffee machines and the plush can sit on the Desk/Counter (or the Gaming Shelf top).
+    if (PERCHABLE_FURN.has(b)) return !!this.app.game.toys[id] && !BALLS[id];
+    return !!this.app.game.toys[id] && !FURN[b] && !BALLS[id] && b !== 'robo';
   }
 
   // Where the spot of an object is kept: the toy itself, or game.perch for the two bags.
@@ -846,7 +850,8 @@ export class Toys {
       if (k === except || !f || f.disco || f.console || !t.placed || !this.here(t)) continue;
       const w = this.size(k);
       const h = w * this.ratio(k);
-      out.push({ key: k, x1: t.x - w * 0.42, x2: t.x + w * 0.42, top: (t.y ?? floor) - h, h });
+      const span = this.furn.surfaceSpan?.(k) ?? 0.42;
+      out.push({ key: k, x1: t.x - w * span, x2: t.x + w * span, top: (t.y ?? floor) - h, h });
     }
     return out;
   }
@@ -947,7 +952,8 @@ export class Toys {
       return null;
     }
     const w = this.size(p.on);
-    const dx = clamp(p.dx || 0, -w * 0.42, w * 0.42);
+    const span = this.furn.surfaceSpan?.(p.on) ?? 0.42;
+    const dx = clamp(p.dx || 0, -w * span, w * span);
     return { x: f.x + dx, y: this.topAt(p.on, f.x + dx) };
   }
 
@@ -1016,9 +1022,16 @@ export class Toys {
 
   // ---------- food backpack ----------
 
+  // Unified "Inventário" bag position: keeps old saves working. `bagX` was the cartridge bag,
+  // `foodBagX` the snack bag — whichever the player moved last wins, foodBagX has priority when
+  // it exists (the food bag was the one that actually appeared in most sessions).
   foodBagX() {
-    return this.app.game.foodBagX ?? this.app.world.width * 0.12;
+    const g = this.app.game;
+    return g.foodBagX ?? g.bagX ?? this.app.world.width * 0.12;
   }
+
+  // Single bag id used on stage and in every interaction path.
+  get bagId() { return 'food'; }
 
   hasSupplies() {
     const { game } = this.app;
@@ -1194,16 +1207,14 @@ export class Toys {
     const top = baseY - h;
     const s = this.app.skins?.region('videogame', !!t.up) || FURN.videogame.screen;
     const sx = t.flip ? 1 - s.x - s.w : s.x;
-    // Games render at 96x72 (4:3): fit that ratio inside the marked area, centred, so the
-    // canvas fills the glass with no stretch and no floating border.
-    const sw = w * s.w;
-    const sh = h * s.h;
-    const sideW = Math.max(1, Math.round(Math.min(sw, sh * 4 / 3)));
-    const sideH = Math.max(1, Math.round(sideW * 3 / 4));
-    const x = left + w * sx + (sw - sideW) / 2;
-    const y = top + h * s.y + (sh - sideH) / 2;
+    // Fill 100% of the marked screenRect: no secondary aspect-ratio shrink, no inner padding.
+    // The game viewport itself is already 4:3 and scales its own pixels to fit this box.
+    const rw = Math.max(1, Math.round(w * s.w));
+    const rh = Math.max(1, Math.round(h * s.h));
+    const x = left + w * sx;
+    const y = top + h * s.y;
     return {
-      x: Math.round(x), y: Math.round(y), w: sideW, h: sideH,
+      x: Math.round(x), y: Math.round(y), w: rw, h: rh,
       rot: t.rot || 0, ox: Math.round(t.x), oy: Math.round(baseY),
     };
   }
@@ -2618,11 +2629,13 @@ export class Toys {
         }
         return;
       }
-      if (id === 'bag') return this.toggleBag();
       if (id === 'food') {
-        el.title = 'Abrir inventário…';
+        // A single bag: click opens the inventory; right-click (with a shelf absent) also
+        // offers the cartridge picker through the context menu.
+        el.title = translate('Abrir inventário…');
         return this.app.openMenu?.('inventario');
       }
+      if (id === 'bag') return this.toggleBag(); // legacy id, no longer placed
       const single = () => {
         if (!game.toys[id]) return;
         const sb = baseId(id);
@@ -2670,7 +2683,7 @@ export class Toys {
     el.className = 'bag-popup';
     const title = document.createElement('div');
     title.className = 'title';
-    title.textContent = 'Bolsa de cartuchos';
+    title.textContent = translate('Inventário de cartuchos');
     el.append(title);
     // The mystery black cartridge is not a real cartridge: it stays out of the bag popup.
     for (const id of game.cartridges.filter((c) => c !== 'unknown')) {
@@ -2922,17 +2935,17 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       }
     }
     const list = Object.entries(game.toys).filter(([id, t]) => t.placed && !BALLS[id] && id !== 'pelucia' && this.here(t));
-    // Cartridge bag: only without a Gaming Shelf (the shelf is the cartridge storage).
-    if (!game.hasGamingShelf?.() && (game.bag || game.cartridges?.length)) {
-      game.bag = true;
-      let bx = game.bagX ?? this.bagX();
+    // ONE unified bag on stage. Cartridges live in the Gaming Shelf when it is placed;
+    // otherwise everything (snacks, gear, cartridges) shares this single bag.
+    const needsBag = this.hasSupplies() || (game.cartridges?.length || 0) > 0 || !!game.bag;
+    if (needsBag) {
+      let bx = this.foodBagX();
       if (!Number.isFinite(bx) || bx < this.P * 0.15 || bx > W - this.P * 0.15) {
         bx = gb?.placed && gb.x != null ? gb.x - this.P * 0.45 : W * 0.5;
-        game.bagX = bx;
       }
-      list.push(['bag', { x: bx, placed: true, display: this.app.display?.() ?? 0 }]);
+      game.foodBagX = bx;
+      list.push(['food', { x: bx, placed: true, display: this.app.display?.() ?? 0 }]);
     }
-    if (this.hasSupplies()) list.push(['food', { x: this.foodBagX(), placed: true }]);
     const skins = this.app.skins;
     for (const [id, t] of list) {
       seen.add(id);
@@ -3002,8 +3015,8 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       mark.src = t.broken ? icon('wrench') : '';
       mark.style.display = t.broken ? 'block' : 'none';
       el.title = t.broken ? `Quebrado — clique para consertar (${game.repairCost(id)} moedas)`
-        : id === 'bag' ? 'Clique para ver os cartuchos'
-        : id === 'food' ? 'Abrir inventário…'
+        : id === 'bag' ? translate('Clique para ver os cartuchos')
+        : id === 'food' ? translate('Abrir inventário…')
         : id === 'alvo' ? 'Clique para jogar (3 min) · botão direito para opções'
         : id === 'gacha' ? `Clique: girar a Gacha (¥ ${GACHA_PRICE}, você paga) · ela também gira com a carteira dela`
         : id === 'slot' ? `Clique: pedir para ela jogar · aposta da carteira dela (¥ ${this.casino.wallet}), os ganhos vão para você · a sorte vem da Afeição`

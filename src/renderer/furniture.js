@@ -848,6 +848,12 @@ export class Furniture {
     return Math.round(this.P * ROOF_W);
   }
 
+  // Half-width (as a fraction of the sprite) of the flat top that can hold small objects.
+  // The Desk/Counter has a wider top than the average piece of furniture.
+  surfaceSpan(id) {
+    return baseId(id) === 'escrivaninha' ? 0.46 : 0.42;
+  }
+
   // One reserved slot: a small dock with the handheld standing on it (empty when not owned).
   // Whether the pet would play with this piece right now.
   usable(id) {
@@ -896,11 +902,10 @@ export class Furniture {
     }
     if (id === 'banheira') {
       const care = this.app.care;
-      const up = this.app.game.toys.banheira?.up;
-      // Both tiers sit inside the tub; the upgraded one gets a curtain + silhouette and the lower body is clipped.
-      pet.playToy({ id, dur: up ? rand(9, 15) : rand(14, 22), gain: this.gainOf(id, it), scale: 1, anim: 'sit', pose: 'sit', facing: 'front', lift: 0,
-        tick: (dt, tp) => care?.bathTick(dt, tp, true, up && this.toys.els.get('banheira')),
-        onEnd: (i, tp) => { care?.bathEnd(i, !!up); end(i, tp); } });
+      // Both tiers show only their own sprite: no curtain, no silhouette overlay.
+      pet.playToy({ id, dur: rand(14, 22), gain: this.gainOf(id, it), scale: 1, anim: 'sit', pose: 'sit', facing: 'front', lift: 0,
+        tick: (dt, tp) => care?.bathTick(dt, tp, true, this.toys.els.get('banheira')),
+        onEnd: (i, tp) => { care?.bathEnd(i); end(i, tp); } });
       pet.emit('bath', { tub: true });
       return true;
     }

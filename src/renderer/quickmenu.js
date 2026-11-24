@@ -2,6 +2,7 @@
 import { itemById, HER_BAG } from './game.js';
 import { confirmStreamer } from './streamerconfirm.js';
 import { STREAM } from './edition.js';
+import { translate } from './i18n.js';
 export class QuickMenu {
   constructor(app) {
     this.app = app;
@@ -114,6 +115,8 @@ export class QuickMenu {
       slider('🗨 Voz', 'voiceVolume', 0.7),
       slider('🎮 GameBuddy', 'gbVolume', 0.25, 2),
       item('🔈 Efeitos sonoros', 'sound'),
+      item(translate('Emotes comigo'), 'emotesWithMe', translate('Mostra emotes de rosto quando ela fala diretamente com você (PTT, chat direto ou interações).')),
+      ...(STREAM ? [item(translate('Usar IA'), 'aiEnabled', translate('Liga ou desliga as respostas da IA no chat e no Push-to-Talk.'))] : []),
       ttsToggle());
     document.body.append(el);
     const r = el.getBoundingClientRect();

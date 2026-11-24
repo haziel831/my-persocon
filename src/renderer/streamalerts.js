@@ -140,17 +140,31 @@ export class StreamAlerts {
   }
 
   // Floating reaction emote (bottom-left of the stage), 3s hold, no stacking.
-  showReactionEmote(emotion = 'normal', speech = '') {
+  showReactionEmote(emotion = 'normal', speech = '', source = '') {
     const app = this.app;
     if (!window.__PET_STREAMER__ && app.config.emotesOutsideStreamer !== true) return;
     if (app.config.reactionEmote === false) return;
+    // Direct conversations (PTT / chat box / owner messages) obey the "Emotes comigo" toggle.
+    // Viewer/alert reactions keep their existing configuration unchanged.
+    if ((source === 'owner' || source === 'you') && app.config.emotesWithMe === false) return;
     const folder = /aghata|agatha/i.test(app.config?.modelDir || '') ? 'aghata' : 'ninna';
+    // 12 Aghata faces (uniform 768x768 PNGs). The 6 originals plus 6 new expressions.
     const files = {
-      normal: 'normal.png', shy: 'shy.png', sad: 'sad.png', anxious: 'anxious.png',
-      confused: 'confused.png', gentle: 'shy.png', happy: 'happy_512.png',
-      angry: 'anxious.png', hype: 'happy_512.png', love: 'shy.png', laugh: 'happy_512.png',
+      normal: 'normal.png', blush: 'blush.png', shy: 'blush.png', sad: 'sad.png', anxious: 'anxious.png',
+      confused: 'confused.png', gentle: 'gentle.png', happy: 'gentle.png',
+      angry: 'pouting.png', hype: 'starry_eyed.png', love: 'blush.png', laugh: 'laughing.png',
+      sleepy: 'sleepy.png', startled: 'startled.png', pouting: 'pouting.png',
+      starry_eyed: 'starry_eyed.png', laughing: 'laughing.png', smug: 'smug.png',
     };
-    const file = files[emotion] || 'normal.png';
+    const ninnaFiles = {
+      normal: 'normal.png', shy: 'shy.png', blush: 'shy.png', sad: 'sad.png', anxious: 'anxious.png',
+      confused: 'confused.png', gentle: 'shy.png', happy: 'happy_512.png', angry: 'anxious.png',
+      hype: 'happy_512.png', love: 'shy.png', laugh: 'happy_512.png',
+      sleepy: 'anxious.png', startled: 'anxious.png', pouting: 'sad.png',
+      starry_eyed: 'happy_512.png', laughing: 'happy_512.png', smug: 'normal.png',
+    };
+    const file = (folder === 'aghata' ? files : ninnaFiles)[emotion]
+      || (folder === 'aghata' ? files : ninnaFiles).normal;
     let el = this.reactionEl;
     if (!el || !el.isConnected) {
       el = document.createElement('div');
@@ -199,10 +213,16 @@ export class StreamAlerts {
 
   reactionForText(text) {
     const t = String(text || '').toLowerCase();
-    if (/obrigad|valeu|thanks|cafun|carinh|amor|love/.test(t)) return 'shy';
+    // New expressions first (most specific), then the original six.
+    if (/\b(wtf|eita|whoa|uau|caramba|nossa|!)\b|susto|assust|surpres|alerta/.test(t)) return 'startled';
+    if (/kkk|haha|lol|riso|rindo|engraçad|funny/.test(t)) return 'laughing';
+    if (/sono|soninho|dormir| cansad|zzz|madrugad|sleep|tired/.test(t)) return 'sleepy';
+    if (/emburr|contrari|não gostei|nao gostei|hmpf|pouting|irritad/.test(t)) return 'pouting';
+    if (/incrível|incrivel|amazing|follow|sub\b|raid|bits|presente|ganhei|vitória rara|lendári|lendari|starry/.test(t)) return 'starry_eyed';
+    if (/hehe|irônic|iron|gamer|provoca|zoei|smug|sou demais/.test(t)) return 'smug';
+    if (/obrigad|valeu|thanks|cafun|carinh|amor|love/.test(t)) return 'blush';
     if (/triste|sad|pêsames|f\.\.\.|loss/.test(t)) return 'sad';
-    if (/susto|assust|scare|socorro/.test(t)) return 'anxious';
-    if (/gg|uau|wow|hype|vamos|bora|danc/.test(t)) return 'hype';
+    if (/gg|uau|wow|hype|vamos|bora|danc/.test(t)) return 'starry_eyed';
     if (/\?|confus|hmm/.test(t)) return 'confused';
     return 'normal';
   }
@@ -382,8 +402,9 @@ export class StreamAlerts {
       default: return;
     }
     const emotionByType = {
-      follow: 'shy', sub: 'hype', raid: 'hype', bits: 'hype', redeem: 'gentle',
-      pagar_cafe: 'gentle', dar_lanche: 'gentle', cafune: 'shy', susto: 'anxious', tts_say: 'normal',
+      follow: 'starry_eyed', sub: 'starry_eyed', raid: 'starry_eyed', bits: 'starry_eyed',
+      redeem: 'gentle', pagar_cafe: 'gentle', dar_lanche: 'gentle', cafune: 'blush',
+      susto: 'startled', tts_say: 'normal',
     };
     this.showReactionEmote(emotionByType[ev.action] || emotionByType[ev.type] || this.reactionForText(line), line);
     if (line) {

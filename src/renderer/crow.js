@@ -1708,6 +1708,9 @@ export class Crow {
     this.hidden = hidden;
     this.hookSpeech();
     if (!this.owned || pet.x == null || !this.model) {
+      // Never abandon a duo here: duoTick() would stop running and leave the pet frozen in
+      // action='mini' with an infinite timer (the "stuck staring" bug).
+      if (this.duo) this.endDuo(true);
       if (this.canvas) this.remove();
       sound.crowRon = false;
       return;
@@ -1735,6 +1738,10 @@ export class Crow {
         pet.emit('crowBorn');
       } else if (d.away) this.y = -this.P;
       else this.idle();
+    }
+    if (this.duo && (d.away || pet.combatMode)) {
+      // These branches skip duoTick(); without ending the duo the pet stays in 'mini' forever.
+      this.endDuo(true);
     }
     if (d.away) {
       if (Date.now() >= d.away.back) this.comeBack();

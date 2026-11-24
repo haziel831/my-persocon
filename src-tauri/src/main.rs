@@ -102,6 +102,8 @@ static ON_TOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::ne
 // Build flag: the plain 2.0 edition sets this to false (no stream tray items / PTT polling).
 const STREAM_BUILD: bool = true;
 static STREAMER: AtomicBool = AtomicBool::new(false);
+// Tray "Pause & Mute": silences audio and freezes need decay while the creator is in a call.
+static PAUSE_MUTE: AtomicBool = AtomicBool::new(false);
 static STREAMER_OPAQUE: AtomicBool = AtomicBool::new(true);
 // One Streamer Mode transition at a time: a second toggle while windows are being
 // created/destroyed is ignored instead of racing the first one.
@@ -742,6 +744,51 @@ fn set_autostart(value: bool) -> Result<bool, String> {
     if ok { Ok(value) } else { Err("registry".into()) }
 }
 
+/// Recursively masks any field whose name looks like a credential. Used only on the copy of
+/// the config that goes into a support zip; the real config.json on disk is never touched.
+fn mask_secrets(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map.iter_mut() {
+                let lower = key.to_ascii_lowercase();
+                if lower.contains("key") || lower.contains("token") || lower.contains("secret") {
+                    *child = Value::String("***".into());
+                } else {
+                    mask_secrets(child);
+                }
+            }
+        }
+        Value::Array(list) => {
+            for child in list.iter_mut() {
+                mask_secrets(child);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collects actual credential values from the config so they can be scrubbed from log text too.
+fn collect_secrets(value: &Value, out: &mut Vec<String>) {
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map {
+                let lower = key.to_ascii_lowercase();
+                if lower.contains("key") || lower.contains("token") || lower.contains("secret") {
+                    if let Some(s) = child.as_str() {
+                        if s.len() >= 6 { out.push(s.to_string()); }
+                    }
+                } else {
+                    collect_secrets(child, out);
+                }
+            }
+        }
+        Value::Array(list) => {
+            for child in list { collect_secrets(child, out); }
+        }
+        _ => {}
+    }
+}
+
 // Zip for bug reports: what the renderer knows (version, screen, recent log), config, logs and the save.
 #[tauri::command]
 async fn make_report(app: AppHandle, state: State<'_, PetState>, info: String) -> Result<bool, String> {
@@ -759,13 +806,36 @@ async fn make_report(app: AppHandle, state: State<'_, PetState>, info: String) -
     add("info.txt", format!("My Persocon v{}\n{}", env!("CARGO_PKG_VERSION"), info).as_bytes())?;
     for name in ["config.json", save_name()] {
         if let Ok(b) = fs::read(state.data.join(name)) {
-            add(name, &b)?;
+            if name == "config.json" {
+                // Export a masked copy only — never the original bytes with real API keys.
+                let export = match serde_json::from_slice::<Value>(&b) {
+                    Ok(mut cfg) => {
+                        mask_secrets(&mut cfg);
+                        serde_json::to_string_pretty(&cfg).unwrap_or_default()
+                    }
+                    Err(_) => "{\"error\":\"config could not be parsed; not exported\"}".to_string(),
+                };
+                add(name, export.as_bytes())?;
+            } else {
+                add(name, &b)?;
+            }
+        }
+    }
+    // Scrub real credential values that may have leaked into log lines.
+    let mut secrets = Vec::new();
+    if let Ok(b) = fs::read(state.data.join("config.json")) {
+        if let Ok(cfg) = serde_json::from_slice::<Value>(&b) {
+            collect_secrets(&cfg, &mut secrets);
         }
     }
     if let Ok(rd) = fs::read_dir(state.data.join("log")) {
         for p in rd.flatten().map(|e| e.path()).filter(|p| p.extension().map_or(false, |e| e == "log")) {
             if let (Some(n), Ok(b)) = (p.file_name().and_then(|n| n.to_str()), fs::read(&p)) {
-                add(&format!("log/{n}"), &b)?;
+                let mut text = String::from_utf8_lossy(&b).into_owned();
+                for secret in &secrets {
+                    if !secret.is_empty() { text = text.replace(secret, "***"); }
+                }
+                add(&format!("log/{n}"), text.as_bytes())?;
             }
         }
     }
@@ -1314,11 +1384,12 @@ fn tray_menu<R: tauri::Runtime, M: Manager<R>>(m: &M, en: bool) -> tauri::Result
     let control = MenuItem::with_id(m, "open_control", t("Abrir Controle Streamer", "Open Streamer Control"), true, None::<&str>)?;
     let through = MenuItem::with_id(m, "through", t("Clicar através (liga/desliga)", "Click through (on/off)"), true, None::<&str>)?;
     let show_app = MenuItem::with_id(m, "show_app", t("Mostrar app de novo", "Show app again"), true, None::<&str>)?;
+    let pause_mute = MenuItem::with_id(m, "pause_mute", t("Pausar & Silenciar", "Pause & Mute"), true, None::<&str>)?;
     let quit = MenuItem::with_id(m, "quit", t("Sair", "Quit"), true, None::<&str>)?;
     if STREAM_BUILD {
-        Menu::with_items(m, &[&streamer, &control, &through, &show_app, &quit])
+        Menu::with_items(m, &[&streamer, &control, &through, &pause_mute, &show_app, &quit])
     } else {
-        Menu::with_items(m, &[&through, &show_app, &quit])
+        Menu::with_items(m, &[&through, &pause_mute, &show_app, &quit])
     }
 }
 
@@ -1616,6 +1687,10 @@ fn main() {
                             let _ = open_streamer_panel(app.clone(), app.state::<PetState>(), "tab".into());
                         } else if event.id() == "through" {
                             let _ = app.emit("click-through", ());
+                        } else if event.id() == "pause_mute" {
+                            let on = !PAUSE_MUTE.load(Ordering::Relaxed);
+                            PAUSE_MUTE.store(on, Ordering::Relaxed);
+                            let _ = app.emit("tray-pause-mute", on);
                         }
                     },
                 );

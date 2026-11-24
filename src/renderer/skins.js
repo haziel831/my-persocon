@@ -483,6 +483,38 @@ export class Skins {
     };
   }
 
+  // One JSON file with every custom skin, including the TV screen rectangles.
+  exportPack() {
+    return {
+      format: 'persocon-skins',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      objects: this.objects || {},
+      objectsUpgrade: this.objectsUpgrade || {},
+      screenRect: {
+        normal: this.objects?.videogame?.region || null,
+        upgrade: this.objectsUpgrade?.videogame?.region || null,
+      },
+    };
+  }
+
+  // Restores a pack through storeBlob, drops the frame cache and refreshes the stage.
+  async importPack(pack) {
+    if (!pack || typeof pack !== 'object' || pack.format !== 'persocon-skins') {
+      throw new Error('formato de pacote inválido');
+    }
+    const objects = pack.objects && typeof pack.objects === 'object' ? pack.objects : {};
+    const objectsUpgrade = pack.objectsUpgrade && typeof pack.objectsUpgrade === 'object' ? pack.objectsUpgrade : {};
+    if (pack.screenRect?.normal) (objects.videogame ||= {}).region = pack.screenRect.normal;
+    if (pack.screenRect?.upgrade) (objectsUpgrade.videogame ||= {}).region = pack.screenRect.upgrade;
+    await window.petAPI.storeBlob('objects', objects);
+    await window.petAPI.storeBlob('objectsUpgrade', objectsUpgrade);
+    this.objects = objects;
+    this.objectsUpgrade = objectsUpgrade;
+    this.bump();
+    this.app.uiChanged?.();
+  }
+
   async load() {
     const api = window.petAPI;
     // Old builds may have left skin maps in localStorage: migrate them once.
