@@ -1,5 +1,5 @@
-// Title screen: synthwave shader (sky, striped sun, scrolling grid) with the logo resolving from big pixels,
-// then the game name and the menu (Continue / New game / Options / Tutorial / Credits / Quit).
+// Title screen: animated GIF city backdrop with the glitch logo resolving from big pixels on a
+// transparent WebGL overlay, then the game name and the menu (Continue / New game / Options / ...).
 import { textFor } from './introtext.js';
 import { Music } from './music.js';
 import { editionLabel, STREAM } from './edition.js';
@@ -19,44 +19,8 @@ uniform sampler2D uLogo;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
-vec3 scene(vec2 uv) {
-  float asp = uRes.x / uRes.y;
-  float hz = 0.34;
-  vec3 col;
-  if (uv.y > hz) {
-    float k = (uv.y - hz) / (1.0 - hz);
-    col = mix(vec3(1.0, 0.32, 0.5), vec3(0.06, 0.0, 0.16), pow(k, 0.55));
-    vec2 g = floor(uv * vec2(140.0 * asp / 1.4, 100.0));
-    float tw = 0.5 + 0.5 * sin(uT * 2.5 + hash(g + 3.1) * 40.0);
-    col += step(0.993, hash(g)) * tw * k * 0.9;
-    vec2 c = vec2(0.5, hz + 0.27);
-    vec2 d = (uv - c) * vec2(asp, 1.0);
-    float r = length(d);
-    float R = 0.25;
-    if (r < R) {
-      float sy = (uv.y - (c.y - R)) / (2.0 * R);
-      vec3 sc = mix(vec3(1.0, 0.18, 0.55), vec3(1.0, 0.86, 0.32), sy);
-      float band = fract(uv.y * 34.0 + uT * 0.5);
-      float cut = step(sy, 0.5) * step(band, mix(0.6, 0.06, sy / 0.5));
-      col = mix(col, sc, 1.0 - cut);
-    }
-    col += vec3(1.0, 0.3, 0.6) * 0.3 * exp(-r * 5.0);
-  } else {
-    float k = (hz - uv.y) / hz;
-    float z = 1.0 / max(k, 0.004);
-    float x = (uv.x - 0.5) * z * asp * 1.6;
-    float zz = z * 0.6 + uT * 0.9;
-    float px = z / uRes.y * 1.6;
-    float lx = abs(fract(x) - 0.5);
-    float lz = abs(fract(zz) - 0.5);
-    float line = max(step(0.5 - px * 1.2, lx), step(0.5 - px * 0.9, lz));
-    vec3 base = mix(vec3(0.07, 0.0, 0.15), vec3(0.12, 0.0, 0.22), k);
-    vec3 neon = mix(vec3(1.0, 0.2, 0.75), vec3(0.25, 0.9, 1.0), clamp(k * 1.3, 0.0, 1.0));
-    col = base + line * neon * (0.35 + 0.75 * k);
-    col += vec3(1.0, 0.25, 0.6) * 0.5 * exp(-k * 14.0);
-  }
-  return col;
-}
+// The backdrop is the animated GIF behind the canvas; this shader draws only the logo and its
+// halo with alpha, so the picture shows through.
 
 vec4 tex(vec2 p) { return texture2D(uLogo, vec2(p.x, 1.0 - p.y)); }
 
@@ -85,7 +49,8 @@ vec3 shade(vec4 t, vec2 lu) {
 
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
-  vec3 col = scene(uv);
+  vec3 acc = vec3(0.0); // premultiplied colour, accumulated over the transparent backdrop
+  float alpha = 0.0;
   float asp = uRes.x / uRes.y;
   vec2 c = vec2(0.5, 0.61);
   float size = 0.5;
@@ -112,16 +77,19 @@ void main() {
     }
     halo = halo / 16.0 * smoothstep(0.15, 0.7, uReveal);
     vec3 glow = mix(vec3(1.0, 0.25, 0.8), vec3(0.3, 0.95, 1.0), lu.y);
-    col = mix(col, glow * 1.15, (1.0 - tg.a) * halo * 0.85);
-    col.r = mix(col.r, shade(tr, lu).r, tr.a);
-    col.g = mix(col.g, shade(tg, lu).g, tg.a);
-    col.b = mix(col.b, shade(tb, lu).b, tb.a);
+    float ga = clamp((1.0 - tg.a) * halo * 0.85, 0.0, 1.0);
+    acc += glow * 1.15 * ga * (1.0 - alpha);
+    alpha += ga * (1.0 - alpha);
+    float la = max(max(tr.a, tg.a), tb.a);
+    vec3 lc = vec3(shade(tr, lu).r, shade(tg, lu).g, shade(tb, lu).b);
+    acc += lc * la * (1.0 - alpha);
+    alpha += la * (1.0 - alpha);
   }
-  col *= 1.0 + 0.07 * smoothstep(0.97, 1.0, sin(uv.y * 2.5 - uT * 1.3));
-  col *= 0.86 + 0.14 * sin(gl_FragCoord.y * 3.14159);
-  vec2 v = uv - 0.5;
-  col *= 1.0 - dot(v, v) * 0.9;
-  gl_FragColor = vec4(col * uFade, 1.0);
+  acc *= 1.0 + 0.07 * smoothstep(0.97, 1.0, sin(uv.y * 2.5 - uT * 1.3));
+  acc *= 0.86 + 0.14 * sin(gl_FragCoord.y * 3.14159);
+  // Straight alpha (context uses premultipliedAlpha:false) so the GIF shows where there is no logo.
+  vec3 col = alpha > 0.0001 ? acc / alpha : vec3(0.0);
+  gl_FragColor = vec4(col, alpha * uFade);
 }`;
 
 // 5x7 pixel font for the game name.
@@ -214,7 +182,7 @@ export class TitleScreen {
     this.onKey = (e) => this.key(e);
     window.addEventListener('keydown', this.onKey);
     await this.initGL();
-    this.music.start(1.0); // cyberpunk drive, louder but still below clipping (master/mute apply)
+    this.music.start(1.0); // nocturnal synthwave, audible but below clipping (master/mute apply)
     // Click / tap anywhere during the logo intro: rush visuals to the menu (music unchanged).
     this.onSkip = (e) => {
       if (this.closing || this.sub || this.t >= 4.7) return;
