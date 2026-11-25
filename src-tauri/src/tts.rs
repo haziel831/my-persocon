@@ -190,8 +190,10 @@ pub fn speak(dir: &Path, text: &str, voice: &str, lang: &str, speed: f32, blend:
 
 // Remote neural voices (Edge / Fish Audio) through a small PowerShell helper,
 // so no extra network crates are needed in the Tauri binary.
+#[cfg(target_os = "windows")]
 const REMOTE_PS: &str = include_str!("tts_remote.ps1");
 
+#[cfg(target_os = "windows")]
 pub fn speak_remote(
     engine: &str,
     text: &str,
@@ -202,9 +204,6 @@ pub fn speak_remote(
     api_key: &str,
     fish_voice: &str,
 ) -> Result<String, String> {
-    #[cfg(not(target_os = "windows"))]
-    return Err("Voz remota (PowerShell) indisponível no Linux alpha.".into());
-    #[cfg(target_os = "windows")]
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     let tmp = std::env::temp_dir();
     let script = tmp.join(format!("persocon-tts-remote-{}.ps1", std::process::id()));
@@ -247,6 +246,20 @@ pub fn speak_remote(
         }
         Err(e) => { cleanup(); Err(e.to_string()) }
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn speak_remote(
+    _engine: &str,
+    _text: &str,
+    _voice: &str,
+    _lang: &str,
+    _speed: f32,
+    _pitch_hz: f32,
+    _api_key: &str,
+    _fish_voice: &str,
+) -> Result<String, String> {
+    Err("Voz remota (PowerShell) indisponível no Linux alpha.".into())
 }
 
 pub fn quota() -> Value {
