@@ -36,12 +36,16 @@ const cargo = spawnSync('cargo', ['check', '--message-format', 'short'], { cwd: 
 if (cargo.error?.code === 'ENOENT') {
   console.warn('! cargo não encontrado no PATH — etapa Rust ignorada.');
 } else if (cargo.status !== 0) {
-  const errors = String(cargo.stderr || '')
-    .split(/\r?\n/)
-    .filter((l) => l.includes('error') || l.trim().startsWith('-->'))
-    .slice(0, 6)
-    .join(' | ');
-  problems.push(`cargo check (src-tauri): ${errors || firstLines(cargo.stderr)}`);
+  const raw = String(cargo.stderr || '').replace(/\r/g, '');
+  // Progress lines ("Downloaded ...", "Compiling ...") bury the compiler error. Print the
+  // FULL log to the console (GitHub Actions keeps it), then summarise from the first error.
+  console.error('\n--- cargo check: log completo ---\n' + raw + '\n--- fim do log ---\n');
+  const lines = raw.split('\n').filter((l) => l.trim());
+  const progress = /^(Downloading|Downloaded|Compiling|Checking|Finished|Updating|Locking|Adding|Blocking|warning:|note:|help:)/i;
+  const meaningful = lines.filter((l) => !progress.test(l.trim()));
+  const found = meaningful.findIndex((l) => /error(\[|:)|^-->/i.test(l.trim()));
+  const detail = (found >= 0 ? meaningful.slice(found) : meaningful.slice(-80)).slice(-120).join('\n');
+  problems.push(`cargo check (src-tauri):\n${detail || firstLines(raw, 20)}`);
 }
 
 // 3) Resumo.

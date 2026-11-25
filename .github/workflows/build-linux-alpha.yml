@@ -45,6 +45,10 @@ jobs:
       - run: npm ci
 
       - name: Syntax + cargo check
+        env:
+          CARGO_TERM_COLOR: never
+          RUST_BACKTRACE: 1
+        # npm run check prints the full cargo stderr on failure; no piping/truncation here.
         run: npm run check
 
       - name: Build AppImage + deb

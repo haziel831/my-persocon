@@ -1638,7 +1638,8 @@ fn start_world_polling(app: AppHandle) {
             // Discord and other topmost apps steal the z-order; re-assert often — but never fight
             // a fullscreen game for it.
             if ON_TOP.load(Ordering::Relaxed) && tick % 15 == 0 && !fullscreen {
-                let _ = win.set_always_on_top(true);
+                let _ = win.set_always_on_top(true); // Tauri API works on both platforms
+                #[cfg(target_os = "windows")]
                 if let Ok(h) = win.hwnd() {
                     win32::keep_topmost(h.0 as _);
                 }
