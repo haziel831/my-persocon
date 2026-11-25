@@ -138,7 +138,11 @@ const itemIcon = (item) => {
     return h('span.item-icon', {}, h(item.art32 ? 'img.consumable-img big' : 'img.consumable-img', { src: item.img, draggable: false }));
   }
   const src = globalThis.petSkins?.art(item.id, item.img) || item.img;
-  return h('span.item-icon', {}, src ? h('img', { src, draggable: false }) : item.icon);
+  return h('span.item-icon', {}, src ? h('img', {
+    src, draggable: false,
+    // Never show a broken-image glyph if an asset is missing: fall back to a neutral tile.
+    onerror: (e) => { const i = e.target; i.replaceWith(document.createTextNode('□')); },
+  }) : item.icon);
 };
 
 // Item art can be a data: URL (generated icons) or an app URL; never render that as text.

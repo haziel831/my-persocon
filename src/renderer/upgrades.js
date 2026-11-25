@@ -2,6 +2,13 @@
 // The upgraded pictures keep the layout and main colors of the originals (screen, print bed, keys,
 // water area), so everything placed over them still lines up. An imported look stays on top.
 import { icon, defineIcons } from './pixel.js';
+// Single source of truth for the counter PNGs (no cycle: furniture.js imports this module).
+export const BALCAO_ART = {
+  madeira: new URL('./assets/furniture/balcao_base_1_madeira.png', import.meta.url).href,
+  cafeteria: new URL('./assets/furniture/balcao_base_2_cafeteria.png', import.meta.url).href,
+  madeiraUp: new URL('./assets/furniture/balcao_upgrade_1_synthwave.png', import.meta.url).href,
+  cafeteriaUp: new URL('./assets/furniture/balcao_upgrade_2_synthwave_cyber.png', import.meta.url).href,
+};
 
 // price: fixed (the printer came for free); otherwise 150% of the shop price.
 // size: the piece grows by this much when upgraded (it keeps its own scale and place).
@@ -14,8 +21,8 @@ export const UPGRADES = {
   videogame: { name: 'VideoGame Neon (TV + console)', note: 'Visual neon, TV maior e jogos com gráficos melhores', pix: 'tvset_up', size: 1.3 },
   cama: { name: 'Cama Moderna', note: 'Recupera energia 1,5x mais rápido, sem perder fome nem sede', pix: 'bed_up' },
   escrivaninha: { name: 'Escrivaninha Estúdio Neon', note: 'Treina Inteligência 1,5x mais rápido e recupera Energia enquanto ela estuda ou faz pausas', pix: 'escrivaninha_up', size: 1.1, ratio: 38 / 52 },
-  cafeteira: { name: 'Estação Energy Neon', note: 'Máquina maior, cardápio exclusivo de Energy Drinks fictícios e power-ups fortes, todos pela carteira dela', imgAsset: './assets/cafe/espresso_upgrade_1_synthwave.png', size: 1.08, ratio: 1 / 0.94 },
-  espresso_barista: { name: 'Espresso Barista Cyber', note: 'Visual synthwave cyber, mesma medida compacta e mesmos cafés exclusivos da máquina', imgAsset: './assets/cafe/espresso_upgrade_2_synthwave_cyber.png', size: 1.08, ratio: 1 / 0.94 },
+  cafeteira: { name: 'Estação Energy Neon', note: 'Máquina maior, cardápio exclusivo de Energy Drinks fictícios e power-ups fortes, todos pela carteira dela', imgAsset: './assets/furniture/espresso_upgrade_1_synthwave.png', size: 1.08, ratio: 1 / 0.94 },
+  espresso_barista: { name: 'Espresso Barista Cyber', note: 'Visual synthwave cyber, mesma medida compacta e mesmos cafés exclusivos da máquina', imgAsset: './assets/furniture/espresso_upgrade_2_synthwave_cyber.png', size: 1.08, ratio: 1 / 0.94 },
   camera: { name: 'Câmera Instantânea Pro', note: 'Amplia o Álbum de 20 para 50 fotos e dá um visual cromo/neon', pix: 'camera_up' },
   almofada: { name: 'Almofada de Veludo', note: 'Mais confortável: descanso e humor melhores', pix: 'almofada_up' },
   banheira: { name: 'Cabine de Limpeza Laser', note: 'Cabine synthwave ampliada (2×): limpa mais rápido, dá um pouco de energia e esconde a Persocon atrás da cortina roxa', pix: 'tub_up', size: 2, ratio: 48 / 28 },
@@ -28,11 +35,11 @@ export const UPGRADES = {
   boneco_treino: { price: 1200, name: 'Boneco Sucataoxidado', note: 'Robusto: chapas de metal enferrujado, engrenagens e juntas mecânicas · libera o Treino Pesado (luta de verdade)', pix: 'dummy_scrap' },
   balcao_madeira: {
     name: 'Balcão Synthwave', note: 'Visual neon synthwave com a mesma medida e o mesmo tampo de apoio',
-    imgAsset: './assets/furniture/balcao_upgrade_1_synthwave.png',
+    imgAsset: BALCAO_ART.madeiraUp,
   },
   balcao_cafeteria: {
     name: 'Balcão Cyber', note: 'Visual synthwave cyber com a mesma medida e o mesmo tampo de apoio',
-    imgAsset: './assets/furniture/balcao_upgrade_2_synthwave_cyber.png',
+    imgAsset: BALCAO_ART.cafeteriaUp,
   },
   claw: {
     price: 1000, name: 'Máquina de Garra Synthwave',

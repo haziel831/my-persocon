@@ -41,6 +41,7 @@ window.petAPI = {
     .catch((e) => { throw new Error(String(e?.message || e || 'erro de IA')); }),
   onPttStart: (cb) => listen('ptt-start', () => cb()),
   onPttStop: (cb) => listen('ptt-stop', () => cb()),
+  transcribeAudio: (audioB64, mime, lang) => invoke('transcribe_audio', { audioB64, mime, lang }),
   ttsVoices: (dir) => invoke('tts_voices', { dir }),
   ttsSpeak: (dir, text, voice, lang, speed, blend) => invoke('tts_speak', { dir, text, voice, lang, speed, blend }),
   ttsQuota: () => invoke('tts_quota'),

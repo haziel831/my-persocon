@@ -19,8 +19,8 @@ const KINDS = {
 // Coffee drinks are no longer sold in the Shop: only these machines prepare them.
 const ESPRESSO_IDS = new Set(['cafeteira', 'espresso_barista']);
 const ESPRESSO_ART = {
-  cafeteira: ['./assets/cafe/espresso_base_1_bege.png', './assets/cafe/espresso_upgrade_1_synthwave.png'],
-  espresso_barista: ['./assets/cafe/espresso_base_2_madeira.png', './assets/cafe/espresso_upgrade_2_synthwave_cyber.png'],
+  cafeteira: ['./assets/furniture/espresso_base_1_bege.png', './assets/furniture/espresso_upgrade_1_synthwave.png'],
+  espresso_barista: ['./assets/furniture/espresso_base_2_madeira.png', './assets/furniture/espresso_upgrade_2_synthwave_cyber.png'],
 };
 const STAT = { comidas: 'hunger', bebidas: 'thirst' };
 

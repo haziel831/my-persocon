@@ -1046,6 +1046,8 @@ const EN = {
   'Ligar/desligar TTS': 'Turn TTS on/off', 'Ligar/desligar IA': 'Turn AI on/off',
   'Ligar/desligar Push-to-Talk': 'Turn Push-to-Talk on/off',
   'Gerar bug report': 'Generate bug report', 'Bug': 'Bug', 'Relatório salvo em': 'Report saved to',
+  'Configure uma chave gratuita da Groq em IAs para usar Push-to-Talk por voz.': 'Configure a free Groq key in AI to use voice Push-to-Talk.',
+  'Falha no Push-to-Talk': 'Push-to-Talk failed',
   // Prateleira de Pelúcias / Plushie Shelf
   'Prateleira de Pelúcias': 'Plushie Shelf',
   'Exibe até 15 pelúcias ganhas na Máquina de Garra · clique para ver a coleção · upgrade Synthwave neon': 'Displays up to 15 plushies won from the Claw Machine · click to see the collection · Synthwave neon upgrade',

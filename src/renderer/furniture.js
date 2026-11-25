@@ -2,7 +2,7 @@
 // and what the pet does with each one. Toys delegates placement/drag to this through play().
 import { icon, defineIcons, refreshIcon, cartridge, CART_SHEET_CELLS } from './pixel.js';
 import { GACHA_PRICE, figureById, paintFigure } from './casinoitems.js';
-import { upIcon, upSize, ARCADE_SCREEN } from './upgrades.js';
+import { upIcon, upSize, ARCADE_SCREEN, BALCAO_ART } from './upgrades.js';
 import { ArcadeShooter } from './arcadeshooter.js';
 import { crtFilter, GAMES } from './games.js';
 import { ATTR_XP, MANGA_RARITY_XP } from './attrxp.js';
@@ -332,11 +332,11 @@ export const FURN_ITEMS = [
     note: 'Mostra as últimas fotos do álbum da câmera e um post-it curto que você pode editar',
   }),
   item('cafeteira', 'mobilia', 'Cafeteira / Estação de Chá', 300, 'cafeteira', {
-    furn: true, noWear: true, gain: { mood: 0.08, energy: 0.03 }, imgAsset: './assets/cafe/espresso_base_1_bege.png',
+    furn: true, noWear: true, gain: { mood: 0.08, energy: 0.03 }, imgAsset: './assets/furniture/espresso_base_1_bege.png',
     note: 'Máquina de espresso clássica: chá e café pela carteira dela · nunca dá reação ruim · cabe no balcão ou na escrivaninha · com upgrade vira a Estação Energy Neon',
   }),
   item('espresso_barista', 'mobilia', 'Máquina de Espresso Barista', 280, 'espresso_base_2_madeira', {
-    furn: true, noWear: true, gain: { mood: 0.1, energy: 0.04 }, imgAsset: './assets/cafe/espresso_base_2_madeira.png',
+    furn: true, noWear: true, gain: { mood: 0.1, energy: 0.04 }, imgAsset: './assets/furniture/espresso_base_2_madeira.png',
     note: 'Máquina de espresso barista com cafés exclusivos · apoie no balcão, na escrivaninha ou no chão · upgrade Synthwave Cyber',
   }),
   item('vitrine_doces', 'mobilia', 'Máquina de Espresso', 260, 'cafe_espresso', {
@@ -352,11 +352,11 @@ export const FURN_ITEMS = [
     note: 'Estuda e lê com a luz do abajur · treina Inteligência em sessões de foco · o abajur acende sozinho à noite',
   }),
   item('balcao_madeira', 'superficies', 'Balcão de Madeira', 340, 'balcao_base_1_madeira', {
-    furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/balcao_base_1_madeira.png',
+    furn: true, decor: true, noWear: true, imgAsset: BALCAO_ART.madeira,
     note: 'Balcão largo com tampo plano: apoie cafeteira, portáteis, pelúcia, mochila ou a TV em cima · várias coisas lado a lado · upgrade Synthwave',
   }),
   item('balcao_cafeteria', 'superficies', 'Balcão de Cafeteria', 380, 'balcao_base_2_cafeteria', {
-    furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/balcao_base_2_cafeteria.png',
+    furn: true, decor: true, noWear: true, imgAsset: BALCAO_ART.cafeteria,
     note: 'Balcão de café com tampo plano: apoie a máquina de espresso, a cafeteira, portáteis ou a mochila · várias coisas lado a lado · upgrade Synthwave Cyber',
   }),
   item('prateleira_pelucias', 'superficies', 'Prateleira de Pelúcias', 300, 'prateleira_pelucias_base', {
@@ -670,6 +670,9 @@ export class Furniture {
     if (id === 'cafeteira') return this.app.casino?.vend?.art?.(id) || icon('cafeteira');
     if (id === 'estante' || id === 'estante_cartuchos') return this.shelfImage(key);
     if (baseId(id) === 'prateleira_pelucias') return this.plushShelfImage(key);
+    // Counters: always the real PNG (custom skins were handled above).
+    if (baseId(id) === 'balcao_madeira') return up ? BALCAO_ART.madeiraUp : BALCAO_ART.madeira;
+    if (baseId(id) === 'balcao_cafeteria') return up ? BALCAO_ART.cafeteriaUp : BALCAO_ART.cafeteria;
     if (this.toys.casino?.owns(id)) return this.toys.casino.art(id);
     return upIcon(id, this.app.game.toys[key]) || (this.toys.fun?.owns(id) ? this.toys.fun.art(id) : null);
   }

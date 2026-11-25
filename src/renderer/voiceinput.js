@@ -1,6 +1,7 @@
 // Global Push-to-Talk voice input: transcribes speech and asks the Persocon AI.
 import { personaLine } from './persona.js';
 import { actionPrompt, parseAction, runAction } from './voicecommands.js';
+import { translate } from './i18n.js';
 
 export class VoiceInput {
   constructor(app) {
@@ -11,6 +12,11 @@ export class VoiceInput {
     this.priority = false;       // USER_PRIORITY flag (absolute focus on the creator)
     this.pausedByPtt = false;
     this.releaseTimer = null;
+    this.recorder = null;        // MediaRecorder (real audio for Groq Whisper)
+    this.chunks = [];
+    this.stream = null;
+    this.mime = 'audio/webm';
+    this.mode = null;            // 'groq' | 'browser' | null
     this.indicator = document.createElement('div');
     this.indicator.className = 'ptt-indicator';
     this.dot = document.createElement('span');
@@ -24,8 +30,9 @@ export class VoiceInput {
     document.body.append(this.indicator);
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     this.supported = !!SR;
-    window.petAPI?.onPttStart?.(() => this.start());
-    window.petAPI?.onPttStop?.(() => this.stop());
+    // Diagnostics: make it obvious in the log if the global key event never reaches the webview.
+    window.petAPI?.onPttStart?.(() => { app.log?.('ptt', 'evento ptt-start recebido'); this.start(); });
+    window.petAPI?.onPttStop?.(() => { app.log?.('ptt', 'evento ptt-stop recebido'); this.stop(); });
     // There is no host-side "audio ended" event: the TTS line-end callback drives the resume.
     if (this.app.tts) {
       this.app.tts.onOwnerLineEnd = (job) => {
@@ -120,10 +127,22 @@ export class VoiceInput {
     this.text = '';
     try { this.rec?.stop(); } catch {}
     this.rec = null;
+    if (this.recorder && this.recorder.state !== 'inactive') { try { this.recorder.stop(); } catch {} }
+    this.recorder = null;
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
     this.indicator.style.display = 'none';
     this.partial.textContent = '';
     this.releasePriority();
     this.app.log?.('ptt', 'Push-to-Talk desligado');
+  }
+
+  // The Groq key is read from the saved config when used — never stored in source or logs.
+  hasGroqKey() {
+    return (Array.isArray(this.app.config?.aiProviders) ? this.app.config.aiProviders : []).some((p) => {
+      const brand = `${p?.provider || ''} ${p?.name || ''} ${p?.endpoint || ''}`.toLowerCase();
+      return brand.includes('groq') && !!(p?.apiKey || '').trim();
+    });
   }
 
   start() {
@@ -134,17 +153,68 @@ export class VoiceInput {
     this.enterPriority();
     this.beep();
     this.indicator.style.display = 'block';
+    this.app.log?.('ptt', `tecla pressionada · captura ${this.hasGroqKey() ? 'Groq Whisper' : 'navegador'}`);
+    if (this.hasGroqKey() && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
+      this.startRecording();
+    } else {
+      this.startSpeechRecognition();
+    }
+  }
+
+  // WebView2 has no working SpeechRecognition: record real audio and let Rust call Groq Whisper.
+  async startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!this.active) { stream.getTracks().forEach((t) => t.stop()); return; }
+      this.stream = stream;
+      const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+        .find((t) => window.MediaRecorder.isTypeSupported(t)) || 'audio/webm';
+      this.mime = mime;
+      this.mode = 'groq';
+      this.chunks = [];
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      rec.ondataavailable = (e) => { if (e.data?.size) this.chunks.push(e.data); };
+      rec.onerror = (e) => this.fail(`Falha na gravação: ${e?.error || 'erro'}`);
+      rec.onstop = () => {
+        this.stream?.getTracks().forEach((t) => t.stop());
+        this.stream = null;
+        if (this.active) this.processRecording();
+      };
+      rec.start();
+      this.recorder = rec;
+    } catch (e) {
+      this.fail(`Microfone negado ou indisponível: ${e?.message || e}`, true);
+    }
+  }
+
+  async processRecording() {
+    try {
+      const blob = new Blob(this.chunks, { type: this.mime });
+      this.chunks = [];
+      if (!blob.size) { this.fail('Nenhum áudio capturado'); return; }
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      const text = await window.petAPI.transcribeAudio(btoa(bin), this.mime, this.app.config.lang || 'pt');
+      this.text = String(text || '').trim();
+      this.app.log?.('ptt', `transcrição: ${this.text.slice(0, 120)}`);
+      this.say(this.text);
+      this.finish();
+    } catch (e) {
+      this.fail(`Falha na transcrição (Groq Whisper): ${e?.message || e}`, false);
+    }
+  }
+
+  // Fallback: browser SpeechRecognition (works in some Chromium builds, rarely in WebView2).
+  startSpeechRecognition() {
     if (!this.supported) {
-      this.app.log?.('ptt', 'SpeechRecognition indisponível neste navegador/webview');
-      this.app.speech?.say(this.app.config.lang === 'en'
-        ? 'Voice recognition is not available here.'
-        : 'Reconhecimento de voz não disponível aqui.', 3);
-      this.scheduleRelease(2000);
+      this.fail(translate('Configure uma chave gratuita da Groq em IAs para usar Push-to-Talk por voz.'), false);
       return;
     }
     try {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new SR();
+      this.mode = 'browser';
       // Recognition language follows the game language; the command matcher ignores accents,
       // so commands spoken in the other language are still understood.
       rec.lang = this.app.config?.lang === 'en' ? 'en-US' : 'pt-BR';
@@ -164,7 +234,6 @@ export class VoiceInput {
         const why = String(e?.error || 'erro desconhecido');
         this.text = '';
         this.app.log?.('ptt', `Falha no reconhecimento: ${why}`);
-        // Never fail silently: a short, discreet notice works in both editions.
         if (why !== 'no-speech' && why !== 'aborted') {
           this.app.speech?.say(this.app.config.lang === 'en'
             ? 'Microphone or voice recognition failed.'
@@ -180,14 +249,43 @@ export class VoiceInput {
     }
   }
 
+  // Visible failure: log + discreet balloon, no silent drop.
+  fail(msg, tryFallback = false) {
+    this.app.log?.('ptt', msg);
+    this.active = false;
+    this.recorder = null;
+    this.indicator.style.display = 'none';
+    this.partial.textContent = '';
+    this.app.speech?.say(`${translate('Falha no Push-to-Talk')}: ${msg.slice(0, 120)}`, 4, { noAutoTts: true });
+    if (tryFallback && this.supported) {
+      this.active = true;
+      this.indicator.style.display = 'block';
+      this.enterPriority();
+      this.startSpeechRecognition();
+      return;
+    }
+    this.scheduleRelease(1200);
+  }
+
   stop() {
     if (!this.active) return;
+    this.beep(560, 35, 0.014);
+    if (this.recorder && this.recorder.state !== 'inactive') {
+      try { this.recorder.stop(); } catch (e) { this.fail(`Não foi possível parar a gravação: ${e?.message || e}`); }
+      return; // onstop -> processRecording -> finish
+    }
     this.active = false;
     this.indicator.style.display = 'none';
     this.partial.textContent = '';
     try { this.rec?.stop(); } catch {}
     this.rec = null;
-    this.beep(560, 35, 0.014);
+    this.finish();
+  }
+
+  finish() {
+    this.active = false;
+    this.indicator.style.display = 'none';
+    this.partial.textContent = '';
     const said = String(this.text || '').trim().slice(0, 240);
     if (!said) { this.scheduleRelease(1200); return; }
     // Some browsers only deliver the final transcript on stop: show it then.

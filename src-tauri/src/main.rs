@@ -1080,6 +1080,69 @@ async fn ai_reply(prompt: String, system_prompt: String, config: Value) -> Resul
     }).await.unwrap_or_else(|e| Err(e.to_string()))
 }
 
+// Real PTT transcription for WebView2: record in the renderer, upload the audio to Groq
+// Whisper here (curl.exe with the same flags as the AI chat). The key is read from the saved
+// aiProviders config and never leaves the host or gets logged in clear text.
+#[tauri::command]
+async fn transcribe_audio(state: State<'_, PetState>, audio_b64: String, mime: String, lang: String) -> Result<String, String> {
+    let data = state.data.clone(); // owned path: the blocking thread needs 'static data
+    tauri::async_runtime::spawn_blocking(move || {
+        let cfg: Value = fs::read(data.join("config.json")).ok()
+            .and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_else(|| json!({}));
+        let mut key = String::new();
+        if let Some(list) = cfg.get("aiProviders").and_then(Value::as_array) {
+            for p in list {
+                let brand = format!("{} {} {}",
+                    p.get("provider").and_then(Value::as_str).unwrap_or(""),
+                    p.get("name").and_then(Value::as_str).unwrap_or(""),
+                    p.get("endpoint").and_then(Value::as_str).unwrap_or("")).to_ascii_lowercase();
+                if brand.contains("groq") {
+                    key = p.get("apiKey").and_then(Value::as_str).unwrap_or("").trim().to_string();
+                    if !key.is_empty() { break; }
+                }
+            }
+        }
+        if key.is_empty() { return Err("SEM_CHAVE_GROQ".to_string()); }
+        let bytes = STANDARD.decode(audio_b64.trim()).map_err(|e| format!("áudio inválido: {e}"))?;
+        if bytes.is_empty() { return Err("áudio vazio".to_string()); }
+        let ext = if mime.contains("mp4") { "mp4" } else if mime.contains("ogg") { "ogg" }
+            else if mime.contains("wav") { "wav" } else { "webm" };
+        let dir = std::env::temp_dir();
+        let file = dir.join(format!("persocon-ptt-{}-{}.{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default().as_nanos() % 1_000_000, ext));
+        fs::write(&file, &bytes).map_err(|e| e.to_string())?;
+        let language = if lang.starts_with("en") { "en" } else { "pt" };
+        let mut cmd = std::process::Command::new("curl.exe");
+        cmd.arg("-4").arg("--ssl-no-revoke").arg("-sS")
+            .arg("--connect-timeout").arg("8").arg("--max-time").arg("30")
+            .arg("-X").arg("POST")
+            .arg("-H").arg(format!("Authorization: Bearer {key}"))
+            .arg("-F").arg(format!("file=@{};type={}", file.to_string_lossy(), mime))
+            .arg("-F").arg("model=whisper-large-v3-turbo")
+            .arg("-F").arg(format!("language={language}"))
+            .arg("-w").arg("\n%{http_code}")
+            .arg("https://api.groq.com/openai/v1/audio/transcriptions")
+            .creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        let out = cmd.output();
+        let _ = fs::remove_file(&file);
+        let out = out.map_err(|e| format!("erro ao executar curl (rede/TLS): {e}"))?;
+        let raw = String::from_utf8_lossy(&out.stdout);
+        let (body, status) = match raw.rfind('\n') {
+            Some(i) => (raw[..i].trim(), raw[i + 1..].trim()),
+            None => (raw.trim(), "?"),
+        };
+        if status != "200" {
+            let err = String::from_utf8_lossy(&out.stderr);
+            return Err(format!("Groq Whisper falhou ({status}): {}", err.trim().replace(&key, "***")));
+        }
+        let v: Value = serde_json::from_str(body).map_err(|e| format!("resposta inválida: {e}"))?;
+        let text = v.get("text").and_then(Value::as_str).unwrap_or("").trim().to_string();
+        if text.is_empty() { return Err("transcrição vazia".to_string()); }
+        Ok(text)
+    }).await.unwrap_or_else(|e| Err(e.to_string()))
+}
+
 #[tauri::command]
 fn tts_quota() -> Result<Value, String> { Ok(tts::quota()) }
 
@@ -1632,6 +1695,7 @@ fn main() {
             streamer_rpc,
             streamer_take_rpc,
             ai_reply,
+            transcribe_audio,
             list_open_windows,
             open_streamer_panel,
             streamer_push_state,
