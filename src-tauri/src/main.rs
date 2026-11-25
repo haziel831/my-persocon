@@ -791,10 +791,10 @@ fn collect_secrets(value: &Value, out: &mut Vec<String>) {
 
 // Zip for bug reports: what the renderer knows (version, screen, recent log), config, logs and the save.
 #[tauri::command]
-async fn make_report(app: AppHandle, state: State<'_, PetState>, info: String) -> Result<bool, String> {
+async fn make_report(app: AppHandle, state: State<'_, PetState>, info: String) -> Result<String, String> {
     use std::io::Write;
     let Some(path) = app.dialog().file().set_file_name("my-persocon-report.zip").add_filter("Zip", &["zip"]).blocking_save_file() else {
-        return Ok(false);
+        return Ok(String::new());
     };
     let dest = path.into_path().map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(fs::File::create(&dest).map_err(|e| e.to_string())?);
@@ -840,7 +840,7 @@ async fn make_report(app: AppHandle, state: State<'_, PetState>, info: String) -
         }
     }
     zip.finish().map_err(|e| e.to_string())?;
-    Ok(true)
+    Ok(dest.to_string_lossy().into_owned())
 }
 
 // Erases the save (kept as a backup) so the next start is a brand new game.

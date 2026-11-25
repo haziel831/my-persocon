@@ -243,12 +243,19 @@ export class Minigames {
       if (best) rec.best = score;
       // No affection from minigames; the same game played over and over gets boring (less Humor).
       pet.adjust({ mood: opts.win ? 10 : 5, energy: -6 }, `mini:${a.id}`);
-      const bonus = opts.win ? this.bonus(a.id, score, played) : null;
+      // `opts.win` is from HER perspective (drives her reaction). Rewards belong to the PLAYER.
+      const playerWon = !opts.win;
+      const bonus = playerWon ? this.bonus(a.id, score, played) : null;
+      const coins = playerWon && opts.coinRate > 0 ? Math.max(1, Math.round(score * opts.coinRate)) : 0;
+      if (coins) {
+        game.earn(coins, `Minigame · ${byId(a.id).name}`);
+        this.app.gains?.show(`+¥ ${coins}`, 'gain', byId(a.id).name, '🎮');
+      }
       sound.play(opts.win ? 'ok' : 'cancel', { volume: 0.6 });
-      this.toast(`${opts.text || (opts.win ? 'Vitória!' : 'Fim de jogo')} · ${score} pts${best ? ' · recorde!' : ''}${bonus?.text ? ` · ${bonus.text}` : ''}`);
+      this.toast(`${opts.text || (playerWon ? 'Vitória!' : 'Fim de jogo')} · ${score} pts${best ? ' · recorde!' : ''}${coins ? ` · +¥ ${coins}` : ''}${bonus?.text ? ` · ${bonus.text}` : ''}`);
       if (levelUp) setTimeout(() => this.toast(`⬆️ Nível ${mgLevel(rec)} em ${byId(a.id).name}: ela joga melhor agora!`), 1600);
       game.changed();
-      pet.emit('miniEnd', { id: a.id, win: !!opts.win, score, best, levelUp, bonus: !!bonus?.got });
+      pet.emit('miniEnd', { id: a.id, win: playerWon, sheWon: !!opts.win, score, best, levelUp, bonus: !!bonus?.got, coins });
     }
     if (pet.mode === 'ground' && !pet.dead) {
       if (opts.quit) pet.chooseNext();
@@ -1593,8 +1600,13 @@ export class Minigames {
         this.app.sound.play(r === 1 ? 'ok' : r === 2 ? 'cancel' : 'blip', { volume: 0.5 });
         refresh();
         this.app.game.changed();
-        // `win` must be from the Persocon's perspective (she reached 3 first).
-        if (s.you >= 3 || s.her >= 3) return this.later(1.4, () => this.finish(s.her * 3, { win: s.her >= 3, coinRate: 1, text: `Você ${s.you} × ${s.her} Persocon` }));
+        // `win` is from the Persocon's perspective (she reached 3 first); the score must
+        // belong to whoever actually won, otherwise the player's prize would be 0.
+        if (s.you >= 3 || s.her >= 3) {
+          const sheWon = s.her >= 3;
+          return this.later(1.4, () => this.finish((sheWon ? s.her : s.you) * 3,
+            { win: sheWon, coinRate: 1, text: `Você ${s.you} × ${s.her} Persocon` }));
+        }
         s.busy = false;
       });
     };

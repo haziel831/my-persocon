@@ -246,15 +246,16 @@ export class Doll {
       wake.onclick = () => { this.setAwake(!awake); this.menu(x, y); };
     }
     if (!awake) {
-      // Still sleeping: only identity/customisation options (plus Wake when the crystal exists).
-      const rename0 = add('button', '', translate('✏️ Renomear'));
-      rename0.onclick = () => renameDialog(app.game.profile.dollName, (v) => {
-        app.game.profile.dollName = String(v || '').slice(0, 24);
-        app.game.changed();
-      }, translate('Nome do Doll'));
-      const skin0 = add('button', '', translate('🧱 Mudar skin'));
+      // Sleeping: keep the secret. A plain toy menu only — no skills, training, sessions or rename.
+      // (The Wake button above already requires the Cristal Mágico.)
+      const play = add('button', '', translate('🧸 Brincar'));
+      play.onclick = () => {
+        app.toys.closeMenu?.();
+        if (!this.brain.startDuo('abraco', true)) app.sound?.play('cancel', { volume: 0.4 });
+      };
+      const skin0 = add('button', '', translate('🧸 Trocar skin'));
       skin0.onclick = () => this.importBlockSkin();
-      const restore0 = add('button', '', translate('🔁 Restaurar padrão'));
+      const restore0 = add('button', '', translate('🔁 Restaurar skin'));
       restore0.onclick = () => { this.setSkin(null); app.game.dollModel = null; app.game.changed(); };
       app.toys.openMenu(el, x, y);
       return;
@@ -321,9 +322,9 @@ export class Doll {
       app.game.profile.dollName = String(v || '').slice(0, 24);
       app.game.changed();
     }, translate('Nome do Doll'));
-    const skin = add('button', '', translate('🧱 Skin de blocos (.png)'));
+    const skin = add('button', '', translate('🧸 Trocar skin'));
     skin.onclick = () => this.importBlockSkin();
-    const restore = add('button', '', translate('🔁 Restaurar padrão'));
+    const restore = add('button', '', translate('🔁 Restaurar skin'));
     restore.onclick = () => { this.setSkin(null); app.game.dollModel = null; app.game.changed(); };
     app.toys.openMenu(el, x, y);
   }

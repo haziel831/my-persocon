@@ -738,6 +738,7 @@ const EN = {
   '🌈 Multicor': '🌈 Multicolor', 'Cor': 'Color', '⏹ Parar música': '⏹ Stop music', '🎵 Tocar música do resourcepack': '🎵 Play resourcepack music',
   'Skin do Doll': 'Doll skin', '🔁 Skin padrão': '🔁 Default skin', '✨ Acordar o Doll': '✨ Wake up the Doll',
   '🧱 Mudar skin': '🧱 Change look',
+  '🧸 Brincar': '🧸 Play', '🧸 Trocar skin': '🧸 Change skin', '🔁 Restaurar skin': '🔁 Restore skin',
   'Item': 'Item', 'Salvo': 'Saved',
   '😴 Fazer o Doll dormir (parar de se mexer)': '😴 Make the Doll sleep (stop moving)', '🎯 Jogar (3 minutos)': '🎯 Play (3 minutes)',
   '✏️ Editar esta mobília': '✏️ Edit this furniture', '🎨 Mudar visual / importar…': '🎨 Change look / import…', '📦 Guardar no inventário': '📦 Store in the inventory',
@@ -1036,6 +1037,15 @@ const EN = {
   'Shiba Inu': 'Shiba Inu', 'Panda Vermelho': 'Red Panda', 'Pinguim de Cachecol': 'Scarf Penguin',
   'Corujinha': 'Baby Owl', 'Gato Cyber Synthwave': 'Cyber Synth Cat', 'Dragãozinho Roxo': 'Purple Dragon',
   'Repetida': 'Duplicate', 'Repetida: +Humor': 'Duplicate: +Mood', 'Favorita da Aghata!': 'Aghata’s favourite!',
+  'Treino automático': 'Auto training',
+  'Não treinar': "Don't train",
+  'Superfícies': 'Surfaces',
+  // Menu Coleção / Collection
+  'Coleção': 'Collection', 'Action figures': 'Action figures', 'Livros': 'Books',
+  'Pelúcias': 'Plushies', 'Nenhum livro coletado ainda.': 'No books collected yet.',
+  'Ligar/desligar TTS': 'Turn TTS on/off', 'Ligar/desligar IA': 'Turn AI on/off',
+  'Ligar/desligar Push-to-Talk': 'Turn Push-to-Talk on/off',
+  'Gerar bug report': 'Generate bug report', 'Bug': 'Bug', 'Relatório salvo em': 'Report saved to',
   // Prateleira de Pelúcias / Plushie Shelf
   'Prateleira de Pelúcias': 'Plushie Shelf',
   'Exibe até 15 pelúcias ganhas na Máquina de Garra · clique para ver a coleção · upgrade Synthwave neon': 'Displays up to 15 plushies won from the Claw Machine · click to see the collection · Synthwave neon upgrade',

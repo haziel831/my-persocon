@@ -258,9 +258,9 @@ export class Intro {
       if (!owner || card.classList.contains('signed')) return;
       const { app } = this;
       app.game.profile.owner = owner;
-      if (owner === 'Midnight') {
-        // Easter egg: signing the letter as "Midnight" starts with exactly 25,000 coins.
-        app.game.coins = 25000;
+      if (owner.trim().toLowerCase() === 'midnight') {
+        // Easter egg: signing the letter as "Midnight" (any case) starts with 100,000 coins.
+        app.game.coins = 100000;
         app.game.changed?.();
         app.game.persist?.();
         upgradeJingle(app.sound);

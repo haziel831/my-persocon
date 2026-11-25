@@ -12,7 +12,7 @@ import { FULL_STATS, getAffectionCap } from './behavior.js';
 import { SOUND_THEMES } from './sound.js';
 import { RP_PARTS, readModel, applyChromaKey } from './skins.js';
 import { icon, cartSheetStyle } from './pixel.js';
-import { baseId, FURN } from './furniture.js';
+import { baseId, FURN, MANGAS, mangaIcon } from './furniture.js';
 import { UPGRADES } from './upgrades.js';
 import { luckOf, FIGURES, GACHA_PRICE } from './casinoitems.js';
 import { RARITIES } from './lootitems.js';
@@ -31,6 +31,7 @@ import { attrProgress as attrProg } from './attrxp.js';
 import { DEFAULT_OPTS, PERSONALITY_PRESETS, THEMES, normText, itemFlags, makeCatalogTools, applyCatalogFilter } from './catalog.js';
 import { translate } from './i18n.js';
 import { confirmStreamer } from './streamerconfirm.js';
+import { PLUSHIES } from './plushies.js';
 
 // Compatibilidade: outros módulos ainda importam estes de ui.js.
 export { DEFAULT_OPTS, PERSONALITY_PRESETS, THEMES };
@@ -506,6 +507,7 @@ export class Menu {
       shop,
       search: this.search,
       quick: shop ? this.shopQuick : this.invQuick,
+      quickChips: shop,
       onSearch: (v) => { this.search = v; },
       onQuick: (id) => { if (shop) this.shopQuick = id; else this.invQuick = id; },
       onChange: () => this.filterCatalog(),
@@ -515,7 +517,8 @@ export class Menu {
   filterCatalog() {
     const panel = this.el?.querySelector('.panel');
     if (!panel) return;
-    applyCatalogFilter(panel, this.search, this.category === 'shop' ? this.shopQuick : this.invQuick);
+    // Inventory has no quick chips: always show every section (search still applies).
+    applyCatalogFilter(panel, this.search, this.category === 'shop' ? this.shopQuick : 'todos');
   }
 
   // Bought/used item: its row blinks (or its category, if it is gone from the list).
@@ -815,15 +818,47 @@ export class Menu {
           : h('div.note', {}, 'Nenhuma foto ainda. Compre a Câmera instantânea (Shop → Fun stuffs) e coloque na área de trabalho.')];
     }
     if (tab === 'colecao') {
-      return [tabs,
-        h('div.note', {}, 'Bonecos colecionáveis saem da Gacha-Machine e ficam na Estante (cada estante guarda 65 mangás ou 30 bonecos; compre mais estantes em Mobília). Repetidos viram moedas para você.'),
-        h('div.figs', {}, FIGURES.map((f) => {
-          const own = figs.includes(f.id);
-          const card = h(`div.fig${own ? '.own' : ''}`, { title: `${own ? f.name : '???'} · ${RARITIES[f.rarity].label}` },
-            h('img', { src: f.img, draggable: false }), h('small', {}, own ? f.name : '???'));
-          card.style.setProperty('--rc', RARITIES[f.rarity].color);
-          return card;
-        }))];
+      // Only these four collections for now; each has its own X/Y counter.
+      const ownedPlush = app.game.plushies || {};
+      const counts = {
+        figures: [figs.length, FIGURES.length],
+        mangas: [app.game.mangas.length, MANGAS.length],
+        books: [app.game.books?.length || 0, 0],
+        plushies: [Object.keys(ownedPlush).filter((id) => ownedPlush[id] > 0).length, PLUSHIES.length],
+      };
+      const total = Object.values(counts).reduce((a, [n]) => a + n, 0);
+      const max = Object.values(counts).reduce((a, [, m]) => a + m, 0);
+      tabs.querySelector('[data-seg="colecao"]').textContent = `🧸 ${translate('Coleção')} ${total}/${max}`;
+      const sub = this.collectionTab || 'figures';
+      const subtabs = segmented([
+        ['figures', `${translate('Action figures')} ${counts.figures[0]}/${counts.figures[1]}`],
+        ['mangas', `${translate('Mangás')} ${counts.mangas[0]}/${counts.mangas[1]}`],
+        ['books', `${translate('Livros')} ${counts.books[0]}/${counts.books[1]}`],
+        ['plushies', `${translate('Pelúcias')} ${counts.plushies[0]}/${counts.plushies[1]}`],
+      ], sub, (id) => { this.collectionTab = id; this.render(); });
+      subtabs.classList.add('wrap');
+      const card = (own, img, label, color, hidden = '???') => {
+        const c = h(`div.fig${own ? '.own' : ''}`, { title: `${own ? label : hidden}` },
+          h('img', { src: img, draggable: false, alt: '' }), h('small', {}, own ? label : hidden));
+        if (color) c.style.setProperty('--rc', color);
+        return c;
+      };
+      let body;
+      if (sub === 'figures') {
+        body = h('div.figs', {}, FIGURES.map((f) => card(figs.includes(f.id), f.img, f.name, RARITIES[f.rarity].color)));
+      } else if (sub === 'mangas') {
+        body = h('div.figs', {}, MANGAS.map((m) => card(app.game.mangas.includes(m.id), mangaIcon(m), `${m.title} vol. ${m.vol}`, RARITIES[m.rarity]?.color || '#9ff6ff')));
+      } else if (sub === 'books') {
+        body = h('div.note', {}, translate('Nenhum livro coletado ainda.'));
+      } else {
+        body = h('div.figs', {}, PLUSHIES.map((p) => {
+          const n = ownedPlush[p.id] || 0;
+          const c = card(n > 0, p.img, `${translate(p.name)}${n > 1 ? ` ×${n}` : ''}`, '#5ef0ff', '?');
+          c.classList.add('plush');
+          return c;
+        }));
+      }
+      return [tabs, subtabs, body];
     }
     if (!r || tab === 'perfil') return [tabs, ...this.perfilMain()];
     const bar = (n, goal, ok) => h('div.track', {}, h(`div.fill${ok ? '.ok' : ''}`, { style: { width: `${Math.min(100, (n / goal) * 100)}%` } }));
@@ -844,14 +879,14 @@ export class Menu {
         h('div.row.center', {}, h('button', {
           disabled: !canReset,
           title: canReset
-            ? 'Sorteia de novo só as missões que você ainda não concluiu (1 vez por dia)'
+            ? translate('Sorteia de novo só as missões que você ainda não concluiu (1 vez por dia)')
             : translate('Você já resetou as missões hoje'),
           onclick: () => {
             if (!r.resetDaily?.()) return this.app.sound.play('cancel', { volume: 0.4 });
             this.app.sound.play('ok', { volume: 0.5 });
             this.render();
           },
-        }, canReset ? '🎲 Resetar Missões (1/dia)' : '✓ Missões já resetadas hoje')),
+        }, canReset ? `🎲 ${translate('Resetar Missões (1/dia)')}` : `✓ ${translate('Missões já resetadas hoje')}`)),
       ].filter(Boolean);
     }
     return [tabs, h('div.achs', {}, r.achievements().map((a) => h(`div.ach${a.done ? '.done' : ''}`, { title: a.done ? `Conquistada em ${new Date(a.at).toLocaleDateString()}` : '' },
@@ -1075,7 +1110,7 @@ export class Menu {
     const cats = SHOP_CATEGORIES.filter(([id]) =>
       (id !== 'cartuchos' || hasConsole) && (id !== 'mangas' || game.hasShelf()));
     if (!cats.some(([id]) => id === this.shopCat)) this.shopCat = 'fun';
-    const tabs = segmented(cats.map(([id, icon, label]) => [id, `${icon} ${label}`]), this.shopCat, (id) => {
+    const tabs = segmented(cats.map(([id, icon, label]) => [id, `${icon} ${translate(label)}`]), this.shopCat, (id) => {
       this.shopCat = id;
       this.render();
     });
@@ -1250,13 +1285,13 @@ export class Menu {
       return { id, icon, label, owned: owned.filter(mine), placed: placed.filter(mine) };
     }).filter((g) => g.owned.length || g.placed.length);
     const size = (g) => g.owned.reduce((n, e) => n + e.count, 0) + g.placed.length;
-    const tabList = [['todos', '🎒 Todos'], ...groups.map((g) => [g.id, `${g.icon} ${g.label} ${size(g)}`])];
+    const tabList = [['todos', '🎒 Todos'], ...groups.map((g) => [g.id, `${g.icon} ${translate(g.label)} ${size(g)}`])];
     if (placed.length) tabList.push(['colocados', `🖥 Colocados ${placed.length}`]);
     if (!tabList.some(([id]) => id === this.invCat)) this.invCat = 'todos';
     const tabs = segmented(tabList, this.invCat, (id) => { this.invCat = id; this.render(); });
     tabs.classList.add('wrap');
     const rows = (g) => [...g.owned.map(ownedRow), ...g.placed.map(placedRow)];
-    const body = this.invCat === 'todos' ? groups.flatMap((g) => [h('div.group', { 'data-seg': g.id }, `${g.icon} ${g.label}`), ...rows(g)])
+    const body = this.invCat === 'todos' ? groups.flatMap((g) => [h('div.group', { 'data-seg': g.id }, `${g.icon} ${translate(g.label)}`), ...rows(g)])
       : this.invCat === 'colocados' ? placed.map(placedRow)
       : rows(groups.find((g) => g.id === this.invCat));
     // A espada equipada aparece no topo (Todos e na categoria dela), fora das listas de guardados/colocados.
@@ -1586,6 +1621,11 @@ export class Menu {
       h('div.group', {}, 'Comportamento'),
       toggle({ label: 'Usar emotes fora do Modo Streamer', value: c.emotesOutsideStreamer === true, onchange: (v) => app.setOption('emotesOutsideStreamer', v) }),
       toggle({ label: 'Rotina diária (saudações por período)', value: c.dayRoutine !== false, onchange: (v) => app.setOption('dayRoutine', v) }),
+      toggle({ label: translate('Não treinar'), value: !!(app.game.toys.boneco_treino?.noTrain || app.game.toys.boneco_treino?.autoOff), onchange: (v) => {
+        const t = app.game.toys.boneco_treino;
+        if (t) { t.noTrain = v; t.autoOff = v; app.game.changed(); }
+        this.render();
+      } }),
       toggle({ label: 'Começar Ouvir Música / Assistir sozinho', value: c.autoActivity !== false, onchange: (v) => app.setOption('autoActivity', v) }),
       toggle({ label: 'Reagir ao que acontece no desktop (janelas, mouse)', value: c.desktopReactions !== false, onchange: (v) => app.setOption('desktopReactions', v) }),
       toggle({ label: 'Achar jogos nos ícones da área de trabalho', value: c.desktopGames !== false, onchange: (v) => app.setOption('desktopGames', v) }),
@@ -2868,7 +2908,7 @@ export class ObjectsDialog extends Dialog {
       videogame: 'TV / Videogame', alvo: 'Arcade / Alvo', estante_cartuchos: 'Gaming Shelf',
     }[id]) || name;
     this.list = [
-      ...ITEMS.filter((i) => i.toy || i.cat === 'mobilia' || i.cat === 'fun').filter((i) => i.cat !== 'cartuchos')
+      ...ITEMS.filter((i) => i.toy || i.cat === 'mobilia' || i.cat === 'superficies' || i.cat === 'fun').filter((i) => i.cat !== 'cartuchos')
         .map((i) => [i.id, lookName(i.id, i.name), i.img, i]),
       ...OBJ_EXTRA.map(([id, name, img]) => [id, name, img, null]),
     ];

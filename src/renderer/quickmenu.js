@@ -3,6 +3,16 @@ import { itemById, HER_BAG } from './game.js';
 import { confirmStreamer } from './streamerconfirm.js';
 import { STREAM } from './edition.js';
 import { translate } from './i18n.js';
+
+// Element.append() stringifies null/undefined into visible "null"/"undefined" text.
+// Menus build their children conditionally, so drop empty values before attaching.
+const appendNodes = (parent, ...nodes) => {
+  for (const n of nodes.flat(Infinity)) {
+    if (n === null || n === undefined || n === false) continue;
+    parent.append(n instanceof Node ? n : document.createTextNode(String(n)));
+  }
+};
+
 export class QuickMenu {
   constructor(app) {
     this.app = app;
@@ -100,7 +110,7 @@ export class QuickMenu {
     vol.textContent = 'Volume';
     const bag = app.game.herBag();
     const cap = app.game.bagCap();
-    el.append(title,
+    appendNodes(el, title,
       (HER_BAG || bag.length) ? action(
         `🎒 Inventário dela (${bag.length}/${cap})`,
         HER_BAG ? 'Itens que ela guarda (hook, Syntoyo, consoles…)' : 'Bolsa pausada — só devolver itens que ainda estão nela',
@@ -146,13 +156,13 @@ export class QuickMenu {
       const bag = game.herBag();
       const cap = game.bagCap();
       title.textContent = `Inventário dela (${bag.length}/${cap})`;
-      el.append(title);
+      appendNodes(el,title);
       const note = document.createElement('div');
       note.className = 'qm-note';
       note.textContent = HER_BAG
         ? 'Comidas, bebidas e brinquedos · arraste do desktop · clique num slot para devolver ao seu inventário'
         : 'Bolsa dela pausada · clique num slot para devolver ao seu inventário';
-      el.append(note);
+      appendNodes(el,note);
       const grid = document.createElement('div');
       grid.className = 'her-bag-grid';
       for (let i = 0; i < cap; i++) {
@@ -173,7 +183,7 @@ export class QuickMenu {
         } else slot.textContent = '·';
         grid.append(slot);
       }
-      el.append(grid);
+      appendNodes(el,grid);
       const back = document.createElement('button');
       back.className = 'qm-item';
       back.innerHTML = '<span>‹ Voltar</span><b></b>';
@@ -183,7 +193,7 @@ export class QuickMenu {
         this.close();
         this.show(bx, by);
       };
-      el.append(back);
+      appendNodes(el,back);
     };
     // Drop a desktop toy onto the panel → she keeps it.
     el.addEventListener('pointerup', (e) => {

@@ -318,8 +318,8 @@ export const FURN_ITEMS = [
   item('videogame', 'mobilia', 'TV / VideoGame', 450, 'tvset', { furn: true, gain: { mood: 0.5 }, note: 'Senta de frente para a TV e joga qualquer cartucho · come pipoca e bebe refri enquanto joga' }),
   item('almofada', 'mobilia', 'Almofada', 90, 'almofada', { furn: true, gain: { mood: 0.2, energy: 0.12 }, note: 'Senta para descansar e brincar' }),
   item('banheira', 'mobilia', 'Banheira', 320, 'tub', { furn: true, gain: { hygiene: 6, mood: 0.3, energy: 0.05 }, note: 'Toma banho de espuma sozinha quando está suja · clique para mandar tomar banho' }),
-  item('estante', 'mobilia', 'Estante', 250, 'estante_icon', { furn: true, decor: true, noWear: true, note: 'Guarda 65 mangás ou 30 bonecos colecionáveis · pode ter várias · a Persocon lê e brinca sozinha' }),
-  item('estante_cartuchos', 'mobilia', 'Gaming Shelf', 250, 'estante_cart_icon', { furn: true, decor: true, noWear: true, note: 'Guarda cartuchos e os portáteis no topo · aceita só cartuchos · com ela a bolsa de cartuchos some · clique para ver a lista' }),
+  item('estante', 'superficies', 'Estante', 250, 'estante_icon', { furn: true, decor: true, noWear: true, note: 'Guarda 65 mangás ou 30 bonecos colecionáveis · pode ter várias · a Persocon lê e brinca sozinha' }),
+  item('estante_cartuchos', 'superficies', 'Gaming Shelf', 250, 'estante_cart_icon', { furn: true, decor: true, noWear: true, note: 'Guarda cartuchos e os portáteis no topo · aceita só cartuchos · com ela a bolsa de cartuchos some · clique para ver a lista' }),
   item('gacha', 'mobilia', 'Gacha-Machine', 600, 'gacha_icon', { furn: true, noWear: true, note: `Clique para girar (¥ ${GACHA_PRICE}, você paga) · ela também gira sozinha com a carteira dela · cápsulas Comum, Incomum, Rara e Épica: moedas (para você), comidas, bebidas e bonecos colecionáveis` }),
   item('slot', 'mobilia', 'Slot-Machine', 800, 'slot_icon', { furn: true, noWear: true, note: 'Ela aposta as moedas da carteira dela · os ganhos vão para você · clique para pedir uma rodada · a sorte vem da Afeição' }),
   item('claw', 'mobilia', 'Máquina de Garra', 700, 'claw_classica_static', {
@@ -347,19 +347,19 @@ export const FURN_ITEMS = [
     furn: true, noWear: true, gain: { mood: 0.1, energy: 0.04 },
     note: 'Cafeteira de filtro clássica, decorativa e interativa · nunca dá reação ruim',
   }),
-  item('escrivaninha', 'mobilia', 'Escrivaninha com Abajur', 260, 'escrivaninha', {
+  item('escrivaninha', 'superficies', 'Escrivaninha com Abajur', 260, 'escrivaninha', {
     furn: true, noWear: true, gain: { mood: 0.12, energy: 0.05 },
     note: 'Estuda e lê com a luz do abajur · treina Inteligência em sessões de foco · o abajur acende sozinho à noite',
   }),
-  item('balcao_madeira', 'mobilia', 'Balcão de Madeira', 340, 'balcao_base_1_madeira', {
+  item('balcao_madeira', 'superficies', 'Balcão de Madeira', 340, 'balcao_base_1_madeira', {
     furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/balcao_base_1_madeira.png',
     note: 'Balcão largo com tampo plano: apoie cafeteira, portáteis, pelúcia, mochila ou a TV em cima · várias coisas lado a lado · upgrade Synthwave',
   }),
-  item('balcao_cafeteria', 'mobilia', 'Balcão de Cafeteria', 380, 'balcao_base_2_cafeteria', {
+  item('balcao_cafeteria', 'superficies', 'Balcão de Cafeteria', 380, 'balcao_base_2_cafeteria', {
     furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/balcao_base_2_cafeteria.png',
     note: 'Balcão de café com tampo plano: apoie a máquina de espresso, a cafeteira, portáteis ou a mochila · várias coisas lado a lado · upgrade Synthwave Cyber',
   }),
-  item('prateleira_pelucias', 'mobilia', 'Prateleira de Pelúcias', 300, 'prateleira_pelucias_base', {
+  item('prateleira_pelucias', 'superficies', 'Prateleira de Pelúcias', 300, 'prateleira_pelucias_base', {
     furn: true, decor: true, noWear: true, imgAsset: './assets/furniture/prateleira_pelucias_base.png',
     note: 'Exibe até 15 pelúcias ganhas na Máquina de Garra · clique para ver a coleção · upgrade Synthwave neon',
   }),

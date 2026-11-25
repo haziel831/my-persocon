@@ -217,7 +217,10 @@ export class GameScreen {
     this.el.className = 'gb-screen hitzone';
     this.canvas = document.createElement('canvas');
     this.title = document.createElement('div');
-    this.el.append(this.canvas, this.title);
+    // Only shown on the upgraded TV: short periodic interference lines inside screenRect.
+    this.glitch = document.createElement('div');
+    this.glitch.className = 'tv-glitch';
+    this.el.append(this.canvas, this.title, this.glitch);
     document.body.appendChild(this.el);
     this.g = this.canvas.getContext('2d', { willReadFrequently: true });
     this.g.imageSmoothingEnabled = false; // pixel art stays crisp at every zoom
@@ -228,9 +231,12 @@ export class GameScreen {
   }
 
   // gb | gg | psp | tv: frame style of the screen (CSS via data-console).
-  setConsole(id) {
+  // `up` marks the upgraded Synthwave TV: old TV = B&W CRT, upgraded = full colour.
+  setConsole(id, up = false) {
     const key = id === 'gamegear' ? 'gamegear' : id === 'psp' ? 'psp' : id === 'tv' ? 'tv' : id || 'gb';
     this.el.dataset.console = key;
+    this.el.classList.toggle('tv-old', key === 'tv' && !up);
+    this.el.classList.toggle('tv-up', key === 'tv' && !!up);
     // Portátil: nunca herdar width/height inline da TV (esticava o casco cinza).
     if (key !== 'tv') {
       this.el.style.width = '';

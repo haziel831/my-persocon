@@ -1316,6 +1316,56 @@ body.screen-knock { animation: knock 0.38s; }
   background: repeating-linear-gradient(180deg, rgba(0,0,0,0.16) 0 1px, transparent 1px 4px),
     radial-gradient(ellipse at 50% 50%, transparent 70%, rgba(0,0,10,0.35) 100%);
   animation: crtFlicker 0.18s steps(2) infinite; }
+/* Old tube TV: high-contrast black & white, stronger CRT glass and a soft phosphor glow.
+   Everything stays inside screenRect (the .gb-screen box is exactly that rect). */
+.gb-screen[data-console="tv"].tv-old canvas { filter: grayscale(1) contrast(1.2) brightness(1.05); }
+.gb-screen[data-console="tv"].tv-up canvas { filter: saturate(1.18) contrast(1.1) brightness(1.04); }
+.gb-screen[data-console="tv"].tv-old {
+  box-shadow: 0 0 10px 3px rgba(210, 230, 255, 0.5), 0 0 28px 8px rgba(150, 190, 255, 0.28);
+}
+.gb-screen[data-console="tv"].tv-old::after { z-index: 1;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 7%, transparent 20%),
+    repeating-linear-gradient(180deg, rgba(0,0,0,0.3) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at 50% 50%, transparent 56%, rgba(0,0,0,0.6) 100%); }
+/* Slow scan bar: cheap transform-only animation, clipped with the rest of the overlay. */
+.gb-screen[data-console="tv"].tv-old::before { content: ''; position: absolute; left: 0; right: 0; top: -22%; height: 18%;
+  z-index: 2; pointer-events: none; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.07), transparent);
+  animation: crtSweep 7s linear infinite; }
+@keyframes crtSweep { to { transform: translateY(700%); } }
+/* Upgraded TV: vivid colour, thin cyan/magenta neon edge, light periodic cyber glitch.
+   The glow stays small so it reads as tube light without spilling over the TV frame. */
+.gb-screen[data-console="tv"].tv-up, .tv-show.tv-up {
+  box-shadow: 0 0 8px 1px rgba(0, 240, 255, 0.3), 0 0 12px 1px rgba(255, 42, 157, 0.18);
+}
+.gb-screen[data-console="tv"].tv-up::before, .tv-show.tv-up::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(135deg, #00f0ff 0%, #7a6cff 48%, #ff2a9d 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.gb-screen[data-console="tv"].tv-up canvas, .tv-show.tv-up canvas, .tv-show.tv-up iframe {
+  filter: saturate(1.22) contrast(1.14) brightness(1.05);
+  animation: tvGlitchContent 4.8s steps(1) infinite;
+}
+@keyframes tvGlitchContent {
+  0%, 91%, 100% { filter: saturate(1.22) contrast(1.14) brightness(1.05); transform: translateX(0); }
+  92% { filter: saturate(1.5) contrast(1.28) drop-shadow(2px 0 #00f0ff) drop-shadow(-2px 0 #ff2a9d); transform: translateX(2px); }
+  94% { filter: saturate(1.5) contrast(1.28) drop-shadow(1px 0 #ff2a9d) drop-shadow(-1px 0 #00f0ff); transform: translateX(-2px); }
+  96% { filter: saturate(1.35) contrast(1.2) drop-shadow(1px 0 #00f0ff); transform: translateX(1px); }
+}
+.tv-glitch { display: none; }
+.gb-screen[data-console="tv"].tv-up .tv-glitch, .tv-show.tv-up .tv-glitch {
+  display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(180deg, transparent 0 26%, rgba(0, 240, 255, 0.42) 26% 28%, transparent 28% 71%, rgba(255, 42, 157, 0.4) 71% 72.5%, transparent 72.5%);
+  animation: tvGlitchLines 4.8s steps(1) infinite;
+}
+@keyframes tvGlitchLines {
+  0%, 91%, 100% { opacity: 0; transform: translateX(0); }
+  92% { opacity: 1; transform: translateX(2px); }
+  94% { opacity: 0.75; transform: translateX(-2px); }
+  96% { opacity: 1; transform: translateX(1px); }
+}
 .tv-show { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; background: #05060c; overflow: hidden; border-radius: 2px; box-shadow: none; animation: none; }
 .tv-show canvas, .tv-show iframe { display: block; width: 100%; height: 100%; border: 0; image-rendering: pixelated; pointer-events: none;
   filter: saturate(1.18) contrast(1.1) brightness(1.04); }
@@ -1383,6 +1433,16 @@ body.app-hidden .bag-dock { opacity: 1; }
 }
 .sd-focus:hover { filter: brightness(1.2); transform: translateY(-1px); }
 .sd-focus:active { transform: translateY(0); filter: brightness(0.95); }
+.sd-toggles { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.sd-toggle { display: inline-flex; align-items: center; gap: 3px; padding: 1px 4px; border-radius: 5px; border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25); color: var(--muted); font: inherit; line-height: 1.2; cursor: pointer; white-space: nowrap; }
+.sd-toggle span { font-size: 1.05em; }
+.sd-toggle b { font-weight: 700; color: var(--muted); }
+.sd-toggle:hover { border-color: #9ff6ff; }
+.sd-toggle.on { border-color: #ff4fd8; background: rgba(255, 79, 216, 0.18); color: #ffb3e6; }
+.sd-toggle.on b { color: #ff6ad5; }
+.sd-toggle.sd-report { color: #ffb3e6; border-color: rgba(255, 79, 216, 0.55); }
+.sd-toggle.sd-report:hover { background: rgba(255, 79, 216, 0.18); }
 .sd-buffs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .sd-buffs span { padding: 0 4px; border-radius: 6px; background: rgba(255, 210, 63, 0.18); border: 1px solid rgba(255, 210, 63, 0.5); font-size: 0.9em; white-space: nowrap; }
 .sd-debuffs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
@@ -1690,6 +1750,7 @@ body.editing-furn .toy[data-id].broken { animation: none; }
 .fig { display: grid; justify-items: center; gap: 2px; padding: 6px 4px; border-radius: 8px; border: 1px solid var(--rc); background: rgba(0, 0, 0, 0.22); text-align: center; font-size: 10px; }
 .fig img { width: 36px; height: 50px; object-fit: contain; image-rendering: pixelated; filter: brightness(0) opacity(0.35); }
 .fig.own img { filter: drop-shadow(0 0 3px var(--rc)); }
+.fig.plush img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
 .album { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .album .photo { position: relative; display: grid; gap: 2px; padding: 5px 5px 4px; background: #fbfaf5; color: #333; border-radius: 3px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); font-size: 10px; text-align: center; }
 .album .photo img { width: 100%; display: block; cursor: zoom-in; }

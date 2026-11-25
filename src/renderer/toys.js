@@ -95,6 +95,7 @@ export class Toys {
         .filter((id) => !this.physical(id) || !pet.drained())
         .map((id) => ({ id, bag: true }));
       const dummyOk = game.toys.boneco_treino?.placed && !game.toys.boneco_treino.broken
+        && !game.toys.boneco_treino.noTrain && !game.toys.boneco_treino.autoOff
         && this.reach(game.toys.boneco_treino) && pet.stats.energy >= 50
         && now - (this.lastPlay.boneco_treino || 0) > 40000;
       // Prefer training on the dummy over solo weapon play when it is available.
@@ -102,7 +103,10 @@ export class Toys {
         if (pet.surfaceId !== 'floor') return { x: pet.x, play: (p) => p.startGround('hop') };
         return { x: this.spot('boneco_treino'), play: (p) => this.playDummy(p) };
       }
-      const ids = [...desk, ...bag].filter(({ id }) => baseId(id) !== 'boneco_treino' || pet.stats.energy >= 50);
+      const ids = [...desk, ...bag].filter(({ id }) => {
+        if (baseId(id) !== 'boneco_treino') return true;
+        return !game.toys.boneco_treino?.noTrain && !game.toys.boneco_treino?.autoOff && pet.stats.energy >= 50;
+      });
       if (!ids.length) return null;
       // Never plays from on top of a window: gets down to the floor first.
       if (pet.surfaceId !== 'floor') return { x: pet.x, play: (p) => p.startGround('hop') };
@@ -620,18 +624,21 @@ export class Toys {
         this.app.skins?.setObject('pelucia', null);
         this.app.doll?.setScale?.(1);
       });
-      if (game.gear.cristal) btn(game.dollAwake !== false ? '😴 Fazer o Doll dormir (parar de se mexer)' : '✨ Acordar o Doll', () => this.app.doll?.setAwake(game.dollAwake === false));
-      const learned = Object.keys(DOLL_SKILLS).filter((s) => dollHasSkill(app, s));
-      if (learned.length) {
-        const sub = document.createElement('div');
-        sub.className = 'menu-sub';
-        for (const s of learned) sub.append(Object.assign(document.createElement('div'), { textContent: `✓ ${translate(DOLL_SKILLS[s].name)}` }));
-        el.append(sub);
+      if (game.gear.cristal) btn(game.dollAwake === true ? '😴 Fazer o Doll dormir (parar de se mexer)' : '✨ Acordar o Doll', () => this.app.doll?.setAwake(game.dollAwake !== true));
+      // Skills and training stay a secret until the Cristal Mágico wakes the Doll.
+      if (game.dollAwake === true) {
+        const learned = Object.keys(DOLL_SKILLS).filter((s) => dollHasSkill(app, s));
+        if (learned.length) {
+          const sub = document.createElement('div');
+          sub.className = 'menu-sub';
+          for (const s of learned) sub.append(Object.assign(document.createElement('div'), { textContent: `✓ ${translate(DOLL_SKILLS[s].name)}` }));
+          el.append(sub);
+        }
+        btn('🎓 Ensinar skill ao Doll', () => {
+          this.closeMenu?.();
+          if (!this.app.doll?.brain?.startDuo('treinar', true)) sound.play('cancel', { volume: 0.4 });
+        });
       }
-      btn('🎓 Ensinar skill ao Doll', () => {
-        this.closeMenu?.();
-        if (!this.app.doll?.brain?.startDuo('treinar', true)) sound.play('cancel', { volume: 0.4 });
-      });
     }
     if (id === 'videogame' && t && !t.broken) {
       const tw = this.app.tvWatch;
@@ -677,6 +684,15 @@ export class Toys {
       btn('👊 Treinar corpo a corpo', () => train(false));
       // The heavy training only exists on the upgraded Scrap Dummy, and only by hand.
       if (t.up) btn('💥 Treino Pesado (luta de verdade)', () => train(true));
+      // Manual training always works; this only stops her from starting it on her own.
+      // Blocks every autonomous choice; manual training (the buttons above) still works.
+      const noTrain = !!t.noTrain;
+      const en = this.app.config.lang === 'en';
+      btn(`${translate('Não treinar')}: ${noTrain ? (en ? 'ON' : 'Ligado') : (en ? 'OFF' : 'Desligado')}`, () => {
+        t.noTrain = !noTrain;
+        t.autoOff = t.noTrain; // legacy saves still read autoOff
+        game.changed();
+      });
     }
     if (id === 'gacha' && !t?.broken) btn(`🎰 Girar a Gacha (¥ ${GACHA_PRICE}, você paga)`, () => this.casino.click(id, x, y));
     if (id === 'slot' && !t?.broken) btn(`🎰 Pedir para ela jogar (carteira dela: ¥ ${this.casino.wallet})`, () => this.casino.click(id, x, y));
@@ -1758,7 +1774,7 @@ export class Toys {
     }
     if (!this.screen.game || (tp.dollP2 && !this.screen.ai2)) {
       this.screen.start(cart, { skill: game.cartSkill(cart), vs: !!tp.versus || !!tp.dollP2, ai2: tp.dollP2 || 0 });
-      this.screen.setConsole?.(tp.console || 'gameboy');
+      this.screen.setConsole?.(tp.console || 'gameboy', tp.console === 'tv' && !!game.toys.videogame?.up);
     }
     if (tp.dollP2) {
       const [a, b] = this.screen.scores();

@@ -9,6 +9,7 @@ import { LOOT_ITEMS, RARITIES } from './lootitems.js';
 import { FOOD_ITEMS } from './consumables.js';
 import { MED_ITEMS } from './meditems.js';
 import { PLUSH_MIGRATION, plushById } from './plushies.js';
+import { SURFACES_CATEGORY } from './catalog.js';
 import './medicons.js';
 import { DEMO } from './edition.js';
 import { BAG_ITEMS as BAGGABLE } from './skills.js';
@@ -32,6 +33,7 @@ export const SHOP_CATEGORIES = [
   ['bebidas', '🥤', 'Bebidas'],
   ['sobremesas', '🍰', 'Sobremesas'],
   ['medicina', '💊', 'Medicamentos'],
+  SURFACES_CATEGORY,
   ['mangas', '📚', 'Mangás'],
   ['mobilia', '🛋', 'Mobília'],
   ['specials', '💎', 'Specials'],
@@ -335,6 +337,8 @@ export class Game {
     this.foodBagX = save?.foodBagX ?? null;
     this.perch = save?.perch || {};
     this.mangas = save?.mangas || [];
+    // Books are a future collection; keep the field so the Collection tab can show an empty state.
+    this.books = save?.books || [];
     // Saved desktop layouts ("setups"): the position of every object on the desktop.
     this.setups = Array.isArray(save?.setups) ? save.setups : [];
     // Collectible figures from the Gacha (kept on the shelves).
@@ -1241,7 +1245,7 @@ export class Game {
     return window.petAPI.storeSave({
       version: SAVE_VERSION, edition: EDITION, wishes: this.wishes, promos: this.promos, stats, inventory: this.inventory, coins: this.coins, profile: this.profile, toys: this.toys,
       cartridges: this.cartridges, cartridge: this.cartridge, bag: this.bag, bagX: this.bagX, buffs: this.pet.buffs, savedAt: Date.now(),
-      affection: this.pet.affection, gear: this.gear, foodBagX: this.foodBagX, perch: this.perch, mangas: this.mangas, figures: this.figures, plushies: this.plushies, dollSkin: this.dollSkin, dollScale: this.dollScale, dollModel: this.dollModel, dollAwake: this.dollAwake,
+      affection: this.pet.affection, gear: this.gear, foodBagX: this.foodBagX, perch: this.perch, mangas: this.mangas, books: this.books, figures: this.figures, plushies: this.plushies, dollSkin: this.dollSkin, dollScale: this.dollScale, dollModel: this.dollModel, dollAwake: this.dollAwake,
       deliveries: this.deliveries, queue: this.queue, disco: this.disco, setups: this.setups,
     }).catch(() => {});
   }

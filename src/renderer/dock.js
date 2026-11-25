@@ -4,6 +4,8 @@ import { DEBUFFS, getAffectionCap } from './behavior.js';
 import { BUFF_ICONS, BUFF_LABELS, itemById } from './game.js';
 import { translate } from './i18n.js';
 import { icon } from './pixel.js';
+import { STREAM } from './edition.js';
+import { recentLog } from './logger.js';
 
 export function createDock({ config, pet, game, app, sound, rewards, eventLog, isHidden, setHidden, toggleLogFilter, focusLabel }) {
   let el = null;
@@ -155,6 +157,22 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
     return `<div class="sd-queue"><b>${en ? 'Queue' : 'Fila'}</b>${chips.slice(0, 8).join('')}${chips.length > 8 ? `<em>+${chips.length - 8}</em>` : ''}</div>`;
   }
 
+  // Quick toggles just below the status bars: same ON/OFF style as the other dock chips.
+  function quickToggles() {
+    const streamer = STREAM && (!!window.__PET_STREAMER__ || !!config.streamer);
+    const ttsKey = streamer ? 'ttsEnabled' : 'offlineTts';
+    const ttsOn = streamer ? config.ttsEnabled !== false : config.offlineTts === true;
+    const aiOn = config.aiEnabled === true;
+    const pttOn = config.pttEnabled === true;
+    const chip = (key, glyph, label, on, tip) => `<button type="button" class="sd-toggle${on ? ' on' : ''}" data-toggle="${key}" title="${String(tip).replace(/[<>&"]/g, '')}"><span>${glyph}</span>${label}<b>${on ? 'ON' : 'OFF'}</b></button>`;
+    return `<div class="sd-toggles">`
+      + chip(ttsKey, '🗣', 'TTS', ttsOn, translate('Ligar/desligar TTS'))
+      + chip('aiEnabled', '🤖', translate('IA'), aiOn, translate('Ligar/desligar IA'))
+      + chip('pttEnabled', '🎙', 'PTT', pttOn, translate('Ligar/desligar Push-to-Talk'))
+      + `<button type="button" class="sd-toggle sd-report" data-report="1" title="${translate('Gerar bug report')}"><span>🐞</span>${translate('Bug')}</button>`
+      + '</div>';
+  }
+
   function buffChips() {
     const now = Date.now();
     const on = Object.entries(pet.buffs || {}).filter(([, time]) => time > now);
@@ -238,6 +256,30 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
         if (e.target.closest('.sd-focus')) {
           e.stopPropagation();
           app.pomodoro?.cancel?.();
+          return;
+        }
+        if (e.target.closest('.sd-report')) {
+          e.stopPropagation();
+          const info = [
+            `Data: ${new Date().toString()}`, `Navegador: ${navigator.userAgent}`,
+            `Tela: ${screen.width}x${screen.height} · dpr ${devicePixelRatio} · janela ${innerWidth}x${innerHeight}`,
+            `Modelo: ${config.modelDir} · ação ${pet.action} · modo ${pet.mode}`, `Status: ${JSON.stringify(pet.stats)}`,
+            '', '--- log recente ---', recentLog(),
+          ].join('\n');
+          window.petAPI?.makeReport?.(info).then((path) => {
+            if (!path) return;
+            sound?.play?.('ok');
+            app.gains?.show('OK', 'gain', `${translate('Relatório salvo em')}: ${path}`);
+          }).catch(() => sound?.play?.('cancel'));
+          return;
+        }
+        if (e.target.closest('.sd-toggle')) {
+          e.stopPropagation();
+          const key = e.target.closest('.sd-toggle').dataset.toggle;
+          const on = key === 'ttsEnabled' ? config[key] !== false : config[key] === true;
+          app.setOption(key, !on);
+          sound?.play?.('blip', { volume: 0.3 });
+          invalidate();
           return;
         }
         if (e.target.closest('.sd-hide') || isHidden()) return setHidden(!isHidden());
@@ -340,7 +382,7 @@ export function createDock({ config, pet, game, app, sound, rewards, eventLog, i
       + bar('❤️', (Math.min(s.health, maxHp) / maxHp) * 100, '#e2475a') + bar('🍗', s.hunger, '#f0a030') + bar('💧', s.thirst, '#3fa2e8')
       + bar('😊', s.mood, '#f2d23c') + bar('⚡', s.energy, '#62c94a') + bar('🛁', s.hygiene, '#7fd8d0')
       + bar('💗', Math.max(0, Math.min(100, (pet.affection / getAffectionCap()) * 100)), '#ff7eb6').replace('</i>', `</i><em>${Math.round(pet.affection)}</em>`)
-      + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock() + focusChip;
+      + quickToggles() + buffChips() + debuffChips() + missionChip() + queueChips() + wishChips() + logBlock() + chatLogBlock() + xpLogBlock() + focusChip;
     // Rebuilding the markup kills the click on the hide button and the selection, so only do it
     // when something visible actually changed.
     if (next !== html) {

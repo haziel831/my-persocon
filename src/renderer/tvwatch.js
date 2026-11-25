@@ -155,6 +155,12 @@ export class TvWatch {
     crtFilter();
     const el = document.createElement('div');
     el.className = 'tv-show';
+    if (this.app.game.toys.videogame?.up) {
+      el.classList.add('tv-up');
+      const glitch = document.createElement('div');
+      glitch.className = 'tv-glitch';
+      el.append(glitch);
+    }
     if (this.on.yt) {
       const id = this.on.yt;
       const f = document.createElement('iframe');

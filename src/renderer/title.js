@@ -7,6 +7,8 @@ import { translate } from './i18n.js';
 import { confirmStreamer } from './streamerconfirm.js';
 
 const LOGO_URL = new URL('./assets/logo.png', import.meta.url).href;
+// Resolved from this module (same folder as assets/) so it works in dev and in the packaged app.
+const TITLE_BG_URL = new URL('./assets/title_bg_synthwave_quote.gif', import.meta.url).href;
 
 const VERT = 'attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }';
 const FRAG = `
@@ -158,6 +160,11 @@ export class TitleScreen {
     this.root = el('div', 'title-back');
     this.root.dataset.noI18n = '';
     this.panel = el('div', 'title-panel hitzone');
+    // Dedicated animated background: behind the transparent WebGL logo canvas and the menu.
+    this.bg = el('img', 'title-bg');
+    this.bg.src = TITLE_BG_URL;
+    this.bg.alt = '';
+    this.bg.draggable = false;
     this.canvas = el('canvas', 'title-gl');
     this.nameEl = el('div', 'title-name');
     this.nameEl.append(pixelText('MY PERSOCON'));
@@ -170,7 +177,7 @@ export class TitleScreen {
     this.modeToast = el('div', 'title-mode-toast');
     this.menuEl = el('div', 'title-menu');
     this.langEl = el('div', 'title-lang');
-    this.panel.append(this.canvas, this.nameEl, this.badge, this.modeBadge, this.menuEl, this.langEl, this.modeToast);
+    this.panel.append(this.bg, this.canvas, this.nameEl, this.badge, this.modeBadge, this.menuEl, this.langEl, this.modeToast);
     this.refreshModeBadge();
     this.buildLang();
     this.root.append(this.panel);

@@ -1,6 +1,12 @@
 // Catálogo: opções/presets padrão, temas e utilitários de busca da Loja/Inventário.
 // Extraído de ui.js para manter o painel menor e o catálogo fácil de estender.
 
+// Superfícies de apoio têm aba própria na Loja e no Inventário.
+export const SURFACES_CATEGORY = ['superficies', '▤', 'Superfícies'];
+export const SURFACE_IDS = new Set([
+  'estante', 'estante_cartuchos', 'prateleira_pelucias',
+  'balcao_madeira', 'balcao_cafeteria', 'escrivaninha',
+]);
 
 // Defaults for options that changed after release (applied once to old configs, and by
 // "Restaurar padrões").
@@ -76,7 +82,7 @@ export function itemFlags(game, item) {
   // energéticos) e Medicamentos mantêm o próprio cat: um drink nunca é rotulado como remédio.
   if (item.cat === 'comidas' || item.cat === 'sobremesas') flags.push('comidas');
   if (item.toy || item.cat === 'fun') flags.push('brinquedos');
-  if (item.cat === 'mobilia') flags.push('moveis');
+  if (item.cat === 'mobilia' || item.cat === 'superficies') flags.push('moveis');
   const taste = game.tasteOf?.(item.id);
   if (taste === 'love') flags.push('favoritos');
   if (!taste || !game.count?.(item.id)) flags.push('novos');
@@ -89,7 +95,7 @@ const QUICK_CHIPS = [
 ];
 
 // `h` is the tiny DOM helper from ui.js; passing it avoids a circular import.
-export function makeCatalogTools(h, { shop, search, quick, onSearch, onQuick, onChange }) {
+export function makeCatalogTools(h, { shop, search, quick, onSearch, onQuick, onChange, quickChips = true }) {
   let input;
   input = h('input.catalog-search', {
     type: 'search',
@@ -107,14 +113,15 @@ export function makeCatalogTools(h, { shop, search, quick, onSearch, onQuick, on
       }
     },
   });
-  const row = h('div.quick-chips', {}, QUICK_CHIPS.map(([id, label]) => h(`button.quick-chip${quick === id ? '.active' : ''}`, {
+  // The Inventory shows everything by section: no quick-filter pills there.
+  const row = quickChips ? h('div.quick-chips', {}, QUICK_CHIPS.map(([id, label]) => h(`button.quick-chip${quick === id ? '.active' : ''}`, {
     'data-quick': id,
     onclick: () => {
       onQuick(id);
       for (const b of row.querySelectorAll('.quick-chip')) b.classList.toggle('active', b.dataset.quick === id);
       onChange();
     },
-  }, label)));
+  }, label))) : null;
   return h('div.catalog-tools', {}, input, row, h('div.catalog-empty', {}, 'Nada encontrado.'));
 }
 
