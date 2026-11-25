@@ -12,7 +12,7 @@ const tvActive = (app, pet) => !!app.tvWatch?.on
   || baseId(String(pet.toyPlay?.id || '')) === 'videogame';
 import { RARITIES } from './lootitems.js';
 import { dollBonus, dollWave, dollHasSkill } from './dollskills.js';
-import { PLUSHIES, plushById } from './plushies.js';
+import { PLUSHIES, plushById, resolvePlush } from './plushies.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
@@ -241,8 +241,10 @@ export const FURN = {
   balcao_cafeteria: { size: 1.5, ratio: 1 / 2.3, back: true },
   // Countertop espresso machines: compact, near-square art (~0.94:1), waist-high when
   // resting on a counter and small enough to perch on a desk.
-  cafeteira: { size: 0.5, ratio: 1 / 0.94, back: true },
-  espresso_barista: { size: 0.5, ratio: 1 / 0.94, back: true },
+  // Countertop appliances: ~34px tall at the default pet height (about half a counter),
+  // same near-square art ratio. Applies to idle, brewing, upgraded and perched alike.
+  cafeteira: { size: 0.36, ratio: 1 / 0.94, back: true },
+  espresso_barista: { size: 0.36, ratio: 1 / 0.94, back: true },
   vitrine_doces: { size: 0.62, ratio: 25 / 20, back: true },
   mesa_cafe: { size: 0.58, ratio: 28 / 19, back: true },
   mural: { size: 0.7, ratio: 22 / 30, back: true },
@@ -291,6 +293,8 @@ const PLUSH_SHELF_ART = {
   up: new URL('./assets/furniture/prateleira_pelucias_upgrade_synthwave.png', import.meta.url).href,
 };
 const plushShelfImgs = {};
+const hashCode = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0; return h; };
+const plushBaseImgs = new Map();   // arbitrary base art (built-in PNG or imported skin)
 const plushMinis = new Map();
 // The three handhelds stand on the ROOF of the Gaming Shelf, outside the internal rows:
 // each one has its own slot (left, center, right) and they shrink to fit side by side.
@@ -893,7 +897,7 @@ export class Furniture {
   plushShelfList() {
     const out = [];
     for (const [id, n] of Object.entries(this.app.game.plushies || {})) {
-      if (!plushById(id)) continue;
+      if (!resolvePlush(id)) continue;
       for (let i = 0; i < (n || 0) && out.length < 15; i++) {
         out.push({ plush: id, row: Math.floor(out.length / 5), col: out.length % 5 });
       }
@@ -901,52 +905,66 @@ export class Furniture {
     return out;
   }
 
-  // Placeholder icon for a plush id; cached like the manga covers (ready state is in the signature).
+  // Drop the composed art so the next render redraws it with the freshly loaded PNG.
+  invalidatePlushShelf() {
+    this.plushShelfArt?.clear();
+  }
+
+  // Cached miniature for a plush id; loading finished triggers a shelf recomposition.
   plushMini(id) {
     if (!id) return null;
     if (plushMinis.has(id)) return plushMinis.get(id);
-    const url = plushById(id)?.img;
+    const url = resolvePlush(id)?.img;
     if (!url) return null;
     const im = new Image();
-    im.onload = () => plushMinis.set(id, im);
+    im.onload = () => { plushMinis.set(id, im); this.invalidatePlushShelf(); };
+    im.onerror = () => this.app?.log?.('furniture', `PNG pelúcia não carregou: ${id}`);
     im.src = url;
     plushMinis.set(id, im);
     return im;
   }
 
-  // Same composition/cache pattern as shelfImage: native shelf art + one miniature per slot.
-  plushShelfImage(key) {
-    const up = !!this.app.game.toys[key]?.up;
-    const url = PLUSH_SHELF_ART[up ? 'up' : 'base'];
-    if (typeof document === 'undefined') return url;
-    const tier = up ? 'up' : 'base';
-    let base = plushShelfImgs[tier];
+  // Always compose the collected plushies over whatever base art was resolved (built-in PNG
+  // or an imported skin). Keeps the 15 slots identical in Normal, Upgrade and custom looks.
+  composePlushies(baseUrl, key, up = false) {
+    if (typeof document === 'undefined') return baseUrl;
+    let base = plushBaseImgs.get(baseUrl);
     if (!base) {
-      base = plushShelfImgs[tier] = new Image();
-      base.src = url;
+      base = new Image();
+      base.onload = () => this.invalidatePlushShelf();
+      base.onerror = () => this.app?.log?.('furniture', `PNG da prateleira não carregou: ${baseUrl}`);
+      base.src = baseUrl;
+      plushBaseImgs.set(baseUrl, base);
     }
     const ready = (im) => !!(im?.complete && im.naturalWidth);
-    const minis = this.plushShelfList().map((e) => ({ ...e, im: this.plushMini(e.plush) }));
-    const sig = `${up ? 'up' : 'base'}|${ready(base) ? 1 : 0}|${minis.map((e) => `${e.plush}.${ready(e.im) ? 1 : 0}`).join(',')}`;
+    const list = this.plushShelfList();
+    const minis = list.map((e) => ({ ...e, im: this.plushMini(e.plush) }));
+    const collection = Object.entries(this.app.game.plushies || {}).filter(([, n]) => n > 0)
+      .map(([id, n]) => `${id}x${n}`).join(',');
+    const sig = `${baseUrl}|${up ? 'up' : 'base'}|${ready(base) ? 1 : 0}|${list.length}|${collection}|${minis.map((e) => `${e.plush}.${ready(e.im) ? 1 : 0}`).join(',')}`;
     this.plushShelfArt ||= new Map();
     const cached = this.plushShelfArt.get(key);
     if (cached?.sig === sig) return cached.url;
     const W = up ? 82 : 83;
     const H = 92;
-    const name = `plush_shelf_${up ? 'up' : 'base'}_${String(key).replace(/[^a-z0-9]/gi, '')}`;
-    // Preparado para as PNGs definitivas: troque plushMini() em plushies.js e nada muda aqui.
+    const name = `plush_shelf_${String(key).replace(/[^a-z0-9]/gi, '')}_${Math.abs(hashCode(sig))}`;
+    // sprite().image() keeps imageSmoothingEnabled = false while drawing each PNG.
     defineIcons({ [name]: (sprite) => sprite(W, H, (p) => {
       if (ready(base)) p.image(base, 0, 0, base.naturalWidth, base.naturalHeight, 0, 0, W, H);
       for (const e of minis) {
         if (!ready(e.im)) continue;
-        const x = PLUSH_X(e.col);
-        const floor = PLUSH_FLOOR[e.row];
-        p.image(e.im, 0, 0, e.im.naturalWidth, e.im.naturalHeight, x, floor - PLUSH_MINI, PLUSH_MINI, PLUSH_MINI);
+        p.image(e.im, 0, 0, e.im.naturalWidth, e.im.naturalHeight,
+          PLUSH_X(e.col), PLUSH_FLOOR[e.row] - PLUSH_MINI, PLUSH_MINI, PLUSH_MINI);
       }
     }, undefined, false) });
     const out = refreshIcon(name);
     this.plushShelfArt.set(key, { sig, url: out });
     return out;
+  }
+
+  plushShelfImage(key) {
+    const up = !!this.app.game.toys[key]?.up;
+    return this.composePlushies(PLUSH_SHELF_ART[up ? 'up' : 'base'], key, up);
   }
 
   // The reserved slot of a handheld on the roof of the Gaming Shelf (left, center, right).

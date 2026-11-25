@@ -244,6 +244,7 @@ export class Toys {
     upgradeFx(this.app, this.els.get(id), up.name, () => {
       delete t.upgrading;
       t.up = 1;
+      game.upgraded[b] = true; // survives storing / replacing the item
       this.furn.shelfArt?.delete(id);
       game.changed();
       pet.adjust({ mood: 8 });
@@ -986,7 +987,8 @@ export class Toys {
     const w = this.size(k);
     const h = w * this.ratio(k);
     const s = this.shape(k);
-    const sunk = this.canPerch(k) && this.perchOf(k)?.on && !this.busy(k) ? h * (s?.bottom || 0) : 0;
+    const sunk = this.canPerch(k) && this.perchOf(k)?.on
+      && (!this.busy(k) || this.operatesInPlace(k)) ? h * (s?.bottom || 0) : 0;
     const box = (t?.y ?? this.floorY()) - h + sunk;
     const prof = s?.top;
     if (!prof || !t) return box;
@@ -1040,6 +1042,14 @@ export class Toys {
   busy(id) {
     const { pet, doll } = this.app;
     return pet.toyPlay?.id === id || doll?.brain?.task?.toy === id || this.pulling?.id === id;
+  }
+
+  // Machines (Gacha, Slot, Claw, vending/coffee stations) are operated IN PLACE: the pet stands
+  // beside them, so they must never drop to the floor while "busy" — even when perched on a counter.
+  operatesInPlace(id) {
+    const b = baseId(id);
+    return (b === 'gacha' || b === 'slot' || b === 'claw' || !!this.app.casino?.vend?.owns(b))
+      && this.pulling?.id !== id;
   }
 
   // ---------- food backpack ----------
@@ -1221,6 +1231,8 @@ export class Toys {
     const ratio = this.ratio('videogame');
     const w = base * sc;
     const h = w * ratio;
+    // Pinned perched TVs use toy.y verbatim (no shape-bottom correction, no interpolation)
+    // so the game screen and the sprite share one stable integer position.
     const baseY = t.y ?? this.floorY();
     const left = t.x - w / 2;
     // The sprite scales around its bottom centre: its visible top is baseY - h (h already
@@ -3052,7 +3064,14 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
       else if (b === 'banheira') artActive = /bath|banho/.test(pet.action || '');
       else if (b === 'escrivaninha') artActive = !!this.app.pomodoro?.active;
       else if (b === 'boneco_treino' || b === 'claw') artActive = skins?.isInUse?.(b) || false;
-      const src = (custom ? skins?.art(b, base, artActive, skinUp) : null) || deskArt || (up && !custom && upIcon(b, t)) || (bagUp && base) || skins?.art(b, base, artActive, skinUp) || base;
+      // These surfaces already compose their own Base/Upgrade art in Furniture.art(); using
+      // upIcon() here would replace it with the plain PNG and hide the collected plushies.
+      const composedSurface = b === 'prateleira_pelucias' || b === 'balcao_madeira' || b === 'balcao_cafeteria';
+      let src = (custom ? skins?.art(b, base, artActive, skinUp) : null) || deskArt
+        || (up && !custom && !composedSurface && upIcon(b, t)) || (bagUp && base)
+        || skins?.art(b, base, artActive, skinUp) || base;
+      // Plushies go on top of ANY base art — built-in, upgraded or imported — never skipped.
+      if (b === 'prateleira_pelucias') src = this.furn.composePlushies(src, id, up);
       const el = this.ensure(id, src);
       const img = el.querySelector('img:not(.mark)');
       if (img && img.getAttribute('src') !== src) img.src = src;
@@ -3104,19 +3123,31 @@ const restoreBase = (game.bagHas?.('gameboy') || (gb0 && (!gb0.placed || gb0.x =
         else Object.assign(t, { x: perch.x, y: perch.y });
         t.x = perch.x;
       }
-      let yb = perch ? (this.busy(id) ? floor : perch.y) : (this.canPerch(id) ? this.perchOf(id).y : t.y) ?? floor;
+      // A TV resting on a counter is pinned to that surface: no gravity, no 1-2px oscillation.
+      if (b === 'videogame' && t.on && this.app.game.toys[t.on]?.placed) {
+        t.y = this.topAt(t.on, t.x);
+      }
+      // Nothing that rests on a surface ever drops to the floor while in use; machines
+      // operated in place stay put even when sitting directly on the floor.
+      const grounded = this.busy(id) && !perch && !this.operatesInPlace(id);
+      let yb = perch ? (grounded ? floor : perch.y) : (this.canPerch(id) ? this.perchOf(id).y : t.y) ?? floor;
       const hp = this.hops?.get(id);
       if (hp) yb = hp.y;
-      else if (this.ys.has(id)) {
+      else if (perch) {
+        // On a surface the sprite and every overlay (TV screen, steam, cup) must share the
+        // SAME y as toy.y. Interpolating here made the TV jitter against its own screen.
+        yb = perch.y;
+        this.ys.delete(id);
+      } else if (this.ys.has(id)) {
         const c = this.ys.get(id);
         const n = c + (yb - c) * Math.min(1, dt * 9);
-        if (Math.abs(n - yb) < 0.5 && !perch) this.ys.delete(id);
+        if (Math.abs(n - yb) < 0.5) this.ys.delete(id);
         else this.ys.set(id, n);
         yb = n;
-      } else if (perch) this.ys.set(id, yb);
+      }
       let y = yb - size * ratio;
       // On furniture: the empty rows at the bottom of its own picture go below the top, so it touches it.
-      if (perch && !this.busy(id)) y += size * ratio * (this.shape(id)?.bottom || 0);
+      if (perch && !grounded && b !== 'videogame') y += size * ratio * (this.shape(id)?.bottom || 0);
       if (this.pulling?.id === id && pet.hook) y = this.pulling.tgt.y - size * ratio * 0.5;
       el.style.width = `${size}px`;
       el.style.height = `${Math.round(size * ratio)}px`;

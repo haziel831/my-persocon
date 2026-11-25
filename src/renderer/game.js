@@ -339,6 +339,10 @@ export class Game {
     this.mangas = save?.mangas || [];
     // Books are a future collection; keep the field so the Collection tab can show an empty state.
     this.books = save?.books || [];
+    // Upgrades survive storing/replacing an item: decor records are deleted on pick-up, so the
+    // flag lives here. Older saves derive it from the placed toys.
+    this.upgraded = save?.upgraded || {};
+    for (const [key, t] of Object.entries(this.toys)) if (t?.up) this.upgraded[baseId(key)] = true;
     // Saved desktop layouts ("setups"): the position of every object on the desktop.
     this.setups = Array.isArray(save?.setups) ? save.setups : [];
     // Collectible figures from the Gacha (kept on the shelves).
@@ -444,8 +448,16 @@ export class Game {
   // Claw Machine collection: counts by plush id (duplicates still counted).
   addPlushie(id) {
     (this.plushies ||= {})[id] = (this.plushies[id] || 0) + 1;
-    // Redraw the shelf right away: its cache signature includes the collection.
+    // Redraw the shelf right away: clear the composition cache and push the new art into
+    // every placed shelf element (the render loop can skip a frame while the claw is busy).
     this.app?.toys?.furn?.plushShelfArt?.clear();
+    const toys = this.app?.toys;
+    for (const [key, el] of Object.entries(toys?.els || {})) {
+      if (baseId(key) !== 'prateleira_pelucias') continue;
+      const src = toys.furn.plushShelfImage(key);
+      const img = el.querySelector?.('img:not(.mark)');
+      if (img) img.src = src;
+    }
     this.changed();
   }
 
@@ -1000,12 +1012,13 @@ export class Game {
       if (!this.count(id)) return null;
       let key = id;
       for (let n = 2; this.toys[key]; n++) key = `${id}#${n}`;
-      this.toys[key] = { uses: 0, maxUses: 0, broken: false, placed: true, x, display, ...this.disco[id] };
+      this.toys[key] = { uses: 0, maxUses: 0, broken: false, placed: true, x, display, ...this.disco[id], up: !!this.upgraded[id] };
       this.take(id);
       return key;
     }
     const t = this.toys[id];
     if (!t || t.placed || t.broken) return null;
+    if (this.upgraded[id]) t.up = 1;
     t.placed = true;
     t.x = x;
     t.y = t.on = t.dx = undefined;
@@ -1028,6 +1041,7 @@ export class Game {
     return;
   }
     if (itemById(id)?.decor) {
+      if (t.up) this.upgraded[id] = true;
       delete this.toys[key];
       this.inventory[id] = this.count(id) + 1;
     } else {
@@ -1245,7 +1259,7 @@ export class Game {
     return window.petAPI.storeSave({
       version: SAVE_VERSION, edition: EDITION, wishes: this.wishes, promos: this.promos, stats, inventory: this.inventory, coins: this.coins, profile: this.profile, toys: this.toys,
       cartridges: this.cartridges, cartridge: this.cartridge, bag: this.bag, bagX: this.bagX, buffs: this.pet.buffs, savedAt: Date.now(),
-      affection: this.pet.affection, gear: this.gear, foodBagX: this.foodBagX, perch: this.perch, mangas: this.mangas, books: this.books, figures: this.figures, plushies: this.plushies, dollSkin: this.dollSkin, dollScale: this.dollScale, dollModel: this.dollModel, dollAwake: this.dollAwake,
+      affection: this.pet.affection, gear: this.gear, foodBagX: this.foodBagX, perch: this.perch, mangas: this.mangas, books: this.books, figures: this.figures, plushies: this.plushies, upgraded: this.upgraded, dollSkin: this.dollSkin, dollScale: this.dollScale, dollModel: this.dollModel, dollAwake: this.dollAwake,
       deliveries: this.deliveries, queue: this.queue, disco: this.disco, setups: this.setups,
     }).catch(() => {});
   }

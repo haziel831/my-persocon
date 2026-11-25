@@ -2,6 +2,13 @@
 // Minecraft resourcepack (1.20.1 layout), then the built-in pixel art.
 import { translate } from './i18n.js';
 const TEX = 'assets/minecraft/textures/';
+// Built-in Claw Machine GIFs: decoded once through the same GIF parser used for imported skins.
+const CLAW_GIFS = {
+  'base-idle': new URL('./assets/claw/claw_classica_idle.gif', import.meta.url).href,
+  'base-used': new URL('./assets/claw/claw_classica_used.gif', import.meta.url).href,
+  'up-idle': new URL('./assets/claw/claw_synthwave_idle.gif', import.meta.url).href,
+  'up-used': new URL('./assets/claw/claw_synthwave_used.gif', import.meta.url).href,
+};
 const SND = 'assets/minecraft/sounds/';
 
 // Object id -> resourcepack texture(s). 'food' is the supplies bag (barrel), 'bag' the cartridge bag (chest).
@@ -454,6 +461,12 @@ export class Skins {
     this._artState = new Map();
     this._artAt = new Map();
     this._artHold = new Map();
+    // Built-in claw animation cache (lazy, one decode per GIF).
+    this._clawFrames = {};
+    this._clawPending = new Map();
+    this._clawState = new Map();
+    this._clawAt = new Map();
+    this._clawHold = new Map();
     this.version = 0;
     this.error = '';
     globalThis.petSkins = this;
@@ -540,6 +553,59 @@ export class Skins {
     this.rp = null;
     if (this.app.config?.theme === 'resourcepack') this.app.setOption?.('theme', 'padrao');
     this.applyRp();
+  }
+
+  // Decode a built-in Claw GIF once, using the same deterministic parser as imported GIFs.
+  _clawGif(key) {
+    if (this._clawFrames[key]) return this._clawFrames[key];
+    if (!this._clawPending.has(key)) {
+      this._clawPending.set(key, (async () => {
+        try {
+          const blob = await (await fetch(CLAW_GIFS[key])).blob();
+          const dataUrl = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(blob);
+          });
+          return decodeGif(dataUrl, 160);
+        } catch (e) {
+          this.app?.log?.('skins', `GIF claw ${key}: ${e?.message || e}`);
+          return null;
+        }
+      })().then((parsed) => { this._clawFrames[key] = parsed; return parsed; }));
+    }
+    return this._clawFrames[key] || null;
+  }
+
+  // Current frame of the default Claw art: idle loops; "used" restarts at frame 0 and is held
+  // for one full cycle before returning to idle. Custom imported skins are handled by art().
+  clawFrame(active, up = false) {
+    const tier = up ? 'up' : 'base';
+    const key = `claw:${tier}`;
+    const idle = this._clawGif(`${tier}-idle`);
+    const used = this._clawGif(`${tier}-used`);
+    const now = performance.now();
+    let on = !!active;
+    const wasOn = this._clawState.get(key) || false;
+    if (on !== wasOn) {
+      this._clawState.set(key, on);
+      this._clawAt.set(key, now); // restart at frame 0 on every state change
+    }
+    const total = (set) => (set?.delays || []).reduce((a, b) => a + b, 0) || 100;
+    const hold = this._clawHold.get(key);
+    if (!on && used && hold && now < hold.until) on = true;
+    if (on && used && (!hold || now >= hold.until)) this._clawHold.set(key, { until: now + total(used) });
+    else if (!on && hold && now >= hold.until) this._clawHold.delete(key);
+    const set = on && used ? used : idle;
+    if (!set?.frames?.length) return null;
+    const start = this._clawAt.get(key) || 0;
+    let t = (now - start) % total(set);
+    for (let i = 0; i < set.frames.length; i++) {
+      t -= set.delays[i] || 100;
+      if (t < 0) return set.frames[i];
+    }
+    return set.frames[0];
   }
 
   // Shared "in use" test for dual-state objects. Kept here so the stage renderer, the

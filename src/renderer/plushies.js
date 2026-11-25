@@ -28,6 +28,18 @@ export const PLUSHIES = [
 
 export const plushById = (id) => PLUSHIES.find((p) => p.id === id) || null;
 
+// Resolves IDs saved by older builds, short names and filenames with/without .png to the
+// definitive plush entry, so a legacy save still draws the right sprite on the shelf.
+export function resolvePlush(id) {
+  if (!id) return null;
+  const raw = String(id).trim().toLowerCase().replace(/\.png$/i, '');
+  const mapped = PLUSH_MIGRATION[raw] || raw;
+  return PLUSHIES.find((p) =>
+    p.id.toLowerCase() === mapped
+    || p.name.toLowerCase() === mapped
+    || p.img.split('/').pop().toLowerCase().replace(/\.png$/i, '') === mapped) || null;
+}
+
 // Old save ids from the placeholder build are folded into the new ids; anything unknown is
 // dropped instead of breaking a save.
 export const PLUSH_MIGRATION = {

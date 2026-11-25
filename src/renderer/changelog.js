@@ -1,6 +1,11 @@
 // In-app changelog: only from Full Release (1.0) onward (also shown in the Demo).
 // Each line is [pt, en] — the panel picks the Persocon's language.
 export const CHANGES = [
+  ['2.2', [
+    ['Máquina de Garra com GIFs nativos animados, pelúcias reais e prateleira que exibe a coleção de 15 peças', 'Claw Machine with animated native GIFs, real plushies and a shelf that displays the 15-piece collection'],
+    ['Móveis de superfície (balcões e estantes), cafeteiras compactas que não caem ao preparar café e upgrades que sobrevivem ao guardar', 'Surface furniture (counters and shelves), compact coffee machines that stay put while brewing and upgrades that survive storing'],
+    ['Push-to-Talk no jogo normal com transcrição Groq Whisper, TV antiga/P&B vs Synthwave colorida e correções de menus', 'Push-to-Talk in the normal game with Groq Whisper transcription, vintage B&W vs colourful Synthwave TV and menu fixes'],
+  ]],
   ['2.1', [
     ['Push-to-Talk com prioridade absoluta, comandos naturais em inglês e português e resposta direta sem precisar dizer o nome dela', 'Push-to-Talk with absolute priority, natural commands in English and Portuguese, and direct replies without saying her name'],
     ['TV com tela 4:3 pixel-perfect, quadrado de exemplo para ajustar a área e correção do travamento em ação de minigame', '4:3 pixel-perfect TV screen, sample square to adjust the area, and fix for the stuck minigame action'],

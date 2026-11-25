@@ -7,6 +7,9 @@ Para lançar uma versão nova: mude `"version"` no `package.json` (e em `src-tau
 
 A partir da v1.1.1, cada modificação gerada sobe 0.0.1 (v1.1.2, v1.1.3...).
 
+## v2.2 — 25/11/2026
+**Coleções e superfícies.** Máquina de Garra com GIFs padrão animados (decodificados pelo mesmo parser das skins), 15 pelúcias definitivas com nomes PT/EN e popup de prêmio, e prateleira que exibe as peças coletadas em 3 andares × 5 posições. Novos balcões/estantes como superfícies de apoio, cafeteiras compactas que permanecem sobre o balcão enquanto preparam café, e upgrade que não some ao guardar e recolocar o móvel. Push-to-Talk passa a funcionar no jogo normal com gravação real e transcrição via Groq Whisper (fallback para SpeechRecognition), TV antiga em preto e branco com CRT e TV Synthwave colorida com neon/glitch, categorias de Superfícies e correções de Quick Menu/status dock.
+
 ## v2.1 — 24/11/2026
 **Voz, TV e estabilidade.** Push-to-Talk com prioridade absoluta (interrompe TTS/chat, foco no usuário, resposta no topo da fila, comandos naturais PT/EN, espera indefinida da preferência de TTS do chat e retenção estendida do avatar). TV com tela 4:3 pixel-perfect, quadrado de exemplo arrastável/redimensionável, atalho no menu e posição dos portáteis corrigida. Correção do travamento em `ação mini` (duo do Corvo/Doll), reações de minigames, banho sem corte do corpo e posse única da bolsa "Inventário". Doze emotes uniformes da Aghata (6 novos), novos controles no Quick Menu (Usar IA, Emotes comigo, Pausar & Silenciar na bandeja), música cyberpunk "Chrome Requiem", menu do Doll respeitando Cristal Mágico/despertar, editor de skins com auto-save e diagnóstico com chaves mascaradas.
 

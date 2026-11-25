@@ -130,9 +130,11 @@ export class Casino {
   // As máquinas usam o pixel art novo (alts/): PNG parado, GIF animado enquanto ela opera.
   art(id) {
     if (id === 'claw') {
-      // Native GIFs: static PNG for idle, animated GIF for the whole "used" cycle.
-      // A custom skin imported in Change Look takes priority (see Furniture.art).
+      // A custom skin wins in Furniture.art; here we animate the built-in GIFs frame by frame.
       const up = !!this.app.game.toys.claw?.up;
+      const frame = this.app.skins?.clawFrame?.(this.clawActive, up);
+      if (frame) return frame;
+      // Until the lazy decode finishes, show the native GIF (browser may hold frame 0).
       return `assets/claw/${up ? 'claw_synthwave' : 'claw_classica'}_${this.clawActive ? 'used.gif' : 'idle.gif'}`;
     }
     if (this.vend.owns(id)) return this.vend.art(id);
