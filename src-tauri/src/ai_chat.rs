@@ -1,11 +1,8 @@
-// Short AI replies for Twitch chat. Uses curl.exe so no extra network crates
-// are needed; keys stay in the local config and are never written to the repo.
+// Short AI replies for Twitch chat. Uses curl so no extra network crates are needed;
+// keys stay in the local config and are never written to the repo.
 use serde_json::{json, Value};
 use std::fs;
-use std::os::windows::process::CommandExt;
 use std::process::Command;
-
-const NO_WINDOW: u32 = 0x0800_0000;
 
 /// First non-empty trimmed value among the accepted aliases.
 fn field(entry: &Value, keys: &[&str]) -> String {
@@ -61,10 +58,11 @@ fn curl_json(url: &str, headers: &[String], body: &Value, secrets: &[&str]) -> R
             % 1_000_000
     ));
     fs::write(&file, serde_json::to_vec(body).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-    let mut cmd = Command::new("curl.exe");
-    // Windows/Schannel can hang on CRL revocation checks; -4 avoids slow IPv6 paths.
+    let mut cmd = Command::new(crate::curl_bin());
+    // Windows/Schannel can hang on CRL revocation checks; OpenSSL on Linux rejects the flag.
+    #[cfg(target_os = "windows")]
+    cmd.arg("--ssl-no-revoke");
     cmd.arg("-4")
-        .arg("--ssl-no-revoke")
         .arg("-sS")
         .arg("--connect-timeout")
         .arg("8")
@@ -81,8 +79,8 @@ fn curl_json(url: &str, headers: &[String], body: &Value, secrets: &[&str]) -> R
         .arg(format!("@{}", file.to_string_lossy()))
         .arg("-w")
         .arg("\n%{http_code}")
-        .arg(url)
-        .creation_flags(NO_WINDOW);
+        .arg(url);
+    crate::no_window(&mut cmd);
     let out = cmd.output();
     let _ = fs::remove_file(&file);
     let out = out.map_err(|e| format!("erro ao executar curl (rede/TLS): {e}"))?;

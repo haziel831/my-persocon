@@ -6,6 +6,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::{Foundation::SYSTEMTIME, System::SystemInformation::GetLocalTime};
 
 const MAX_FILES: usize = 5;
@@ -22,12 +23,37 @@ struct Logger {
 }
 
 // (AAAA-MM-DD, HH:MM:SS.mmm) in local time.
+#[cfg(target_os = "windows")]
 fn now() -> (String, String) {
     let mut t: SYSTEMTIME = unsafe { std::mem::zeroed() };
     unsafe { GetLocalTime(&mut t) };
     (
         format!("{:04}-{:02}-{:02}", t.wYear, t.wMonth, t.wDay),
         format!("{:02}:{:02}:{:02}.{:03}", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds),
+    )
+}
+
+#[cfg(not(target_os = "windows"))]
+fn now() -> (String, String) {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let secs = d.as_secs() as i64;
+    let days = secs.div_euclid(86400);
+    let sod = secs.rem_euclid(86400);
+    // Civil date from days since 1970-01-01 (UTC; no tz database in the alpha).
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = y + if month <= 2 { 1 } else { 0 };
+    (
+        format!("{:04}-{:02}-{:02}", year, month, day),
+        format!("{:02}:{:02}:{:02}.{:03}", sod / 3600, (sod / 60) % 60, sod % 60, d.subsec_millis()),
     )
 }
 

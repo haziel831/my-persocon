@@ -1,22 +1,29 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
 mod audio;
 mod tts;
 mod stream_bridge;
 mod ai_chat;
+#[cfg(target_os = "windows")]
 mod desktop;
+#[cfg(not(target_os = "windows"))]
+mod desktop_linux;
+#[cfg(not(target_os = "windows"))]
+use desktop_linux as desktop;
 mod logfile;
 mod model_io;
+#[cfg(target_os = "windows")]
 mod win32;
+#[cfg(not(target_os = "windows"))]
+mod win32_linux;
+#[cfg(not(target_os = "windows"))]
+use win32_linux as win32;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
-    ffi::OsStr,
     fs,
-    os::windows::ffi::OsStrExt,
-    os::windows::process::CommandExt,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering},
@@ -33,11 +40,26 @@ use tauri::{
     WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
+#[cfg(target_os = "windows")]
+use std::os::windows::{ffi::OsStrExt, process::CommandExt};
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
 // Zip imports (resourcepacks) must not be allowed to exhaust memory, even if the archive lies
 // about its uncompressed sizes or is deliberately malformed.
+// Windows uses curl.exe + CREATE_NO_WINDOW (Schannel); Linux uses plain curl/OpenSSL.
+#[cfg(target_os = "windows")]
+pub(crate) fn curl_bin() -> &'static str { "curl.exe" }
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn curl_bin() -> &'static str { "curl" }
+
+#[cfg(target_os = "windows")]
+pub(crate) fn no_window(cmd: &mut std::process::Command) { cmd.creation_flags(0x0800_0000); }
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn no_window(_cmd: &mut std::process::Command) {}
+
 const MAX_ZIP_ENTRY_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_ZIP_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
 
@@ -479,11 +501,12 @@ fn fetch_midi_blocking(url: &str) -> Result<String, String> {
         return Err("Link inválido.".into());
     }
     let path = std::env::temp_dir().join(format!("persocon-mid-{}-{}.bin", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)));
-    let status = std::process::Command::new("curl.exe")
+    let mut cmd = std::process::Command::new(curl_bin());
+    no_window(&mut cmd);
+    let status = cmd
         .args(["-fsSL", "--max-time", "20", "--max-filesize", "2097152", "-L", "-A", "MyPersocon", "-o"])
         .arg(&path)
         .arg(url)
-        .creation_flags(0x08000000)
         .status()
         .map_err(|_| "Não deu para baixar o MIDI".to_string());
     let bytes = fs::read(&path);
@@ -722,18 +745,27 @@ async fn import_save(app: AppHandle, state: State<'_, PetState>) -> Result<bool,
     Ok(true)
 }
 
+#[cfg(target_os = "windows")]
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 
+#[cfg(target_os = "windows")]
 fn reg(args: &[&str]) -> bool {
-    use std::os::windows::process::CommandExt;
-    std::process::Command::new("reg").args(args).creation_flags(0x0800_0000).output().map(|o| o.status.success()).unwrap_or(false)
+    let mut cmd = std::process::Command::new("reg");
+    no_window(&mut cmd);
+    cmd.args(args).output().map(|o| o.status.success()).unwrap_or(false)
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn get_autostart() -> bool {
     reg(&["query", RUN_KEY, "/v", APP_NAME])
 }
 
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+fn get_autostart() -> bool { false }
+
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn set_autostart(value: bool) -> Result<bool, String> {
     let ok = if value {
@@ -743,6 +775,12 @@ fn set_autostart(value: bool) -> Result<bool, String> {
         !get_autostart() || reg(&["delete", RUN_KEY, "/v", APP_NAME, "/f"])
     };
     if ok { Ok(value) } else { Err("registry".into()) }
+}
+
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+fn set_autostart(_value: bool) -> Result<bool, String> {
+    Ok(false) // autostart is not wired up in the Linux alpha
 }
 
 /// Recursively masks any field whose name looks like a credential. Used only on the copy of
@@ -958,6 +996,7 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
     } else if !preview && !combate {
         // Start interactive. The renderer switches to click-through only when it knows the
         // cursor is over empty space — starting ignored swallowed every click (incl. the intro box).
+        #[cfg(target_os = "windows")]
         if let Ok(h) = win.hwnd() {
             win32::set_tool_window(h.0 as _);
         }
@@ -965,12 +1004,14 @@ fn build_window<M: Manager<tauri::Wry>>(app: &M, streamer: bool, preview: bool, 
     Ok(win)
 }
 
+#[cfg(target_os = "windows")]
 fn wide(s: &str) -> Vec<u16> {
-    OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+    std::ffi::OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
 }
 
 // Opens the local control panel as a normal tab in the user's default browser.
 // No --app= window: that mode duplicated panels and confused OBS window capture.
+#[cfg(target_os = "windows")]
 fn open_url_in_browser(url: &str) {
     let operation = wide("open");
     let file = wide(url);
@@ -986,6 +1027,13 @@ fn open_url_in_browser(url: &str) {
     };
     if (r as isize) <= 32 {
         logfile::line("ERROR", "streamer", &format!("não foi possível abrir {url}"));
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn open_url_in_browser(url: &str) {
+    if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
+        logfile::line("ERROR", "streamer", &format!("xdg-open falhou para {url}: {e}"));
     }
 }
 
@@ -1113,8 +1161,11 @@ async fn transcribe_audio(state: State<'_, PetState>, audio_b64: String, mime: S
                 .unwrap_or_default().as_nanos() % 1_000_000, ext));
         fs::write(&file, &bytes).map_err(|e| e.to_string())?;
         let language = if lang.starts_with("en") { "en" } else { "pt" };
-        let mut cmd = std::process::Command::new("curl.exe");
-        cmd.arg("-4").arg("--ssl-no-revoke").arg("-sS")
+        let mut cmd = std::process::Command::new(curl_bin());
+        // --ssl-no-revoke exists only in Schannel (Windows curl.exe); OpenSSL curl rejects it.
+        #[cfg(target_os = "windows")]
+        cmd.arg("--ssl-no-revoke");
+        cmd.arg("-4").arg("-sS")
             .arg("--connect-timeout").arg("8").arg("--max-time").arg("30")
             .arg("-X").arg("POST")
             .arg("-H").arg(format!("Authorization: Bearer {key}"))
@@ -1122,8 +1173,8 @@ async fn transcribe_audio(state: State<'_, PetState>, audio_b64: String, mime: S
             .arg("-F").arg("model=whisper-large-v3-turbo")
             .arg("-F").arg(format!("language={language}"))
             .arg("-w").arg("\n%{http_code}")
-            .arg("https://api.groq.com/openai/v1/audio/transcriptions")
-            .creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+            .arg("https://api.groq.com/openai/v1/audio/transcriptions");
+        no_window(&mut cmd);
         let out = cmd.output();
         let _ = fs::remove_file(&file);
         let out = out.map_err(|e| format!("erro ao executar curl (rede/TLS): {e}"))?;

@@ -7,9 +7,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
-use std::os::windows::process::CommandExt;
-
-const NO_WINDOW: u32 = 0x0800_0000;
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 static TTS_CHARS: AtomicU64 = AtomicU64::new(0);
@@ -26,15 +23,22 @@ fn lock() -> std::sync::MutexGuard<'static, Option<Session>> {
     SESSION.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+#[cfg(target_os = "windows")]
+fn python_bin(dir: &Path) -> std::path::PathBuf { dir.join("resources/python/python.exe") }
+#[cfg(not(target_os = "windows"))]
+fn python_bin(_dir: &Path) -> std::path::PathBuf { std::path::PathBuf::from("python3") }
+
 fn spawn(dir: &Path) -> Result<Session, String> {
-    let python = dir.join("resources/python/python.exe");
+    let python = python_bin(dir);
     let script = dir.join("resources/voxforge-neural.py");
-    if !python.is_file() || !script.is_file() { return Err("TTS não encontrado.".into()); }
-    let mut child = Command::new(python).arg(script)
+    if !script.is_file() { return Err("TTS não encontrado.".into()); }
+    let mut cmd = Command::new(python);
+    crate::no_window(&mut cmd);
+    let mut child = cmd.arg(script)
         .env("PYTHONUTF8", "1")
         .env("PYTHONIOENCODING", "utf-8")
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
-        .creation_flags(NO_WINDOW).spawn().map_err(|e| e.to_string())?;
+        .spawn().map_err(|e| e.to_string())?;
     let stdin = child.stdin.take().ok_or("stdin indisponível")?;
     let stdout = BufReader::new(child.stdout.take().ok_or("stdout indisponível")?);
     Ok(Session { dir: dir.to_path_buf(), child, stdin, stdout })
@@ -198,6 +202,9 @@ pub fn speak_remote(
     api_key: &str,
     fish_voice: &str,
 ) -> Result<String, String> {
+    #[cfg(not(target_os = "windows"))]
+    return Err("Voz remota (PowerShell) indisponível no Linux alpha.".into());
+    #[cfg(target_os = "windows")]
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     let tmp = std::env::temp_dir();
     let script = tmp.join(format!("persocon-tts-remote-{}.ps1", std::process::id()));
@@ -206,7 +213,9 @@ pub fn speak_remote(
     fs::write(&script, REMOTE_PS).map_err(|e| e.to_string())?;
     fs::write(&input, text.as_bytes()).map_err(|e| e.to_string())?;
     TTS_CHARS.fetch_add(text.chars().count() as u64, Ordering::Relaxed);
-    let result = Command::new("powershell")
+    let mut cmd = Command::new("powershell");
+    crate::no_window(&mut cmd);
+    let result = cmd
         .arg("-NoProfile").arg("-ExecutionPolicy").arg("Bypass").arg("-File")
         .arg(&script)
         .arg("-Engine").arg(engine)
@@ -218,7 +227,6 @@ pub fn speak_remote(
         .arg("-PitchHz").arg(pitch_hz.to_string())
         .arg("-ApiKey").arg(api_key)
         .arg("-FishVoice").arg(fish_voice)
-        .creation_flags(NO_WINDOW)
         .output();
     let cleanup = || { let _ = fs::remove_file(&script); let _ = fs::remove_file(&input); let _ = fs::remove_file(&output); };
     match result {

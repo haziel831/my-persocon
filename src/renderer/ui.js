@@ -1744,7 +1744,9 @@ export class Menu {
       h('div.note', {}, 'Cria um .zip com versão, configurações, save e logs recentes para enviar ao desenvolvedor.'),
       this.promoRow(),
       app.version ? h('div.note.build-stamp', { 'data-no-i18n': '' },
-        `My Persocon v${app.version} · ${editionLabel()} · ${translate('Carregado em')} ${app.loadedAt?.toLocaleString() || ''}`) : null,
+        (/Linux/i.test(navigator.platform || '') || /Linux/i.test(navigator.userAgent || ''))
+          ? `My Persocon ${app.version} — Linux (Alpha) · ${translate('Carregado em')} ${app.loadedAt?.toLocaleString() || ''}`
+          : `My Persocon v${app.version} · ${editionLabel()} · ${translate('Carregado em')} ${app.loadedAt?.toLocaleString() || ''}`) : null,
       this.debugRows(),
     );
   }
