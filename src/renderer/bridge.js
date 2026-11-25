@@ -33,15 +33,14 @@ window.petAPI = {
   streamerTakeRpc: () => STREAM ? invoke('streamer_take_rpc') : Promise.resolve([]),
   openStreamerPanel: (mode) => streamInvoke('open_streamer_panel', { mode }),
   listOpenWindows: () => invoke('list_open_windows'),
-  aiReply: (prompt, systemPrompt, config) => !STREAM
-    ? Promise.resolve({ text: '', usedProvider: '', fallbackNotice: '', errors: [] })
-    : invoke('ai_reply', { prompt, systemPrompt, config })
-        .then((r) => typeof r === 'string'
-          ? { text: r, usedProvider: '', fallbackNotice: '', errors: [] }
-          : (r || {}))
-        .catch((e) => { throw new Error(String(e?.message || e || 'erro de IA')); }),
-  onPttStart: (cb) => streamListen('ptt-start', () => cb()),
-  onPttStop: (cb) => streamListen('ptt-stop', () => cb()),
+  // PTT and AI replies work in the plain edition too (the host commands are always available).
+  aiReply: (prompt, systemPrompt, config) => invoke('ai_reply', { prompt, systemPrompt, config })
+    .then((r) => typeof r === 'string'
+      ? { text: r, usedProvider: '', fallbackNotice: '', errors: [] }
+      : (r || {}))
+    .catch((e) => { throw new Error(String(e?.message || e || 'erro de IA')); }),
+  onPttStart: (cb) => listen('ptt-start', () => cb()),
+  onPttStop: (cb) => listen('ptt-stop', () => cb()),
   ttsVoices: (dir) => invoke('tts_voices', { dir }),
   ttsSpeak: (dir, text, voice, lang, speed, blend) => invoke('tts_speak', { dir, text, voice, lang, speed, blend }),
   ttsQuota: () => invoke('tts_quota'),

@@ -315,6 +315,7 @@ export async function startPet(files, config) {
       if (key === 'filter' || key === 'filterStrength') applyFilter(canvas, view, config.filter || 'nenhum', pet.P, config.filterStrength ?? 1);
       if (key === 'alwaysOnTop') api.setAlwaysOnTop?.(value).catch?.(() => {});
       if (key === 'clickThrough') refreshInteractive();
+      if (key === 'pttEnabled') app.voiceInput?.setEnabled?.(value);
       if (key === 'streamer' || key === 'streamerBg') applyStreamer();
       if (key === 'soundSeed') sound.reseed();
       if (key === 'lang') {
@@ -337,6 +338,7 @@ export async function startPet(files, config) {
       if ('filter' in patch || 'filterStrength' in patch) applyFilter(canvas, view, config.filter || 'nenhum', pet.P, config.filterStrength ?? 1);
       if ('alwaysOnTop' in patch) api.setAlwaysOnTop?.(!!patch.alwaysOnTop).catch?.(() => {});
       if ('clickThrough' in patch) refreshInteractive();
+      if ('pttEnabled' in patch) app.voiceInput?.setEnabled?.(!!patch.pttEnabled);
       if ('streamer' in patch || 'streamerBg' in patch) applyStreamer();
       if ('lang' in patch) setLang(patch.lang);
       api.saveConfig(patch).catch((e) => api.log('save failed', e));
@@ -649,10 +651,10 @@ export async function startPet(files, config) {
   app.weather = new Weather(app);
   app.trio = new Trio(app);
   app.tts = new VoiceTTS(app);
-  // The plain 2.0 edition keeps StreamAlerts (its emote/FX helpers are used by the normal game)
-  // but never starts Twitch, PTT or the stage chat box.
+  // The plain edition has no Twitch/stage chat box, but Push-to-Talk works in both modes:
+  // it is a direct voice channel to the creator (commands + AI + offline TTS).
   app.chatBox = STREAM && window.__PET_STREAMER__ ? new StreamChatBox(app) : null;
-  app.voiceInput = STREAM ? new VoiceInput(app) : null;
+  app.voiceInput = new VoiceInput(app);
   app.twitch = STREAM ? new TwitchChat(app) : null;
   // Session state for the first-chat TTS preference (AWAITING_TTS_PREFERENCE).
   app.chatTtsConfigured = false;

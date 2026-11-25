@@ -113,6 +113,19 @@ export class VoiceInput {
     this.pushedText = `${this.pushedText || ''}${said} `;
   }
 
+  // Immediate response to the PTT toggle (dock / Quick Menu / Options), in both editions.
+  setEnabled(on) {
+    if (on || !this.active) return;
+    this.active = false;
+    this.text = '';
+    try { this.rec?.stop(); } catch {}
+    this.rec = null;
+    this.indicator.style.display = 'none';
+    this.partial.textContent = '';
+    this.releasePriority();
+    this.app.log?.('ptt', 'Push-to-Talk desligado');
+  }
+
   start() {
     if (this.active || this.app.config.pttEnabled !== true) return;
     this.active = true;
@@ -122,9 +135,11 @@ export class VoiceInput {
     this.beep();
     this.indicator.style.display = 'block';
     if (!this.supported) {
+      this.app.log?.('ptt', 'SpeechRecognition indisponível neste navegador/webview');
       this.app.speech?.say(this.app.config.lang === 'en'
         ? 'Voice recognition is not available here.'
         : 'Reconhecimento de voz não disponível aqui.', 3);
+      this.scheduleRelease(2000);
       return;
     }
     try {
@@ -145,11 +160,23 @@ export class VoiceInput {
         if (final) { this.text += `${final} `; this.say(final); }
         this.partial.textContent = interim || (this.text ? this.text.slice(-60) : '');
       };
-      rec.onerror = (e) => { this.text = ''; this.app.pushStreamerState?.(true); };
+      rec.onerror = (e) => {
+        const why = String(e?.error || 'erro desconhecido');
+        this.text = '';
+        this.app.log?.('ptt', `Falha no reconhecimento: ${why}`);
+        // Never fail silently: a short, discreet notice works in both editions.
+        if (why !== 'no-speech' && why !== 'aborted') {
+          this.app.speech?.say(this.app.config.lang === 'en'
+            ? 'Microphone or voice recognition failed.'
+            : 'Falha no microfone ou no reconhecimento de voz.', 3, { noAutoTts: true });
+        }
+        this.app.pushStreamerState?.(true);
+      };
       rec.start();
       this.rec = rec;
-    } catch {
+    } catch (e) {
       this.text = '';
+      this.app.log?.('ptt', `Não foi possível iniciar a captura: ${e?.message || e}`);
     }
   }
 

@@ -99,7 +99,8 @@ static DISPLAY: AtomicUsize = AtomicUsize::new(0);
 static ON_TOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 // Streamer Mode: a normal (decorated, resizable, taskbar) transparent window for OBS instead of
 // the full-monitor overlay; the world is the window's client area.
-// Build flag: the plain 2.0 edition sets this to false (no stream tray items / PTT polling).
+// Build flag: the plain 2.0 edition sets this to false (no stream tray items). PTT key polling
+// is independent of this flag — it also runs in the normal game.
 const STREAM_BUILD: bool = true;
 static STREAMER: AtomicBool = AtomicBool::new(false);
 // Tray "Pause & Mute": silences audio and freezes need decay while the creator is in a call.
@@ -1710,7 +1711,9 @@ fn main() {
                 if let Some(key) = config.get("pttKey").and_then(Value::as_str) {
                     PTT_KEY.store(ptt_vk(key), Ordering::Release);
                 }
-                if STREAM_BUILD { start_ptt_polling(app.handle().clone()); }
+                // Global PTT key capture is available in the plain (non-streamer) edition too.
+                // app.emit() broadcasts the edge to every window, including the main one.
+                start_ptt_polling(app.handle().clone());
                 start_world_polling(app.handle().clone());
             }
             Ok(())
